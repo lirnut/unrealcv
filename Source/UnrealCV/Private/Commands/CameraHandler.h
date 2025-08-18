@@ -94,4 +94,17 @@ private:
 	FExecStatus SetMotionBlurParams(const TArray<FString>& Args);
 
 	FExecStatus SetFocalParams(const TArray<FString>& Args);
+
+	FExecStatus SetCameraAudioRecord(const TArray<FString>& Args);
+	FExecStatus StartCameraAudioRecord(const TArray<FString>& Args);
+	FExecStatus StopCameraAudioRecord(const TArray<FString>& Args);
+	Audio::FMixerDevice* GetAudioMixer(const TArray<FString>& Args, FExecStatus& ExecStatus);
+
+	FExecStatus GetHWObs(const TArray<FString>& Args);
+	FExecStatus GetHWObsV1(const TArray<FString>& Args);
+	FExecStatus GetHWObsV2(const TArray<FString>& Args);
+	FExecStatus GetHWObsV3(const TArray<FString>& Args);
+
+	FExecStatus GetCameraOneObjMask(const TArray<FString>& Args);
+
 };

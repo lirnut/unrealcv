@@ -46,6 +46,14 @@ public:
 	// virtual void OnRegister() override;
 	virtual bool GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut);
 
+	/** Get rgbm data */
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSeg, int& InOutWidth, int& InOutHeight);
+
+	/** Get one object mask data */
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetObjMask(FString ObjId, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
+
 	/** Get rgb data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void GetLit(TArray<FColor>& LitData, int& InOutWidth, int& InOutHeight, ELitMode LitMode = ELitMode::Lit);
@@ -180,5 +188,16 @@ protected:
 	https://github.com/EpicGames/UnrealEngine/blob/4.16/Engine/Source/Editor/LevelEditor/Private/SLevelViewport.cpp#L3908
 	*/
 
+public:
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	UDepthCamSensor* GetDepthCamSensor() const { return DepthCamSensor; }
 
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	UNormalCamSensor* GetNormalCamSensor() const { return NormalCamSensor; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	UAnnotationCamSensor* GetAnnotationCamSensor() const { return AnnotationCamSensor; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	ULitCamSensor* GetLitCamSensor() const { return LitCamSensor; }
 };

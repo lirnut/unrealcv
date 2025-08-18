@@ -48,6 +48,10 @@ public class UnrealcvBuildConfig
 			"Projects", // Support IPluginManager
 			"RHI", // Support low-level RHI operation
 			"Json",
+			"AVEncoder",
+			"AudioCapture",
+            "AudioCaptureCore",
+            "AudioMixer"
 		});
 
 		EditorPrivateDependencyModuleNames.AddRange(

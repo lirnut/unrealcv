@@ -12,6 +12,10 @@
 #include "NormalCamSensor.h"
 #include "AnnotationCamSensor.h"
 
+#include "Utils/UObjectUtils.h"
+#include "Component/AnnotationComponent.h"
+#include "SL.h"
+
 UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -95,6 +99,103 @@ bool UFusionCamSensor::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& V
 	{
 		return false;
 	}
+}
+
+
+void UFusionCamSensor::GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSeg, int& InOutWidth, int& InOutHeight)
+{
+	if (LitCamSensor->CheckTextureTarget()) {
+		LitCamSensor->InitTextureTarget(this->FilmWidth, this->FilmHeight);
+		if (!LitCamSensor->CheckTextureTarget()) {
+			SL::get().print("LitCamSensor InitTextureTarget failed.");
+			UE_LOG(LogUnrealCV, Error, TEXT("No TextureTarget."));
+			return;
+		}
+	}
+	if (!AnnotationCamSensor->CheckTextureTarget()) {
+		AnnotationCamSensor->InitTextureTarget(this->FilmWidth, this->FilmHeight);
+		if (!AnnotationCamSensor->CheckTextureTarget()) {
+			SL::get().print("AnnotationCamSensor InitTextureTarget failed.");
+			UE_LOG(LogUnrealCV, Error, TEXT("No TextureTarget."));
+			return;
+		}
+	}
+
+	LitCamSensor->CaptureScene();
+
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+	AnnotationCamSensor->GetAnnotationComponents(this->GetWorld(), ComponentList);
+	AnnotationCamSensor->ShowOnlyComponents = ComponentList;
+	AnnotationCamSensor->CaptureScene();
+
+	LitCamSensor->ReadCaptureResults(DataRGB);
+	AnnotationCamSensor->ReadCaptureResults(DataSeg);
+
+	int32 LitW = LitCamSensor->GetFilmWidth();
+	int32 LitH = LitCamSensor->GetFilmHeight();
+	int32 SegW = AnnotationCamSensor->GetFilmWidth();
+	int32 SegH = AnnotationCamSensor->GetFilmHeight();
+
+	SL::get().printf("UFusionCamSensor::GetLitSeg DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
+	SL::get().printf("UFusionCamSensor::GetLitSeg DataSeg size: %d, width: %d, height: %d", DataSeg.Num(), SegW, SegH);
+
+	if (!((LitW == SegW) && (LitH == SegH)))
+	{
+		SL::get().print("ERROR: Rendered frame size does not match.");
+		UE_LOG(LogUnrealCV, Error, TEXT("Rendered frame size does not match."));
+		DataRGB.Empty();
+		DataSeg.Empty();
+		return;
+	}
+	InOutWidth = LitW;
+	InOutHeight = LitH;
+}
+
+static void CollectShowOnlyForActor(
+    AActor* Actor, UWorld* World,
+    TArray<TWeakObjectPtr<UPrimitiveComponent>>& OutComponents)
+{
+    OutComponents.Reset();
+    if (!IsValid(World) || !IsValid(Actor)) return;
+
+    {
+        TArray<UAnnotationComponent*> AnnotationComps;
+        Actor->GetComponents<UAnnotationComponent>(AnnotationComps, /*bIncludeFromChildActors*/ true);
+
+        for (UAnnotationComponent* C : AnnotationComps)
+        {
+            if (IsValid(C) && C->IsRegistered() && C->GetWorld() == World)
+            {
+                OutComponents.Add(C);
+            }
+        }
+    }
+}
+
+void UFusionCamSensor::GetObjMask(FString ObjId, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
+{
+	SL::get().print("GetObjMask called");
+
+	AActor* Actor = GetActorById(FUnrealcvServer::Get().GetWorld(), ObjId);
+	if (!Actor) {UE_LOG(LogUnrealCV, Error, TEXT("Can not find object")); return;}
+	
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+	CollectShowOnlyForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
+	SL::get().printf("ComponentList Num: %d", ComponentList.Num());
+
+	auto* CamSensor = this->AnnotationCamSensor;
+	// auto* CamSensor = this->LitCamSensor;
+	CamSensor->ShowOnlyComponents = ComponentList;
+	CamSensor->CaptureScene();
+	CamSensor->ReadCaptureResults(Data);
+	InOutWidth = CamSensor->GetFilmWidth();
+	InOutHeight = CamSensor->GetFilmHeight();
+	if (Data.Num() == 0) 
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Captured obj mask data is empty."));
+		return;
+	}
+	SL::get().print("GetObjMask returned");
 }
 
 void UFusionCamSensor::GetLit(TArray<FColor>& LitData, int& Width, int& Height, ELitMode LitMode)

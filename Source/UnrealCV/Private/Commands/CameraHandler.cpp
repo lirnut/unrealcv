@@ -7,6 +7,19 @@
 #include "Runtime/Engine/Classes/GameFramework/Controller.h"
 #include "Misc/Paths.h"
 
+#include "AudioDevice.h"
+#include "AudioMixerDevice.h"
+#include "Sound/SoundWave.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include <Serialization/BufferArchive.h>
+#include "SL.h"
+#include "ST.h"
+#include "Utils/UObjectUtils.h"
+#include "Controller/ActorController.h"
+#include "AnnotationCamSensor.h"
+#include "LitCamSensor.h"
+
 #include "CommandDispatcher.h"
 #include "FusionCamSensor.h"
 #include "Serialization.h"
@@ -728,8 +741,505 @@ FExecStatus FCameraHandler::SetFocalParams(const TArray<FString>& Args)
 }
 
 
+Audio::FMixerDevice* FCameraHandler::GetAudioMixer(const TArray<FString>& Args, FExecStatus& ExecStatus)
+{
+	SL::get().print("FCameraHandler::GetAudioMixer called");
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) return nullptr;
+
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
+	FVector CamLocation = FusionCamSensor->GetSensorLocation();
+	FRotator CamRotation = FusionCamSensor->GetSensorRotation();
+
+	FAudioDevice* AudioDevice = World->GetAudioDeviceRaw();
+	if (!AudioDevice) {
+		ExecStatus = FExecStatus::Error("No audio device");
+		return nullptr;
+	}
+
+	int32 SensorId = FCString::Atoi(*Args[0]);
+	FTransform ListenerTransform(CamRotation, CamLocation);
+	AudioDevice->SetListener(
+		World,
+		SensorId,
+		ListenerTransform,
+		0.0f // DeltaTime
+	);
+
+	Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
+	if (!MixerDevice) {
+		ExecStatus = FExecStatus::Error("No mixer device");
+		return nullptr;
+	}
+	SL::get().print("FCameraHandler::GetAudioMixer returned");
+	return MixerDevice;
+}
+
+// void SetSubmix(AActor* Actor, USoundSubmix* TargetSubmix) {
+// 	TArray<UAudioComponent*> AudioComponents;
+// 	Actor->GetComponents<UAudioComponent>(AudioComponents);
+
+// 	if (AudioComponents.Num() == 0)
+// 	{
+// 		UE_LOG(LogTemp, Warning, TEXT("Actor %s has no audio components!"), *Actor->GetName());
+// 	}
+// 	else
+// 	{
+// 		// 2. 把它们的输出 Submix 改为 TargetSubmix
+// 		for (UAudioComponent* AudioComp : AudioComponents)
+// 		{
+// 			if (AudioComp && AudioComp->Sound)
+// 			{
+// 				// 设置音频输出到我们的专用 Submix
+// 				AudioComp->Sound->SoundSubmix = TargetSubmix;
+
+// 				UE_LOG(LogTemp, Log, TEXT("Redirected %s's audio to TargetSubmix"), *Actor->GetName());
+// 			}
+// 		}
+// 	}
+
+// }
+
+FExecStatus FCameraHandler::StartCameraAudioRecord(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::StartCameraAudioRecord called");
+	FExecStatus ExecStatus = FExecStatus::OK();
+	Audio::FMixerDevice* MixerDevice = GetAudioMixer(Args, ExecStatus);
+	if (MixerDevice == nullptr) {
+		return ExecStatus;
+	}
+	FString target_name = TEXT("");
+	USoundSubmix* TargetSubmix = nullptr;
+	if (Args.Num() >= 3) {
+		target_name = Args[2];
+
+		AActor* TargetActor = GetActorById(FUnrealcvServer::Get().GetWorld(), target_name);
+		if (!TargetActor) {
+			ExecStatus = FExecStatus::Error("No such actor");
+			return ExecStatus;
+		}
+
+		TargetSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass());
+
+	}
+
+	MixerDevice->StartRecording(nullptr, 100.0f);
+	SL::get().print("FCameraHandler::StartCameraAudioRecord returned");
+	return ExecStatus;
+}
+
+FExecStatus FCameraHandler::StopCameraAudioRecord(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::StopCameraAudioRecord called");
+	FExecStatus ExecStatus = FExecStatus::OK();
+	Audio::FMixerDevice* MixerDevice = GetAudioMixer(Args, ExecStatus);
+	if (MixerDevice == nullptr) {
+		return ExecStatus;
+	}
+
+	float NumChannels = 1.0f;
+	float SampleRate = 44.1 * 1000;
+	Audio::FAlignedFloatBuffer& RecordedBuffer = MixerDevice->StopRecording(nullptr, NumChannels, SampleRate);
+
+	TArray<int16> PCM16Data;
+	PCM16Data.Reserve(RecordedBuffer.Num());
+
+	for (float Sample : RecordedBuffer)
+	{
+		// Clamp 到 [-1.0, 1.0] 再转为 int16
+		float Clamped = FMath::Clamp(Sample, -1.0f, 1.0f);
+		PCM16Data.Add((int16)(Clamped * 32767.0f));
+	}
+
+	// 写 WAV 文件头 + 数据
+	FString Filename = TEXT("C:\\Users\\hulc\\Desktop\\x.wav");
+	FBufferArchive WaveData;
+
+	int32 NumSamples = PCM16Data.Num();
+	int32 NumBytes = NumSamples * sizeof(int16);
+
+	// 写 WAV Header (PCM 16-bit, NumChannels, SampleRate)
+	WaveData.Serialize((void*)"RIFF", 4);
+	int32 ChunkSize = 36 + NumBytes;
+	WaveData << ChunkSize;
+	WaveData.Serialize((void*)"WAVE", 4);
+
+	// fmt chunk
+	WaveData.Serialize((void*)"fmt ", 4);
+	int32 SubChunk1Size = 16;
+	WaveData << SubChunk1Size;
+	int16 AudioFormat = 1; // PCM
+	WaveData << AudioFormat;
+	int16 Channels = (int16)NumChannels;
+	WaveData << Channels;
+	int32 SR = (int32)SampleRate;
+	WaveData << SR;
+	int32 ByteRate = SR * Channels * sizeof(int16);
+	WaveData << ByteRate;
+	int16 BlockAlign = Channels * sizeof(int16);
+	WaveData << BlockAlign;
+	int16 BitsPerSample = 16;
+	WaveData << BitsPerSample;
+
+	// data chunk
+	WaveData.Serialize((void*)"data", 4);
+	WaveData << NumBytes;
+	WaveData.Serialize(PCM16Data.GetData(), NumBytes);
+
+	// 保存到文件
+	FFileHelper::SaveArrayToFile(WaveData, *Filename);
+	WaveData.FlushCache();
+	WaveData.Empty();
+
+	SL::get().print("FCameraHandler::StopCameraAudioRecord returned");
+	return ExecStatus;
+}
+
+FExecStatus FCameraHandler::SetCameraAudioRecord(const TArray<FString>& Args)
+{
+	FExecStatus ExecStatus = FExecStatus::OK();
+	if (Args.Num() < 1)
+	{
+		FString Msg = TEXT("No sensor id is available");
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Msg);
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	if (Args.Num() < 2)
+	{
+		FString Msg = TEXT("No on/off command available");
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Msg);
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	bool StartRecord;
+	if (Args[1] == FString("on")) {
+		StartRecord = true;
+	}
+	else if (Args[1] == FString("off")) {
+		StartRecord = false;
+	}
+	else {
+		FString Msg = FString::Printf(TEXT("Invalid on/off command '%s'"), *Args[1]);
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Msg);
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	if (StartRecord) {
+		return StartCameraAudioRecord(Args);
+	}
+	else {
+		return StopCameraAudioRecord(Args);
+	}
+
+}
+
+
+FExecStatus FCameraHandler::GetHWObs(const TArray<FString>& Args) {
+	return GetHWObsV3(Args);
+}
+
+FExecStatus FCameraHandler::GetHWObsV3(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::GetHWObsV3 called");
+
+	FExecStatus ExecStatus = FExecStatus::OK();
+	if (Args.Num() != 3) {
+		FString Msg = TEXT("Invalid command length.");
+		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	FString TargetId = Args[2];
+	FString FileName = Args[1];
+	int32 index;
+	if (!FileName.FindLastChar(TEXT('.'), index)) {
+		FString msg = TEXT("File name is not a path, binary is not supported.");
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+	UAnnotationCamSensor* AnnotationCamSensor = FusionCamSensor->GetAnnotationCamSensor();
+	ULitCamSensor* LitCamSensor = FusionCamSensor->GetLitCamSensor();
+	if (LitCamSensor->CheckTextureTarget()) {
+		LitCamSensor->InitTextureTarget(FusionCamSensor->GetFilmWidth(), FusionCamSensor->GetFilmHeight());
+		if (!LitCamSensor->CheckTextureTarget()) {
+			SL::get().print("LitCamSensor InitTextureTarget failed.");
+			ExecStatus = FExecStatus::Error("LitCamSensor InitTextureTarget failed.");
+			return ExecStatus;
+		}
+	}
+	if (!AnnotationCamSensor->CheckTextureTarget()) {
+		AnnotationCamSensor->InitTextureTarget(FusionCamSensor->GetFilmWidth(), FusionCamSensor->GetFilmHeight());
+		if (!AnnotationCamSensor->CheckTextureTarget()) {
+			SL::get().print("AnnotationCamSensor InitTextureTarget failed.");
+			ExecStatus = FExecStatus::Error("AnnotationCamSensor InitTextureTarget failed.");
+			return ExecStatus;
+		}
+	}
+
+	TArray<FColor> DataRGB, DataM, DataRGBNoTarget;
+	FString FileNameRGB = FileName; FileNameRGB.InsertAt(index, TEXT("_rgb"));
+	FString FileNameM = FileName; FileNameM.InsertAt(index, TEXT("_mask"));
+	FString FileNameRGBNoTarget = FileName; FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target"));
+
+	LitCamSensor->CaptureScene();
+
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+	AnnotationCamSensor->GetAnnotationComponents(this->GetWorld(), ComponentList);
+	AnnotationCamSensor->ShowOnlyComponents = ComponentList;
+	AnnotationCamSensor->CaptureScene();
+
+	AActor* Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+	if (!Target) {
+		ExecStatus = FExecStatus::Error("Can not find target");
+		SL::get().print("Can not find target");
+		return ExecStatus;
+	}
+	FActorController TargetController(Target);
+
+
+	LitCamSensor->ReadCaptureResults(DataRGB);
+	int32 LitW = LitCamSensor->GetFilmWidth();
+	int32 LitH = LitCamSensor->GetFilmHeight();
+	SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
+
+	TargetController.Hide();
+	LitCamSensor->CaptureScene();
+
+	AnnotationCamSensor->ReadCaptureResults(DataM);
+	int32 SegW = AnnotationCamSensor->GetFilmWidth();
+	int32 SegH = AnnotationCamSensor->GetFilmHeight();
+	SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), SegW, SegH);
+
+
+	if (DataRGB.Num() == LitW * LitH) {
+		SerializeData(DataRGB, LitW, LitH, FileNameRGB);
+	} else {
+		SL::get().print("DataRGB size is not equal to LitW * LitH");
+	}
+	if (DataM.Num() == SegW * SegH) {
+		SerializeData(DataM, SegW, SegH, FileNameM);
+	} else {
+		SL::get().print("DataM size is not equal to SegW * SegH");
+	}
+
+	LitCamSensor->ReadCaptureResults(DataRGBNoTarget);
+	SL::get().printf("FCameraHandler::GetHWObs DataRGBNoTarget size: %d, width: %d, height: %d", DataRGBNoTarget.Num(), LitW, LitH);
+	TargetController.Show();
+
+	if (DataRGBNoTarget.Num() == LitW * LitH) {
+		SerializeData(DataRGBNoTarget, LitW, LitH, FileNameRGBNoTarget);
+	} else {
+		SL::get().print("DataRGBNoTarget size is not equal to LitW * LitH");
+	}
+
+
+	return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
+}
+
+FExecStatus FCameraHandler::GetHWObsV2(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::GetHWObs called");
+	FExecStatus ExecStatus = FExecStatus::OK();
+	if (Args.Num() != 3) {
+		FString Msg = TEXT("Invalid command length.");
+		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	FString TargetId = Args[2];
+	FString FileName = Args[1];
+	int32 index;
+	if (!FileName.FindLastChar(TEXT('.'), index)) {
+		FString msg = TEXT("File name is not a path, binary is not supported.");
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+
+
+	AActor* Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+	if (!Target) {
+		ExecStatus = FExecStatus::Error("Can not find target");
+		SL::get().print("Can not find target");
+		return ExecStatus;
+	}
+	FActorController TargetController(Target);
+
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+	TArray<FColor> DataRGB, DataM;
+	int Width, Height;
+	FString FileNameRGB = FileName; FileNameRGB.InsertAt(index, TEXT("_rgb"));
+	FString FileNameM = FileName; FileNameM.InsertAt(index, TEXT("_mask"));
+	FusionCamSensor->GetLitSeg(DataRGB, DataM, Width, Height);
+	SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), Width, Height);
+	SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), Width, Height);
+
+	TArray<FColor> DataRGBNoTarget;
+	FString FileNameRGBNoTarget = FileName; FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target"));
+	TargetController.Hide();
+	FusionCamSensor->GetLit(DataRGBNoTarget, Width, Height);
+	TargetController.Show();
+
+	SerializeData(DataRGB, Width, Height, FileNameRGB);
+	SerializeData(DataM, Width, Height, FileNameM);
+	SerializeData(DataRGBNoTarget, Width, Height, FileNameRGBNoTarget);
+
+	return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
+}
+
+FExecStatus FCameraHandler::GetHWObsV1(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::GetHWObs called");
+	FExecStatus ExecStatus = FExecStatus::OK();
+	if (Args.Num() != 3) {
+		FString Msg = TEXT("Invalid command length.");
+		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	FString TargetId = Args[2];
+	FString FileName = Args[1];
+	int32 index;
+	if (!FileName.FindLastChar(TEXT('.'), index)) {
+		FString msg = TEXT("File name is not a path, binary is not supported.");
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+
+
+	AActor* Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+	if (!Target) {
+		ExecStatus = FExecStatus::Error("Can not find target");
+		SL::get().print("Can not find target");
+		return ExecStatus;
+	}
+	FActorController TargetController(Target);
+
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+	TArray<FColor> DataRGB;
+	FString FileNameRGB = FileName; FileNameRGB.InsertAt(index, TEXT("_rgb"));
+	int Width, Height;
+	FusionCamSensor->GetLit(DataRGB, Width, Height);
+	SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), Width, Height);
+
+	
+	TArray<FColor> DataM;
+	FString FileNameM = FileName; FileNameM.InsertAt(index, TEXT("_mask"));
+	FusionCamSensor->GetSeg(DataM, Width, Height);
+	SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), Width, Height);
+
+	TArray<FColor> DataRGBNoTarget;
+	FString FileNameRGBNoTarget = FileName; FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target"));
+	TargetController.Hide();
+	FusionCamSensor->GetLit(DataRGBNoTarget, Width, Height);
+	TargetController.Show();
+
+	SerializeData(DataRGB, Width, Height, FileNameRGB);
+	SerializeData(DataM, Width, Height, FileNameM);
+	SerializeData(DataRGBNoTarget, Width, Height, FileNameRGBNoTarget);
+
+	return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
+}
+
+
+FExecStatus FCameraHandler::GetCameraOneObjMask(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::GetCameraObjMask called");
+	FExecStatus ExecStatus = FExecStatus::OK();
+	if (Args.Num() != 3) {
+		FString Msg = TEXT("Invalid command length.");
+		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	FString ObjectId = Args[2];
+	FString FileName = Args[1];
+
+
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) {
+		SL::get().print("FCameraHandler::GetCameraObjMask error, FusionCamSensor is not valid");
+		return ExecStatus;
+	}
+
+
+	TArray<FColor> Data;
+	int Width, Height;
+	FusionCamSensor->GetObjMask(ObjectId, Data, Width, Height);
+
+	if (Data.Num() == 0)
+	{
+		ExecStatus = FExecStatus::Error("Captured data is empty");
+		SL::get().print("FCameraHandler::GetCameraObjMask error, Captured data is empty");
+		return ExecStatus;
+	}
+	ExecStatus = SerializeData(Data, Width, Height, FileName);
+	SL::get().print("FCameraHandler::GetCameraObjMask returned");
+	return ExecStatus;
+}
+
+
 void FCameraHandler::RegisterCommands()
 {
+	SL::get("C:\\Users\\hulc\\Desktop\\x.txt", false);
+
+	CommandDispatcher->BindCommand(
+		"vset /camera/[uint]/audiorecord [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetCameraAudioRecord),
+		"Set sensor audio record on/off"
+	);
+       
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/hwobs",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetCameraAudioRecord),
+		"Set sensor audio record on/off"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/oneobjmask [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraObjMask),
+		"oneobjmask bmp object_id"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/hwobs [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObs),
+		"hwobs xxx.bmp target_id"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/hwobsv1 [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV1),
+		"hwobs xxx.bmp target_id"
+	);
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/hwobsv2 [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV2),
+		"hwobs xxx.bmp target_id"
+	);
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/hwobsv3 [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV3),
+		"hwobs xxx.bmp target_id"
+	);
+
 	CommandDispatcher->BindCommand(
 		"vget /screenshot [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetScreenshot),

@@ -115,7 +115,7 @@ void UAnnotationCamSensor::GetAnnotationComponents(UWorld* World, TArray<TWeakOb
 
 void UAnnotationCamSensor::CaptureSeg(TArray<FColor>& ImageData, int& Width, int& Height)
 {
-	TArray<TWeakObjectPtr<UPrimitiveComponent> > ComponentList;
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
 	GetAnnotationComponents(this->GetWorld(), ComponentList);
 
 	this->ShowOnlyComponents = ComponentList;
