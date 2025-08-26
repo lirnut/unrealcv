@@ -3,6 +3,7 @@
 
 #include "Runtime/Engine/Classes/Components/PrimitiveComponent.h"
 #include "Runtime/Engine/Classes/Camera/CameraTypes.h"
+#include "AudioMixerDevice.h"
 #include "FusionCamSensor.generated.h"
 
 UENUM(BlueprintType)
@@ -45,6 +46,37 @@ public:
 
 	// virtual void OnRegister() override;
 	virtual bool GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut);
+
+	Audio::FMixerDevice* GetAudioMixer();
+protected:
+    FTimerHandle TimerHandle_Record;
+	FCriticalSection RecordCriticalSection;
+	AActor* TargetToHide;
+    bool bIsRecording;
+    float TimePerFrame;
+    float ElapsedTime;
+    int ElapsedSteps;
+    FString RecordFileName;
+    int32 RecordFPS;
+    float RecordDuration;
+
+    void OnTimerRecord();
+
+public:
+    UFUNCTION(BlueprintCallable, Category = "unrealcv")
+    void StartRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target);
+
+    UFUNCTION(BlueprintCallable, Category = "unrealcv")
+    void StopRecord();
+
+    UFUNCTION(BlueprintCallable, Category = "unrealcv")
+    bool IsRecording() { return bIsRecording; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void StartCameraAudioRecord();
+
+    UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void StopCameraAudioRecord();
 
 	/** Get rgbm data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")

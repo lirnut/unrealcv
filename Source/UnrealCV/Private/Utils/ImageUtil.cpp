@@ -5,6 +5,9 @@
 #include "Runtime/Core/Public/Misc/FileHelper.h"
 #include "UnrealcvStats.h"
 #include "UnrealcvLog.h"
+#include "ExecStatus.h"
+#include "Serialization.h"
+
 
 DECLARE_CYCLE_STAT(TEXT("FImageUtil::ConvertToPng"), STAT_ConvertToPng, STATGROUP_UnrealCV);
 DECLARE_CYCLE_STAT(TEXT("FColorToJpg"), STAT_FColorToJpg, STATGROUP_UnrealCV);
@@ -116,3 +119,95 @@ bool FImageUtil::SaveFile(const TArray<uint8>& BinaryData, const FString& Filena
 		return false;
 	}
 }
+
+EFilenameType ParseFilenameType(const FString& Filename)
+{
+	bool bIncludeDot = false;
+	FString FileExtension = FPaths::GetExtension(Filename);
+	FileExtension.ToLowerInline();
+
+	// A hacky way to check whether the input is just a file extension
+	int DotIndex;
+	if (!Filename.FindChar('.', DotIndex)) FileExtension = Filename;
+
+	if (FileExtension == Filename) // The filename only contains extension, which means the binary mode
+	{
+		if (FileExtension == TEXT("png")) return EFilenameType::PngBinary;
+		if (FileExtension == TEXT("bmp")) return EFilenameType::BmpBinary;
+		if (FileExtension == TEXT("npy")) return EFilenameType::NpyBinary;
+	}
+	else
+	{
+		if (FileExtension == TEXT("png")) return EFilenameType::Png;
+		if (FileExtension == TEXT("bmp")) return EFilenameType::Bmp;
+		if (FileExtension == TEXT("npy")) return EFilenameType::Npy;
+		if (FileExtension == TEXT("exr")) return EFilenameType::Exr;
+	}
+	return EFilenameType::Invalid;
+}
+
+/** Serialize data according to filename format */
+FExecStatus SerializeData(const TArray<FColor>& Data, int Width, int Height, const FString& Filename)
+{
+	static FImageUtil ImageUtil;
+	EFilenameType FilenameType = ParseFilenameType(Filename);
+
+	TArray<uint8> BinaryData;
+	switch (FilenameType)
+	{
+	case EFilenameType::BmpBinary:
+		ImageUtil.ConvertToBmp(Data, Width, Height, BinaryData);
+		return FExecStatus::Binary(BinaryData);
+	case EFilenameType::Bmp:
+		ImageUtil.SaveBmpFile(Data, Width, Height, Filename);
+		return FExecStatus::OK(Filename);
+	case EFilenameType::PngBinary:
+		ImageUtil.ConvertToPng(Data, Width, Height, BinaryData);
+		return FExecStatus::Binary(BinaryData);
+	case EFilenameType::Png:
+		ImageUtil.SavePngFile(Data, Width, Height, Filename);
+		return FExecStatus::OK(Filename);
+	}
+	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
+}
+
+FExecStatus SerializeData(const TArray<FFloat16Color>& Data, int Width, int Height, const FString& Filename)
+{
+	static FImageUtil ImageUtil;
+	EFilenameType FilenameType = ParseFilenameType(Filename);
+
+	TArray<uint8> BinaryData;
+	int Channel = Data.Num() / (Width * Height);
+	switch (FilenameType)
+	{
+	case EFilenameType::NpyBinary:
+		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
+		return FExecStatus::Binary(BinaryData);
+	case EFilenameType::Npy:
+		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
+		ImageUtil.SaveFile(BinaryData, Filename);
+		return FExecStatus::OK(Filename);
+	}
+	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
+}
+
+FExecStatus SerializeData(const TArray<float>& Data, int Width, int Height, const FString& Filename)
+{
+	static FImageUtil ImageUtil;
+	EFilenameType FilenameType = ParseFilenameType(Filename);
+
+	TArray<uint8> BinaryData;
+	int Channel = Data.Num() / (Width * Height);
+	switch (FilenameType)
+	{
+	case EFilenameType::NpyBinary:
+		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
+		return FExecStatus::Binary(BinaryData);
+	case EFilenameType::Npy:
+		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
+		ImageUtil.SaveFile(BinaryData, Filename);
+		return FExecStatus::OK(Filename);
+	}
+	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
+}
+

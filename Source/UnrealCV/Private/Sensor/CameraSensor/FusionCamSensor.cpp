@@ -15,6 +15,15 @@
 #include "Utils/UObjectUtils.h"
 #include "Component/AnnotationComponent.h"
 #include "SL.h"
+#include "Utils/ImageUtil.h"
+#include "Controller/ActorController.h"
+#include "SensorBPLib.h"
+#include "AudioDevice.h"
+#include "AudioMixerDevice.h"
+#include "Sound/SoundWave.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include <Serialization/BufferArchive.h>
 
 UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -102,6 +111,231 @@ bool UFusionCamSensor::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& V
 }
 
 
+void UFusionCamSensor::StartRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target)
+{
+    if (bIsRecording)
+    {
+        StopRecord();
+    }
+
+    AWorldSettings* WorldSettings = FUnrealcvServer::Get().GetWorld()->GetWorldSettings();
+    WorldSettings->SetTimeDilation(0.2f);
+
+    RecordFileName = FileName;
+    RecordDuration = Duration;
+    RecordFPS = FPS;
+    TimePerFrame = 1.0f / FPS;
+    ElapsedTime = 0.0f;
+	ElapsedSteps = 0;
+    bIsRecording = true;
+	TargetToHide = Target;
+
+    OnTimerRecord();
+
+    GetWorld()->GetTimerManager().SetTimer(
+        TimerHandle_Record,
+        this,
+        &UFusionCamSensor::OnTimerRecord,
+        TimePerFrame,
+        true
+    );
+
+	StartCameraAudioRecord();
+}
+
+void UFusionCamSensor::StopRecord()
+{
+    if (bIsRecording)
+    {
+		StopCameraAudioRecord();
+        GetWorld()->GetTimerManager().ClearTimer(TimerHandle_Record);
+        bIsRecording = false;
+		TargetToHide = nullptr;
+
+		AWorldSettings* WorldSettings = FUnrealcvServer::Get().GetWorld()->GetWorldSettings();
+		WorldSettings->SetTimeDilation(1.0f);
+    }
+}
+
+void UFusionCamSensor::OnTimerRecord()
+{
+	// FScopeLock ScopeLock(&RecordCriticalSection);
+
+    if (ElapsedTime >= RecordDuration)
+    {
+        StopRecord();
+        return;
+    }
+
+
+	// GetWorld()->GetTimerManager().PauseTimer(TimerHandle_Record);
+	// APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	// PlayerController->SetPause(true);
+
+	int32 index;
+	if (!RecordFileName.FindLastChar(TEXT('.'), index)) {
+		index = RecordFileName.Len();
+	}
+
+	TArray<FColor> DataRGB, DataM;
+	int Width, Height;
+	FString FileNameRGB = RecordFileName; FileNameRGB.InsertAt(index, FString::Printf(TEXT("%d_rgb"), ElapsedSteps));
+	FString FileNameM = RecordFileName; FileNameM.InsertAt(index, FString::Printf(TEXT("%d_mask"), ElapsedSteps));
+
+
+	GetLitSeg(DataRGB, DataM, Width, Height);
+
+	// SL::get().printf("FileNameM: %s", TCHAR_TO_UTF8(*FileNameM));
+	// SL::get().printf("FileNameRGB: %s", TCHAR_TO_UTF8(*FileNameRGB));
+	// SL::get().printf("DataM size: %d, width: %d, height: %d", DataM.Num(), Width, Height);
+	// SL::get().printf("DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), Width, Height);
+
+	SerializeData(DataRGB, Width, Height, FileNameRGB);
+	SerializeData(DataM, Width, Height, FileNameM);
+
+	if (TargetToHide) {
+		TArray<FColor> DataRGBNoTarget;
+		FString FileNameRGBNoTarget = RecordFileName; FileNameRGBNoTarget.InsertAt(index, FString::Printf(TEXT("%d_rgb_no_target"), ElapsedSteps));
+
+		FActorController TargetController(TargetToHide);
+		TargetController.Hide();
+		GetLit(DataRGBNoTarget, Width, Height);
+		TargetController.Show();
+		SerializeData(DataRGBNoTarget, Width, Height, FileNameRGBNoTarget);
+	}
+	
+    
+    ElapsedTime += TimePerFrame;
+	ElapsedSteps++;
+
+	// PlayerController->SetPause(false);
+	// GetWorld()->GetTimerManager().UnPauseTimer(TimerHandle_Record);
+}
+
+
+Audio::FMixerDevice* UFusionCamSensor::GetAudioMixer()
+{
+	SL::get().print("UFusionCamSensor::GetAudioMixer called");
+
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
+	FVector CamLocation = GetSensorLocation();
+	FRotator CamRotation = GetSensorRotation();
+
+	FAudioDevice* AudioDevice = World->GetAudioDeviceRaw();
+	if (!AudioDevice) {
+		return nullptr;
+	}
+
+	FTransform ListenerTransform(CamRotation, CamLocation);
+	AudioDevice->SetListener(
+		World,
+		0,
+		ListenerTransform,
+		0.0f // DeltaTime
+	);
+
+	Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
+	if (!MixerDevice) {
+		return nullptr;
+	}
+	SL::get().print("UFusionCamSensor::GetAudioMixer returned");
+	return MixerDevice;
+}
+
+
+void UFusionCamSensor::StartCameraAudioRecord()
+{
+	SL::get().print("UFusionCamSensor::StartCameraAudioRecord called");
+	Audio::FMixerDevice* MixerDevice = GetAudioMixer();
+	if (MixerDevice == nullptr) {
+		SL::get().print("Error: GetAudioMixer() failed");
+		return;
+	}
+	FString target_name = TEXT("");
+	// USoundSubmix* TargetSubmix = nullptr;
+	// if (TargetToHide) {
+	// 	TargetSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass());
+	// }
+
+	MixerDevice->StartRecording(nullptr, 100.0f);
+	SL::get().print("FCameraHandler::StartCameraAudioRecord returned");
+}
+
+void UFusionCamSensor::StopCameraAudioRecord()
+{
+	SL::get().print("UFusionCamSensor::StopCameraAudioRecord called");
+	Audio::FMixerDevice* MixerDevice = GetAudioMixer();
+	if (MixerDevice == nullptr) {
+		SL::get().print("Error: GetAudioMixer() failed");
+		return;
+	}
+
+	float NumChannels = 1.0f;
+	float SampleRate = 44.1 * 1000;
+	Audio::FAlignedFloatBuffer& RecordedBuffer = MixerDevice->StopRecording(nullptr, NumChannels, SampleRate);
+
+	TArray<int16> PCM16Data;
+	PCM16Data.Reserve(RecordedBuffer.Num());
+
+	for (float Sample : RecordedBuffer)
+	{
+		// Clamp 到 [-1.0, 1.0] 再转为 int16
+		float Clamped = FMath::Clamp(Sample, -1.0f, 1.0f);
+		PCM16Data.Add((int16)(Clamped * 32767.0f));
+	}
+
+	// 写 WAV 文件头 + 数据
+	int32 index;
+	if (!RecordFileName.FindLastChar(TEXT('.'), index)) {
+		index = RecordFileName.Len();
+	}
+	SL::get().printf("RecordFileName: %s", TCHAR_TO_UTF8(*RecordFileName));
+	FString WavFileName = RecordFileName;
+	WavFileName.RemoveAt(index, RecordFileName.Len() - index);
+	WavFileName += TEXT("audio.wav");
+	SL::get().printf("WavFileName: %s", TCHAR_TO_UTF8(*WavFileName));
+	FBufferArchive WaveData;
+
+	int32 NumSamples = PCM16Data.Num();
+	int32 NumBytes = NumSamples * sizeof(int16);
+
+	// 写 WAV Header (PCM 16-bit, NumChannels, SampleRate)
+	WaveData.Serialize((void*)"RIFF", 4);
+	int32 ChunkSize = 36 + NumBytes;
+	WaveData << ChunkSize;
+	WaveData.Serialize((void*)"WAVE", 4);
+
+	// fmt chunk
+	WaveData.Serialize((void*)"fmt ", 4);
+	int32 SubChunk1Size = 16;
+	WaveData << SubChunk1Size;
+	int16 AudioFormat = 1; // PCM
+	WaveData << AudioFormat;
+	int16 Channels = (int16)NumChannels;
+	WaveData << Channels;
+	int32 SR = (int32)SampleRate;
+	WaveData << SR;
+	int32 ByteRate = SR * Channels * sizeof(int16);
+	WaveData << ByteRate;
+	int16 BlockAlign = Channels * sizeof(int16);
+	WaveData << BlockAlign;
+	int16 BitsPerSample = 16;
+	WaveData << BitsPerSample;
+
+	// data chunk
+	WaveData.Serialize((void*)"data", 4);
+	WaveData << NumBytes;
+	WaveData.Serialize(PCM16Data.GetData(), NumBytes);
+
+	// 保存到文件
+	FFileHelper::SaveArrayToFile(WaveData, *WavFileName);
+	WaveData.FlushCache();
+	WaveData.Empty();
+
+	SL::get().print("FCameraHandler::StopCameraAudioRecord returned");
+}
+
+
 void UFusionCamSensor::GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSeg, int& InOutWidth, int& InOutHeight)
 {
 	if (LitCamSensor->CheckTextureTarget()) {
@@ -136,8 +370,8 @@ void UFusionCamSensor::GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSe
 	int32 SegW = AnnotationCamSensor->GetFilmWidth();
 	int32 SegH = AnnotationCamSensor->GetFilmHeight();
 
-	SL::get().printf("UFusionCamSensor::GetLitSeg DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
-	SL::get().printf("UFusionCamSensor::GetLitSeg DataSeg size: %d, width: %d, height: %d", DataSeg.Num(), SegW, SegH);
+	// SL::get().printf("UFusionCamSensor::GetLitSeg DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
+	// SL::get().printf("UFusionCamSensor::GetLitSeg DataSeg size: %d, width: %d, height: %d", DataSeg.Num(), SegW, SegH);
 
 	if (!((LitW == SegW) && (LitH == SegH)))
 	{

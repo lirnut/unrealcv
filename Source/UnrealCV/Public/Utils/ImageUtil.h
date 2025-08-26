@@ -4,6 +4,19 @@
 #include "Runtime/ImageWrapper/Public/IImageWrapper.h"
 #include "Runtime/ImageWrapper/Public/IImageWrapperModule.h"
 #include "Runtime/Core/Public/Modules/ModuleManager.h"
+#include "ExecStatus.h"
+
+enum EFilenameType
+{
+	Png,
+	Npy,
+	Exr,
+	Bmp,
+	PngBinary,
+	NpyBinary,
+	BmpBinary,
+	Invalid, // Unrecognized filename type
+};
 
 class UNREALCV_API FImageUtil
 {
@@ -55,3 +68,12 @@ private:
 	TSharedPtr<IImageWrapper> JpgImageWrapper;
 
 };
+
+
+EFilenameType ParseFilenameType(const FString& Filename);
+
+FExecStatus SerializeData(const TArray<FColor>& Data, int Width, int Height, const FString& Filename);
+
+FExecStatus SerializeData(const TArray<FFloat16Color>& Data, int Width, int Height, const FString& Filename);
+
+FExecStatus SerializeData(const TArray<float>& Data, int Width, int Height, const FString& Filename);

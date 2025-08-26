@@ -2,18 +2,6 @@
 
 #include "CommandHandler.h"
 
-enum EFilenameType
-{
-	Png,
-	Npy,
-	Exr,
-	Bmp,
-	PngBinary,
-	NpyBinary,
-	BmpBinary,
-	Invalid, // Unrecognized filename type
-};
-
 /** Handle vget/vset /camera/ commands */
 class FCameraHandler : public FCommandHandler
 {
@@ -34,14 +22,6 @@ private:
 	FExecStatus GetCameraRotation(const TArray<FString>& Args);
 
 	FExecStatus SetCameraRotation(const TArray<FString>& Args);
-
-	EFilenameType ParseFilenameType(const FString& Filename);
-
-	FExecStatus SerializeData(const TArray<FColor>& Data, int Width, int Height, const FString& Filename);
-
-	FExecStatus SerializeData(const TArray<FFloat16Color>& Data, int Width, int Height, const FString& Filename);
-
-	FExecStatus SerializeData(const TArray<float>& Data, int Width, int Height, const FString& Filename);
 
 	template<class T>
 	void SaveData(const TArray<T>& Data, int Width, int Height,
@@ -96,9 +76,9 @@ private:
 	FExecStatus SetFocalParams(const TArray<FString>& Args);
 
 	FExecStatus SetCameraAudioRecord(const TArray<FString>& Args);
-	FExecStatus StartCameraAudioRecord(const TArray<FString>& Args);
-	FExecStatus StopCameraAudioRecord(const TArray<FString>& Args);
-	Audio::FMixerDevice* GetAudioMixer(const TArray<FString>& Args, FExecStatus& ExecStatus);
+	// FExecStatus StartCameraAudioRecord(const TArray<FString>& Args);
+	// FExecStatus StopCameraAudioRecord(const TArray<FString>& Args);
+	// Audio::FMixerDevice* GetAudioMixer(int SensorId, FExecStatus& ExecStatus);
 
 	FExecStatus GetHWObs(const TArray<FString>& Args);
 	FExecStatus GetHWObsV1(const TArray<FString>& Args);
@@ -107,4 +87,6 @@ private:
 
 	FExecStatus GetCameraOneObjMask(const TArray<FString>& Args);
 
+	FExecStatus StartRecord(const TArray<FString>& Args);
+	FExecStatus CheckRecordStatus(const TArray<FString>& Args);
 };
