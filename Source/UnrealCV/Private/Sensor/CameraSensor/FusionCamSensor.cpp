@@ -118,8 +118,8 @@ void UFusionCamSensor::StartRecord(const FString& FileName, float Duration, int3
         StopRecord();
     }
 
-    AWorldSettings* WorldSettings = FUnrealcvServer::Get().GetWorld()->GetWorldSettings();
-    WorldSettings->SetTimeDilation(0.2f);
+    // AWorldSettings* WorldSettings = FUnrealcvServer::Get().GetWorld()->GetWorldSettings();
+    // WorldSettings->SetTimeDilation(0.2f);
 
     RecordFileName = FileName;
     RecordDuration = Duration;
@@ -152,8 +152,8 @@ void UFusionCamSensor::StopRecord()
         bIsRecording = false;
 		TargetToHide = nullptr;
 
-		AWorldSettings* WorldSettings = FUnrealcvServer::Get().GetWorld()->GetWorldSettings();
-		WorldSettings->SetTimeDilation(1.0f);
+		// AWorldSettings* WorldSettings = FUnrealcvServer::Get().GetWorld()->GetWorldSettings();
+		// WorldSettings->SetTimeDilation(1.0f);
     }
 }
 
