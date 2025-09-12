@@ -1212,6 +1212,74 @@ FExecStatus FCameraHandler::StartRecord(const TArray<FString>& Args)
     return FExecStatus::OK();
 }
 
+FExecStatus FCameraHandler::StartBulletTimeRecord(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::StartRecord called");
+
+	FExecStatus ExecStatus = FExecStatus::OK();
+	AActor* Target = nullptr;
+	if (Args.Num() == 5) {
+		FString TargetId = Args[4];
+		Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+		if (!Target) {
+			ExecStatus = FExecStatus::Error("Can not find target");
+			SL::get().print("Can not find target");
+			return ExecStatus;
+		}
+	}
+	else {
+		FString Msg = TEXT("Invalid command length.");
+		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	FString FileName = Args[1];
+	int32 index;
+	if (!FileName.FindLastChar(TEXT('.'), index)) {
+		FString msg = TEXT("File name is not a path, binary is not supported.");
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+
+	double Time = FCString::Atod(*Args[2]);
+	float FPS = FCString::Atof(*Args[3]);
+	if (Time <= 0) {
+		FString msg = TEXT("Time is invalid: " + Args[2]);
+
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+	if (FPS <= 0 || FPS >= 60) {
+		FString msg = TEXT("FPS is invalid: " + Args[3]);
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+	// double StartTime = FPlatformTime::Seconds();
+	// double EndTime = StartTime + Time;
+
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+	// FusionCamSensor->start_record(FileName, Time, FPS);
+	SL::get().printf("FCameraHandler::StartRecord called, FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
+	FusionCamSensor->StartBulletTimeRecord(FileName, Time, FPS, Target);
+	
+	// save cmd
+    FString Content = FString::Printf(TEXT("vset /camera/%s/record %s %s %s"), *Args[0], *Args[1], *Args[2], *Args[3]);
+	FString CmdFileName = FileName;
+	CmdFileName.RemoveAt(index, FileName.Len() - index);
+	CmdFileName += TEXT(".cmd.txt");
+    FFileHelper::SaveStringToFile(Content, *CmdFileName);
+
+
+	SL::get().print("FCameraHandler::StartRecord returned");
+    return FExecStatus::OK();
+}
+
 FExecStatus FCameraHandler::CheckRecordStatus(const TArray<FString>& Args)
 {
 	FExecStatus ExecStatus = FExecStatus::OK();
@@ -1279,6 +1347,11 @@ void FCameraHandler::RegisterCommands()
         "vset /camera/[uint]/record [str] [float] [float] [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartRecord),
         "vset /camera/{cam_id}/record {mode} {time_s} {fps} {target_id}"
+	);
+	CommandDispatcher->BindCommand(
+        "vset /camera/[uint]/bullet_time_record [str] [float] [float] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartBulletTimeRecord),
+        "vset /camera/{cam_id}/bullet_time_record {mode} {time_s} {fps} {target_id}"
 	);
 
 	CommandDispatcher->BindCommand(

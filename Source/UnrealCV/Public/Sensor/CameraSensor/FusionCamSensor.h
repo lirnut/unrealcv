@@ -60,11 +60,25 @@ protected:
     int32 RecordFPS;
     float RecordDuration;
 
+	enum class EBulletTimeState : uint8
+	{
+		Waiting,
+		BulletTime,
+		Finished
+	};
+	EBulletTimeState BulletTimeState = EBulletTimeState::Waiting;
+	bool UseBulletTime = false;
+	float BulletTimeSpeedDeg = 2.0f;
+	float TimeDilation;
+
     void OnTimerRecord();
 
 public:
     UFUNCTION(BlueprintCallable, Category = "unrealcv")
     void StartRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target);
+
+    UFUNCTION(BlueprintCallable, Category = "unrealcv")
+    void StartBulletTimeRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target);
 
     UFUNCTION(BlueprintCallable, Category = "unrealcv")
     void StopRecord();
@@ -77,6 +91,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	void StopCameraAudioRecord();
+
+	// UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetBulletTime(TArray<TArray<FColor>> *DataLit, TArray<TArray<FColor>> *DataSeg,  int& InOutWidth, int& InOutHeight);
 
 	/** Get rgbm data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")

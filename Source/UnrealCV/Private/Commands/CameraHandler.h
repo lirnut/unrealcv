@@ -88,5 +88,6 @@ private:
 	FExecStatus GetCameraOneObjMask(const TArray<FString>& Args);
 
 	FExecStatus StartRecord(const TArray<FString>& Args);
+	FExecStatus StartBulletTimeRecord(const TArray<FString>& Args);
 	FExecStatus CheckRecordStatus(const TArray<FString>& Args);
 };

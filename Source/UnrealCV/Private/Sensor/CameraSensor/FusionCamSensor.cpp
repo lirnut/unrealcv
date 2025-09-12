@@ -25,6 +25,27 @@
 #include "Misc/Paths.h"
 #include <Serialization/BufferArchive.h>
 
+static void CollectShowOnlyForActor(
+    AActor* Actor, UWorld* World,
+    TArray<TWeakObjectPtr<UPrimitiveComponent>>& OutComponents)
+{
+    OutComponents.Reset();
+    if (!IsValid(World) || !IsValid(Actor)) return;
+
+    {
+        TArray<UAnnotationComponent*> AnnotationComps;
+        Actor->GetComponents<UAnnotationComponent>(AnnotationComps, /*bIncludeFromChildActors*/ true);
+
+        for (UAnnotationComponent* C : AnnotationComps)
+        {
+            if (IsValid(C) && C->IsRegistered() && C->GetWorld() == World)
+            {
+                OutComponents.Add(C);
+            }
+        }
+    }
+}
+
 UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -118,8 +139,9 @@ void UFusionCamSensor::StartRecord(const FString& FileName, float Duration, int3
         StopRecord();
     }
 
-    // AWorldSettings* WorldSettings = FUnrealcvServer::Get().GetWorld()->GetWorldSettings();
+    AWorldSettings* WorldSettings = FUnrealcvServer::Get().GetWorld()->GetWorldSettings();
     // WorldSettings->SetTimeDilation(0.2f);
+	TimeDilation = WorldSettings->TimeDilation;
 
     RecordFileName = FileName;
     RecordDuration = Duration;
@@ -129,6 +151,7 @@ void UFusionCamSensor::StartRecord(const FString& FileName, float Duration, int3
 	ElapsedSteps = 0;
     bIsRecording = true;
 	TargetToHide = Target;
+	BulletTimeState = EBulletTimeState::Waiting;
 
     OnTimerRecord();
 
@@ -143,6 +166,18 @@ void UFusionCamSensor::StartRecord(const FString& FileName, float Duration, int3
 	StartCameraAudioRecord();
 }
 
+void UFusionCamSensor::StartBulletTimeRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target)
+{
+	UseBulletTime = true;
+	if (Target == nullptr) 
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Target is null in StartBulletTimeRecord"));
+		SL::get().printf("Target is null in StartBulletTimeRecord");
+		return;
+	}
+	StartRecord(FileName, Duration, FPS, Target);
+}
+
 void UFusionCamSensor::StopRecord()
 {
     if (bIsRecording)
@@ -151,10 +186,73 @@ void UFusionCamSensor::StopRecord()
         GetWorld()->GetTimerManager().ClearTimer(TimerHandle_Record);
         bIsRecording = false;
 		TargetToHide = nullptr;
+		UseBulletTime = false;
+		BulletTimeState = EBulletTimeState::Waiting;
 
 		// AWorldSettings* WorldSettings = FUnrealcvServer::Get().GetWorld()->GetWorldSettings();
 		// WorldSettings->SetTimeDilation(1.0f);
     }
+}
+
+void UFusionCamSensor::GetBulletTime(TArray<TArray<FColor>> *DataLit, TArray<TArray<FColor>> *DataSeg,  int& InOutWidth, int& InOutHeight)
+{
+	FVector TargetLocation = TargetToHide->GetActorLocation();  // [x,y,z]
+	FRotator TargetRotation = TargetToHide->GetActorRotation();  // [pitch,yaw,roll]
+
+	FVector CamLocationSaver; FRotator CamRotationSaver;
+	FVector CamLocation = GetSensorLocation(); CamLocationSaver = CamLocation;
+	FRotator CamRotation = GetSensorRotation(); CamRotationSaver = CamRotation;
+
+	// Pause the world to start bullet time
+	SL::get().printf("BulletTimeState: SetPause(true)");
+	this->GetWorld()->GetFirstPlayerController()->SetPause(true);
+
+
+
+	// SetSensorLocation(); and SetSensorRotation(); can be used to face the cam to TargetToHide and turn the camera 360 deg
+	// deg/frame is BulletTimeSpeedDeg;
+	// done deg is BulletTimeElapsedDeg; from 0 deg to 360 deg
+	float BulletTimeElapsedDeg = 0.0f;
+
+	FVector Offset = CamLocation - TargetLocation;
+	FVector BulletTimeOffset = Offset;  // 保存相对偏移
+	FVector BulletTimeTargetLocation = TargetLocation;
+	
+	FRotator InitRotation = CamRotation - (BulletTimeTargetLocation - CamLocation).Rotation();
+
+	// int index = 0;
+	while (BulletTimeElapsedDeg + BulletTimeSpeedDeg <= 360.0f) {
+		BulletTimeElapsedDeg += BulletTimeSpeedDeg;
+		{  // transform fixed
+			FQuat RotationQuat = FQuat(FVector::UpVector, FMath::DegreesToRadians(BulletTimeSpeedDeg));
+			BulletTimeOffset = RotationQuat.RotateVector(BulletTimeOffset);
+			FVector NewCameraLocation = BulletTimeTargetLocation + BulletTimeOffset;
+			SetSensorLocation(NewCameraLocation);
+			// to face the target
+			FRotator NewRotation = (BulletTimeTargetLocation - NewCameraLocation).Rotation() + InitRotation;
+			SetSensorRotation(NewRotation);
+		}
+
+		if (DataSeg != nullptr){
+			TArray<FColor> DataRGB, DataM;
+			GetLitSeg(DataRGB, DataM, InOutWidth, InOutHeight);
+
+			if (DataLit != nullptr) { DataLit->Add(DataRGB); }
+			if (DataSeg != nullptr) { DataSeg->Add(DataM); }
+		} else {
+			TArray<FColor> DataRGB;
+			GetLit(DataRGB, InOutWidth, InOutHeight);
+
+			if (DataLit != nullptr) { DataLit->Add(DataRGB); }
+		}
+	}
+
+	SL::get().printf("BulletTimeState: SetPause(false)");
+	this->GetWorld()->GetFirstPlayerController()->SetPause(false);
+
+	// reset the cam
+	SetSensorLocation(CamLocationSaver);
+	SetSensorRotation(CamRotationSaver);
 }
 
 void UFusionCamSensor::OnTimerRecord()
@@ -166,50 +264,80 @@ void UFusionCamSensor::OnTimerRecord()
         StopRecord();
         return;
     }
-
-
-	// GetWorld()->GetTimerManager().PauseTimer(TimerHandle_Record);
-	// APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
-	// PlayerController->SetPause(true);
+    AWorldSettings* WorldSettings = FUnrealcvServer::Get().GetWorld()->GetWorldSettings();
+	if (std::abs(TimeDilation - WorldSettings->TimeDilation) < 0.05) {
+		WorldSettings->SetTimeDilation(TimeDilation);
+	}
+	else if (TimeDilation != WorldSettings->TimeDilation) {
+		WorldSettings->SetTimeDilation((0.2*TimeDilation + 0.8*WorldSettings->TimeDilation));
+	}
 
 	int32 index;
 	if (!RecordFileName.FindLastChar(TEXT('.'), index)) {
 		index = RecordFileName.Len();
 	}
 
-	TArray<FColor> DataRGB, DataM;
-	int Width, Height;
-	FString FileNameRGB = RecordFileName; FileNameRGB.InsertAt(index, FString::Printf(TEXT("%d_rgb"), ElapsedSteps));
-	FString FileNameM = RecordFileName; FileNameM.InsertAt(index, FString::Printf(TEXT("%d_mask"), ElapsedSteps));
+	if (UseBulletTime && (BulletTimeState == EBulletTimeState::Waiting) && (ElapsedTime > (RecordDuration/2))) {
+    	WorldSettings->SetTimeDilation(0.1f);
+		TArray<TArray<FColor>> DataRGB, DataM;
+		int Width, Height;
+		GetBulletTime(&DataRGB, &DataM, Width, Height);	
 
+		TArray<TArray<FColor>> DataRGBNoTarget;
+		FActorController TargetController(TargetToHide);
+		TargetController.Hide();
+		GetBulletTime(&DataRGBNoTarget, nullptr, Width, Height);	
+		TargetController.Show();
 
-	GetLitSeg(DataRGB, DataM, Width, Height);
+		for (int i = 0; i < DataRGB.Num(); i++) {
+			FString FileNameRGB = RecordFileName; FileNameRGB.InsertAt(index, FString::Printf(TEXT("%d_rgb"), ElapsedSteps));
+			FString FileNameM = RecordFileName; FileNameM.InsertAt(index, FString::Printf(TEXT("%d_mask"), ElapsedSteps));
+			FString FileNameRGBNoTarget = RecordFileName; FileNameRGBNoTarget.InsertAt(index, FString::Printf(TEXT("%d_rgb_no_target"), ElapsedSteps));
+			SerializeData(DataRGB[i], Width, Height, FileNameRGB);
+			SerializeData(DataM[i], Width, Height, FileNameM);
+			SerializeData(DataRGBNoTarget[i], Width, Height, FileNameRGBNoTarget);
+			ElapsedSteps++;
+		}
 
-	// SL::get().printf("FileNameM: %s", TCHAR_TO_UTF8(*FileNameM));
-	// SL::get().printf("FileNameRGB: %s", TCHAR_TO_UTF8(*FileNameRGB));
-	// SL::get().printf("DataM size: %d, width: %d, height: %d", DataM.Num(), Width, Height);
-	// SL::get().printf("DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), Width, Height);
+ 	    // ElapsedTime += TimePerFrame;
+		BulletTimeState = EBulletTimeState::Finished;
+    	// WorldSettings->SetTimeDilation(OldTimeDilation);
+		return;
+	}
 
-	SerializeData(DataRGB, Width, Height, FileNameRGB);
-	SerializeData(DataM, Width, Height, FileNameM);
+	{
+		if (TargetToHide) {
+			TArray<FColor> DataRGBNoTarget;
+			FActorController TargetController(TargetToHide);
+			TargetController.Show();
+		}
+
+		TArray<FColor> DataRGB, DataM;
+		int Width, Height;
+		FString FileNameRGB = RecordFileName; FileNameRGB.InsertAt(index, FString::Printf(TEXT("%d_rgb"), ElapsedSteps));
+		FString FileNameM = RecordFileName; FileNameM.InsertAt(index, FString::Printf(TEXT("%d_mask"), ElapsedSteps));
+
+		GetLitSeg(DataRGB, DataM, Width, Height);
+		SerializeData(DataRGB, Width, Height, FileNameRGB);
+		SerializeData(DataM, Width, Height, FileNameM);
+
+	}
 
 	if (TargetToHide) {
 		TArray<FColor> DataRGBNoTarget;
 		FString FileNameRGBNoTarget = RecordFileName; FileNameRGBNoTarget.InsertAt(index, FString::Printf(TEXT("%d_rgb_no_target"), ElapsedSteps));
 
+		int Width, Height;
 		FActorController TargetController(TargetToHide);
 		TargetController.Hide();
 		GetLit(DataRGBNoTarget, Width, Height);
 		TargetController.Show();
 		SerializeData(DataRGBNoTarget, Width, Height, FileNameRGBNoTarget);
 	}
-	
-    
-    ElapsedTime += TimePerFrame;
-	ElapsedSteps++;
 
-	// PlayerController->SetPause(false);
-	// GetWorld()->GetTimerManager().UnPauseTimer(TimerHandle_Record);
+
+ 	ElapsedTime += TimePerFrame;
+	ElapsedSteps++;
 }
 
 
@@ -385,26 +513,6 @@ void UFusionCamSensor::GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSe
 	InOutHeight = LitH;
 }
 
-static void CollectShowOnlyForActor(
-    AActor* Actor, UWorld* World,
-    TArray<TWeakObjectPtr<UPrimitiveComponent>>& OutComponents)
-{
-    OutComponents.Reset();
-    if (!IsValid(World) || !IsValid(Actor)) return;
-
-    {
-        TArray<UAnnotationComponent*> AnnotationComps;
-        Actor->GetComponents<UAnnotationComponent>(AnnotationComps, /*bIncludeFromChildActors*/ true);
-
-        for (UAnnotationComponent* C : AnnotationComps)
-        {
-            if (IsValid(C) && C->IsRegistered() && C->GetWorld() == World)
-            {
-                OutComponents.Add(C);
-            }
-        }
-    }
-}
 
 void UFusionCamSensor::GetObjMask(FString ObjId, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
 {
