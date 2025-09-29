@@ -5,6 +5,7 @@
 #include "Runtime/Engine/Public/EngineUtils.h"
 #include "Runtime/Engine/Public/TimerManager.h"
 #include "Runtime/Engine/Classes/GameFramework/Pawn.h"
+#include "Runtime/Launch/Resources/Version.h"
 
 #include "WorldController.h"
 #include "VisionBPLib.h"
@@ -142,8 +143,16 @@ TFunction<void(void)> FActionHandler::GetReleaseKey(FKey Key)
 {
 	const UWorld* World = this->GetWorld();
 	return [=]() {
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
+		FInputKeyEventArgs KeyEventArgs;
+		KeyEventArgs.Key = Key;
+		KeyEventArgs.Event = EInputEvent::IE_Released;
+		KeyEventArgs.AmountDepressed = 0.0f;
+		World->GetFirstPlayerController()->InputKey(KeyEventArgs);
+#else
 		FInputKeyParams KeyParams(Key, EInputEvent::IE_Released, 0, false);
 		World->GetFirstPlayerController()->InputKey(KeyParams);
+#endif
 	};
 }
 
@@ -168,8 +177,16 @@ FExecStatus FActionHandler::Keyboard(const TArray<FString>& Args)
 	int32 NumSamples = 1;
 	bool bGamepad = false;
 	// The DeltaTime is not used in the code.
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
+	FInputKeyEventArgs KeyEventArgs;
+	KeyEventArgs.Key = Key;
+	KeyEventArgs.Event = EInputEvent::IE_Pressed;
+	KeyEventArgs.AmountDepressed = Delta;
+	World->GetFirstPlayerController()->InputKey(KeyEventArgs);
+#else
 	FInputKeyParams KeyParams(Key, Delta, DeltaTime, NumSamples, bGamepad);
 	World->GetFirstPlayerController()->InputKey(KeyParams);
+#endif
 	FTimerHandle TimerHandle;
 	World->GetTimerManager().SetTimer(TimerHandle, GetReleaseKey(Key), DeltaTime, false);
 
