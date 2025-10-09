@@ -31,9 +31,11 @@
 #include "ImageUtil.h"
 #include "SensorBPLib.h"
 #include "FusionCameraActor.h"
+#include "Actor/FusionCamCaptureActor.h"
 
 #include "UnrealcvStats.h"
 #include "UnrealClient.h"
+#include "UnrealcvLog.h"
 
 DECLARE_CYCLE_STAT(TEXT("FCameraHandler::GetCameraLit"), STAT_GetCameraLit, STATGROUP_UnrealCV);
 DECLARE_CYCLE_STAT(TEXT("FCameraHandler::SaveData"), STAT_SaveData, STATGROUP_UnrealCV);
@@ -771,12 +773,12 @@ FExecStatus FCameraHandler::SetFocalParams(const TArray<FString>& Args)
 // 	}
 // 	else
 // 	{
-// 		// 2. °ÑËüÃÇµÄÊä³ö Submix ¸ÄÎª TargetSubmix
+// 		// 2. ï¿½ï¿½ï¿½ï¿½ï¿½Çµï¿½ï¿½ï¿½ï¿½ Submix ï¿½ï¿½Îª TargetSubmix
 // 		for (UAudioComponent* AudioComp : AudioComponents)
 // 		{
 // 			if (AudioComp && AudioComp->Sound)
 // 			{
-// 				// ÉèÖÃÒôÆµÊä³öµ½ÎÒÃÇµÄ×¨ÓÃ Submix
+// 				// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Çµï¿½×¨ï¿½ï¿½ Submix
 // 				AudioComp->Sound->SoundSubmix = TargetSubmix;
 
 // 				UE_LOG(LogTemp, Log, TEXT("Redirected %s's audio to TargetSubmix"), *Actor->GetName());
@@ -842,7 +844,7 @@ FExecStatus FCameraHandler::GetHWObsV3(const TArray<FString>& Args)
 
     {
         ScopedStepTimer _t("Arg validation");
-        // Ô­Âß¼­£º²ÎÊýÐ£Ñé
+        // Ô­ï¿½ß¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½
     }
 
     FExecStatus ExecStatus = FExecStatus::OK();
@@ -885,7 +887,7 @@ FExecStatus FCameraHandler::GetHWObsV3(const TArray<FString>& Args)
     // Lit target check + init
     {
         ScopedStepTimer _t("LitCamSensor::CheckTextureTarget()");
-        // ½ö¼ÆÊ±ÕâÒ»´Î¼ì²é
+        // ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½Ò»ï¿½Î¼ï¿½ï¿½
         (void)LitCamSensor->CheckTextureTarget();
     }
     {
@@ -1208,16 +1210,45 @@ FExecStatus FCameraHandler::StartRecord(const TArray<FString>& Args)
 		ExecStatus = FExecStatus::Error(msg);
 		return ExecStatus;
 	}
-	// double StartTime = FPlatformTime::Seconds();
-	// double EndTime = StartTime + Time;
 
+	// Get the camera sensor
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
 	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
 
-	// FusionCamSensor->start_record(FileName, Time, FPS);
-	SL::get().printf("FCameraHandler::StartRecord called, FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
-	FusionCamSensor->StartRecord(FileName, Time, FPS, Target);
-	
+	// Get camera ID
+	int32 SensorId = FCString::Atoi(*Args[0]);
+
+	// Check if this camera is already recording
+	if (CameraRecordingActors.Contains(SensorId))
+	{
+		FString Msg = FString::Printf(TEXT("Camera %d is already recording"), SensorId);
+		UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *Msg);
+		return FExecStatus::Error(Msg);
+	}
+
+	// Create new CaptureActor for this camera
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
+	if (!IsValid(World))
+	{
+		return FExecStatus::Error("Cannot get world");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = World->SpawnActor<AFusionCamCaptureActor>();
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error("Failed to spawn FusionCamCaptureActor");
+	}
+
+	// Configure CaptureActor
+	CaptureActor->TargetSensor = FusionCamSensor;
+
+	// Store the mapping
+	CameraRecordingActors.Add(SensorId, CaptureActor);
+
+	// Start recording
+	SL::get().printf("FCameraHandler::StartRecord: FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
+	CaptureActor->StartRecord(FileName, Time, FPS, Target);
+
 	// save cmd
     FString Content = FString::Printf(TEXT("vset /camera/%s/record %s %s %s"), *Args[0], *Args[1], *Args[2], *Args[3]);
 	FString CmdFileName = FileName;
@@ -1225,14 +1256,13 @@ FExecStatus FCameraHandler::StartRecord(const TArray<FString>& Args)
 	CmdFileName += TEXT(".cmd.txt");
     FFileHelper::SaveStringToFile(Content, *CmdFileName);
 
-
 	SL::get().print("FCameraHandler::StartRecord returned");
     return FExecStatus::OK();
 }
 
 FExecStatus FCameraHandler::StartBulletTimeRecord(const TArray<FString>& Args)
 {
-	SL::get().print("FCameraHandler::StartRecord called");
+	SL::get().print("FCameraHandler::StartBulletTimeRecord called");
 
 	FExecStatus ExecStatus = FExecStatus::OK();
 	AActor* Target = nullptr;
@@ -1276,38 +1306,88 @@ FExecStatus FCameraHandler::StartBulletTimeRecord(const TArray<FString>& Args)
 		ExecStatus = FExecStatus::Error(msg);
 		return ExecStatus;
 	}
-	// double StartTime = FPlatformTime::Seconds();
-	// double EndTime = StartTime + Time;
 
+	// Get the camera sensor
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
 	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
 
-	// FusionCamSensor->start_record(FileName, Time, FPS);
-	SL::get().printf("FCameraHandler::StartRecord called, FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
-	FusionCamSensor->StartBulletTimeRecord(FileName, Time, FPS, Target);
-	
+	// Get camera ID
+	int32 SensorId = FCString::Atoi(*Args[0]);
+
+	// Check if this camera is already recording
+	if (CameraRecordingActors.Contains(SensorId))
+	{
+		FString Msg = FString::Printf(TEXT("Camera %d is already recording"), SensorId);
+		UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *Msg);
+		return FExecStatus::Error(Msg);
+	}
+
+	// Create new CaptureActor for this camera
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
+	if (!IsValid(World))
+	{
+		return FExecStatus::Error("Cannot get world");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = World->SpawnActor<AFusionCamCaptureActor>();
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error("Failed to spawn FusionCamCaptureActor");
+	}
+
+	// Configure CaptureActor
+	CaptureActor->TargetSensor = FusionCamSensor;
+
+	// Store the mapping
+	CameraRecordingActors.Add(SensorId, CaptureActor);
+
+	// Start bullet time recording
+	SL::get().printf("FCameraHandler::StartBulletTimeRecord: FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
+	CaptureActor->StartBulletTimeRecord(FileName, Time, FPS, Target);
+
 	// save cmd
-    FString Content = FString::Printf(TEXT("vset /camera/%s/record %s %s %s"), *Args[0], *Args[1], *Args[2], *Args[3]);
+    FString Content = FString::Printf(TEXT("vset /camera/%s/bullet_time_record %s %s %s %s"), *Args[0], *Args[1], *Args[2], *Args[3], *Args[4]);
 	FString CmdFileName = FileName;
 	CmdFileName.RemoveAt(index, FileName.Len() - index);
 	CmdFileName += TEXT(".cmd.txt");
     FFileHelper::SaveStringToFile(Content, *CmdFileName);
 
-
-	SL::get().print("FCameraHandler::StartRecord returned");
+	SL::get().print("FCameraHandler::StartBulletTimeRecord returned");
     return FExecStatus::OK();
 }
 
 FExecStatus FCameraHandler::CheckRecordStatus(const TArray<FString>& Args)
 {
 	FExecStatus ExecStatus = FExecStatus::OK();
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
-	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
 
-	if (FusionCamSensor->IsRecording())
+	// Get camera ID
+	int32 SensorId = FCString::Atoi(*Args[0]);
+
+	// Check if we have a CaptureActor for this camera
+	if (!CameraRecordingActors.Contains(SensorId))
+	{
+		// No CaptureActor means not recording
+		return FExecStatus::OK("false");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = CameraRecordingActors[SensorId];
+	if (!IsValid(CaptureActor))
+	{
+		// CaptureActor was destroyed, clean up the mapping
+		CameraRecordingActors.Remove(SensorId);
+		return FExecStatus::OK("false");
+	}
+
+	// Check if recording is still active
+	if (CaptureActor->IsRecording())
 	{
 		return FExecStatus::OK("true");
-	} else {
+	}
+	else
+	{
+		// Recording finished, destroy the CaptureActor and clean up
+		CaptureActor->Destroy();
+		CameraRecordingActors.Remove(SensorId);
 		return FExecStatus::OK("false");
 	}
 }

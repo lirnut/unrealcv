@@ -92,4 +92,8 @@ private:
 	FExecStatus StartRecord(const TArray<FString>& Args);
 	FExecStatus StartBulletTimeRecord(const TArray<FString>& Args);
 	FExecStatus CheckRecordStatus(const TArray<FString>& Args);
+
+private:
+	// Map camera ID to its associated CaptureActor for automatic lifecycle management
+	TMap<int32, class AFusionCamCaptureActor*> CameraRecordingActors;
 };
