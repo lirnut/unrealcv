@@ -130,7 +130,7 @@ void FObjectAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& An
 	TArray<UActorComponent*> AnnotationComponents = Actor->K2_GetComponentsByClass(UAnnotationComponent::StaticClass());
 	if (AnnotationComponents.Num() != 0)
 	{
-		UE_LOG(LogUnrealCV, Log, TEXT("Skip annotated actor %d"), *Actor->GetName());
+		UE_LOG(LogUnrealCV, Log, TEXT("Skip annotated actor %s"), *Actor->GetName());
 		return;
 	}
 

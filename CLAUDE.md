@@ -31,7 +31,7 @@ UnrealCV is an Unreal Engine (5.2+) plugin for computer vision research that pro
 
 **Plugin Build:**
 ```bash
- dotnet "I:\UE_5.6\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll" MyProject Win64 DebugGame -Project="H:\HUAWEI_Project_UE56\HUAWEI_Project.uproject" -WaitMutex -FromMsBuild -architecture=x64
+ dotnet "I:\UE_5.6\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll" HUAWEI_Project Win64 DebugGame -Project="H:\HUAWEI_Project_UE56\HUAWEI_Project.uproject" -WaitMutex -FromMsBuild -architecture=x64
 ```
 
 **Manual Build:**
@@ -61,6 +61,5 @@ Test for the executable will be manually done, due to the complexity of the UE5 
 
 ## Human Guide and TODO List
 Now we are in a development branch 'shc/ue5.6' forked from the '5.2' branch, wich means we need to support from ue5.2 to ue5.6, but not previous ue versions. You can just Focus on ue5 rather than ue4. This branch of mine is focusing on support optical-flow image output (already implemented) and support ue5.6 (hopefully every compile warning is handled and the executable is tested). The optical-flow feature's PR has been merged to the official repo's 5.2 branch. Now let's focus on my work, wich is not mainly for PR, but for my 'HUAWEI_Project', I will construct a huge video dataset, the detailed information can be found in './SOW-基于CG的音视频分层数据生产-latest.md'. To record this big dataset, I have my another branch named 'shc/dev', that was a older branch, so be careful to merge it to the current branch. It has implemented an video record pipline in FusionCamSensor.h/.cpp, but that was seperate from the original graceful implementation in DataCaptureActor.cpp, because I did not see the ADataCaptureActor in DataCaptureActor.h/.cpp. So I think we might need to do:
-1. research the record logic in both files
-2. merge the 'shc/dev' branch to the current branch 'shc/ue5.6'
-3. use the record logic in DataCaptureActor.cpp to replace the original logic in FusionCamSensor.cpp, 但是FusionCamSensor的录制功能要保持不变，可以给DataCaptureActor.cpp添加更多功能, 并且可以添加更多的server命令来使用新的更强大的recorder
+1. research the record logic in both files [completed]
+2. merge the 'shc/dev' branch to the current branch 'shc/ue5.6' [completed]
