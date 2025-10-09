@@ -7,6 +7,21 @@
 #include "Runtime/Engine/Classes/GameFramework/Controller.h"
 #include "Misc/Paths.h"
 
+// #include "AudioDevice.h"
+// #include "AudioMixerDevice.h"
+// #include "Sound/SoundWave.h"
+// #include "Misc/FileHelper.h"
+// #include "Misc/Paths.h"
+// #include <Serialization/BufferArchive.h>
+#include "SL.h"
+#include "ST.h"
+#include "Utils/UObjectUtils.h"
+#include "Controller/ActorController.h"
+#include "AnnotationCamSensor.h"
+#include "LitCamSensor.h"
+#include "Misc/FileHelper.h"
+#include "HAL/PlatformFilemanager.h"
+
 #include "CommandDispatcher.h"
 #include "FusionCamSensor.h"
 #include "Serialization.h"
@@ -156,97 +171,97 @@ FExecStatus FCameraHandler::SetCameraRotation(const TArray<FString>& Args)
 }
 
 
-// TODO: Move this to utility library
-EFilenameType FCameraHandler::ParseFilenameType(const FString& Filename)
-{
-	bool bIncludeDot = false;
-	FString FileExtension = FPaths::GetExtension(Filename);
-	FileExtension.ToLowerInline();
+// // TODO: Move this to utility library
+// EFilenameType FCameraHandler::ParseFilenameType(const FString& Filename)
+// {
+// 	bool bIncludeDot = false;
+// 	FString FileExtension = FPaths::GetExtension(Filename);
+// 	FileExtension.ToLowerInline();
 
-	// A hacky way to check whether the input is just a file extension
-	int DotIndex;
-	if (!Filename.FindChar('.', DotIndex)) FileExtension = Filename;
+// 	// A hacky way to check whether the input is just a file extension
+// 	int DotIndex;
+// 	if (!Filename.FindChar('.', DotIndex)) FileExtension = Filename;
 
-	if (FileExtension == Filename) // The filename only contains extension, which means the binary mode
-	{
-		if (FileExtension == TEXT("png")) return EFilenameType::PngBinary;
-		if (FileExtension == TEXT("bmp")) return EFilenameType::BmpBinary;
-		if (FileExtension == TEXT("npy")) return EFilenameType::NpyBinary;
-	}
-	else
-	{
-		if (FileExtension == TEXT("png")) return EFilenameType::Png;
-		if (FileExtension == TEXT("bmp")) return EFilenameType::Bmp;
-		if (FileExtension == TEXT("npy")) return EFilenameType::Npy;
-		if (FileExtension == TEXT("exr")) return EFilenameType::Exr;
-	}
-	return EFilenameType::Invalid;
-}
+// 	if (FileExtension == Filename) // The filename only contains extension, which means the binary mode
+// 	{
+// 		if (FileExtension == TEXT("png")) return EFilenameType::PngBinary;
+// 		if (FileExtension == TEXT("bmp")) return EFilenameType::BmpBinary;
+// 		if (FileExtension == TEXT("npy")) return EFilenameType::NpyBinary;
+// 	}
+// 	else
+// 	{
+// 		if (FileExtension == TEXT("png")) return EFilenameType::Png;
+// 		if (FileExtension == TEXT("bmp")) return EFilenameType::Bmp;
+// 		if (FileExtension == TEXT("npy")) return EFilenameType::Npy;
+// 		if (FileExtension == TEXT("exr")) return EFilenameType::Exr;
+// 	}
+// 	return EFilenameType::Invalid;
+// }
 
-/** Serialize data according to filename format */
-FExecStatus FCameraHandler::SerializeData(const TArray<FColor>& Data, int Width, int Height, const FString& Filename)
-{
-	static FImageUtil ImageUtil;
-	EFilenameType FilenameType = ParseFilenameType(Filename);
+// /** Serialize data according to filename format */
+// FExecStatus FCameraHandler::SerializeData(const TArray<FColor>& Data, int Width, int Height, const FString& Filename)
+// {
+// 	static FImageUtil ImageUtil;
+// 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	TArray<uint8> BinaryData;
-	switch (FilenameType)
-	{
-	case EFilenameType::BmpBinary:
-		ImageUtil.ConvertToBmp(Data, Width, Height, BinaryData);
-		return FExecStatus::Binary(BinaryData);
-	case EFilenameType::Bmp:
-		ImageUtil.SaveBmpFile(Data, Width, Height, Filename);
-		return FExecStatus::OK(Filename);
-	case EFilenameType::PngBinary:
-		ImageUtil.ConvertToPng(Data, Width, Height, BinaryData);
-		return FExecStatus::Binary(BinaryData);
-	case EFilenameType::Png:
-		ImageUtil.SavePngFile(Data, Width, Height, Filename);
-		return FExecStatus::OK(Filename);
-	}
-	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
-}
+// 	TArray<uint8> BinaryData;
+// 	switch (FilenameType)
+// 	{
+// 	case EFilenameType::BmpBinary:
+// 		ImageUtil.ConvertToBmp(Data, Width, Height, BinaryData);
+// 		return FExecStatus::Binary(BinaryData);
+// 	case EFilenameType::Bmp:
+// 		ImageUtil.SaveBmpFile(Data, Width, Height, Filename);
+// 		return FExecStatus::OK(Filename);
+// 	case EFilenameType::PngBinary:
+// 		ImageUtil.ConvertToPng(Data, Width, Height, BinaryData);
+// 		return FExecStatus::Binary(BinaryData);
+// 	case EFilenameType::Png:
+// 		ImageUtil.SavePngFile(Data, Width, Height, Filename);
+// 		return FExecStatus::OK(Filename);
+// 	}
+// 	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
+// }
 
-FExecStatus FCameraHandler::SerializeData(const TArray<FFloat16Color>& Data, int Width, int Height, const FString& Filename)
-{
-	static FImageUtil ImageUtil;
-	EFilenameType FilenameType = ParseFilenameType(Filename);
+// FExecStatus FCameraHandler::SerializeData(const TArray<FFloat16Color>& Data, int Width, int Height, const FString& Filename)
+// {
+// 	static FImageUtil ImageUtil;
+// 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	TArray<uint8> BinaryData;
-	int Channel = Data.Num() / (Width * Height);
-	switch (FilenameType)
-	{
-	case EFilenameType::NpyBinary:
-		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
-		return FExecStatus::Binary(BinaryData);
-	case EFilenameType::Npy:
-		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
-		ImageUtil.SaveFile(BinaryData, Filename);
-		return FExecStatus::OK(Filename);
-	}
-	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
-}
+// 	TArray<uint8> BinaryData;
+// 	int Channel = Data.Num() / (Width * Height);
+// 	switch (FilenameType)
+// 	{
+// 	case EFilenameType::NpyBinary:
+// 		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
+// 		return FExecStatus::Binary(BinaryData);
+// 	case EFilenameType::Npy:
+// 		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
+// 		ImageUtil.SaveFile(BinaryData, Filename);
+// 		return FExecStatus::OK(Filename);
+// 	}
+// 	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
+// }
 
-FExecStatus FCameraHandler::SerializeData(const TArray<float>& Data, int Width, int Height, const FString& Filename)
-{
-	static FImageUtil ImageUtil;
-	EFilenameType FilenameType = ParseFilenameType(Filename);
+// FExecStatus FCameraHandler::SerializeData(const TArray<float>& Data, int Width, int Height, const FString& Filename)
+// {
+// 	static FImageUtil ImageUtil;
+// 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	TArray<uint8> BinaryData;
-	int Channel = Data.Num() / (Width * Height);
-	switch (FilenameType)
-	{
-	case EFilenameType::NpyBinary:
-		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
-		return FExecStatus::Binary(BinaryData);
-	case EFilenameType::Npy:
-		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
-		ImageUtil.SaveFile(BinaryData, Filename);
-		return FExecStatus::OK(Filename);
-	}
-	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
-}
+// 	TArray<uint8> BinaryData;
+// 	int Channel = Data.Num() / (Width * Height);
+// 	switch (FilenameType)
+// 	{
+// 	case EFilenameType::NpyBinary:
+// 		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
+// 		return FExecStatus::Binary(BinaryData);
+// 	case EFilenameType::Npy:
+// 		BinaryData = FSerializationUtils::Array2Npy(Data, Width, Height, Channel);
+// 		ImageUtil.SaveFile(BinaryData, Filename);
+// 		return FExecStatus::OK(Filename);
+// 	}
+// 	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
+// }
 
 template<class T>
 void FCameraHandler::SaveData(const TArray<T>& Data, int Width, int Height,
@@ -746,8 +761,623 @@ FExecStatus FCameraHandler::SetFocalParams(const TArray<FString>& Args)
 }
 
 
+// void SetSubmix(AActor* Actor, USoundSubmix* TargetSubmix) {
+// 	TArray<UAudioComponent*> AudioComponents;
+// 	Actor->GetComponents<UAudioComponent>(AudioComponents);
+
+// 	if (AudioComponents.Num() == 0)
+// 	{
+// 		UE_LOG(LogTemp, Warning, TEXT("Actor %s has no audio components!"), *Actor->GetName());
+// 	}
+// 	else
+// 	{
+// 		// 2. 把它们的输出 Submix 改为 TargetSubmix
+// 		for (UAudioComponent* AudioComp : AudioComponents)
+// 		{
+// 			if (AudioComp && AudioComp->Sound)
+// 			{
+// 				// 设置音频输出到我们的专用 Submix
+// 				AudioComp->Sound->SoundSubmix = TargetSubmix;
+
+// 				UE_LOG(LogTemp, Log, TEXT("Redirected %s's audio to TargetSubmix"), *Actor->GetName());
+// 			}
+// 		}
+// 	}
+
+// }
+
+FExecStatus FCameraHandler::SetCameraAudioRecord(const TArray<FString>& Args)
+{
+	FExecStatus ExecStatus = FExecStatus::OK();
+	if (Args.Num() < 1)
+	{
+		FString Msg = TEXT("No sensor id is available");
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Msg);
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	if (Args.Num() < 2)
+	{
+		FString Msg = TEXT("No on/off command available");
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Msg);
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	bool StartRecord;
+	if (Args[1] == FString("on")) {
+		StartRecord = true;
+	}
+	else if (Args[1] == FString("off")) {
+		StartRecord = false;
+	}
+	else {
+		FString Msg = FString::Printf(TEXT("Invalid on/off command '%s'"), *Args[1]);
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Msg);
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	if (StartRecord) {
+		// return StartCameraAudioRecord(Args);
+		return ExecStatus;
+	}
+	else {
+		// return StopCameraAudioRecord(Args);
+		return ExecStatus;
+	}
+
+}
+
+
+FExecStatus FCameraHandler::GetHWObs(const TArray<FString>& Args) {
+	return GetHWObsV3(Args);
+}
+
+FExecStatus FCameraHandler::GetHWObsV3(const TArray<FString>& Args)
+{
+    auto t_func_start = std::chrono::steady_clock::now();
+    SL::get().print("FCameraHandler::GetHWObsV3 called");
+
+    {
+        ScopedStepTimer _t("Arg validation");
+        // 原逻辑：参数校验
+    }
+
+    FExecStatus ExecStatus = FExecStatus::OK();
+    if (Args.Num() != 3) {
+        FString Msg = TEXT("Invalid command length.");
+        SL::get().print(TCHAR_TO_UTF8(*Msg));
+        ExecStatus = FExecStatus::Error(Msg);
+        return ExecStatus;
+    }
+
+    FString TargetId = Args[2];
+    FString FileName = Args[1];
+
+    int32 index;
+    {
+        ScopedStepTimer _t("Check file name has extension");
+        if (!FileName.FindLastChar(TEXT('.'), index)) {
+            FString msg = TEXT("File name is not a path, binary is not supported.");
+            SL::get().print(TCHAR_TO_UTF8(*msg));
+            ExecStatus = FExecStatus::Error(msg);
+            return ExecStatus;
+        }
+    }
+
+    UFusionCamSensor* FusionCamSensor = nullptr;
+    {
+        ScopedStepTimer _t("GetCamera()");
+        FusionCamSensor = GetCamera(Args, ExecStatus);
+    }
+    if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+    UAnnotationCamSensor* AnnotationCamSensor = nullptr;
+    ULitCamSensor*       LitCamSensor = nullptr;
+    {
+        ScopedStepTimer _t("Get sub-sensors from FusionCamSensor");
+        AnnotationCamSensor = FusionCamSensor->GetAnnotationCamSensor();
+        LitCamSensor        = FusionCamSensor->GetLitCamSensor();
+    }
+
+    // Lit target check + init
+    {
+        ScopedStepTimer _t("LitCamSensor::CheckTextureTarget()");
+        // 仅计时这一次检查
+        (void)LitCamSensor->CheckTextureTarget();
+    }
+    {
+        ScopedStepTimer _t("LitCamSensor::InitTextureTarget (if needed)");
+        if (LitCamSensor->CheckTextureTarget()) {
+            LitCamSensor->InitTextureTarget(FusionCamSensor->GetFilmWidth(), FusionCamSensor->GetFilmHeight());
+            if (!LitCamSensor->CheckTextureTarget()) {
+                SL::get().print("LitCamSensor InitTextureTarget failed.");
+                ExecStatus = FExecStatus::Error("LitCamSensor InitTextureTarget failed.");
+                SL::get().printf("[TIMER] total elapsed before failure: %.3f ms", ms_since(t_func_start));
+                return ExecStatus;
+            }
+        }
+    }
+
+    // Annotation target check + init
+    {
+        ScopedStepTimer _t("AnnotationCamSensor::CheckTextureTarget()");
+        (void)AnnotationCamSensor->CheckTextureTarget();
+    }
+    {
+        ScopedStepTimer _t("AnnotationCamSensor::InitTextureTarget (if needed)");
+        if (!AnnotationCamSensor->CheckTextureTarget()) {
+            AnnotationCamSensor->InitTextureTarget(FusionCamSensor->GetFilmWidth(), FusionCamSensor->GetFilmHeight());
+            if (!AnnotationCamSensor->CheckTextureTarget()) {
+                SL::get().print("AnnotationCamSensor InitTextureTarget failed.");
+                ExecStatus = FExecStatus::Error("AnnotationCamSensor InitTextureTarget failed.");
+                SL::get().printf("[TIMER] total elapsed before failure: %.3f ms", ms_since(t_func_start));
+                return ExecStatus;
+            }
+        }
+    }
+
+    TArray<FColor> DataRGB, DataM, DataRGBNoTarget;
+
+    FString FileNameRGB = FileName;       { ScopedStepTimer _t("Build FileNameRGB");       FileNameRGB.InsertAt(index, TEXT("_rgb")); }
+    FString FileNameM = FileName;         { ScopedStepTimer _t("Build FileNameM");         FileNameM.InsertAt(index, TEXT("_mask")); }
+    FString FileNameRGBNoTarget = FileName; { ScopedStepTimer _t("Build FileNameRGBNoTarget"); FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target")); }
+
+    { ScopedStepTimer _t("LitCamSensor::CaptureScene() #1"); LitCamSensor->CaptureScene(); }
+
+    TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+    {
+        ScopedStepTimer _t("AnnotationCamSensor::GetAnnotationComponents()");
+        AnnotationCamSensor->GetAnnotationComponents(this->GetWorld(), ComponentList);
+    }
+
+    {
+        ScopedStepTimer _t("Assign ShowOnlyComponents");
+        AnnotationCamSensor->ShowOnlyComponents = ComponentList;
+    }
+
+    { ScopedStepTimer _t("AnnotationCamSensor::CaptureScene()"); AnnotationCamSensor->CaptureScene(); }
+
+    AActor* Target = nullptr;
+    {
+        ScopedStepTimer _t("GetActorById()");
+        Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+    }
+    if (!Target) {
+        ExecStatus = FExecStatus::Error("Can not find target");
+        SL::get().print("Can not find target");
+        SL::get().printf("[TIMER] total elapsed before failure: %.3f ms", ms_since(t_func_start));
+        return ExecStatus;
+    }
+
+    FActorController TargetController(Target);
+
+    {
+        ScopedStepTimer _t("LitCamSensor::ReadCaptureResults(DataRGB)");
+        LitCamSensor->ReadCaptureResults(DataRGB);
+    }
+
+    int32 LitW = LitCamSensor->GetFilmWidth();
+    int32 LitH = LitCamSensor->GetFilmHeight();
+
+    if (DataRGB.Num() == LitW * LitH) {
+        ScopedStepTimer _t("SerializeData RGB");
+        SerializeData(DataRGB, LitW, LitH, FileNameRGB);
+    } else {
+        SL::get().print("DataRGB size is not equal to LitW * LitH");
+    }
+    SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
+
+    { ScopedStepTimer _t("TargetController.Hide()"); TargetController.Hide(); }
+
+    { ScopedStepTimer _t("LitCamSensor::CaptureScene() #2 (no target)"); LitCamSensor->CaptureScene(); }
+
+    {
+        ScopedStepTimer _t("AnnotationCamSensor::ReadCaptureResults(DataM)");
+        AnnotationCamSensor->ReadCaptureResults(DataM);
+    }
+
+    int32 SegW = AnnotationCamSensor->GetFilmWidth();
+    int32 SegH = AnnotationCamSensor->GetFilmHeight();
+    SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), SegW, SegH);
+
+
+    if (DataM.Num() == SegW * SegH) {
+        ScopedStepTimer _t("SerializeData MASK");
+        SerializeData(DataM, SegW, SegH, FileNameM);
+    } else {
+        SL::get().print("DataM size is not equal to SegW * SegH");
+    }
+
+    {
+        ScopedStepTimer _t("LitCamSensor::ReadCaptureResults(DataRGBNoTarget)");
+        LitCamSensor->ReadCaptureResults(DataRGBNoTarget);
+    }
+    SL::get().printf("FCameraHandler::GetHWObs DataRGBNoTarget size: %d, width: %d, height: %d", DataRGBNoTarget.Num(), LitW, LitH);
+
+    { ScopedStepTimer _t("TargetController.Show()"); TargetController.Show(); }
+
+    if (DataRGBNoTarget.Num() == LitW * LitH) {
+        ScopedStepTimer _t("SerializeData RGB_NO_TARGET");
+        SerializeData(DataRGBNoTarget, LitW, LitH, FileNameRGBNoTarget);
+    } else {
+        SL::get().print("DataRGBNoTarget size is not equal to LitW * LitH");
+    }
+
+    SL::get().printf("[TIMER] GetHWObsV3 total elapsed: %.3f ms", ms_since(t_func_start));
+    return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
+}
+
+
+FExecStatus FCameraHandler::GetHWObsV2(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::GetHWObs called");
+	FExecStatus ExecStatus = FExecStatus::OK();
+	if (Args.Num() != 3) {
+		FString Msg = TEXT("Invalid command length.");
+		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	FString TargetId = Args[2];
+	FString FileName = Args[1];
+	int32 index;
+	if (!FileName.FindLastChar(TEXT('.'), index)) {
+		FString msg = TEXT("File name is not a path, binary is not supported.");
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+
+
+	AActor* Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+	if (!Target) {
+		ExecStatus = FExecStatus::Error("Can not find target");
+		SL::get().print("Can not find target");
+		return ExecStatus;
+	}
+	FActorController TargetController(Target);
+
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+	TArray<FColor> DataRGB, DataM;
+	int Width, Height;
+	FString FileNameRGB = FileName; FileNameRGB.InsertAt(index, TEXT("_rgb"));
+	FString FileNameM = FileName; FileNameM.InsertAt(index, TEXT("_mask"));
+	FusionCamSensor->GetLitSeg(DataRGB, DataM, Width, Height);
+	SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), Width, Height);
+	SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), Width, Height);
+
+	TArray<FColor> DataRGBNoTarget;
+	FString FileNameRGBNoTarget = FileName; FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target"));
+	TargetController.Hide();
+	FusionCamSensor->GetLit(DataRGBNoTarget, Width, Height);
+	TargetController.Show();
+
+	SerializeData(DataRGB, Width, Height, FileNameRGB);
+	SerializeData(DataM, Width, Height, FileNameM);
+	SerializeData(DataRGBNoTarget, Width, Height, FileNameRGBNoTarget);
+
+	return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
+}
+
+FExecStatus FCameraHandler::GetHWObsV1(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::GetHWObs called");
+	FExecStatus ExecStatus = FExecStatus::OK();
+	if (Args.Num() != 3) {
+		FString Msg = TEXT("Invalid command length.");
+		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	FString TargetId = Args[2];
+	FString FileName = Args[1];
+	int32 index;
+	if (!FileName.FindLastChar(TEXT('.'), index)) {
+		FString msg = TEXT("File name is not a path, binary is not supported.");
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+
+
+	AActor* Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+	if (!Target) {
+		ExecStatus = FExecStatus::Error("Can not find target");
+		SL::get().print("Can not find target");
+		return ExecStatus;
+	}
+	FActorController TargetController(Target);
+
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+	TArray<FColor> DataRGB;
+	FString FileNameRGB = FileName; FileNameRGB.InsertAt(index, TEXT("_rgb"));
+	int Width, Height;
+	FusionCamSensor->GetLit(DataRGB, Width, Height);
+	SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), Width, Height);
+
+	
+	TArray<FColor> DataM;
+	FString FileNameM = FileName; FileNameM.InsertAt(index, TEXT("_mask"));
+	FusionCamSensor->GetSeg(DataM, Width, Height);
+	SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), Width, Height);
+
+	TArray<FColor> DataRGBNoTarget;
+	FString FileNameRGBNoTarget = FileName; FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target"));
+	TargetController.Hide();
+	FusionCamSensor->GetLit(DataRGBNoTarget, Width, Height);
+	TargetController.Show();
+
+	SerializeData(DataRGB, Width, Height, FileNameRGB);
+	SerializeData(DataM, Width, Height, FileNameM);
+	SerializeData(DataRGBNoTarget, Width, Height, FileNameRGBNoTarget);
+
+	return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
+}
+
+
+FExecStatus FCameraHandler::GetCameraOneObjMask(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::GetCameraObjMask called");
+	FExecStatus ExecStatus = FExecStatus::OK();
+	if (Args.Num() != 3) {
+		FString Msg = TEXT("Invalid command length.");
+		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	FString ObjectId = Args[2];
+	FString FileName = Args[1];
+
+
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) {
+		SL::get().print("FCameraHandler::GetCameraObjMask error, FusionCamSensor is not valid");
+		return ExecStatus;
+	}
+
+
+	TArray<FColor> Data;
+	int Width, Height;
+	FusionCamSensor->GetObjMask(ObjectId, Data, Width, Height);
+
+	if (Data.Num() == 0)
+	{
+		ExecStatus = FExecStatus::Error("Captured data is empty");
+		SL::get().print("FCameraHandler::GetCameraObjMask error, Captured data is empty");
+		return ExecStatus;
+	}
+	ExecStatus = SerializeData(Data, Width, Height, FileName);
+	SL::get().print("FCameraHandler::GetCameraObjMask returned");
+	return ExecStatus;
+}
+
+
+FExecStatus FCameraHandler::StartRecord(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::StartRecord called");
+
+	FExecStatus ExecStatus = FExecStatus::OK();
+	AActor* Target = nullptr;
+	if (Args.Num() == 5) {
+		FString TargetId = Args[4];
+		Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+		if (!Target) {
+			ExecStatus = FExecStatus::Error("Can not find target");
+			SL::get().print("Can not find target");
+			return ExecStatus;
+		}
+	}
+	else if (Args.Num() != 4) {
+		FString Msg = TEXT("Invalid command length.");
+		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	FString FileName = Args[1];
+	int32 index;
+	if (!FileName.FindLastChar(TEXT('.'), index)) {
+		FString msg = TEXT("File name is not a path, binary is not supported.");
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+
+	double Time = FCString::Atod(*Args[2]);
+	float FPS = FCString::Atof(*Args[3]);
+	if (Time <= 0) {
+		FString msg = TEXT("Time is invalid: " + Args[2]);
+
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+	if (FPS <= 0 || FPS >= 60) {
+		FString msg = TEXT("FPS is invalid: " + Args[3]);
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+	// double StartTime = FPlatformTime::Seconds();
+	// double EndTime = StartTime + Time;
+
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+	// FusionCamSensor->start_record(FileName, Time, FPS);
+	SL::get().printf("FCameraHandler::StartRecord called, FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
+	FusionCamSensor->StartRecord(FileName, Time, FPS, Target);
+	
+	// save cmd
+    FString Content = FString::Printf(TEXT("vset /camera/%s/record %s %s %s"), *Args[0], *Args[1], *Args[2], *Args[3]);
+	FString CmdFileName = FileName;
+	CmdFileName.RemoveAt(index, FileName.Len() - index);
+	CmdFileName += TEXT(".cmd.txt");
+    FFileHelper::SaveStringToFile(Content, *CmdFileName);
+
+
+	SL::get().print("FCameraHandler::StartRecord returned");
+    return FExecStatus::OK();
+}
+
+FExecStatus FCameraHandler::StartBulletTimeRecord(const TArray<FString>& Args)
+{
+	SL::get().print("FCameraHandler::StartRecord called");
+
+	FExecStatus ExecStatus = FExecStatus::OK();
+	AActor* Target = nullptr;
+	if (Args.Num() == 5) {
+		FString TargetId = Args[4];
+		Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+		if (!Target) {
+			ExecStatus = FExecStatus::Error("Can not find target");
+			SL::get().print("Can not find target");
+			return ExecStatus;
+		}
+	}
+	else {
+		FString Msg = TEXT("Invalid command length.");
+		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
+
+	FString FileName = Args[1];
+	int32 index;
+	if (!FileName.FindLastChar(TEXT('.'), index)) {
+		FString msg = TEXT("File name is not a path, binary is not supported.");
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+
+	double Time = FCString::Atod(*Args[2]);
+	float FPS = FCString::Atof(*Args[3]);
+	if (Time <= 0) {
+		FString msg = TEXT("Time is invalid: " + Args[2]);
+
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+	if (FPS <= 0 || FPS >= 60) {
+		FString msg = TEXT("FPS is invalid: " + Args[3]);
+		SL::get().print(TCHAR_TO_UTF8(*msg));
+		ExecStatus = FExecStatus::Error(msg);
+		return ExecStatus;
+	}
+	// double StartTime = FPlatformTime::Seconds();
+	// double EndTime = StartTime + Time;
+
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+	// FusionCamSensor->start_record(FileName, Time, FPS);
+	SL::get().printf("FCameraHandler::StartRecord called, FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
+	FusionCamSensor->StartBulletTimeRecord(FileName, Time, FPS, Target);
+	
+	// save cmd
+    FString Content = FString::Printf(TEXT("vset /camera/%s/record %s %s %s"), *Args[0], *Args[1], *Args[2], *Args[3]);
+	FString CmdFileName = FileName;
+	CmdFileName.RemoveAt(index, FileName.Len() - index);
+	CmdFileName += TEXT(".cmd.txt");
+    FFileHelper::SaveStringToFile(Content, *CmdFileName);
+
+
+	SL::get().print("FCameraHandler::StartRecord returned");
+    return FExecStatus::OK();
+}
+
+FExecStatus FCameraHandler::CheckRecordStatus(const TArray<FString>& Args)
+{
+	FExecStatus ExecStatus = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+	if (FusionCamSensor->IsRecording())
+	{
+		return FExecStatus::OK("true");
+	} else {
+		return FExecStatus::OK("false");
+	}
+}
+
 void FCameraHandler::RegisterCommands()
 {
+	SL::get("C:\\Users\\hulc\\Desktop\\x.txt", false);
+
+	// CommandDispatcher->BindCommand(
+	// 	"vset /camera/[uint]/audiorecord [str]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetCameraAudioRecord),
+	// 	"Set sensor audio record on/off"
+	// );
+       
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/hwobs",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetCameraAudioRecord),
+		"Set sensor audio record on/off"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/oneobjmask [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraObjMask),
+		"oneobjmask bmp object_id"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/hwobs [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObs),
+		"hwobs xxx.bmp target_id"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/hwobsv1 [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV1),
+		"hwobs xxx.bmp target_id"
+	);
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/hwobsv2 [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV2),
+		"hwobs xxx.bmp target_id"
+	);
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/hwobsv3 [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV3),
+		"hwobs xxx.bmp target_id"
+	);
+
+	CommandDispatcher->BindCommand(
+        "vset /camera/[uint]/record [str] [float] [float]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartRecord),
+        "vset /camera/{cam_id}/record {mode} {time_s} {fps}"
+	);
+	CommandDispatcher->BindCommand(
+        "vset /camera/[uint]/record [str] [float] [float] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartRecord),
+        "vset /camera/{cam_id}/record {mode} {time_s} {fps} {target_id}"
+	);
+	CommandDispatcher->BindCommand(
+        "vset /camera/[uint]/bullet_time_record [str] [float] [float] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartBulletTimeRecord),
+        "vset /camera/{cam_id}/bullet_time_record {mode} {time_s} {fps} {target_id}"
+	);
+
+	CommandDispatcher->BindCommand(
+        "vget /camera/[uint]/record",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::CheckRecordStatus),
+    	"vget /camera/{cam_id}/record"
+	);
+
 	CommandDispatcher->BindCommand(
 		"vget /screenshot [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetScreenshot),

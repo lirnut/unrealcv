@@ -3,6 +3,7 @@
 
 #include "Runtime/Engine/Classes/Components/PrimitiveComponent.h"
 #include "Runtime/Engine/Classes/Camera/CameraTypes.h"
+#include "AudioMixerDevice.h"
 #include "FusionCamSensor.generated.h"
 
 UENUM(BlueprintType)
@@ -47,6 +48,62 @@ public:
 
 	// virtual void OnRegister() override;
 	virtual bool GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut);
+
+	Audio::FMixerDevice* GetAudioMixer();
+protected:
+    FTimerHandle TimerHandle_Record;
+	FCriticalSection RecordCriticalSection;
+	AActor* TargetToHide;
+    bool bIsRecording;
+    float TimePerFrame;
+    float ElapsedTime;
+    int ElapsedSteps;
+    FString RecordFileName;
+    int32 RecordFPS;
+    float RecordDuration;
+
+	enum class EBulletTimeState : uint8
+	{
+		Waiting,
+		BulletTime,
+		Finished
+	};
+	EBulletTimeState BulletTimeState = EBulletTimeState::Waiting;
+	bool UseBulletTime = false;
+	float BulletTimeSpeedDeg = 2.0f;
+	float TimeDilation;
+
+    void OnTimerRecord();
+
+public:
+    UFUNCTION(BlueprintCallable, Category = "unrealcv")
+    void StartRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target);
+
+    UFUNCTION(BlueprintCallable, Category = "unrealcv")
+    void StartBulletTimeRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target);
+
+    UFUNCTION(BlueprintCallable, Category = "unrealcv")
+    void StopRecord();
+
+    UFUNCTION(BlueprintCallable, Category = "unrealcv")
+    bool IsRecording() { return bIsRecording; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void StartCameraAudioRecord();
+
+    UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void StopCameraAudioRecord();
+
+	// UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetBulletTime(TArray<TArray<FColor>> *DataLit, TArray<TArray<FColor>> *DataSeg,  int& InOutWidth, int& InOutHeight);
+
+	/** Get rgbm data */
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSeg, int& InOutWidth, int& InOutHeight);
+
+	/** Get one object mask data */
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetObjMask(FString ObjId, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
 
 	/** Get rgb data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
@@ -199,5 +256,16 @@ protected:
 	https://github.com/EpicGames/UnrealEngine/blob/4.16/Engine/Source/Editor/LevelEditor/Private/SLevelViewport.cpp#L3908
 	*/
 
+public:
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	UDepthCamSensor* GetDepthCamSensor() const { return DepthCamSensor; }
 
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	UNormalCamSensor* GetNormalCamSensor() const { return NormalCamSensor; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	UAnnotationCamSensor* GetAnnotationCamSensor() const { return AnnotationCamSensor; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	ULitCamSensor* GetLitCamSensor() const { return LitCamSensor; }
 };

@@ -67,11 +67,13 @@ public:
 
 	/** Similar function to GetCameraView in UCameraComponent, without lockToHMD feature */
 	void GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView);
-
-protected:
+	
 	/** Check whether the TextureTarget is correctly initialized */
 	bool CheckTextureTarget();
 
+	void ReadCaptureResults(TArray<FColor>& Data);
+
+protected:
 	int FilmWidth;
 
 	int FilmHeight;

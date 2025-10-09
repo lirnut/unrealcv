@@ -61,6 +61,7 @@ public:
 	FString MessageBody;
 	/** An enum type to show the ExecStatus */
 	FExecStatusType ExecStatusType;
+	bool IsOK() { return (ExecStatusType == FExecStatusType::OK); }
 
 	~FExecStatus();
 	/** Convert this ExecStatus to String */

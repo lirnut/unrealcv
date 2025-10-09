@@ -152,3 +152,14 @@ void UBaseCameraSensor::GetCameraView(float DeltaTime, FMinimalViewInfo& Desired
 	}
 
 }
+
+void UBaseCameraSensor::ReadCaptureResults(TArray<FColor>& Data)
+{
+	FReadSurfaceDataFlags ReadSurfaceDataFlags;
+	ReadSurfaceDataFlags.SetLinearToGamma(false); 
+	TextureTarget->GameThread_GetRenderTargetResource()->ReadPixels(Data, ReadSurfaceDataFlags);
+	if (Data.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Captured lit data is empty."));
+	}
+}
