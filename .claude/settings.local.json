@@ -1,9 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git checkout shc/ue5.6)"
+      "Bash(*)",
+      "Bash(git checkout shc/ue5.6)",
+      "Bash(git checkout -b shc/ue5.6-backup-before-dev-merge)",
+      "Bash(git merge shc/dev)",
+      "Bash(git diff --name-only --diff-filter=U)",
+      "Bash(git add Source/UnrealCV/Private/Sensor/CameraSensor/FusionCamSensor.cpp)",
+      "Bash(git add client/python/unrealcv/__init__.py client/python/unrealcv/api.py client/python/unrealcv/launcher.py)",
+      "Bash(git commit -m \"Merge branch ''shc/dev'' into shc/ue5.6\n\n- Integrate recording pipeline functionality from shc/dev branch\n- Keep optical flow improvements from shc/ue5.6 branch\n- Add StartRecord, StartBulletTimeRecord, and audio recording features\n- Preserve FlowCamSensor improvements and UE5.6 compatibility\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\")"
     ],
     "deny": [],
-    "ask": []
+    "ask": [
+      "Bash(rm *)"
+    ]
   }
 }
