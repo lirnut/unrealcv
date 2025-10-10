@@ -183,6 +183,7 @@ Test for the executable will be manually done, due to the complexity of the UE5 
   - Synchronize frame capture across all render passes
   - Control actor visibility per render pass
   - Files: Create LayeredCaptureActor.h/.cpp in Source/UnrealCV/Public/Actor/
+  - Human Comment: maybe we should implement this in Python layer? in uezoo. I think we should control the scene composition in Python layer.
 
 - [ ] **Camera Movement Controller**
   - Create `ACameraMotionController` actor
@@ -193,6 +194,8 @@ Test for the executable will be manually done, due to the complexity of the UE5 
   - Implement 4 random trajectory generators
   - Export camera parameters (intrinsics/extrinsics) per frame
   - Files: Create CameraMotionController.h/.cpp
+  - Human Comment: This is great, Because we can 兼容现有的API: vset /camera/[uint]/bullet_time_record
+  - Human Comment: 上述时保守的做法，我觉得你是想实现相机运动控制和录制的解耦，也就是用一个Actor来控制相机运动，另一个Actor来负责录制。这是很酷的想法，或许我们也可以这样做，用不同的API来分别控制相机运动和录制，也就是下面的Camera Movement API Commands
 
 - [ ] **Camera Movement API Commands**
   - Add commands to CameraHandler or create new MotionHandler
@@ -201,12 +204,14 @@ Test for the executable will be manually done, due to the complexity of the UE5 
     - `vget /camera/{id}/motion/status`
     - `vget /camera/{id}/motion/params` (get intrinsics/extrinsics)
   - Document API in comments
+  - Human Comment: This is great, 实现了相机运动控制和录制的解耦
 
 - [ ] **Actor Visibility Control API**
   - Commands to show/hide actors or groups
   - `vset /object/{id}/visibility {true|false}`
   - `vset /object/group/{tag}/visibility {true|false}`
   - Support for render-pass-specific visibility (e.g., hide in certain capture passes)
+  - Human Comment: see  ObjectHandler.cpp(vset /object/[str]/hide), shall we make a new API? is that necessary?
 
 #### Medium Priority
 
