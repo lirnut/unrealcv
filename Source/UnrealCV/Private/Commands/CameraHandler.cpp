@@ -32,6 +32,7 @@
 #include "SensorBPLib.h"
 #include "FusionCameraActor.h"
 #include "Actor/FusionCamCaptureActor.h"
+#include "Actor/CameraMotionController.h"
 
 #include "UnrealcvStats.h"
 #include "UnrealClient.h"
@@ -1507,6 +1508,220 @@ FExecStatus FCameraHandler::GetProjectionMatrix(const TArray<FString>& Args)
 	return FExecStatus::OK(Result);
 }
 
+// Camera motion control methods
+
+FExecStatus FCameraHandler::StartCameraMotion(const TArray<FString>& Args)
+{
+	// Args: [camera_id, motion_type, ...params]
+	if (Args.Num() < 2)
+	{
+		return FExecStatus::Error("Usage: vset /camera/[uint]/motion/start [motion_type] [params...]");
+	}
+
+	FExecStatus Status = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+	if (!IsValid(FusionCamSensor)) return Status;
+
+	int32 CameraId = FCString::Atoi(*Args[0]);
+	FString MotionType = Args[1].ToLower();
+
+	// Check if camera already has a motion controller
+	if (CameraMotionControllers.Contains(CameraId))
+	{
+		ACameraMotionController* ExistingController = CameraMotionControllers[CameraId];
+		if (IsValid(ExistingController) && ExistingController->IsMoving())
+		{
+			return FExecStatus::Error(FString::Printf(TEXT("Camera %d is already in motion"), CameraId));
+		}
+		// Clean up old controller if it exists but is not moving
+		if (IsValid(ExistingController))
+		{
+			ExistingController->Destroy();
+		}
+		CameraMotionControllers.Remove(CameraId);
+	}
+
+	// Spawn new motion controller
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
+	if (!IsValid(World))
+	{
+		return FExecStatus::Error("Cannot get world");
+	}
+
+	ACameraMotionController* MotionController = World->SpawnActor<ACameraMotionController>();
+	if (!IsValid(MotionController))
+	{
+		return FExecStatus::Error("Failed to spawn CameraMotionController");
+	}
+
+	// Configure motion controller
+	MotionController->SetTargetCamera(FusionCamSensor);
+
+	// Store mapping
+	CameraMotionControllers.Add(CameraId, MotionController);
+
+	// Parse motion type and start motion
+	if (MotionType == TEXT("rotate_left_45") || MotionType == TEXT("rotateleft45"))
+	{
+		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
+		MotionController->StartRotateLeft45(Duration);
+	}
+	else if (MotionType == TEXT("rotate_right_45") || MotionType == TEXT("rotateright45"))
+	{
+		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
+		MotionController->StartRotateRight45(Duration);
+	}
+	else if (MotionType == TEXT("rotate_up_45") || MotionType == TEXT("rotateup45"))
+	{
+		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
+		MotionController->StartRotateUp45(Duration);
+	}
+	else if (MotionType == TEXT("rotate_down_45") || MotionType == TEXT("rotatedown45"))
+	{
+		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
+		MotionController->StartRotateDown45(Duration);
+	}
+	else if (MotionType == TEXT("rotate_360") || MotionType == TEXT("rotate360"))
+	{
+		AActor* Target = nullptr;
+		if (Args.Num() > 2)
+		{
+			FString TargetId = Args[2];
+			Target = GetActorById(World, TargetId);
+		}
+		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 5.0f;
+		MotionController->StartRotate360(Target, Duration);
+	}
+	else if (MotionType == TEXT("rotate_360_slow") || MotionType == TEXT("rotate360slow"))
+	{
+		// Bullet-time compatible slow rotation
+		AActor* Target = nullptr;
+		if (Args.Num() > 2)
+		{
+			FString TargetId = Args[2];
+			Target = GetActorById(World, TargetId);
+		}
+		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 10.0f;
+		float SpeedDegPerFrame = Args.Num() > 4 ? FCString::Atof(*Args[4]) : 2.0f;
+		MotionController->StartRotate360Slow(Target, Duration, SpeedDegPerFrame);
+	}
+	else if (MotionType == TEXT("zoom_in") || MotionType == TEXT("zoomin"))
+	{
+		float Distance = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 200.0f;
+		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 2.0f;
+		MotionController->StartZoomIn(Distance, Duration);
+	}
+	else if (MotionType == TEXT("zoom_out") || MotionType == TEXT("zoomout"))
+	{
+		float Distance = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 200.0f;
+		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 2.0f;
+		MotionController->StartZoomOut(Distance, Duration);
+	}
+	else if (MotionType == TEXT("random_rotation") || MotionType == TEXT("randomrotation"))
+	{
+		AActor* Target = nullptr;
+		if (Args.Num() > 2)
+		{
+			FString TargetId = Args[2];
+			Target = GetActorById(World, TargetId);
+		}
+		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 5.0f;
+		MotionController->StartRandomRotation(Target, Duration);
+	}
+	else
+	{
+		MotionController->Destroy();
+		CameraMotionControllers.Remove(CameraId);
+		return FExecStatus::Error(FString::Printf(TEXT("Unknown motion type: %s"), *MotionType));
+	}
+
+	return FExecStatus::OK();
+}
+
+FExecStatus FCameraHandler::StopCameraMotion(const TArray<FString>& Args)
+{
+	FExecStatus Status = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+	if (!IsValid(FusionCamSensor)) return Status;
+
+	int32 CameraId = FCString::Atoi(*Args[0]);
+
+	if (!CameraMotionControllers.Contains(CameraId))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Camera %d has no active motion controller"), CameraId));
+	}
+
+	ACameraMotionController* MotionController = CameraMotionControllers[CameraId];
+	if (IsValid(MotionController))
+	{
+		MotionController->StopMotion();
+		MotionController->Destroy();
+	}
+
+	CameraMotionControllers.Remove(CameraId);
+
+	return FExecStatus::OK();
+}
+
+FExecStatus FCameraHandler::GetCameraMotionStatus(const TArray<FString>& Args)
+{
+	FExecStatus Status = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+	if (!IsValid(FusionCamSensor)) return Status;
+
+	int32 CameraId = FCString::Atoi(*Args[0]);
+
+	if (!CameraMotionControllers.Contains(CameraId))
+	{
+		return FExecStatus::OK("idle");
+	}
+
+	ACameraMotionController* MotionController = CameraMotionControllers[CameraId];
+	if (!IsValid(MotionController))
+	{
+		CameraMotionControllers.Remove(CameraId);
+		return FExecStatus::OK("idle");
+	}
+
+	// Return motion state
+	if (MotionController->IsMoving())
+	{
+		return FExecStatus::OK("moving");
+	}
+	else
+	{
+		// Motion completed or cancelled, clean up
+		CameraMotionControllers.Remove(CameraId);
+		return FExecStatus::OK("idle");
+	}
+}
+
+FExecStatus FCameraHandler::GetCameraMotionProgress(const TArray<FString>& Args)
+{
+	FExecStatus Status = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+	if (!IsValid(FusionCamSensor)) return Status;
+
+	int32 CameraId = FCString::Atoi(*Args[0]);
+
+	if (!CameraMotionControllers.Contains(CameraId))
+	{
+		return FExecStatus::OK("0.0");
+	}
+
+	ACameraMotionController* MotionController = CameraMotionControllers[CameraId];
+	if (!IsValid(MotionController))
+	{
+		CameraMotionControllers.Remove(CameraId);
+		return FExecStatus::OK("0.0");
+	}
+
+	float Progress = MotionController->GetProgress();
+	FString Result = FString::Printf(TEXT("%f"), Progress);
+
+	return FExecStatus::OK(Result);
+}
+
 void FCameraHandler::RegisterCommands()
 {
 	SL::get("C:\\Users\\hulc\\Desktop\\x.txt", false);
@@ -1781,5 +1996,48 @@ void FCameraHandler::RegisterCommands()
 		"vget /camera/[uint]/projection_matrix",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetProjectionMatrix),
 		"Get camera projection matrix (4x4)"
+	);
+
+	// Camera motion control commands
+	CommandDispatcher->BindCommand(
+		"vset /camera/[uint]/motion/start [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
+		"Start camera motion: rotate_left_45, rotate_right_45, rotate_up_45, rotate_down_45, rotate_360, rotate_360_slow, zoom_in, zoom_out, random_rotation"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vset /camera/[uint]/motion/start [str] [float]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
+		"Start camera motion with duration parameter"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vset /camera/[uint]/motion/start [str] [str] [float]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
+		"Start camera motion with target and duration (for orbit motions)"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vset /camera/[uint]/motion/start [str] [str] [float] [float]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
+		"Start camera motion with target, duration, and extra params (for rotate_360_slow)"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vset /camera/[uint]/motion/stop",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StopCameraMotion),
+		"Stop current camera motion"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/motion/status",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraMotionStatus),
+		"Get camera motion status: idle or moving"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/motion/progress",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraMotionProgress),
+		"Get camera motion progress (0.0 to 1.0)"
 	);
 }

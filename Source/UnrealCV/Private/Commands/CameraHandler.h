@@ -98,7 +98,16 @@ private:
 	FExecStatus GetExtrinsics(const TArray<FString>& Args);
 	FExecStatus GetProjectionMatrix(const TArray<FString>& Args);
 
+	// Camera motion control
+	FExecStatus StartCameraMotion(const TArray<FString>& Args);
+	FExecStatus StopCameraMotion(const TArray<FString>& Args);
+	FExecStatus GetCameraMotionStatus(const TArray<FString>& Args);
+	FExecStatus GetCameraMotionProgress(const TArray<FString>& Args);
+
 private:
 	// Map camera ID to its associated CaptureActor for automatic lifecycle management
 	TMap<int32, class AFusionCamCaptureActor*> CameraRecordingActors;
+
+	// Map camera ID to its associated MotionController for automatic lifecycle management
+	TMap<int32, class ACameraMotionController*> CameraMotionControllers;
 };
