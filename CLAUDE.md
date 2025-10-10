@@ -168,77 +168,104 @@ Test for the executable will be manually done, due to the complexity of the UE5 
 - **C++ Plugin (UnrealCV)**: Core rendering capabilities, server API, low-level control
 - **Python Layer (unreal_zoo)**: High-level automation, scene composition, batch orchestration
 
-### TODO List - Phase 1 (Current Focus)
+### TODO List - Phase 1 (Current Focus - REVISED)
 
 #### High Priority (Immediate)
 
-- [ ] **Multi-Layer Rendering System**
-  - Design: Create `ALayeredCaptureActor` that orchestrates multiple render passes
-  - For each frame, capture:
-    - Composite (full scene)
-    - Foreground + environmental effects (hide background)
-    - Foreground mask (segmentation)
-    - Background (hide foreground)
-    - Background inpainted (fill occlusion - may need special shader)
-  - Synchronize frame capture across all render passes
-  - Control actor visibility per render pass
-  - Files: Create LayeredCaptureActor.h/.cpp in Source/UnrealCV/Public/Actor/
-  - Human Comment: maybe we should implement this in Python layer? in uezoo. I think we should control the scene composition in Python layer.
+**✅ Already Implemented - Leverage Existing APIs:**
+- Camera control: `vset/vget /camera/[uint]/location`, `rotation`, `fov`, `moveto`, `size`, `projection_type`
+- Recording: `vset /camera/[uint]/record`, `bullet_time_record`, `vget /camera/[uint]/record` (status)
+- Object visibility: `vset /object/[str]/show`, `vset /object/[str]/hide`
+- Render passes: `vget /camera/[uint]/lit`, `depth`, `normal`, `optical_flow`, `seg`, `object_mask`
 
-- [ ] **Camera Movement Controller**
-  - Create `ACameraMotionController` actor
-  - Implement 6 fixed trajectories:
-    - RotateLeft45(), RotateRight45(), RotateUp45()
-    - Rotate360() (ensure first/last frame camera match)
-    - ZoomIn(), ZoomOut()
-  - Implement 4 random trajectory generators
-  - Export camera parameters (intrinsics/extrinsics) per frame
-  - Files: Create CameraMotionController.h/.cpp
-  - Human Comment: This is great, Because we can 兼容现有的API: vset /camera/[uint]/bullet_time_record
-  - Human Comment: 上述时保守的做法，我觉得你是想实现相机运动控制和录制的解耦，也就是用一个Actor来控制相机运动，另一个Actor来负责录制。这是很酷的想法，或许我们也可以这样做，用不同的API来分别控制相机运动和录制，也就是下面的Camera Movement API Commands
+**🔧 New Features Needed:**
 
-- [ ] **Camera Movement API Commands**
-  - Add commands to CameraHandler or create new MotionHandler
+- [ ] **Camera Intrinsics/Extrinsics Export API** (CRITICAL for camera movement videos)
+  - Need to export camera projection matrix, view matrix
+  - Required for SOW camera movement dataset (100K videos with camera parameters)
   - Commands:
-    - `vset /camera/{id}/motion/start {type} {params}`
-    - `vget /camera/{id}/motion/status`
-    - `vget /camera/{id}/motion/params` (get intrinsics/extrinsics)
-  - Document API in comments
-  - Human Comment: This is great, 实现了相机运动控制和录制的解耦
+    - `vget /camera/[uint]/intrinsics` → returns focal length, principal point, distortion
+    - `vget /camera/[uint]/extrinsics` → returns rotation matrix (3x3) and translation vector
+    - `vget /camera/[uint]/projection_matrix` → returns 4x4 projection matrix
+  - Implementation: Extract from UFusionCamSensor's capture components
+  - Files: Add to CameraHandler.cpp
+  - **Human Comment**: This is CRITICAL - without camera parameters, camera movement videos are incomplete
 
-- [ ] **Actor Visibility Control API**
-  - Commands to show/hide actors or groups
-  - `vset /object/{id}/visibility {true|false}`
-  - `vset /object/group/{tag}/visibility {true|false}`
-  - Support for render-pass-specific visibility (e.g., hide in certain capture passes)
-  - Human Comment: see  ObjectHandler.cpp(vset /object/[str]/hide), shall we make a new API? is that necessary?
+- [ ] **Programmatic Camera Trajectory System** (For decoupling movement from recording)
+  - Create `ACameraMotionController` actor to control camera movement
+  - Decouples camera movement from recording (different actors, different concerns)
+  - Supports the 10 required camera movements:
+    - 6 fixed: RotateLeft45°, RotateRight45°, RotateUp45°, Rotate360°, ZoomIn, ZoomOut
+    - 4 random direction movements
+  - API commands:
+    - `vset /camera/[uint]/motion/start [str] [params]` - start trajectory
+    - `vset /camera/[uint]/motion/stop` - stop trajectory
+    - `vget /camera/[uint]/motion/status` - check if moving
+    - `vget /camera/[uint]/motion/progress` - get completion percentage
+  - Compatible with existing `bullet_time_record` API
+  - Implementation: New MotionController actor, commands in CameraHandler or new MotionHandler
+  - Files: Create CameraMotionController.h/.cpp in Source/UnrealCV/Public/Actor/
+  - **Human Comment**: Great for decoupling! Can reuse existing recording APIs while adding motion control
+
+- [ ] **Multi-Layer Rendering Orchestration** (Python layer - uezoo)
+  - **DECISION**: Implement in Python (uezoo), NOT C++
+  - Python script orchestrates multiple render passes using existing APIs:
+    ```python
+    # Pseudocode
+    for frame in frames:
+        # Pass 1: Composite (full scene)
+        unrealcv.client.request(f'vget /camera/{cam_id}/lit rgb.png')
+
+        # Pass 2: Foreground mask
+        unrealcv.client.request(f'vset /object/{background_objects}/hide')
+        unrealcv.client.request(f'vget /camera/{cam_id}/seg mask.png')
+
+        # Pass 3: Background (hide foreground)
+        unrealcv.client.request(f'vset /object/{background_objects}/show')
+        unrealcv.client.request(f'vset /object/{foreground_objects}/hide')
+        unrealcv.client.request(f'vget /camera/{cam_id}/lit bg.png')
+
+        # Pass 4: Foreground + effects
+        unrealcv.client.request(f'vset /object/{foreground_objects}/show')
+        unrealcv.client.request(f'vset /object/{background_objects}/hide')
+        unrealcv.client.request(f'vget /camera/{cam_id}/lit fg.png')
+    ```
+  - C++ plugin provides primitives, Python provides orchestration
+  - Better separation of concerns: C++ = rendering, Python = composition logic
+  - **Human Comment**: Python layer (uezoo) should control scene composition, not C++
 
 #### Medium Priority
 
-- [ ] **Metadata Generation System**
-  - Automatic metadata export per video group
-  - Fields: video_name, object_id, resolution, frame_count, scene_category, foreground_category, foreground_subtype, occluder_list, avg_occlusion_ratio
-  - Export format: JSON or CSV
-  - API: `vget /recording/{id}/metadata`
+- [ ] **Metadata Generation Utilities**
+  - Helper functions in Python to calculate:
+    - Occlusion ratio from masks
+    - Scene/foreground categories
+    - Frame count, resolution verification
+  - Export to JSON/CSV
+  - Implementation: Python utility functions in uezoo
+  - **Human Comment**: Can be done in Python post-processing
 
-- [ ] **Semantic Annotation Export**
-  - Instance label export per frame
-  - Material parameter export
-  - Depth/scale information export
-  - API: `vget /object/{id}/semantic_info`
+- [ ] **Semantic Annotation Export** (if needed beyond existing seg/mask APIs)
+  - Check if existing APIs (`seg`, `object_mask`) are sufficient
+  - May need material parameters, instance IDs
+  - Commands:
+    - `vget /object/[str]/material_params` → returns material properties
+    - `vget /object/[str]/instance_id` → returns unique instance ID
+  - **Human Comment**: Evaluate if existing APIs are sufficient first
 
-- [ ] **Occlusion Ratio Calculator**
-  - Calculate occlusion ratio from masks
-  - Track occlusion over time
-  - Report average occlusion ratio
-  - Utility function in CaptureActor
+- [ ] **Batch Camera Parameter Export**
+  - Export camera parameters for all frames in a trajectory
+  - Utility command: `vget /camera/[uint]/trajectory/params [start_frame] [end_frame]`
+  - Returns JSON array of intrinsics/extrinsics per frame
+  - **Human Comment**: Useful for camera movement videos
 
-- [ ] **Python API Enhancement**
-  - Extend `client/python/unrealcv/` with new commands
-  - Test scripts for layered recording workflow
-  - Test scripts for camera movement workflow
+#### Low Priority / Deferred
 
-#### Low Priority / Phase 2
+- [ ] **New Visibility API** (QUESTION: Is this needed?)
+  - Existing APIs: `vset /object/[str]/show`, `vset /object/[str]/hide`
+  - Proposed new APIs seem redundant with existing functionality
+  - **DECISION**: Use existing APIs first, only add new ones if there's a specific gap
+  - **Human Comment**: "see ObjectHandler.cpp(vset /object/[str]/hide), shall we make a new API? is that necessary?"
 
 - [ ] **Audio Layer Recording** (Phase 2)
   - Bind audio sources to foreground actors
@@ -251,16 +278,70 @@ Test for the executable will be manually done, due to the complexity of the UE5 
   - Render pass for shadows only
   - Render pass for reflections only
   - Composite control for environmental effects
+  - May require custom shaders or post-process materials
 
 - [ ] **Dynamic Object Support** (Phase 2-3)
-  - Animation playback control
+  - Animation playback control via Blueprint or C++ API
   - Physics simulation
   - Interaction scenarios (handshake, photo-taking, etc.)
+  - Likely implemented in Python layer (uezoo)
 
 - [ ] **Cloud Deployment Scripts** (Phase 2-3)
   - Batch rendering on cloud servers
   - Distributed job scheduling
   - Quality control & validation
+  - Python automation layer (separate from UnrealCV plugin)
+
+### Immediate Development Priorities (Actionable)
+
+Based on SOW requirements and existing functionality analysis:
+
+**Priority 1: Camera Intrinsics/Extrinsics Export** 🔴 CRITICAL
+- **Why**: Required for 100K camera movement videos with camera parameters
+- **What**: Add APIs to export camera projection matrix, view matrix, focal length, principal point
+- **Where**: CameraHandler.cpp - add new command handlers
+- **Estimated Effort**: 1-2 days
+- **Blocker**: Without this, camera movement dataset is incomplete
+
+**Priority 2: Camera Motion Controller** 🟡 HIGH
+- **Why**: Need programmatic trajectory control for 10 movement types per scene
+- **What**: Create ACameraMotionController actor with trajectory presets
+- **Where**: New files CameraMotionController.h/.cpp + CameraHandler commands
+- **Estimated Effort**: 3-5 days
+- **Note**: Decouples motion from recording, reuses existing recording APIs
+
+**Priority 3: Multi-Layer Rendering (Python)** 🟢 MEDIUM
+- **Why**: Core functionality for layered video dataset
+- **What**: Python script in uezoo that orchestrates render passes
+- **Where**: Source/uezoo/ - new Python module
+- **Estimated Effort**: 2-3 days for orchestration logic
+- **Note**: Uses existing APIs (show/hide, lit, seg), no C++ changes needed
+
+**What NOT to Do:**
+- ❌ Don't create new visibility APIs - existing show/hide is sufficient
+- ❌ Don't implement multi-layer orchestration in C++ - Python is better suited
+- ❌ Don't implement metadata generation in C++ - Python post-processing is easier
+
+### Current Architecture Understanding (Post-Discussion)
+
+**Python Layer (uezoo - Source/uezoo/)**:
+- `start_mk_dataset.py` - main entry point for dataset generation
+- Uses gym-unrealcv for environment control
+- Agents: PoseTracker, Nav2GoalAgent for character movement
+- Calls UnrealCV APIs via TCP: start_record, get_record_status, batch_cmd
+- Saves trajectories, metadata, renders videos
+- **Future**: Add multi-layer rendering orchestration here
+
+**C++ Plugin (UnrealCV - Source/UnrealCV/)**:
+- Provides rendering primitives via TCP API
+- CameraHandler: camera control, recording, render passes
+- ObjectHandler: object manipulation, show/hide
+- FusionCamCaptureActor: automatic recording lifecycle management
+- **Future**: Add camera parameter export, motion controller
+
+**Division of Labor (Confirmed)**:
+- **C++**: Low-level rendering, camera control, object control, parameter export
+- **Python**: Scene composition, multi-pass orchestration, metadata, batch automation
 
 ### Key Design Principles
 
