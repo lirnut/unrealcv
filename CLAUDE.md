@@ -178,13 +178,13 @@ Test for the executable will be manually done, due to the complexity of the UE5 
 - Object visibility: `vset /object/[str]/show`, `vset /object/[str]/hide`
 - Render passes: `vget /camera/[uint]/lit`, `depth`, `normal`, `optical_flow`, `seg`, `object_mask`
 
-- [ ] **Camera Intrinsics/Extrinsics Export API** (CRITICAL for camera movement videos)
+- **Camera Intrinsics/Extrinsics Export API**
   - Commands:
     - `vget /camera/[uint]/intrinsics` → returns focal length, principal point, distortion
     - `vget /camera/[uint]/extrinsics` → returns rotation matrix (3x3) and translation vector
     - `vget /camera/[uint]/projection_matrix` → returns 4x4 projection matrix
 
-- [ ] **Programmatic Camera Trajectory System** (For decoupling movement from recording)
+- **Programmatic Camera Trajectory System**
   - Create `ACameraMotionController` actor to control camera movement
   - Decouples camera movement from recording (different actors, different concerns)
   - Supports the 10 required camera movements:
