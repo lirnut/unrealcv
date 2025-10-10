@@ -27,6 +27,46 @@ UnrealCV is an Unreal Engine (5.2+) plugin for computer vision research that pro
 - Server: TCP server and command handling
 - Utils: Utility functions
 
+**Recording System Architecture (NEW - 2025):**
+```
+┌─────────────────────────────────────────┐
+│  Python Automation Layer                │
+│  (unreal_zoo project - external)        │
+│  - Scene composition                    │
+│  - Batch rendering control              │
+│  - Asset randomization                  │
+└────────────────┬────────────────────────┘
+                 │ TCP/IP
+┌────────────────▼────────────────────────┐
+│  UnrealCV Server (C++ Plugin)           │
+│  - CameraHandler                        │
+│  - ObjectHandler                        │
+│  - Recording API commands               │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│  Recording System                       │
+│  ├─ AFusionCamCaptureActor              │
+│  │   (automatic lifecycle management)   │
+│  ├─ ACameraMotionController (TODO)      │
+│  └─ AAudioLayerRecorder (Phase 2)       │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│  Render Pipeline                        │
+│  ├─ UFusionCamSensor (sensor fusion)    │
+│  ├─ Actor visibility control            │
+│  └─ Multi-pass rendering (TODO)         │
+└─────────────────────────────────────────┘
+```
+
+**Camera ID-Based Recording API:**
+- User interacts with camera IDs (not actor indices)
+- `CameraHandler` automatically creates `AFusionCamCaptureActor` when recording starts
+- `AFusionCamCaptureActor` automatically destroyed when recording completes
+- Tracking via `TMap<int32, AFusionCamCaptureActor*> CameraRecordingActors` in CameraHandler
+- Supports normal recording and bullet-time recording modes
+
 ## Build System
 
 **Plugin Build:**
@@ -60,6 +100,186 @@ Test for the executable will be manually done, due to the complexity of the UE5 
 
 
 ## Human Guide and TODO List
-Now we are in a development branch 'shc/ue5.6' forked from the '5.2' branch, wich means we need to support from ue5.2 to ue5.6, but not previous ue versions. You can just Focus on ue5 rather than ue4. This branch of mine is focusing on support optical-flow image output (already implemented) and support ue5.6 (hopefully every compile warning is handled and the executable is tested). The optical-flow feature's PR has been merged to the official repo's 5.2 branch. Now let's focus on my work, wich is not mainly for PR, but for my 'HUAWEI_Project', I will construct a huge video dataset, the detailed information can be found in './SOW-基于CG的音视频分层数据生产-latest.md'. To record this big dataset, I have my another branch named 'shc/dev', that was a older branch, so be careful to merge it to the current branch. It has implemented an video record pipline in FusionCamSensor.h/.cpp, but that was seperate from the original graceful implementation in DataCaptureActor.cpp, because I did not see the ADataCaptureActor in DataCaptureActor.h/.cpp. So I think we might need to do:
-1. research the record logic in both files [completed]
-2. merge the 'shc/dev' branch to the current branch 'shc/ue5.6' [completed]
+
+### Current Project Context (Updated 2025-10-10)
+
+**Branch**: `shc/dev` (working branch for HUAWEI_Project dataset production)
+- Supports UE 5.2 - 5.6 (not UE4)
+- Optical flow feature already implemented and merged to official 5.2 branch
+- Focus: Large-scale audio-video layered dataset production for video inpainting/Omnimatte research
+
+### Recent Achievements (Completed)
+
+1. ✅ **Recording Architecture Refactoring**
+   - Created `AFusionCamCaptureActor` (FusionCamCaptureActor.h/.cpp) - dedicated recording actor
+   - Implemented camera ID-based API with automatic lifecycle management
+   - Removed old recording code from `UFusionCamSensor` (385 lines deleted)
+   - Better OOD: separation of concerns between sensor fusion and recording
+   - Commits: 1d1f8cd (implementation) + 041a2ec (cleanup)
+
+2. ✅ **Build System**
+   - All builds successful, no compilation errors
+   - Build time: ~17 seconds on 16-core system
+
+### Project Mission: SOW Requirements
+
+**See**: `./SOW-基于CG的音视频分层数据生产-latest.md` for full details
+
+**Goal**: Produce large-scale layered audio-video dataset for video inpainting/Omnimatte research
+
+**Timeline**: 9 months, 3 phases
+- Phase 1 (0-3 months): 40K layered videos + 10K camera movements + 10K semantic annotations
+- Phase 2 (3-6 months): 80K layered audio-videos + 20K camera movements + 20K semantic annotations
+- Phase 3 (6-9 months): 400K layered audio-videos + 100K camera movements + 100K semantic annotations
+
+**Final Deliverables** (Phase 3):
+- **400K layered audio-video groups** (30fps, 480p, 10s, horizontal/vertical)
+- **100K camera movement videos** (121 frames, 1080p, 10 movements per scene)
+- **100K semantic annotation videos** (instance, material, scale, 25K with dynamic objects)
+
+**Each layered video group contains**:
+1. Original composite video + audio
+2. Foreground mask (segmentation)
+3. Background layer (foreground removed + inpainted)
+4. Complete foreground layer (with shadows, reflections, disturbances)
+5. Foreground mask annotation
+6. Metadata: video name, object ID, resolution, frames, scene/foreground categories, occluder, occlusion ratio
+
+**Camera movements** (10 per scene):
+- 6 fixed: rotate left/right/up 45°, zoom in/out, 360° rotation
+- 4 random direction movements
+- Include camera intrinsics & extrinsics
+
+**Asset Requirements**:
+- Humans: multiple ages, skin colors, genders, clothing, body types
+- Pets: cats, dogs, birds (5+ breeds each), hamsters, turtles, lizards, snakes, spiders
+- Objects: cars, buildings, food, books (20+), tableware, plants (10+)
+- Scenes: 50+ types (urban, indoor, outdoor, natural, weather variations)
+- Occlusions: 100 distinct relationships, 20%+ in 5-20% occlusion range
+
+### Development Strategy
+
+**Python Project**: `unreal_zoo` (to be placed in work directory)
+- Handles scene composition, asset randomization, batch control
+- Calls UnrealCV TCP server API from external Python process
+- C++ plugin focuses on rendering primitives and server API
+
+**Division of Labor**:
+- **C++ Plugin (UnrealCV)**: Core rendering capabilities, server API, low-level control
+- **Python Layer (unreal_zoo)**: High-level automation, scene composition, batch orchestration
+
+### TODO List - Phase 1 (Current Focus)
+
+#### High Priority (Immediate)
+
+- [ ] **Multi-Layer Rendering System**
+  - Design: Create `ALayeredCaptureActor` that orchestrates multiple render passes
+  - For each frame, capture:
+    - Composite (full scene)
+    - Foreground + environmental effects (hide background)
+    - Foreground mask (segmentation)
+    - Background (hide foreground)
+    - Background inpainted (fill occlusion - may need special shader)
+  - Synchronize frame capture across all render passes
+  - Control actor visibility per render pass
+  - Files: Create LayeredCaptureActor.h/.cpp in Source/UnrealCV/Public/Actor/
+
+- [ ] **Camera Movement Controller**
+  - Create `ACameraMotionController` actor
+  - Implement 6 fixed trajectories:
+    - RotateLeft45(), RotateRight45(), RotateUp45()
+    - Rotate360() (ensure first/last frame camera match)
+    - ZoomIn(), ZoomOut()
+  - Implement 4 random trajectory generators
+  - Export camera parameters (intrinsics/extrinsics) per frame
+  - Files: Create CameraMotionController.h/.cpp
+
+- [ ] **Camera Movement API Commands**
+  - Add commands to CameraHandler or create new MotionHandler
+  - Commands:
+    - `vset /camera/{id}/motion/start {type} {params}`
+    - `vget /camera/{id}/motion/status`
+    - `vget /camera/{id}/motion/params` (get intrinsics/extrinsics)
+  - Document API in comments
+
+- [ ] **Actor Visibility Control API**
+  - Commands to show/hide actors or groups
+  - `vset /object/{id}/visibility {true|false}`
+  - `vset /object/group/{tag}/visibility {true|false}`
+  - Support for render-pass-specific visibility (e.g., hide in certain capture passes)
+
+#### Medium Priority
+
+- [ ] **Metadata Generation System**
+  - Automatic metadata export per video group
+  - Fields: video_name, object_id, resolution, frame_count, scene_category, foreground_category, foreground_subtype, occluder_list, avg_occlusion_ratio
+  - Export format: JSON or CSV
+  - API: `vget /recording/{id}/metadata`
+
+- [ ] **Semantic Annotation Export**
+  - Instance label export per frame
+  - Material parameter export
+  - Depth/scale information export
+  - API: `vget /object/{id}/semantic_info`
+
+- [ ] **Occlusion Ratio Calculator**
+  - Calculate occlusion ratio from masks
+  - Track occlusion over time
+  - Report average occlusion ratio
+  - Utility function in CaptureActor
+
+- [ ] **Python API Enhancement**
+  - Extend `client/python/unrealcv/` with new commands
+  - Test scripts for layered recording workflow
+  - Test scripts for camera movement workflow
+
+#### Low Priority / Phase 2
+
+- [ ] **Audio Layer Recording** (Phase 2)
+  - Bind audio sources to foreground actors
+  - Separate audio recording per layer
+  - Spatial audio positioning
+  - Audio-video synchronization
+  - May reuse `GetAudioMixer()` pattern from removed code
+
+- [ ] **Shadow/Reflection Separation** (Phase 2)
+  - Render pass for shadows only
+  - Render pass for reflections only
+  - Composite control for environmental effects
+
+- [ ] **Dynamic Object Support** (Phase 2-3)
+  - Animation playback control
+  - Physics simulation
+  - Interaction scenarios (handshake, photo-taking, etc.)
+
+- [ ] **Cloud Deployment Scripts** (Phase 2-3)
+  - Batch rendering on cloud servers
+  - Distributed job scheduling
+  - Quality control & validation
+
+### Key Design Principles
+
+1. **Separation of Concerns**:
+   - C++ for rendering primitives
+   - Python for automation/composition
+
+2. **Camera ID-Based API**:
+   - User-friendly interface
+   - Automatic resource management
+
+3. **Modular Architecture**:
+   - Each actor has single responsibility
+   - Compose complex behaviors from simple primitives
+
+4. **Automation-First**:
+   - Every operation should be scriptable
+   - Batch processing support
+   - Minimal manual intervention
+
+### Notes for Future Development
+
+- **Blueprint vs C++**: Use C++ for high-frequency/low-level functions, Blueprint for rapid prototyping
+- **Performance**: Multi-threaded rendering, GPU optimization for large-scale production
+- **Validation**: Automated quality checks (resolution, frame count, metadata accuracy)
+- **Version Control**: Create checkpoint commits after major features
+- **Testing**: Manual testing in UE editor due to complexity of UE5 build system
