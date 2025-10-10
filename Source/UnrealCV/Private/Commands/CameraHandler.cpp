@@ -1392,6 +1392,121 @@ FExecStatus FCameraHandler::CheckRecordStatus(const TArray<FString>& Args)
 	}
 }
 
+// Camera parameter export methods
+
+FExecStatus FCameraHandler::GetIntrinsics(const TArray<FString>& Args)
+{
+	FExecStatus Status = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+	if (!IsValid(FusionCamSensor)) return Status;
+
+	// Get camera parameters
+	float FOV = FusionCamSensor->GetSensorFOV();
+	int Width = FusionCamSensor->GetFilmWidth();
+	int Height = FusionCamSensor->GetFilmHeight();
+
+	// Calculate focal length from FOV
+	// FOV is horizontal field of view in degrees
+	// Focal length (in pixels) = Width / (2 * tan(FOV/2))
+	float FOVRadians = FMath::DegreesToRadians(FOV);
+	float FocalLengthX = Width / (2.0f * FMath::Tan(FOVRadians / 2.0f));
+
+	// Assuming square pixels and symmetric FOV
+	float FocalLengthY = FocalLengthX;
+
+	// Principal point (image center)
+	float PrincipalPointX = Width / 2.0f;
+	float PrincipalPointY = Height / 2.0f;
+
+	// Format: fx fy cx cy fov width height
+	// fx, fy: focal length in pixels
+	// cx, cy: principal point (image center)
+	// fov: field of view in degrees
+	// width, height: image resolution
+	FString Result = FString::Printf(TEXT("%f %f %f %f %f %d %d"),
+		FocalLengthX, FocalLengthY,
+		PrincipalPointX, PrincipalPointY,
+		FOV,
+		Width, Height);
+
+	return FExecStatus::OK(Result);
+}
+
+FExecStatus FCameraHandler::GetExtrinsics(const TArray<FString>& Args)
+{
+	FExecStatus Status = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+	if (!IsValid(FusionCamSensor)) return Status;
+
+	// Get camera location and rotation
+	FVector Location = FusionCamSensor->GetSensorLocation();
+	FRotator Rotation = FusionCamSensor->GetSensorRotation();
+
+	// Convert rotation to rotation matrix
+	FMatrix RotationMatrix = FRotationMatrix::Make(Rotation);
+
+	// Extract rotation matrix elements (3x3)
+	// Row-major format
+	FString Result = FString::Printf(
+		TEXT("%f %f %f %f %f %f %f %f %f %f %f %f"),
+		// Rotation matrix (3x3, row-major)
+		RotationMatrix.M[0][0], RotationMatrix.M[0][1], RotationMatrix.M[0][2],
+		RotationMatrix.M[1][0], RotationMatrix.M[1][1], RotationMatrix.M[1][2],
+		RotationMatrix.M[2][0], RotationMatrix.M[2][1], RotationMatrix.M[2][2],
+		// Translation vector (camera location)
+		Location.X, Location.Y, Location.Z
+	);
+
+	return FExecStatus::OK(Result);
+}
+
+FExecStatus FCameraHandler::GetProjectionMatrix(const TArray<FString>& Args)
+{
+	FExecStatus Status = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+	if (!IsValid(FusionCamSensor)) return Status;
+
+	// Get camera parameters
+	float FOV = FusionCamSensor->GetSensorFOV();
+	int Width = FusionCamSensor->GetFilmWidth();
+	int Height = FusionCamSensor->GetFilmHeight();
+
+	// Calculate aspect ratio
+	float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
+
+	// Near and far clipping planes (typical values for UE5)
+	float NearClipPlane = 10.0f;  // 10 cm
+	float FarClipPlane = 1000000.0f;  // 10 km
+
+	// Build perspective projection matrix
+	// Using UE's convention: FOV is horizontal
+	float HalfFOVRadians = FMath::DegreesToRadians(FOV) / 2.0f;
+	float TanHalfFOV = FMath::Tan(HalfFOVRadians);
+
+	FMatrix ProjectionMatrix = FMatrix::Identity;
+
+	// Standard perspective projection matrix
+	float fRange = FarClipPlane / (FarClipPlane - NearClipPlane);
+
+	ProjectionMatrix.M[0][0] = 1.0f / (TanHalfFOV * AspectRatio);
+	ProjectionMatrix.M[1][1] = 1.0f / TanHalfFOV;
+	ProjectionMatrix.M[2][2] = fRange;
+	ProjectionMatrix.M[2][3] = 1.0f;
+	ProjectionMatrix.M[3][2] = -fRange * NearClipPlane;
+	ProjectionMatrix.M[3][3] = 0.0f;
+
+	// Return 4x4 matrix in row-major format
+	FString Result = FString::Printf(
+		TEXT("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f"),
+		ProjectionMatrix.M[0][0], ProjectionMatrix.M[0][1], ProjectionMatrix.M[0][2], ProjectionMatrix.M[0][3],
+		ProjectionMatrix.M[1][0], ProjectionMatrix.M[1][1], ProjectionMatrix.M[1][2], ProjectionMatrix.M[1][3],
+		ProjectionMatrix.M[2][0], ProjectionMatrix.M[2][1], ProjectionMatrix.M[2][2], ProjectionMatrix.M[2][3],
+		ProjectionMatrix.M[3][0], ProjectionMatrix.M[3][1], ProjectionMatrix.M[3][2], ProjectionMatrix.M[3][3]
+	);
+
+	return FExecStatus::OK(Result);
+}
+
 void FCameraHandler::RegisterCommands()
 {
 	SL::get("C:\\Users\\hulc\\Desktop\\x.txt", false);
@@ -1648,4 +1763,23 @@ void FCameraHandler::RegisterCommands()
         FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetFocalParams),
         "Set camera focus distance and range"
     );
+
+	// Camera parameter export commands
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/intrinsics",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetIntrinsics),
+		"Get camera intrinsic parameters: fx fy cx cy fov width height"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/extrinsics",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetExtrinsics),
+		"Get camera extrinsic parameters: rotation matrix (3x3) and translation vector (xyz)"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /camera/[uint]/projection_matrix",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetProjectionMatrix),
+		"Get camera projection matrix (4x4)"
+	);
 }
