@@ -43,6 +43,8 @@ public class UnrealcvBuildConfig
 			"Networking",
 			"Sockets",
 			"Slate",
+			"SlateCore",
+			"UMG", // For in-game UI widgets
 			"ImageWrapper",
 			"CinematicCamera",
 			"Projects", // Support IPluginManager

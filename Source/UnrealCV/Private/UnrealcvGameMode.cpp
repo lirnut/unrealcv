@@ -5,10 +5,12 @@
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
 #include "Components/InputComponent.h"
+#include "UI/RecordingHUD.h"
 
 AUnrealcvGameMode::AUnrealcvGameMode()
 {
 	DefaultPawnClass = AUnrealcvPawn::StaticClass();
+	HUDClass = ARecordingHUD::StaticClass();
 }
 
 // TODO: Remove the requirement of modifying pawn

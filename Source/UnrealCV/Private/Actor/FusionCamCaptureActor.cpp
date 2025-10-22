@@ -135,6 +135,38 @@ void AFusionCamCaptureActor::StartBulletTimeRecord(const FString& FileName, floa
 	StartRecord(FileName, Duration, FPS, Target);
 }
 
+void AFusionCamCaptureActor::StartBulletTimeRecordOnly(const FString& FileName, float Duration, int32 FPS, AActor* Target)
+{
+	if (!IsValid(Target))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Target is null in StartBulletTimeRecord"));
+		return;
+	}
+	AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings();
+	TimeDilation = WorldSettings->TimeDilation;
+
+	RecordFileName = FileName;
+	RecordDuration = Duration;
+	RecordFPS = FPS;
+	TimePerFrame = 1.0f / FPS;
+	ElapsedTime = 0.0f;
+	ElapsedSteps = 0;
+	bIsRecording = true;
+	TargetToHide = Target;
+
+	if (bRecordAudio)
+	{
+		StartAudioRecord();
+	}
+	RecordBulletTimeSequence();
+	if (bRecordAudio)
+	{
+		StopAudioRecord();
+	}
+	bIsRecording = false;
+	TargetToHide = nullptr;
+}
+
 void AFusionCamCaptureActor::StopRecord()
 {
 	if (bIsRecording)

@@ -32,6 +32,9 @@ public:
 	/** Start recording with bullet time effect (360° rotation around target) */
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	void StartBulletTimeRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target);
+	/** Start recording with bullet time effect (360° rotation around target) */
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void StartBulletTimeRecordOnly(const FString& FileName, float Duration, int32 FPS, AActor* Target);
 
 	/** Stop current recording */
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
