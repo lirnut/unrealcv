@@ -172,7 +172,7 @@ bool UFusionCamSensor::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& V
 
 void UFusionCamSensor::GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSeg, int& InOutWidth, int& InOutHeight)
 {
-	if (LitCamSensor->CheckTextureTarget()) {
+	if (!LitCamSensor->CheckTextureTarget()) {
 		LitCamSensor->InitTextureTarget(this->FilmWidth, this->FilmHeight);
 		if (!LitCamSensor->CheckTextureTarget()) {
 			SL::get().print("LitCamSensor InitTextureTarget failed.");
