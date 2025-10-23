@@ -12,19 +12,14 @@
 // This replaces the need to access CameraHandler's private map
 static TMap<int32, AFusionCamCaptureActor*> GlobalCameraRecordingActors;
 
-bool URecordingBPLib::StartNormalRecording(
-	int32 CameraID,
-	const FString& FileName,
-	float Duration,
-	int32 FPS,
-	AActor* TargetToHide)
+AFusionCamCaptureActor* URecordingBPLib::PrepareRecording(int32 CameraID)
 {
 	// Get the camera sensor
 	UFusionCamSensor* FusionCamSensor = USensorBPLib::GetSensorById(CameraID);
 	if (!IsValid(FusionCamSensor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartNormalRecording: Invalid camera ID %d"), CameraID);
-		return false;
+		return nullptr;
 	}
 
 	// Check if this camera is already recording
@@ -34,13 +29,13 @@ bool URecordingBPLib::StartNormalRecording(
 		if (IsValid(ExistingActor) && ExistingActor->IsRecording())
 		{
 			UE_LOG(LogUnrealCV, Warning, TEXT("URecordingBPLib::StartNormalRecording: Camera %d is already recording"), CameraID);
-			return false;
+			return nullptr;
 		}
-		// Clean up stale actor
-		if (IsValid(ExistingActor))
-		{
-			ExistingActor->Destroy();
-		}
+		// // Clean up stale actor
+		// if (IsValid(ExistingActor))
+		// {
+		// 	ExistingActor->Destroy();
+		// }
 		GlobalCameraRecordingActors.Remove(CameraID);
 	}
 
@@ -49,7 +44,7 @@ bool URecordingBPLib::StartNormalRecording(
 	if (!IsValid(World))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartNormalRecording: Cannot get world from camera %d"), CameraID);
-		return false;
+		return nullptr;
 	}
 
 	// Spawn new CaptureActor for this camera
@@ -57,7 +52,7 @@ bool URecordingBPLib::StartNormalRecording(
 	if (!IsValid(CaptureActor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartNormalRecording: Failed to spawn FusionCamCaptureActor for camera %d"), CameraID);
-		return false;
+		return nullptr;
 	}
 
 	// Configure CaptureActor
@@ -65,7 +60,24 @@ bool URecordingBPLib::StartNormalRecording(
 
 	// Store the mapping
 	GlobalCameraRecordingActors.Add(CameraID, CaptureActor);
+	return CaptureActor;
+}
 
+bool URecordingBPLib::StartNormalRecording(
+	int32 CameraID,
+	const FString& FileName,
+	float Duration,
+	int32 FPS,
+	AActor* TargetToHide,
+	float TimeDilation)
+{
+	AFusionCamCaptureActor* CaptureActor = PrepareRecording(CameraID);
+	if (!IsValid(CaptureActor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartNormalRecording: Failed to prepare recording for camera %d"), CameraID);
+		return false;
+	}
+	CaptureActor->TimeDilation = TimeDilation;
 	// Start recording
 	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::StartNormalRecording: Camera %d, File: %s, Duration: %.2fs, FPS: %d"), CameraID, *FileName, Duration, FPS);
 	CaptureActor->StartRecord(FileName, Duration, FPS, TargetToHide);
@@ -78,66 +90,45 @@ bool URecordingBPLib::StartBulletTimeRecording(
 	const FString& FileName,
 	float Duration,
 	int32 FPS,
-	AActor* Target)
+	AActor* Target,
+	float TimeDilation)
 {
-	// Validate target actor (required for bullet time)
-	if (!IsValid(Target))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartBulletTimeRecording: Target actor is required for bullet time recording"));
-		return false;
-	}
-
-	// Get the camera sensor
-	UFusionCamSensor* FusionCamSensor = USensorBPLib::GetSensorById(CameraID);
-	if (!IsValid(FusionCamSensor))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartBulletTimeRecording: Invalid camera ID %d"), CameraID);
-		return false;
-	}
-
-	// Check if this camera is already recording
-	if (GlobalCameraRecordingActors.Contains(CameraID))
-	{
-		AFusionCamCaptureActor* ExistingActor = GlobalCameraRecordingActors[CameraID];
-		if (IsValid(ExistingActor) && ExistingActor->IsRecording())
-		{
-			UE_LOG(LogUnrealCV, Warning, TEXT("URecordingBPLib::StartBulletTimeRecording: Camera %d is already recording"), CameraID);
-			return false;
-		}
-		// Clean up stale actor
-		if (IsValid(ExistingActor))
-		{
-			ExistingActor->Destroy();
-		}
-		GlobalCameraRecordingActors.Remove(CameraID);
-	}
-
-	// Get world
-	UWorld* World = FusionCamSensor->GetWorld();
-	if (!IsValid(World))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartBulletTimeRecording: Cannot get world from camera %d"), CameraID);
-		return false;
-	}
-
-	// Spawn new CaptureActor for this camera
-	AFusionCamCaptureActor* CaptureActor = World->SpawnActor<AFusionCamCaptureActor>();
+	AFusionCamCaptureActor* CaptureActor = PrepareRecording(CameraID);
 	if (!IsValid(CaptureActor))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartBulletTimeRecording: Failed to spawn FusionCamCaptureActor for camera %d"), CameraID);
+		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartBulletTimeRecording: Failed to prepare recording for camera %d"), CameraID);
 		return false;
 	}
 
-	// Configure CaptureActor
-	CaptureActor->TargetSensor = FusionCamSensor;
-
-	// Store the mapping
-	GlobalCameraRecordingActors.Add(CameraID, CaptureActor);
-
+	CaptureActor->TimeDilation = TimeDilation;
 	// Start bullet time recording
 	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::StartBulletTimeRecording: Camera %d, File: %s, Duration: %.2fs, FPS: %d, Target: %s"),
 		CameraID, *FileName, Duration, FPS, *Target->GetName());
 	CaptureActor->StartBulletTimeRecord(FileName, Duration, FPS, Target);
+
+	return true;
+}
+
+bool URecordingBPLib::StartBulletTimeOnlyRecording(
+	int32 CameraID,
+	const FString& FileName,
+	float Duration,
+	int32 FPS,
+	AActor* Target,
+	float TimeDilation)
+{
+	AFusionCamCaptureActor* CaptureActor = PrepareRecording(CameraID);
+	if (!IsValid(CaptureActor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartBulletTimeRecording: Failed to prepare recording for camera %d"), CameraID);
+		return false;
+	}
+
+	CaptureActor->TimeDilation = TimeDilation;
+	// Start bullet time recording
+	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::StartBulletTimeRecording: Camera %d, File: %s, Duration: %.2fs, FPS: %d, Target: %s"),
+		CameraID, *FileName, Duration, FPS, *Target->GetName());
+	CaptureActor->StartBulletTimeRecordOnly(FileName, Duration, FPS, Target);
 
 	return true;
 }
@@ -159,12 +150,14 @@ bool URecordingBPLib::StopRecording(int32 CameraID)
 		return false;
 	}
 
-	// Stop recording
-	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::StopRecording: Stopping camera %d"), CameraID);
-	CaptureActor->StopRecord();
+	// {
+	// 	// Stop recording
+	// 	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::StopRecording: Stopping camera %d"), CameraID);
+	// 	CaptureActor->StopRecord();
 
-	// Destroy the actor and clean up
-	CaptureActor->Destroy();
+	// 	// Destroy the actor and clean up
+	// 	CaptureActor->Destroy();
+	// }
 	GlobalCameraRecordingActors.Remove(CameraID);
 
 	return true;

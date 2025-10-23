@@ -94,6 +94,11 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Bullet Time")
 	float BulletTimeSpeedDeg;
 
+
+	/** Bullet time rotation speed in degrees per frame */
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
+	float TimeDilation;
+
 protected:
 	// Recording state
 	FTimerHandle TimerHandle_Record;
@@ -106,7 +111,7 @@ protected:
 	FString FinalDataFolder;
 	int32 RecordFPS;
 	float RecordDuration;
-	float TimeDilation;
+	float TimeDilationBackUp;
 	AActor* TargetToHide;
 
 	// Bullet time state
@@ -131,6 +136,7 @@ protected:
 
 	// Utility functions
 	FString MakeFilename(FString DataType, FString FileExtension);
+	FString MakeFilenameNew(FString DataType, FString FileExtension);
 	void SaveCameraMetadata();
 
 private:

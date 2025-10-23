@@ -3,7 +3,9 @@
 #pragma once
 
 #include "Runtime/Engine/Classes/Kismet/BlueprintFunctionLibrary.h"
+#include "Actor/FusionCamCaptureActor.h"
 #include "RecordingBPLib.generated.h"
+
 
 /**
  * Blueprint Function Library for controlling camera recording without TCP server.
@@ -13,6 +15,9 @@ UCLASS()
 class UNREALCV_API URecordingBPLib : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
+private:
+	static AFusionCamCaptureActor* PrepareRecording(int32 CameraID);
+
 
 public:
 	/**
@@ -30,7 +35,8 @@ public:
 		const FString& FileName,
 		float Duration,
 		int32 FPS,
-		AActor* TargetToHide = nullptr
+		AActor* TargetToHide = nullptr,
+		float TimeDilation = 1.0f
 	);
 
 	/**
@@ -49,8 +55,21 @@ public:
 		const FString& FileName,
 		float Duration,
 		int32 FPS,
-		AActor* Target
+		AActor* Target,
+		float TimeDilation = 1.0f
 	);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording")
+	static bool StartBulletTimeOnlyRecording(
+		int32 CameraID,
+		const FString& FileName,
+		float Duration,
+		int32 FPS,
+		AActor* Target,
+		float TimeDilation = 1.0f
+	);
+
+
 
 	/**
 	 * Stop recording for a specific camera.

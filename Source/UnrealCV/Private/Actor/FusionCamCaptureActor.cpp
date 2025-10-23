@@ -44,6 +44,9 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	ElapsedTime = 0.0f;
 	TargetToHide = nullptr;
 
+	TimeDilation = 1.0f;
+	TimeDilationBackUp = 1.0f; 
+
 	// Create billboard for editor visibility
 	Billboard = CreateDefaultSubobject<UMaterialBillboardComponent>(TEXT("BillboardComponent"));
 	if (!IsRunningCommandlet() && (Billboard != nullptr))
@@ -90,7 +93,7 @@ void AFusionCamCaptureActor::StartRecord(const FString& FileName, float Duration
 	}
 
 	AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings();
-	TimeDilation = WorldSettings->TimeDilation;
+	TimeDilationBackUp = WorldSettings->TimeDilation;
 
 	RecordFileName = FileName;
 	RecordDuration = Duration;
@@ -101,6 +104,7 @@ void AFusionCamCaptureActor::StartRecord(const FString& FileName, float Duration
 	bIsRecording = true;
 	TargetToHide = Target;
 	BulletTimeState = EBulletTimeState::Waiting;
+
 
 	UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Start recording to %s"), *FileName);
 
@@ -143,7 +147,7 @@ void AFusionCamCaptureActor::StartBulletTimeRecordOnly(const FString& FileName, 
 		return;
 	}
 	AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings();
-	TimeDilation = WorldSettings->TimeDilation;
+	TimeDilationBackUp = WorldSettings->TimeDilation;
 
 	RecordFileName = FileName;
 	RecordDuration = Duration;
@@ -183,6 +187,7 @@ void AFusionCamCaptureActor::StopRecord()
 		TargetToHide = nullptr;
 		bUseBulletTime = false;
 		BulletTimeState = EBulletTimeState::Waiting;
+		GetWorld()->GetWorldSettings()->SetTimeDilation(TimeDilationBackUp);
 	}
 }
 
@@ -239,8 +244,8 @@ void AFusionCamCaptureActor::RecordFrame()
 		TArray<FColor> DataRGB, DataMask;
 		TargetSensor->GetLitSeg(DataRGB, DataMask, Width, Height);
 
-		FString FileNameRGB = MakeFilename("rgb", ".png");
-		FString FileNameMask = MakeFilename("mask", ".png");
+		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
+		FString FileNameMask = MakeFilenameNew("mask", ".png");
 		SerializeData(DataRGB, Width, Height, FileNameRGB);
 		SerializeData(DataMask, Width, Height, FileNameMask);
 
@@ -253,7 +258,7 @@ void AFusionCamCaptureActor::RecordFrame()
 			TargetSensor->GetLit(DataRGBNoTarget, Width, Height);
 			TargetController.Show();
 
-			FString FileNameNoTarget = MakeFilename("rgb_no_target", ".png");
+			FString FileNameNoTarget = MakeFilenameNew("rgb_no_target", ".png");
 			SerializeData(DataRGBNoTarget, Width, Height, FileNameNoTarget);
 		}
 	}
@@ -261,14 +266,14 @@ void AFusionCamCaptureActor::RecordFrame()
 	{
 		TArray<FColor> DataRGB;
 		TargetSensor->GetLit(DataRGB, Width, Height);
-		FString FileNameRGB = MakeFilename("rgb", ".png");
+		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
 		SerializeData(DataRGB, Width, Height, FileNameRGB);
 	}
 	else if (bRecordMask)
 	{
 		TArray<FColor> DataMask;
 		TargetSensor->GetSeg(DataMask, Width, Height);
-		FString FileNameMask = MakeFilename("mask", ".png");
+		FString FileNameMask = MakeFilenameNew("mask", ".png");
 		SerializeData(DataMask, Width, Height, FileNameMask);
 	}
 
@@ -277,7 +282,7 @@ void AFusionCamCaptureActor::RecordFrame()
 	{
 		TArray<float> DepthData;
 		TargetSensor->GetDepth(DepthData, Width, Height);
-		FString DepthFilename = MakeFilename("depth", ".npy");
+		FString DepthFilename = MakeFilenameNew("depth", ".npy");
 		UVisionBPLib::SaveNpy(DepthData, Width, Height, DepthFilename);
 	}
 
@@ -286,7 +291,7 @@ void AFusionCamCaptureActor::RecordFrame()
 	{
 		TArray<FColor> NormalData;
 		TargetSensor->GetNormal(NormalData, Width, Height);
-		FString NormalFilename = MakeFilename("normal", ".png");
+		FString NormalFilename = MakeFilenameNew("normal", ".png");
 		SerializeData(NormalData, Width, Height, NormalFilename);
 	}
 
@@ -295,7 +300,7 @@ void AFusionCamCaptureActor::RecordFrame()
 	{
 		TArray<FColor> FlowData;
 		TargetSensor->GetFlow(FlowData, Width, Height);
-		FString FlowFilename = MakeFilename("flow", ".png");
+		FString FlowFilename = MakeFilenameNew("flow", ".png");
 		SerializeData(FlowData, Width, Height, FlowFilename);
 	}
 
@@ -377,15 +382,15 @@ void AFusionCamCaptureActor::RecordBulletTimeSequence()
 
 	for (int i = 0; i < DataRGBFrames.Num(); i++)
 	{
-		FString FileNameRGB = MakeFilename("rgb", ".png");
-		FString FileNameMask = MakeFilename("mask", ".png");
+		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
+		FString FileNameMask = MakeFilenameNew("mask", ".png");
 
 		SerializeData(DataRGBFrames[i], Width, Height, FileNameRGB);
 		SerializeData(DataMaskFrames[i], Width, Height, FileNameMask);
 
 		if (bRecordWithoutTarget && i < DataRGBNoTargetFrames.Num())
 		{
-			FString FileNameNoTarget = MakeFilename("rgb_no_target", ".png");
+			FString FileNameNoTarget = MakeFilenameNew("rgb_no_target", ".png");
 			SerializeData(DataRGBNoTargetFrames[i], Width, Height, FileNameNoTarget);
 		}
 
@@ -432,7 +437,7 @@ void AFusionCamCaptureActor::StopAudioRecord()
 	}
 
 	// Save as WAV file
-	FString WavFileName = MakeFilename("audio", ".wav");
+	FString WavFileName = MakeFilenameNew("audio", ".wav");
 	FBufferArchive WaveData;
 
 	int32 NumSamples = PCM16Data.Num();
@@ -516,6 +521,24 @@ FString AFusionCamCaptureActor::MakeFilename(FString DataType, FString FileExten
 
 	return FileName;
 }
+FString AFusionCamCaptureActor::MakeFilenameNew(FString DataType, FString FileExtension)
+{
+	// Find the position to insert frame number
+	
+
+	if (FileExtension.StartsWith(".")) {
+		FileExtension.RemoveAt(0);
+	}
+
+	// Create filename with frame number and data type
+	FString FileName = RecordFileName;
+	FString InsertStr = FString::Printf(TEXT("%d_%s.%s"), ElapsedSteps, *DataType, *FileExtension);
+	FileName = FPaths::Combine(FileName, InsertStr);
+	// Combine with output folder
+	FileName = FPaths::ConvertRelativePathToFull(FinalDataFolder, FileName);
+
+	return FileName;
+}
 
 void AFusionCamCaptureActor::SaveCameraMetadata()
 {
@@ -544,7 +567,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 
 	FJsonObjectBP JsonObject = USerializeBPLib::TMapToJson(Keys, Values);
 	FString JsonStr = USerializeBPLib::JsonToStr(JsonObject);
-	FString JsonFilename = MakeFilename("metadata", ".json");
+	FString JsonFilename = MakeFilenameNew("metadata", ".json");
 
 	UVisionBPLib::SaveData(JsonStr, JsonFilename);
 }

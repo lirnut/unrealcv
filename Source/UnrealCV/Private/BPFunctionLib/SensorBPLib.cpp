@@ -40,6 +40,7 @@ TArray<UFusionCamSensor*> USensorBPLib::GetFusionSensorList()
 	for (UObject* SensorObject : UObjectList)
 	{
 		UFusionCamSensor *FusionSensor = Cast<UFusionCamSensor>(SensorObject);
+		if (!IsValid(FusionSensor)) continue;
 		if (FusionSensor->GetWorld() != World) continue;
 		if (SensorList.Contains(FusionSensor) == false)
 		{

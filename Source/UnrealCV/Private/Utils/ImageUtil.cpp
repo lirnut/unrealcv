@@ -152,6 +152,7 @@ FExecStatus SerializeData(const TArray<FColor>& Data, int Width, int Height, con
 	static FImageUtil ImageUtil;
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
+	UE_LOG(LogUnrealCV, Warning, TEXT("filename %s"), *Filename);
 	TArray<uint8> BinaryData;
 	switch (FilenameType)
 	{
