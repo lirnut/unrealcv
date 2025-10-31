@@ -27,36 +27,44 @@ UnrealCV is an Unreal Engine (5.2+) plugin for computer vision research that pro
 - Server: TCP server and command handling
 - Utils: Utility functions
 
-**Recording System Architecture (NEW - 2025):**
+**Recording System Architecture (UPDATED 2025-10-31):**
 ```
 ┌─────────────────────────────────────────┐
-│  Python Automation Layer                │
-│  (unreal_zoo project - external)        │
-│  - Scene composition                    │
-│  - Batch rendering control              │
-│  - Asset randomization                  │
+│  UMG UI Interface (Blueprint)           │
+│  - WBP_DatasetRecorder                  │
+│  - WBP_TrajectoryRecorder               │
+│  - User controls & progress tracking    │
 └────────────────┬────────────────────────┘
-                 │ TCP/IP
+                 │ Blueprint Calls
 ┌────────────────▼────────────────────────┐
-│  UnrealCV Server (C++ Plugin)           │
-│  - CameraHandler                        │
-│  - ObjectHandler                        │
-│  - Recording API commands               │
+│  Blueprint Function Libraries (C++)     │
+│  ├─ URecordingBPLib (existing)          │
+│  ├─ USceneCompositionBPLib (new)        │
+│  ├─ ULayeredRecordingBPLib (new)        │
+│  └─ FAssetPoolManager (new)             │
 └────────────────┬────────────────────────┘
                  │
 ┌────────────────▼────────────────────────┐
 │  Recording System                       │
 │  ├─ AFusionCamCaptureActor              │
 │  │   (automatic lifecycle management)   │
-│  ├─ ACameraMotionController (TODO)      │
-│  └─ AAudioLayerRecorder (Phase 2)       │
+│  ├─ Scene composition logic             │
+│  └─ Multi-layer recording orchestration │
 └────────────────┬────────────────────────┘
                  │
 ┌────────────────▼────────────────────────┐
 │  Render Pipeline                        │
 │  ├─ UFusionCamSensor (sensor fusion)    │
 │  ├─ Actor visibility control            │
-│  └─ Multi-pass rendering (TODO)         │
+│  └─ Multi-pass rendering                │
+└─────────────────────────────────────────┘
+
+Optional Post-Processing:
+┌─────────────────────────────────────────┐
+│  Python Scripts (optional)              │
+│  - Metadata validation                  │
+│  - Quality control checks               │
+│  - Dataset statistics                   │
 └─────────────────────────────────────────┘
 ```
 
@@ -157,52 +165,85 @@ Test for the executable will be manually done, due to the complexity of the UE5 
 - Scenes: 50+ types (urban, indoor, outdoor, natural, weather variations)
 - Occlusions: 100 distinct relationships, 20%+ in 5-20% occlusion range
 
-### Development Strategy
+### Development Strategy (UPDATED 2025-10-31)
 
-**Python Project**: `unreal_zoo` (to be placed in work directory)
-- Handles scene composition, asset randomization, batch control
-- Calls UnrealCV TCP server API from external Python process
-- C++ plugin focuses on rendering primitives and server API
+**NEW ARCHITECTURE: UE Editor-Centric (No Python Required for Recording)**
+
+**Design Philosophy**:
+- All interactions happen within UE Editor through Blueprint Function Libraries and UMG UI
+- No TCP server dependency for dataset generation workflow
+- Direct scene configuration and preview in UE Editor viewport
+- Reduces complexity: 2 workspaces (UE Editor + optional post-processing) instead of 3
 
 **Division of Labor**:
-- **C++ Plugin (UnrealCV)**: Core rendering capabilities, server API, low-level control
-- **Python Layer (unreal_zoo)**: High-level automation, scene composition, batch orchestration
+- **C++ Blueprint Function Libraries**: Scene composition, layered recording, asset pool management
+- **UMG UI Interface**: User-friendly controls for batch generation within UE Editor
+- **Optional Python Post-Processing**: Metadata analysis, quality validation (after recording)
 
-### TODO List - Phase 1 (Current Focus - REVISED)
+**See**: `ARCHITECTURE.md` for detailed implementation plan
+
+### TODO List - Phase 1 (Current Focus - ARCHITECTURE UPDATED 2025-10-31)
 
 #### High Priority (Immediate)
 
-**✅ Already Implemented - Leverage Existing APIs:**
-- Camera control: `vset/vget /camera/[uint]/location`, `rotation`, `fov`, `moveto`, `size`, `projection_type`
-- Recording: `vset /camera/[uint]/record`, `bullet_time_record`, `vget /camera/[uint]/record` (status)
-- Object visibility: `vset /object/[str]/show`, `vset /object/[str]/hide`
-- Render passes: `vget /camera/[uint]/lit`, `depth`, `normal`, `optical_flow`, `seg`, `object_mask`
+**✅ Already Implemented:**
+- `URecordingBPLib` - Blueprint-exposed recording functions (RecordingBPLib.h/.cpp)
+  - `StartNormalRecording()` - Normal video recording
+  - `StartBulletTimeRecording()` - 360° rotation recording
+  - `StartTrajectoryRecording()` - 10 trajectory types (SOW requirement)
+  - Camera management functions (`GetAllCameras`, `IsRecording`, etc.)
+- `AFusionCamCaptureActor` - Automatic recording lifecycle management
+- `UFusionCamSensor` - Sensor fusion for multi-pass rendering
+- Object visibility control (`SetActorHiddenInGame`)
 
-- **Camera Intrinsics/Extrinsics Export API**
-  - Commands:
-    - `vget /camera/[uint]/intrinsics` → returns focal length, principal point, distortion
-    - `vget /camera/[uint]/extrinsics` → returns rotation matrix (3x3) and translation vector
-    - `vget /camera/[uint]/projection_matrix` → returns 4x4 projection matrix
+**🔧 New Features Needed (UE Editor-Centric Architecture):**
 
-- **Programmatic Camera Trajectory System**
-  - Create `ACameraMotionController` actor to control camera movement
-  - Decouples camera movement from recording (different actors, different concerns)
-  - Supports the 10 required camera movements:
-    - 6 fixed: RotateLeft45°, RotateRight45°, RotateUp45°, Rotate360°, ZoomIn, ZoomOut
-    - 4 random direction movements
-  - API commands:
-    - `vset /camera/[uint]/motion/start [str] [params]` - start trajectory
-    - `vset /camera/[uint]/motion/stop` - stop trajectory
-    - `vget /camera/[uint]/motion/status` - check if moving
-    - `vget /camera/[uint]/motion/progress` - get completion percentage
-  - Compatible with existing `bullet_time_record` API
+1. [ ] **FAssetPoolManager** (C++ Utility Class)
+   - Location: `Source/UnrealCV/Private/Utils/AssetPoolManager.h/.cpp`
+   - Purpose: Manage asset paths for randomized spawning
+   - Hardcode asset paths in constructor (migrate to config later)
+   - Categories: Foreground (human/pet/vehicle), Occluder (tree/pillar/wall), Scenes
+   - Methods: `GetRandomAsset()`, `GetAssetsInCategory()`, `HasCategory()`
 
-**🔧 New Features Needed:**
-- [ ] **Multi-Layer Rendering Orchestration** (Python layer - uezoo)
-  - **DECISION**: Implement in Python (uezoo), NOT C++
-  - C++ plugin provides primitives, Python provides orchestration
-  - Better separation of concerns: C++ = rendering, Python = composition logic
-  - **Human Comment**: See ./Source/uezoo/start_mk_dataset.py, but it should be updated due to new features of "Programmatic Camera Trajectory System". It is still calling old api like start_bullet_time_record.
+2. [ ] **USceneCompositionBPLib** (Blueprint Function Library)
+   - Location: `Source/UnrealCV/Public/BPFunctionLib/SceneCompositionBPLib.h/.cpp`
+   - Purpose: Automate scene generation with randomized foreground/occluders/camera
+   - Key Functions:
+     - `GenerateRandomScene()` - Complete scene setup in XY area
+     - `CalculateOcclusionRatio()` - Compute occlusion percentage from camera view
+     - `SpawnRandomForeground()` - Spawn from asset pool
+     - `SpawnRandomOccluders()` - Spawn between camera and foreground
+     - `ClearScene()` - Cleanup generated actors
+
+3. [ ] **ULayeredRecordingBPLib** (Blueprint Function Library)
+   - Location: `Source/UnrealCV/Public/BPFunctionLib/LayeredRecordingBPLib.h/.cpp`
+   - Purpose: Record all layers for SOW dataset (5 files per video)
+   - Key Functions:
+     - `RecordAllLayers()` - Orchestrate 5-layer recording:
+       1. Original composite video
+       2. Foreground mask
+       3. Background layer (foreground hidden)
+       4. Complete foreground layer (only foreground visible)
+       5. Metadata JSON export
+     - `ExportMetadataToJSON()` - Save metadata struct to JSON file
+
+4. [ ] **UMG UI Interface** (Blueprint Widgets)
+   - Location: `Content/UnrealCV/UI/WBP_DatasetRecorder.uasset`
+   - Purpose: User-friendly controls for batch generation within UE Editor
+   - Features:
+     - Scene configuration (spawn area, foreground type, occluder count)
+     - Recording settings (duration, FPS, resolution, orientation)
+     - Batch generation (target count, progress bar, start/stop controls)
+     - Scene preview (occlusion ratio validation, regenerate button)
+   - See: `ARCHITECTURE.md` for detailed UI mockup
+
+**Implementation Order**:
+1. Week 1: `FAssetPoolManager` + unit tests
+2. Week 2: `USceneCompositionBPLib` + console testing
+3. Week 3: `ULayeredRecordingBPLib` + manual Blueprint testing
+4. Week 4: UMG UI + single scene workflow testing
+5. Week 5-6: Batch testing (1000 videos) + optimization
+6. Week 7-12: Full production (40K videos)
 
 #### Medium Priority
 
@@ -263,49 +304,63 @@ Test for the executable will be manually done, due to the complexity of the UE5 
   - Python automation layer (separate from UnrealCV plugin)
 
 **What NOT to Do:**
-- ❌ Don't create new visibility APIs - existing show/hide is sufficient
-- ❌ Don't implement multi-layer orchestration in C++ - Python is better suited
-- ❌ Don't implement metadata generation in C++ - Python post-processing is easier
+- ❌ Don't use TCP server for dataset generation workflow (deprecated in favor of UE Editor UI)
+- ❌ Don't implement scene composition in Python - use Blueprint Function Libraries instead
+- ❌ Don't create external automation scripts - use UMG UI for batch control
 
-### Current Architecture Understanding (Post-Discussion)
+### Current Architecture Understanding (UE Editor-Centric)
 
-**Python Layer (uezoo - Source/uezoo/)**:
-- `start_mk_dataset.py` - main entry point for dataset generation
-- Uses gym-unrealcv for environment control
-- Agents: PoseTracker, Nav2GoalAgent for character movement
-- Calls UnrealCV APIs via TCP: start_record, get_record_status, batch_cmd
-- Saves trajectories, metadata, renders videos (C++ side will do this if you call record series of commands, but if C++ side doesn't save video, you need to save it in Python side)
-- **Future**: Add multi-layer rendering orchestration here
+**C++ Blueprint Function Libraries**:
+- `URecordingBPLib` - Camera recording control (already exists)
+- `USceneCompositionBPLib` - Scene generation automation (to be implemented)
+- `ULayeredRecordingBPLib` - Multi-layer recording orchestration (to be implemented)
+- `FAssetPoolManager` - Asset path management (to be implemented)
 
-**C++ Plugin (UnrealCV - Source/UnrealCV/)**:
-- Provides rendering primitives via TCP API
-- CameraHandler: camera control, recording, render passes
-- ObjectHandler: object manipulation, show/hide
-- FusionCamCaptureActor: automatic recording lifecycle management
-- **Future**: Add camera parameter export, motion controller
+**UMG UI Interface (Blueprint)**:
+- `WBP_DatasetRecorder` - Main UI for batch dataset generation
+- `WBP_TrajectoryRecorder` - Camera trajectory recording UI
+- User controls: scene configuration, recording settings, batch progress
 
-**Division of Labor (Confirmed)**:
-- **C++**: Low-level rendering, camera control, object control, parameter export
-- **Python**: Scene composition, multi-pass orchestration, metadata, batch automation
+**Core Actors (C++)**:
+- `AFusionCamCaptureActor` - Recording lifecycle management (already exists)
+- `UFusionCamSensor` - Sensor fusion for multi-pass rendering (already exists)
 
-### Key Design Principles
+**Optional Python Post-Processing**:
+- Metadata validation and statistics (after recording completes)
+- Quality control checks (occlusion distribution, file completeness)
+- Dataset analysis and reporting
 
-1. **Separation of Concerns**:
-   - C++ for rendering primitives
-   - Python for automation/composition
+**Division of Labor (UPDATED)**:
+- **C++ BPLibs**: Scene composition, layered recording, asset management, occlusion calculation
+- **UMG UI**: User interaction, batch control, progress tracking
+- **Python (optional)**: Post-recording validation and analysis only
 
-2. **Camera ID-Based API**:
-   - User-friendly interface
-   - Automatic resource management
+### Key Design Principles (UPDATED 2025-10-31)
+
+1. **UE Editor-Centric Workflow**:
+   - All dataset generation happens within UE Editor
+   - No external dependencies (TCP server, Python) during recording
+   - Immediate visual feedback and debugging
+
+2. **Blueprint Function Libraries**:
+   - Expose all functionality to Blueprints for UMG UI integration
+   - C++ implementation for performance-critical operations
+   - Easy to test in UE Editor console
 
 3. **Modular Architecture**:
-   - Each actor has single responsibility
-   - Compose complex behaviors from simple primitives
+   - Each BPLib has single responsibility (recording, scene composition, layered output)
+   - Asset pool separated from scene logic
+   - Composable primitives for complex workflows
 
 4. **Automation-First**:
-   - Every operation should be scriptable
-   - Batch processing support
-   - Minimal manual intervention
+   - Batch generation support (40K videos)
+   - Progress tracking and error recovery
+   - Metadata auto-generation
+
+5. **Visual Validation**:
+   - Preview generated scenes before recording
+   - Real-time occlusion ratio feedback
+   - Viewport visualization of randomized layout
 
 ### Notes for Future Development
 
