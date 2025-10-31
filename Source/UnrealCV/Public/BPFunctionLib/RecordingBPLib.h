@@ -130,4 +130,47 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Recording")
 	static int32 GetCameraCount();
+
+	// ========== Camera Trajectory Recording (SOW Requirements) ==========
+
+	/**
+	 * Start camera trajectory recording with string-based trajectory type.
+	 * Supports all 10 SOW trajectory types through a single unified API.
+	 *
+	 * @param CameraID The ID of the camera sensor
+	 * @param FileName Output file path prefix (e.g., "C:/Output/trajectory")
+	 * @param TrajectoryType Trajectory type as string:
+	 *   - Fixed trajectories: "rotate_left_45", "rotate_right_45", "rotate_up_45",
+	 *                        "rotate_360", "zoom_in", "zoom_out"
+	 *   - Random trajectories: "random_1", "random_2", "random_3", "random_4"
+	 * @param Target Target actor to orbit/focus on (required)
+	 * @param NumFrames Total frames to record (default 121 for SOW)
+	 * @param RandomSeed Random seed for random trajectories (optional, -1 for auto)
+	 * @return True if recording started successfully, false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording|Trajectory")
+	static bool StartTrajectoryRecording(
+		int32 CameraID,
+		const FString& FileName,
+		const FString& TrajectoryType,
+		AActor* Target,
+		int32 NumFrames = 121,
+		int32 RandomSeed = -1
+	);
+
+	/**
+	 * Get list of all supported trajectory types.
+	 * @return Array of trajectory type names
+	 */
+	UFUNCTION(BlueprintPure, Category = "UnrealCV|Recording|Trajectory")
+	static TArray<FString> GetSupportedTrajectoryTypes();
+
+private:
+	/**
+	 * Convert string trajectory type to enum.
+	 * @param TrajectoryTypeStr String representation of trajectory type
+	 * @param OutTrajectoryType Output enum value
+	 * @return True if conversion successful, false if invalid string
+	 */
+	static bool ParseTrajectoryType(const FString& TrajectoryTypeStr, ECameraTrajectoryType& OutTrajectoryType);
 };

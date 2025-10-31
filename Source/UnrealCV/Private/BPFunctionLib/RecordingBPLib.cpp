@@ -252,3 +252,100 @@ int32 URecordingBPLib::GetCameraCount()
 	TArray<UFusionCamSensor*> Cameras = USensorBPLib::GetFusionSensorList();
 	return Cameras.Num();
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////// Neo Trajector Render System /////////////////////////////////////////////
+
+// ========== Camera Trajectory Recording Implementation ==========
+
+bool URecordingBPLib::ParseTrajectoryType(const FString& TrajectoryTypeStr, ECameraTrajectoryType& OutTrajectoryType)
+{
+	// Normalize input: lowercase and trim whitespace
+	FString Normalized = TrajectoryTypeStr.ToLower().TrimStartAndEnd();
+
+	// Map string to enum
+	static const TMap<FString, ECameraTrajectoryType> TrajectoryMap = {
+		// Fixed trajectories
+		{TEXT("rotate_left_45"),    ECameraTrajectoryType::RotateLeft45},
+		{TEXT("rotate_right_45"),    ECameraTrajectoryType::RotateRight45},
+		{TEXT("rotate_up_45"),    ECameraTrajectoryType::RotateUp45},
+		{TEXT("rotate_360"),    ECameraTrajectoryType::Rotate360},
+
+		{TEXT("zoom_in"),  ECameraTrajectoryType::ZoomIn},
+		{TEXT("zoom_out"),  ECameraTrajectoryType::ZoomOut},
+
+		{TEXT("random_1"),       ECameraTrajectoryType::RandomDirection1},
+		{TEXT("random_2"),       ECameraTrajectoryType::RandomDirection2},
+		{TEXT("random_3"),       ECameraTrajectoryType::RandomDirection3},
+		{TEXT("random_4"),       ECameraTrajectoryType::RandomDirection4},
+	};
+
+	const ECameraTrajectoryType* Found = TrajectoryMap.Find(Normalized);
+	if (Found)
+	{
+		OutTrajectoryType = *Found;
+		return true;
+	}
+
+	UE_LOG(LogUnrealCV, Error, TEXT("Invalid trajectory type: %s"), *TrajectoryTypeStr);
+	return false;
+}
+
+bool URecordingBPLib::StartTrajectoryRecording(
+	int32 CameraID,
+	const FString& FileName,
+	const FString& TrajectoryType,
+	AActor* Target,
+	int32 NumFrames,
+	int32 RandomSeed)
+{
+	// Validate target
+	if (!IsValid(Target))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Target actor is null"));
+		return false;
+	}
+
+	// Parse trajectory type
+	ECameraTrajectoryType TrajectoryEnum;
+	if (!ParseTrajectoryType(TrajectoryType, TrajectoryEnum))
+	{
+		return false;
+	}
+
+	// Prepare recording (reuse existing function)
+	AFusionCamCaptureActor* CaptureActor = PrepareRecording(CameraID);
+	if (!IsValid(CaptureActor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Failed to prepare recording for camera %d"), CameraID);
+		return false;
+	}
+
+	// Start trajectory recording
+	UE_LOG(LogUnrealCV, Log, TEXT("StartTrajectoryRecording: Camera %d, File: %s, Type: %s, Frames: %d, Target: %s"),
+		CameraID, *FileName, *TrajectoryType, NumFrames, *Target->GetName());
+
+	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, NumFrames, RandomSeed);
+
+	return true;
+}
+
+TArray<FString> URecordingBPLib::GetSupportedTrajectoryTypes()
+{
+	return {
+		// Fixed trajectories (canonical names)
+		TEXT("rotate_left_45"),
+		TEXT("rotate_right_45"),
+		TEXT("rotate_up_45"),
+		TEXT("rotate_360"),
+		TEXT("zoom_in"),
+		TEXT("zoom_out"),
+		// Random trajectories
+		TEXT("random_1"),
+		TEXT("random_2"),
+		TEXT("random_3"),
+		TEXT("random_4")
+	};
+}
+

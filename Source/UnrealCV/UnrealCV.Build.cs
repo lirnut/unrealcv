@@ -53,7 +53,9 @@ public class UnrealcvBuildConfig
 			"AVEncoder",
 			"AudioCapture",
             "AudioCaptureCore",
-            "AudioMixer"
+            "AudioMixer",
+			"NavigationSystem", // For NavAgentController
+			"AIModule" // For AI navigation
 		});
 
 		EditorPrivateDependencyModuleNames.AddRange(

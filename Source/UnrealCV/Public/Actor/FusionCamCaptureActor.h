@@ -8,6 +8,25 @@
 #include "FusionCamCaptureActor.generated.h"
 
 /**
+ * Camera trajectory types for SOW camera movement requirements
+ * 6 fixed trajectories + 4 random trajectories = 10 per scene
+ */
+UENUM(BlueprintType)
+enum class ECameraTrajectoryType : uint8
+{
+	RotateLeft45 UMETA(DisplayName = "Rotate Left 45°"),
+	RotateRight45 UMETA(DisplayName = "Rotate Right 45°"),
+	RotateUp45 UMETA(DisplayName = "Rotate Up 45°"),
+	Rotate360 UMETA(DisplayName = "Rotate 360°"),
+	ZoomIn UMETA(DisplayName = "Zoom In"),
+	ZoomOut UMETA(DisplayName = "Zoom Out"),
+	RandomDirection1 UMETA(DisplayName = "Random Direction 1"),
+	RandomDirection2 UMETA(DisplayName = "Random Direction 2"),
+	RandomDirection3 UMETA(DisplayName = "Random Direction 3"),
+	RandomDirection4 UMETA(DisplayName = "Random Direction 4")
+};
+
+/**
  * An actor to capture video and data from a specific FusionCamSensor.
  * This actor moves the recording logic from FusionCamSensor to maintain better OOD.
  * Unlike DataCaptureActor which records from ALL sensors, this records from ONE sensor.
@@ -35,6 +54,19 @@ public:
 	/** Start recording with bullet time effect (360° rotation around target) */
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	void StartBulletTimeRecordOnly(const FString& FileName, float Duration, int32 FPS, AActor* Target);
+
+	// ========== Camera Trajectory Recording (SOW Requirements) ==========
+
+	/**
+	 * Start camera trajectory recording
+	 * @param FileName - Output filename prefix
+	 * @param TrajectoryType - Type of camera movement
+	 * @param Target - Target actor to orbit/focus on
+	 * @param NumFrames - Total frames to record (default 121 for SOW)
+	 * @param RandomSeed - Seed for random trajectories (optional)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 NumFrames = 121, int32 RandomSeed = -1);
 
 	/** Stop current recording */
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
@@ -128,6 +160,43 @@ protected:
 	void OnTimerRecord();
 	void RecordFrame();
 	void RecordBulletTimeSequence();
+
+	// ========== Trajectory Calculation Functions (Separated from Rendering) ==========
+
+	/**
+	 * Represents a single camera pose in a trajectory
+	 */
+	struct FCameraPose
+	{
+		FVector Location;
+		FRotator Rotation;
+	};
+
+	/**
+	 * Calculate camera trajectory based on type
+	 * @param TrajectoryType - Type of camera movement
+	 * @param Target - Target actor to orbit/focus on
+	 * @param NumFrames - Total frames in trajectory
+	 * @param RandomSeed - Seed for random trajectories
+	 * @return Array of camera poses
+	 */
+	TArray<FCameraPose> CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, int32 NumFrames, int32 RandomSeed);
+
+	/**
+	 * Generic trajectory rendering function
+	 * @param Trajectory - Array of camera poses to render
+	 * Renders all frames in the trajectory and saves data
+	 */
+	void RenderTrajectory(const TArray<FCameraPose>& Trajectory);
+
+	// Individual trajectory calculation functions
+	TArray<FCameraPose> CalculateRotateLeft45(AActor* Target, int32 NumFrames);
+	TArray<FCameraPose> CalculateRotateRight45(AActor* Target, int32 NumFrames);
+	TArray<FCameraPose> CalculateRotateUp45(AActor* Target, int32 NumFrames);
+	TArray<FCameraPose> CalculateRotate360(AActor* Target, int32 NumFrames);
+	TArray<FCameraPose> CalculateZoomIn(AActor* Target, int32 NumFrames);
+	TArray<FCameraPose> CalculateZoomOut(AActor* Target, int32 NumFrames);
+	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, int32 NumFrames, int32 RandomSeed);
 
 	// Audio recording
 	void StartAudioRecord();

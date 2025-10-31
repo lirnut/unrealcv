@@ -571,3 +571,369 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 
 	UVisionBPLib::SaveData(JsonStr, JsonFilename);
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////// Neo Trajector Render System /////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// ========== Camera Trajectory Recording Implementation ==========
+
+void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 NumFrames, int32 RandomSeed)
+{
+	if (!IsValid(TargetSensor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: TargetSensor is not set!"));
+		return;
+	}
+
+	if (!IsValid(Target))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: Target is null for trajectory recording"));
+		return;
+	}
+
+	if (bIsRecording)
+	{
+		StopRecord();
+	}
+
+	// Setup recording state
+	RecordFileName = FileName;
+	ElapsedSteps = 0;
+	bIsRecording = true;
+	TargetToHide = Target;
+
+	// Calculate trajectory
+	TArray<FCameraPose> Trajectory = CalculateTrajectory(TrajectoryType, Target, NumFrames, RandomSeed);
+
+	// Render trajectory
+	RenderTrajectory(Trajectory);
+
+	// Cleanup
+	bIsRecording = false;
+	TargetToHide = nullptr;
+
+	UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Trajectory recording complete - %d frames"), Trajectory.Num());
+}
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, int32 NumFrames, int32 RandomSeed)
+{
+	switch (TrajectoryType)
+	{
+	case ECameraTrajectoryType::RotateLeft45:
+		return CalculateRotateLeft45(Target, NumFrames);
+	case ECameraTrajectoryType::RotateRight45:
+		return CalculateRotateRight45(Target, NumFrames);
+	case ECameraTrajectoryType::RotateUp45:
+		return CalculateRotateUp45(Target, NumFrames);
+	case ECameraTrajectoryType::Rotate360:
+		return CalculateRotate360(Target, NumFrames);
+	case ECameraTrajectoryType::ZoomIn:
+		return CalculateZoomIn(Target, NumFrames);
+	case ECameraTrajectoryType::ZoomOut:
+		return CalculateZoomOut(Target, NumFrames);
+	case ECameraTrajectoryType::RandomDirection1:
+	case ECameraTrajectoryType::RandomDirection2:
+	case ECameraTrajectoryType::RandomDirection3:
+	case ECameraTrajectoryType::RandomDirection4:
+		return CalculateRandomDirection(Target, NumFrames, RandomSeed);
+	default:
+		UE_LOG(LogUnrealCV, Error, TEXT("Unknown trajectory type"));
+		return TArray<FCameraPose>();
+	}
+}
+
+void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Trajectory)
+{
+	if (Trajectory.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("RenderTrajectory: Empty trajectory"));
+		return;
+	}
+
+	// Save original camera transform
+	FVector OriginalLocation = TargetSensor->GetSensorLocation();
+	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
+
+	// Pause the world for consistent rendering
+	GetWorld()->GetFirstPlayerController()->SetPause(true);
+
+	// Render each frame
+	for (int i = 0; i < Trajectory.Num(); i++)
+	{
+		// Set camera pose
+		TargetSensor->SetSensorLocation(Trajectory[i].Location);
+		TargetSensor->SetSensorRotation(Trajectory[i].Rotation);
+
+		// Render frame
+		RecordFrame();
+	}
+
+	// Resume the world
+	GetWorld()->GetFirstPlayerController()->SetPause(false);
+
+	// Restore original camera transform
+	TargetSensor->SetSensorLocation(OriginalLocation);
+	TargetSensor->SetSensorRotation(OriginalRotation);
+}
+
+// ========== Individual Trajectory Calculation Functions ==========
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateLeft45(AActor* Target, int32 NumFrames)
+{
+	TArray<FCameraPose> Trajectory;
+	FVector TargetLocation = Target->GetActorLocation();
+	FVector OriginalLocation = TargetSensor->GetSensorLocation();
+	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
+
+	// Calculate offset from target
+	FVector Offset = OriginalLocation - TargetLocation;
+	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
+
+	float TotalRotationDeg = 45.0f;
+	float DegPerFrame = TotalRotationDeg / (NumFrames - 1);
+
+	for (int i = 0; i < NumFrames; i++)
+	{
+		float CurrentDeg = DegPerFrame * i;
+
+		// Rotate around Z-axis (left rotation)
+		FQuat RotationQuat = FQuat(FVector::UpVector, FMath::DegreesToRadians(CurrentDeg));
+		FVector NewOffset = RotationQuat.RotateVector(Offset);
+		FVector NewLocation = TargetLocation + NewOffset;
+		FRotator NewRotation = (TargetLocation - NewLocation).Rotation() + InitRotation;
+
+		FCameraPose Pose;
+		Pose.Location = NewLocation;
+		Pose.Rotation = NewRotation;
+		Trajectory.Add(Pose);
+	}
+
+	return Trajectory;
+}
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateRight45(AActor* Target, int32 NumFrames)
+{
+	TArray<FCameraPose> Trajectory;
+	FVector TargetLocation = Target->GetActorLocation();
+	FVector OriginalLocation = TargetSensor->GetSensorLocation();
+	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
+
+	FVector Offset = OriginalLocation - TargetLocation;
+	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
+
+	float TotalRotationDeg = -45.0f; // Negative for right rotation
+	float DegPerFrame = TotalRotationDeg / (NumFrames - 1);
+
+	for (int i = 0; i < NumFrames; i++)
+	{
+		float CurrentDeg = DegPerFrame * i;
+
+		FQuat RotationQuat = FQuat(FVector::UpVector, FMath::DegreesToRadians(CurrentDeg));
+		FVector NewOffset = RotationQuat.RotateVector(Offset);
+		FVector NewLocation = TargetLocation + NewOffset;
+		FRotator NewRotation = (TargetLocation - NewLocation).Rotation() + InitRotation;
+
+		FCameraPose Pose;
+		Pose.Location = NewLocation;
+		Pose.Rotation = NewRotation;
+		Trajectory.Add(Pose);
+	}
+
+	return Trajectory;
+}
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateUp45(AActor* Target, int32 NumFrames)
+{
+	TArray<FCameraPose> Trajectory;
+	FVector TargetLocation = Target->GetActorLocation();
+	FVector OriginalLocation = TargetSensor->GetSensorLocation();
+	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
+
+	FVector Offset = OriginalLocation - TargetLocation;
+	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
+
+	// Calculate right vector for pitch rotation
+	FVector ToCamera = Offset.GetSafeNormal();
+	FVector RightVector = FVector::CrossProduct(FVector::UpVector, ToCamera).GetSafeNormal();
+
+	float TotalRotationDeg = 45.0f;
+	float DegPerFrame = TotalRotationDeg / (NumFrames - 1);
+
+	for (int i = 0; i < NumFrames; i++)
+	{
+		float CurrentDeg = DegPerFrame * i;
+
+		// Rotate around right vector (pitch up)
+		FQuat RotationQuat = FQuat(RightVector, FMath::DegreesToRadians(CurrentDeg));
+		FVector NewOffset = RotationQuat.RotateVector(Offset);
+		FVector NewLocation = TargetLocation + NewOffset;
+		FRotator NewRotation = (TargetLocation - NewLocation).Rotation() + InitRotation;
+
+		FCameraPose Pose;
+		Pose.Location = NewLocation;
+		Pose.Rotation = NewRotation;
+		Trajectory.Add(Pose);
+	}
+
+	return Trajectory;
+}
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotate360(AActor* Target, int32 NumFrames)
+{
+	TArray<FCameraPose> Trajectory;
+	FVector TargetLocation = Target->GetActorLocation();
+	FVector OriginalLocation = TargetSensor->GetSensorLocation();
+	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
+
+	FVector Offset = OriginalLocation - TargetLocation;
+	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
+
+	float TotalRotationDeg = 360.0f;
+	float DegPerFrame = TotalRotationDeg / (NumFrames - 1);
+
+	for (int i = 0; i < NumFrames; i++)
+	{
+		float CurrentDeg = DegPerFrame * i;
+
+		FQuat RotationQuat = FQuat(FVector::UpVector, FMath::DegreesToRadians(CurrentDeg));
+		FVector NewOffset = RotationQuat.RotateVector(Offset);
+		FVector NewLocation = TargetLocation + NewOffset;
+		FRotator NewRotation = (TargetLocation - NewLocation).Rotation() + InitRotation;
+
+		FCameraPose Pose;
+		Pose.Location = NewLocation;
+		Pose.Rotation = NewRotation;
+		Trajectory.Add(Pose);
+	}
+
+	return Trajectory;
+}
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomIn(AActor* Target, int32 NumFrames)
+{
+	TArray<FCameraPose> Trajectory;
+	FVector TargetLocation = Target->GetActorLocation();
+	FVector OriginalLocation = TargetSensor->GetSensorLocation();
+	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
+
+	FVector Offset = OriginalLocation - TargetLocation;
+	float OriginalDistance = Offset.Size();
+	float MinDistance = OriginalDistance * 0.5f; // Zoom to 50% of original distance
+
+	for (int i = 0; i < NumFrames; i++)
+	{
+		float Alpha = static_cast<float>(i) / (NumFrames - 1);
+		float CurrentDistance = FMath::Lerp(OriginalDistance, MinDistance, Alpha);
+
+		// Move camera closer while maintaining direction
+		FVector NewOffset = Offset.GetSafeNormal() * CurrentDistance;
+		FVector NewLocation = TargetLocation + NewOffset;
+		FRotator NewRotation = (TargetLocation - NewLocation).Rotation();
+
+		FCameraPose Pose;
+		Pose.Location = NewLocation;
+		Pose.Rotation = NewRotation;
+		Trajectory.Add(Pose);
+	}
+
+	return Trajectory;
+}
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomOut(AActor* Target, int32 NumFrames)
+{
+	TArray<FCameraPose> Trajectory;
+	FVector TargetLocation = Target->GetActorLocation();
+	FVector OriginalLocation = TargetSensor->GetSensorLocation();
+	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
+
+	FVector Offset = OriginalLocation - TargetLocation;
+	float OriginalDistance = Offset.Size();
+	float MaxDistance = OriginalDistance * 2.0f; // Zoom out to 200% of original distance
+
+	for (int i = 0; i < NumFrames; i++)
+	{
+		float Alpha = static_cast<float>(i) / (NumFrames - 1);
+		float CurrentDistance = FMath::Lerp(OriginalDistance, MaxDistance, Alpha);
+
+		// Move camera farther while maintaining direction
+		FVector NewOffset = Offset.GetSafeNormal() * CurrentDistance;
+		FVector NewLocation = TargetLocation + NewOffset;
+		FRotator NewRotation = (TargetLocation - NewLocation).Rotation();
+
+		FCameraPose Pose;
+		Pose.Location = NewLocation;
+		Pose.Rotation = NewRotation;
+		Trajectory.Add(Pose);
+	}
+
+	return Trajectory;
+}
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRandomDirection(AActor* Target, int32 NumFrames, int32 RandomSeed)
+{
+	TArray<FCameraPose> Trajectory;
+	FVector TargetLocation = Target->GetActorLocation();
+	FVector OriginalLocation = TargetSensor->GetSensorLocation();
+	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
+
+	// Initialize random stream with seed
+	FRandomStream RandomStream;
+	if (RandomSeed >= 0)
+	{
+		RandomStream.Initialize(RandomSeed);
+	}
+	else
+	{
+		RandomStream.Initialize(FMath::Rand());
+	}
+
+	FVector Offset = OriginalLocation - TargetLocation;
+	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
+
+	// Generate random rotation axis (combination of yaw and pitch)
+	float RandomYaw = RandomStream.FRandRange(-180.0f, 180.0f);
+	float RandomPitch = RandomStream.FRandRange(-45.0f, 45.0f);
+	FVector RandomAxis = FRotator(RandomPitch, RandomYaw, 0.0f).Vector();
+
+	// Random rotation magnitude
+	float TotalRotationDeg = RandomStream.FRandRange(30.0f, 90.0f);
+	float DegPerFrame = TotalRotationDeg / (NumFrames - 1);
+
+	// Random distance variation (optional)
+	bool bVaryDistance = RandomStream.FRand() > 0.5f;
+	float OriginalDistance = Offset.Size();
+	float DistanceVariation = RandomStream.FRandRange(0.7f, 1.3f);
+
+	for (int i = 0; i < NumFrames; i++)
+	{
+		float Alpha = static_cast<float>(i) / (NumFrames - 1);
+		float CurrentDeg = DegPerFrame * i;
+
+		// Rotate around random axis
+		FQuat RotationQuat = FQuat(RandomAxis, FMath::DegreesToRadians(CurrentDeg));
+		FVector NewOffset = RotationQuat.RotateVector(Offset);
+
+		// Optionally vary distance
+		if (bVaryDistance)
+		{
+			float CurrentDistance = FMath::Lerp(OriginalDistance, OriginalDistance * DistanceVariation, Alpha);
+			NewOffset = NewOffset.GetSafeNormal() * CurrentDistance;
+		}
+
+		FVector NewLocation = TargetLocation + NewOffset;
+		FRotator NewRotation = (TargetLocation - NewLocation).Rotation() + InitRotation;
+
+		FCameraPose Pose;
+		Pose.Location = NewLocation;
+		Pose.Rotation = NewRotation;
+		Trajectory.Add(Pose);
+	}
+
+	return Trajectory;
+}
+

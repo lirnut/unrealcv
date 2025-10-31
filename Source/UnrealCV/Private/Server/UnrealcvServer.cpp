@@ -14,6 +14,7 @@
 #include "Commands/AliasHandler.h"
 #include "Commands/CameraHandler.h"
 #include "Commands/CaptureActorHandler.h"
+#include "Commands/AgentNavHandler.h"
 #include "WorldController.h"
 #include "UnrealcvLog.h"
 #include "UnrealcvStats.h"
@@ -85,6 +86,7 @@ void FUnrealcvServer::RegisterCommandHandlers()
 	CommandHandlers.Add(new FAliasHandler());
 	CommandHandlers.Add(new FCameraHandler());
 	CommandHandlers.Add(new FCaptureActorHandler());
+	CommandHandlers.Add(new FAgentNavHandler());
 	for (FCommandHandler* Handler : CommandHandlers)
 	{
 		Handler->CommandDispatcher = CommandDispatcher;
