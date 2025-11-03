@@ -25,6 +25,8 @@ public:
 
 	void RegisterAsset(const FString& Category, const FString& AssetPath);
 
+	void PrintAllAssets() const;
+
 private:
 	FAssetPoolManager();
 	FAssetPoolManager(const FAssetPoolManager&) = delete;

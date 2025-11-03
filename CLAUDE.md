@@ -129,6 +129,16 @@ Test for the executable will be manually done, due to the complexity of the UE5 
    - All builds successful, no compilation errors
    - Build time: ~17 seconds on 16-core system
 
+3. ✅ **Scene Composition System (2025-10-31)**
+   - `FAssetPoolManager` - Singleton asset pool manager with runtime registration
+   - `USceneCompositionBPLib` - Blueprint-exposed scene generation functions
+   - `RegisterAsset(Category, AssetPath)` - Dynamic asset registration from Blueprint/UI
+   - `GenerateRandomScene()` - Automated scene generation (foreground + occluders + camera)
+   - `SpawnRandomForeground/Occluders()` - Actor spawning from asset pools
+   - `PositionCameraToViewTarget()` - Automatic camera positioning
+   - `CreateFreeCamera()` - Runtime camera creation for scene generation
+   - All functions Blueprint-callable for UE Editor UI integration
+
 ### Project Mission: SOW Requirements
 
 **See**: `./SOW-基于CG的音视频分层数据生产-latest.md` for full details
@@ -196,26 +206,31 @@ Test for the executable will be manually done, due to the complexity of the UE5 
 - `UFusionCamSensor` - Sensor fusion for multi-pass rendering
 - Object visibility control (`SetActorHiddenInGame`)
 
-**🔧 New Features Needed (UE Editor-Centric Architecture):**
+**✅ Scene Composition System (Implemented 2025-10-31):**
 
-1. [ ] **FAssetPoolManager** (C++ Utility Class)
+1. ✅ **FAssetPoolManager** (C++ Utility Class)
    - Location: `Source/UnrealCV/Private/Utils/AssetPoolManager.h/.cpp`
-   - Purpose: Manage asset paths for randomized spawning
-   - Hardcode asset paths in constructor (migrate to config later)
-   - Categories: Foreground (human/pet/vehicle), Occluder (tree/pillar/wall), Scenes
-   - Methods: `GetRandomAsset()`, `GetAssetsInCategory()`, `HasCategory()`
+   - Singleton pattern with runtime asset registration
+   - Methods: `RegisterAsset()`, `GetRandomAsset()`, `GetAssetsInCategory()`, `HasCategory()`
+   - Empty constructor - assets registered dynamically from Blueprint/UI
 
-2. [ ] **USceneCompositionBPLib** (Blueprint Function Library)
+2. ✅ **USceneCompositionBPLib** (Blueprint Function Library)
    - Location: `Source/UnrealCV/Public/BPFunctionLib/SceneCompositionBPLib.h/.cpp`
-   - Purpose: Automate scene generation with randomized foreground/occluders/camera
-   - Key Functions:
-     - `GenerateRandomScene()` - Complete scene setup in XY area
-     - `CalculateOcclusionRatio()` - Compute occlusion percentage from camera view
-     - `SpawnRandomForeground()` - Spawn from asset pool
-     - `SpawnRandomOccluders()` - Spawn between camera and foreground
-     - `ClearScene()` - Cleanup generated actors
+   - `RegisterAsset(Category, AssetPath)` - Dynamic asset registration
+   - `GenerateRandomScene()` - Complete scene setup in XY area
+   - `SpawnRandomForeground()` - Spawn from asset pool
+   - `SpawnRandomOccluders()` - Spawn between camera and foreground
+   - `PositionCameraToViewTarget()` - Automatic camera positioning
+   - `ClearScene()` - Cleanup generated actors
+   - `GetForegroundCategories()`, `GetOccluderCategories()` - Query available categories
 
-3. [ ] **ULayeredRecordingBPLib** (Blueprint Function Library)
+3. ✅ **CreateFreeCamera()** (URecordingBPLib)
+   - Runtime camera creation for scene generation
+   - Returns camera ID for use with recording/scene functions
+
+**🔧 Next Features Needed:**
+
+1. [ ] **ULayeredRecordingBPLib** (Blueprint Function Library)
    - Location: `Source/UnrealCV/Public/BPFunctionLib/LayeredRecordingBPLib.h/.cpp`
    - Purpose: Record all layers for SOW dataset (5 files per video)
    - Key Functions:

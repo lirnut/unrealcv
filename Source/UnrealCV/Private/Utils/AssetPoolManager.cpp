@@ -16,7 +16,7 @@ FAssetPoolManager::FAssetPoolManager()
 	// Human - Different ages, skin colors, genders (SOW requirement)
 	AssetPools.Add(TEXT("Foreground_Human"), {
 		// Adults
-		TEXT("/Game/SocialAnimsBundle/Demo/Characters/Mannequins/girl_01_aAS_Talk7.girl_01_aAS_Talk7"),
+		// TEXT("/Game/SocialAnimsBundle/Demo/Characters/Mannequins/girl_01_aAS_Talk7.girl_01_aAS_Talk7"),
 
 		// // Elderly
 		// TEXT("/Game/Assets/Characters/Human_Elder_Male_01"),
@@ -119,9 +119,9 @@ FAssetPoolManager::FAssetPoolManager()
 	// });
 
 	// Urban objects (street occluders)
-	AssetPools.Add(TEXT("Occluder_Urban"), {
-		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Exterior_props_usable/BP_Trashbin.BP_Trashbin"),
-	});
+	// AssetPools.Add(TEXT("Occluder_Urban"), {
+	// 	TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Exterior_props_usable/BP_Trashbin.BP_Trashbin"),
+	// });
 
 	// // Log asset pool statistics
 	// for (const auto& Pair : AssetPools)
@@ -146,7 +146,12 @@ FString FAssetPoolManager::GetRandomAsset(const FString& Category)
 	}
 
 	int32 RandomIndex = FMath::RandRange(0, Assets.Num() - 1);
-	return Assets[RandomIndex];
+	FString SelectedAsset = Assets[RandomIndex];
+
+	UE_LOG(LogUnrealCV, Log, TEXT("FAssetPoolManager::GetRandomAsset: Category='%s', Selected [%d/%d]: '%s'"),
+		*Category, RandomIndex, Assets.Num(), *SelectedAsset);
+
+	return SelectedAsset;
 }
 
 TArray<FString> FAssetPoolManager::GetAssetsInCategory(const FString& Category) const
@@ -189,4 +194,24 @@ void FAssetPoolManager::RegisterAsset(const FString& Category, const FString& As
 	{
 		AssetPools[Category].Add(AssetPath);
 	}
+}
+
+void FAssetPoolManager::PrintAllAssets() const
+{
+	UE_LOG(LogUnrealCV, Log, TEXT("========== Asset Pool Debug =========="));
+	UE_LOG(LogUnrealCV, Log, TEXT("Total categories: %d"), AssetPools.Num());
+
+	for (const auto& Pair : AssetPools)
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT(""));
+		UE_LOG(LogUnrealCV, Log, TEXT("Category: '%s' (%d assets)"), *Pair.Key, Pair.Value.Num());
+
+		int32 Index = 0;
+		for (const FString& AssetPath : Pair.Value)
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("  [%d] %s"), Index++, *AssetPath);
+		}
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("======================================"));
 }

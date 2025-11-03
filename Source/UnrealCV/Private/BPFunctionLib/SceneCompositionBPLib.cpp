@@ -37,16 +37,16 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		return false;
 	}
 
-	// Validate asset pool
 	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
+
 	if (!AssetPool.HasCategory(ForegroundCategory))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("USceneCompositionBPLib::GenerateRandomScene: Invalid foreground category '%s'"), *ForegroundCategory);
+		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Invalid foreground category '%s'"), *ForegroundCategory);
 		return false;
 	}
 	if (!AssetPool.HasCategory(OccluderCategory))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("USceneCompositionBPLib::GenerateRandomScene: Invalid occluder category '%s'"), *OccluderCategory);
+		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Invalid occluder category '%s'"), *OccluderCategory);
 		return false;
 	}
 
@@ -65,26 +65,22 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	OutSceneHandle.ForegroundActor = SpawnRandomForeground(WorldContextObject, ForegroundPosition, ForegroundCategory);
 	if (!IsValid(OutSceneHandle.ForegroundActor))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("USceneCompositionBPLib::GenerateRandomScene: Failed to spawn foreground actor"));
+		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Failed to spawn foreground actor"));
 		return false;
 	}
-
-	UE_LOG(LogUnrealCV, Log, TEXT("USceneCompositionBPLib::GenerateRandomScene: Spawned foreground at (%.1f, %.1f, %.1f)"),
-		ForegroundPosition.X, ForegroundPosition.Y, ForegroundPosition.Z);
 
 	// 2. Position camera to view foreground
 	if (!PositionCameraToViewTarget(CameraID, OutSceneHandle.ForegroundActor))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("USceneCompositionBPLib::GenerateRandomScene: Failed to position camera"));
+		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Failed to position camera"));
 		ClearScene(OutSceneHandle);
 		return false;
 	}
 
-	// Get camera position for occluder placement
 	UFusionCamSensor* Camera = USensorBPLib::GetSensorById(CameraID);
 	if (!IsValid(Camera))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("USceneCompositionBPLib::GenerateRandomScene: Invalid camera ID %d"), CameraID);
+		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Invalid camera ID %d"), CameraID);
 		ClearScene(OutSceneHandle);
 		return false;
 	}
@@ -99,31 +95,18 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		OccluderCategory
 	);
 
-	UE_LOG(LogUnrealCV, Log, TEXT("USceneCompositionBPLib::GenerateRandomScene: Spawned %d occluders"), OutSceneHandle.OccluderActors.Num());
-
-	// // 4. Calculate occlusion ratio
 	OutSceneHandle.OcclusionRatio = 0.0f;
-	// OutSceneHandle.OcclusionRatio = CalculateOcclusionRatio(
-	// 	CameraID,
-	// 	OutSceneHandle.ForegroundActor,
-	// 	OutSceneHandle.OccluderActors
-	// );
-
-	UE_LOG(LogUnrealCV, Log, TEXT("USceneCompositionBPLib::GenerateRandomScene: Scene '%s' generated successfully (Occlusion: %.2f%%)"),
-		*OutSceneHandle.SceneID, OutSceneHandle.OcclusionRatio * 100.0f);
 
 	return true;
 }
 
 void USceneCompositionBPLib::ClearScene(const FSceneHandle& SceneHandle)
 {
-	// Destroy foreground actor
 	if (IsValid(SceneHandle.ForegroundActor))
 	{
 		SceneHandle.ForegroundActor->Destroy();
 	}
 
-	// Destroy all occluder actors
 	for (AActor* Occluder : SceneHandle.OccluderActors)
 	{
 		if (IsValid(Occluder))
@@ -131,8 +114,6 @@ void USceneCompositionBPLib::ClearScene(const FSceneHandle& SceneHandle)
 			Occluder->Destroy();
 		}
 	}
-
-	UE_LOG(LogUnrealCV, Log, TEXT("USceneCompositionBPLib::ClearScene: Cleared scene '%s'"), *SceneHandle.SceneID);
 }
 
 // // ========== Occlusion Calculation ==========
@@ -217,36 +198,64 @@ AActor* USceneCompositionBPLib::LoadAndSpawnActor(UWorld* World, const FString& 
 {
 	if (!IsValid(World))
 	{
+		UE_LOG(LogUnrealCV, Error, TEXT("LoadAndSpawnActor: Invalid World"));
 		return nullptr;
 	}
 
-	// Load static mesh from asset path
-	UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *AssetPath);
-	if (!Mesh)
+	UObject* LoadedAsset = LoadObject<UObject>(nullptr, *AssetPath);
+	if (!LoadedAsset)
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("USceneCompositionBPLib::LoadAndSpawnActor: Failed to load asset '%s'"), *AssetPath);
+		UE_LOG(LogUnrealCV, Error, TEXT("LoadAndSpawnActor: Asset not found '%s'"), *AssetPath);
 		return nullptr;
 	}
 
-	// Spawn static mesh actor
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AActor* SpawnedActor = nullptr;
 
-	AStaticMeshActor* Actor = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location, Rotation, SpawnParams);
-	if (!IsValid(Actor))
+	if (UBlueprint* Blueprint = Cast<UBlueprint>(LoadedAsset))
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("USceneCompositionBPLib::LoadAndSpawnActor: Failed to spawn actor"));
-		return nullptr;
+		if (Blueprint->GeneratedClass && Blueprint->GeneratedClass->IsChildOf(AActor::StaticClass()))
+		{
+			SpawnedActor = World->SpawnActor<AActor>(Blueprint->GeneratedClass, Location, Rotation, SpawnParams);
+		}
+	}
+	else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(LoadedAsset))
+	{
+		AStaticMeshActor* MeshActor = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location, Rotation, SpawnParams);
+		if (MeshActor)
+		{
+			UStaticMeshComponent* MeshComponent = MeshActor->GetStaticMeshComponent();
+			if (MeshComponent)
+			{
+				MeshComponent->SetMobility(EComponentMobility::Movable);
+				MeshComponent->SetStaticMesh(StaticMesh);
+			}
+			SpawnedActor = MeshActor;
+		}
+	}
+	else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(LoadedAsset))
+	{
+		AActor* SkeletalActor = World->SpawnActor<AActor>(AActor::StaticClass(), Location, Rotation, SpawnParams);
+		if (SkeletalActor)
+		{
+			USkeletalMeshComponent* SkeletalComponent = NewObject<USkeletalMeshComponent>(SkeletalActor);
+			if (SkeletalComponent)
+			{
+				SkeletalComponent->SetMobility(EComponentMobility::Movable);
+				SkeletalComponent->SetSkeletalMesh(SkeletalMesh);
+				SkeletalComponent->RegisterComponent();
+				SkeletalComponent->AttachToComponent(SkeletalActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+			}
+			SpawnedActor = SkeletalActor;
+		}
+	}
+	else if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(LoadedAsset))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("LoadAndSpawnActor: AnimSequence not supported, need SkeletalMesh or Blueprint"));
 	}
 
-	// Set static mesh
-	UStaticMeshComponent* MeshComponent = Actor->GetStaticMeshComponent();
-	if (IsValid(MeshComponent))
-	{
-		MeshComponent->SetStaticMesh(Mesh);
-	}
-
-	return Actor;
+	return SpawnedActor;
 }
 
 AActor* USceneCompositionBPLib::SpawnRandomForeground(
@@ -257,31 +266,23 @@ AActor* USceneCompositionBPLib::SpawnRandomForeground(
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (!World)
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("USceneCompositionBPLib::SpawnRandomForeground: Invalid world context"));
+		UE_LOG(LogUnrealCV, Error, TEXT("SpawnRandomForeground: Invalid world context"));
 		return nullptr;
 	}
 
-	// Get random asset from pool
 	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
+
 	FString AssetPath = AssetPool.GetRandomAsset(ForegroundCategory);
 	if (AssetPath.IsEmpty())
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("USceneCompositionBPLib::SpawnRandomForeground: Failed to get asset from category '%s'"), *ForegroundCategory);
+		UE_LOG(LogUnrealCV, Error, TEXT("SpawnRandomForeground: No assets in category '%s'"), *ForegroundCategory);
 		return nullptr;
 	}
 
-	// Spawn actor
 	FRotator Rotation = FRotator::ZeroRotator;
-	Rotation.Yaw = FMath::RandRange(0.0f, 360.0f); // Random rotation around Z axis
+	Rotation.Yaw = FMath::RandRange(0.0f, 360.0f);
 
-	AActor* Actor = LoadAndSpawnActor(World, AssetPath, Position, Rotation);
-	if (IsValid(Actor))
-	{
-		UE_LOG(LogUnrealCV, Log, TEXT("USceneCompositionBPLib::SpawnRandomForeground: Spawned '%s' at (%.1f, %.1f, %.1f)"),
-			*AssetPath, Position.X, Position.Y, Position.Z);
-	}
-
-	return Actor;
+	return LoadAndSpawnActor(World, AssetPath, Position, Rotation);
 }
 
 TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
@@ -312,31 +313,24 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 			continue;
 		}
 
-		// Calculate random position between camera and foreground
-		// Interpolate along camera-to-foreground line with some lateral randomness
-		float Alpha = FMath::RandRange(0.3f, 0.7f); // Position along line (30%-70%)
+		float Alpha = FMath::RandRange(0.3f, 0.7f);
 		FVector BasePosition = FMath::Lerp(CameraPosition, ForegroundPosition, Alpha);
 
-		// Add lateral randomness (perpendicular to camera-foreground line)
 		FVector Direction = (ForegroundPosition - CameraPosition).GetSafeNormal();
 		FVector Perpendicular = FVector::CrossProduct(Direction, FVector::UpVector).GetSafeNormal();
-		float LateralOffset = FMath::RandRange(-200.0f, 200.0f); // ±2 meters
+		float LateralOffset = FMath::RandRange(-200.0f, 200.0f);
 		BasePosition += Perpendicular * LateralOffset;
 
-		// Add height randomness
-		BasePosition.Z += FMath::RandRange(-50.0f, 100.0f);
+		BasePosition.Z = 0.0f;
 
 		// Random rotation
 		FRotator Rotation = FRotator::ZeroRotator;
 		Rotation.Yaw = FMath::RandRange(0.0f, 360.0f);
 
-		// Spawn occluder
 		AActor* Occluder = LoadAndSpawnActor(World, AssetPath, BasePosition, Rotation);
 		if (IsValid(Occluder))
 		{
 			SpawnedOccluders.Add(Occluder);
-			UE_LOG(LogUnrealCV, Log, TEXT("USceneCompositionBPLib::SpawnRandomOccluders: Spawned occluder %d at (%.1f, %.1f, %.1f)"),
-				i + 1, BasePosition.X, BasePosition.Y, BasePosition.Z);
 		}
 	}
 
@@ -444,9 +438,6 @@ bool USceneCompositionBPLib::PositionCameraToViewTarget(
 	// Set camera transform
 	Camera->SetWorldLocation(CameraPosition);
 	Camera->SetWorldRotation(CameraRotation);
-
-	UE_LOG(LogUnrealCV, Log, TEXT("USceneCompositionBPLib::PositionCameraToViewTarget: Camera %d positioned at (%.1f, %.1f, %.1f), looking at (%.1f, %.1f, %.1f)"),
-		CameraID, CameraPosition.X, CameraPosition.Y, CameraPosition.Z, TargetPosition.X, TargetPosition.Y, TargetPosition.Z);
 
 	return true;
 }
