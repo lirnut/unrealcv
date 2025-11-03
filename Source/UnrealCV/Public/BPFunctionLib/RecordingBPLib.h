@@ -131,12 +131,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Recording")
 	static int32 GetCameraCount();
 
-	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording", meta = (WorldContext = "WorldContextObject"))
-	static int32 CreateFreeCamera(
-		UObject* WorldContextObject,
-		FVector Location = FVector::ZeroVector,
-		FRotator Rotation = FRotator::ZeroRotator
-	);
+	// UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording", meta = (WorldContext = "WorldContextObject"))
+	// static int32 CreateFreeCamera(
+	// 	UObject* WorldContextObject,
+	// 	FVector Location = FVector::ZeroVector,
+	// 	FRotator Rotation = FRotator::ZeroRotator
+	// );
 
 	// ========== Camera Trajectory Recording (SOW Requirements) ==========
 

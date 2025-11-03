@@ -6,10 +6,14 @@
 #include "UnrealcvLog.h"
 #include "Engine/World.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/DirectionalLight.h"
+#include "Components/DirectionalLightComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
 #include "Kismet/GameplayStatics.h"
+
+TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
 
 // ========== Scene Generation ==========
 
@@ -28,8 +32,11 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	const FString& OccluderCategory,
 	int32 OccluderCount,
 	int32 CameraID,
-	FSceneHandle& OutSceneHandle)
+	FSceneHandle& OutSceneHandle,
+	bool bAutoPositionCamera
+)
 {
+	float CameraHeight = 160.0f;
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (!World)
 	{
@@ -69,14 +76,6 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		return false;
 	}
 
-	// 2. Position camera to view foreground
-	if (!PositionCameraToViewTarget(CameraID, OutSceneHandle.ForegroundActor))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Failed to position camera"));
-		ClearScene(OutSceneHandle);
-		return false;
-	}
-
 	UFusionCamSensor* Camera = USensorBPLib::GetSensorById(CameraID);
 	if (!IsValid(Camera))
 	{
@@ -84,6 +83,23 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		ClearScene(OutSceneHandle);
 		return false;
 	}
+
+	if (bAutoPositionCamera)
+	{
+		float Distance = FMath::RandRange(300.0f, 600.0f);
+		float HorizontalAngle = FMath::RandRange(0.0f, 360.0f);
+
+		FVector CameraPosition;
+		CameraPosition.X = ForegroundPosition.X + Distance * FMath::Cos(FMath::DegreesToRadians(HorizontalAngle));
+		CameraPosition.Y = ForegroundPosition.Y + Distance * FMath::Sin(FMath::DegreesToRadians(HorizontalAngle));
+		CameraPosition.Z = CameraHeight;
+
+		FRotator CameraRotation = (ForegroundPosition - CameraPosition).Rotation();
+
+		Camera->SetWorldLocation(CameraPosition);
+		Camera->SetWorldRotation(CameraRotation);
+	}
+
 	FVector CameraPosition = Camera->GetComponentLocation();
 
 	// 3. Spawn occluders between camera and foreground
@@ -95,7 +111,12 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		OccluderCategory
 	);
 
+	// OutSceneHandle.DirectionalLight = CreateDirectionalLight(WorldContextObject);
+	OutSceneHandle.DirectionalLight = nullptr;
+
 	OutSceneHandle.OcclusionRatio = 0.0f;
+
+	ActiveScenes.Add(OutSceneHandle);
 
 	return true;
 }
@@ -114,6 +135,41 @@ void USceneCompositionBPLib::ClearScene(const FSceneHandle& SceneHandle)
 			Occluder->Destroy();
 		}
 	}
+
+	if (IsValid(SceneHandle.DirectionalLight))
+	{
+		SceneHandle.DirectionalLight->Destroy();
+	}
+
+	ActiveScenes.RemoveAll([&SceneHandle](const FSceneHandle& Handle) {
+		return Handle.SceneID == SceneHandle.SceneID;
+	});
+}
+
+void USceneCompositionBPLib::ClearAllScenes(UObject* WorldContextObject)
+{
+	for (const FSceneHandle& SceneHandle : ActiveScenes)
+	{
+		if (IsValid(SceneHandle.ForegroundActor))
+		{
+			SceneHandle.ForegroundActor->Destroy();
+		}
+
+		for (AActor* Occluder : SceneHandle.OccluderActors)
+		{
+			if (IsValid(Occluder))
+			{
+				Occluder->Destroy();
+			}
+		}
+
+		if (IsValid(SceneHandle.DirectionalLight))
+		{
+			SceneHandle.DirectionalLight->Destroy();
+		}
+	}
+
+	ActiveScenes.Empty();
 }
 
 // // ========== Occlusion Calculation ==========
@@ -389,6 +445,48 @@ bool USceneCompositionBPLib::HasCategory(const FString& Category)
 	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
 	return AssetPool.HasCategory(Category);
 }
+
+// // ========== Lighting ==========
+
+// AActor* USceneCompositionBPLib::CreateDirectionalLight(
+// 	UObject* WorldContextObject,
+// 	float Intensity,
+// 	FLinearColor Color)
+// {
+// 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+// 	if (!World)
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("CreateDirectionalLight: Invalid world context"));
+// 		return nullptr;
+// 	}
+
+// 	FActorSpawnParameters SpawnParams;
+// 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+// 	float RandomYaw = FMath::RandRange(0.0f, 360.0f);
+// 	float RandomPitch = FMath::RandRange(-60.0f, -30.0f);
+// 	FRotator LightRotation = FRotator(RandomPitch, RandomYaw, 0.0f);
+
+// 	ADirectionalLight* DirectionalLight = World->SpawnActor<ADirectionalLight>(
+// 		ADirectionalLight::StaticClass(),
+// 		FVector::ZeroVector,
+// 		LightRotation,
+// 		SpawnParams
+// 	);
+
+// 	if (DirectionalLight)
+// 	{
+// 		UDirectionalLightComponent* LightComponent = DirectionalLight->GetComponent();
+// 		if (LightComponent)
+// 		{
+// 			LightComponent->SetIntensity(Intensity);
+// 			LightComponent->SetLightColor(Color);
+// 			LightComponent->SetMobility(EComponentMobility::Movable);
+// 		}
+// 	}
+
+// 	return DirectionalLight;
+// }
 
 // ========== Camera Positioning ==========
 

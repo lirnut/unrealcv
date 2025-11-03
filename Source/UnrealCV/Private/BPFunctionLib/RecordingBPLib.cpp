@@ -253,48 +253,52 @@ int32 URecordingBPLib::GetCameraCount()
 	return Cameras.Num();
 }
 
-int32 URecordingBPLib::CreateFreeCamera(
-	UObject* WorldContextObject,
-	FVector Location,
-	FRotator Rotation)
-{
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	if (!World)
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::CreateFreeCamera: Invalid world context"));
-		return -1;
-	}
+// int32 URecordingBPLib::CreateFreeCamera(
+// 	UObject* WorldContextObject,
+// 	FVector Location,
+// 	FRotator Rotation)
+// {
+// 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+// 	if (!World)
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::CreateFreeCamera: Invalid world context"));
+// 		return -1;
+// 	}
 
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+// 	APlayerController* PlayerController = World->GetFirstPlayerController();
+// 	if (!PlayerController)
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::CreateFreeCamera: No player controller found"));
+// 		return -1;
+// 	}
 
-	AActor* CameraActor = World->SpawnActor<AActor>(AActor::StaticClass(), Location, Rotation, SpawnParams);
-	if (!IsValid(CameraActor))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::CreateFreeCamera: Failed to spawn camera actor"));
-		return -1;
-	}
+// 	APawn* Pawn = PlayerController->GetPawn();
+// 	if (!Pawn)
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::CreateFreeCamera: No pawn found"));
+// 		return -1;
+// 	}
 
-	UFusionCamSensor* Sensor = NewObject<UFusionCamSensor>(CameraActor);
-	if (!IsValid(Sensor))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::CreateFreeCamera: Failed to create sensor"));
-		CameraActor->Destroy();
-		return -1;
-	}
+// 	UFusionCamSensor* Sensor = NewObject<UFusionCamSensor>(Pawn, UFusionCamSensor::StaticClass());
+// 	if (!IsValid(Sensor))
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::CreateFreeCamera: Failed to create sensor"));
+// 		return -1;
+// 	}
 
-	Sensor->RegisterComponent();
-	Sensor->AttachToComponent(CameraActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-	Sensor->SetWorldLocationAndRotation(Location, Rotation);
+// 	Sensor->AttachToComponent(Pawn->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+// 	Sensor->RegisterComponent();
+// 	Sensor->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+// 	Sensor->SetWorldLocationAndRotation(Location, Rotation);
 
-	TArray<UFusionCamSensor*> AllCameras = USensorBPLib::GetFusionSensorList();
-	int32 CameraID = AllCameras.Num() - 1;
+// 	TArray<UFusionCamSensor*> AllCameras = USensorBPLib::GetFusionSensorList();
+// 	int32 CameraID = AllCameras.Num() - 1;
 
-	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::CreateFreeCamera: Created camera ID %d at (%.1f, %.1f, %.1f)"),
-		CameraID, Location.X, Location.Y, Location.Z);
+// 	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::CreateFreeCamera: Created camera ID %d at (%.1f, %.1f, %.1f), attached to pawn '%s'"),
+// 		CameraID, Location.X, Location.Y, Location.Z, *Pawn->GetName());
 
-	return CameraID;
-}
+// 	return CameraID;
+// }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

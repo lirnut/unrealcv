@@ -25,6 +25,10 @@ struct FSceneHandle
 	UPROPERTY(BlueprintReadOnly, Category = "UnrealCV|SceneComposition")
 	TArray<AActor*> OccluderActors;
 
+	/** Directional light spawned for this scene */
+	UPROPERTY(BlueprintReadOnly, Category = "UnrealCV|SceneComposition")
+	AActor* DirectionalLight;
+
 	/** Camera ID used for this scene */
 	UPROPERTY(BlueprintReadOnly, Category = "UnrealCV|SceneComposition")
 	int32 CameraID;
@@ -40,6 +44,7 @@ struct FSceneHandle
 	FSceneHandle()
 		: SceneID(TEXT(""))
 		, ForegroundActor(nullptr)
+		, DirectionalLight(nullptr)
 		, CameraID(0)
 		, ForegroundCategory(TEXT(""))
 		, OcclusionRatio(0.0f)
@@ -63,6 +68,7 @@ public:
 
 	/**
 	 * Generate a complete random scene with foreground, occluders, and camera.
+	 * @param bAutoPositionCamera If true, automatically position camera at eye level facing foreground
 	 */
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
 	static bool GenerateRandomScene(
@@ -73,7 +79,8 @@ public:
 		const FString& OccluderCategory,
 		int32 OccluderCount,
 		int32 CameraID,
-		FSceneHandle& OutSceneHandle
+		FSceneHandle& OutSceneHandle,
+		bool bAutoPositionCamera = true
 	);
 
 	// /**
@@ -100,6 +107,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition")
 	static void ClearScene(const FSceneHandle& SceneHandle);
+
+	/**
+	 * Clear all scenes tracked by the scene composition system.
+	 * @param WorldContextObject World context
+	 */
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
+	static void ClearAllScenes(UObject* WorldContextObject);
 
 	// ========== Actor Spawning ==========
 
@@ -156,6 +170,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|SceneComposition")
 	static bool HasCategory(const FString& Category);
 
+	// // ========== Lighting ==========
+
+	// /**
+	//  * Create directional light for scene with random rotation.
+	//  * @param WorldContextObject World context
+	//  * @param Intensity Light intensity (default 5.0)
+	//  * @param Color Light color (default white)
+	//  * @return Spawned directional light actor
+	//  */
+	// UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
+	// static AActor* CreateDirectionalLight(
+	// 	UObject* WorldContextObject,
+	// 	float Intensity = 5.0f,
+	// 	FLinearColor Color = FLinearColor::White
+	// );
+
 	// ========== Camera Positioning ==========
 
 	/**
@@ -183,12 +213,8 @@ public:
 	);
 
 private:
-	// Helper: Generate unique scene ID
 	static FString GenerateSceneID();
-
-	// Helper: Load actor from asset path
 	static AActor* LoadAndSpawnActor(UWorld* World, const FString& AssetPath, const FVector& Location, const FRotator& Rotation);
 
-	// // Helper: Count non-black pixels in image data
-	// static int32 CountVisiblePixels(const TArray<FColor>& PixelData);
+	static TArray<FSceneHandle> ActiveScenes;
 };
