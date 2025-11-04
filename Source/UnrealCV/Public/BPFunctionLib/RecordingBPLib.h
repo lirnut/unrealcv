@@ -151,7 +151,8 @@ public:
 	 *                        "rotate_360", "zoom_in", "zoom_out"
 	 *   - Random trajectories: "random_1", "random_2", "random_3", "random_4"
 	 * @param Target Target actor to orbit/focus on (required)
-	 * @param NumFrames Total frames to record (default 121 for SOW)
+	 * @param FPS Frames per second for trajectory rendering (default 30)
+	 * @param DegreesPerSecond Rotation speed in degrees per second (default 36 deg/s = 10s for 360°)
 	 * @param RandomSeed Random seed for random trajectories (optional, -1 for auto)
 	 * @return True if recording started successfully, false otherwise
 	 */
@@ -161,7 +162,8 @@ public:
 		const FString& FileName,
 		const FString& TrajectoryType,
 		AActor* Target,
-		int32 NumFrames = 121,
+		int32 FPS = 30,
+		float DegreesPerSecond = 36.0f,
 		int32 RandomSeed = -1
 	);
 

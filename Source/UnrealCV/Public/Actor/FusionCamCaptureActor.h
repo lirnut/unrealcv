@@ -62,11 +62,12 @@ public:
 	 * @param FileName - Output filename prefix
 	 * @param TrajectoryType - Type of camera movement
 	 * @param Target - Target actor to orbit/focus on
-	 * @param NumFrames - Total frames to record (default 121 for SOW)
+	 * @param FPS - Frames per second for trajectory rendering (default 30)
+	 * @param DegreesPerSecond - Rotation speed in degrees per second (default 36 deg/s = 10s for 360°)
 	 * @param RandomSeed - Seed for random trajectories (optional)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
-	void StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 NumFrames = 121, int32 RandomSeed = -1);
+	void StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS = 30, float DegreesPerSecond = 36.0f, int32 RandomSeed = -1);
 
 	/** Stop current recording */
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
@@ -176,11 +177,11 @@ protected:
 	 * Calculate camera trajectory based on type
 	 * @param TrajectoryType - Type of camera movement
 	 * @param Target - Target actor to orbit/focus on
-	 * @param NumFrames - Total frames in trajectory
+	 * @param DegreesPerFrame - Rotation speed in degrees per frame
 	 * @param RandomSeed - Seed for random trajectories
 	 * @return Array of camera poses
 	 */
-	TArray<FCameraPose> CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, int32 NumFrames, int32 RandomSeed);
+	TArray<FCameraPose> CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, float DegreesPerFrame, int32 RandomSeed);
 
 	/**
 	 * Generic trajectory rendering function
@@ -190,13 +191,13 @@ protected:
 	void RenderTrajectory(const TArray<FCameraPose>& Trajectory);
 
 	// Individual trajectory calculation functions
-	TArray<FCameraPose> CalculateRotateLeft45(AActor* Target, int32 NumFrames);
-	TArray<FCameraPose> CalculateRotateRight45(AActor* Target, int32 NumFrames);
-	TArray<FCameraPose> CalculateRotateUp45(AActor* Target, int32 NumFrames);
-	TArray<FCameraPose> CalculateRotate360(AActor* Target, int32 NumFrames);
-	TArray<FCameraPose> CalculateZoomIn(AActor* Target, int32 NumFrames);
-	TArray<FCameraPose> CalculateZoomOut(AActor* Target, int32 NumFrames);
-	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, int32 NumFrames, int32 RandomSeed);
+	TArray<FCameraPose> CalculateRotateLeft45(AActor* Target, float DegreesPerFrame);
+	TArray<FCameraPose> CalculateRotateRight45(AActor* Target, float DegreesPerFrame);
+	TArray<FCameraPose> CalculateRotateUp45(AActor* Target, float DegreesPerFrame);
+	TArray<FCameraPose> CalculateRotate360(AActor* Target, float DegreesPerFrame);
+	TArray<FCameraPose> CalculateZoomIn(AActor* Target, float DegreesPerFrame);
+	TArray<FCameraPose> CalculateZoomOut(AActor* Target, float DegreesPerFrame);
+	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, float DegreesPerFrame, int32 RandomSeed);
 
 	// Audio recording
 	void StartAudioRecord();

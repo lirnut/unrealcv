@@ -9,6 +9,7 @@ FAutomationConfig UDatasetAutomationBPLib::CurrentConfig;
 FAutomationStatus UDatasetAutomationBPLib::CurrentStatus;
 FSceneHandle UDatasetAutomationBPLib::CurrentScene;
 UWorld* UDatasetAutomationBPLib::WorldContext = nullptr;
+FTimerHandle UDatasetAutomationBPLib::AutomationTimerHandle;
 
 bool UDatasetAutomationBPLib::StartBatchGeneration(
 	UObject* WorldContextObject,
@@ -34,6 +35,13 @@ bool UDatasetAutomationBPLib::StartBatchGeneration(
 
 	TransitionToState(EDatasetGenerationState::GeneratingScene);
 
+	WorldContext->GetTimerManager().SetTimer(
+		AutomationTimerHandle,
+		FTimerDelegate::CreateStatic(&UDatasetAutomationBPLib::AutoTick),
+		0.016f,
+		true
+	);
+
 	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Started batch generation (%d scenes)"), Config.TotalScenes);
 
 	return true;
@@ -46,7 +54,13 @@ void UDatasetAutomationBPLib::StopBatchGeneration()
 		return;
 	}
 
-	USceneCompositionBPLib::ClearScene(CurrentScene);
+	if (WorldContext && AutomationTimerHandle.IsValid())
+	{
+		WorldContext->GetTimerManager().ClearTimer(AutomationTimerHandle);
+	}
+
+	// This can cause duplicate scene destruction
+	// USceneCompositionBPLib::ClearScene(CurrentScene);
 
 	if (CurrentStatus.State == EDatasetGenerationState::Recording ||
 		CurrentStatus.State == EDatasetGenerationState::WaitingForRecordingComplete)
@@ -64,6 +78,62 @@ FAutomationStatus UDatasetAutomationBPLib::GetAutomationStatus()
 	return CurrentStatus;
 }
 
+FString UDatasetAutomationBPLib::GetAutomationStatusString()
+{
+	FString StateString;
+	switch (CurrentStatus.State)
+	{
+	case EDatasetGenerationState::Idle:
+		StateString = TEXT("Idle");
+		break;
+	case EDatasetGenerationState::GeneratingScene:
+		StateString = TEXT("Generating Scene");
+		break;
+	case EDatasetGenerationState::Recording:
+		StateString = TEXT("Recording");
+		break;
+	case EDatasetGenerationState::WaitingForRecordingComplete:
+		StateString = TEXT("Waiting for Recording");
+		break;
+	case EDatasetGenerationState::CleaningUp:
+		StateString = TEXT("Cleaning Up");
+		break;
+	case EDatasetGenerationState::Completed:
+		StateString = TEXT("Completed");
+		break;
+	case EDatasetGenerationState::Error:
+		StateString = TEXT("Error");
+		break;
+	default:
+		StateString = TEXT("Unknown");
+		break;
+	}
+
+	if (CurrentStatus.State == EDatasetGenerationState::Error)
+	{
+		return FString::Printf(TEXT("[%s] %s"),
+			*StateString, *CurrentStatus.ErrorMessage);
+	}
+	else if (CurrentStatus.State == EDatasetGenerationState::Completed)
+	{
+		return FString::Printf(TEXT("[%s] %d/%d scenes (100%%)"),
+			*StateString, CurrentStatus.TotalScenes, CurrentStatus.TotalScenes);
+	}
+	else if (CurrentStatus.State == EDatasetGenerationState::Idle)
+	{
+		return FString::Printf(TEXT("[%s]"), *StateString);
+	}
+	else
+	{
+		return FString::Printf(TEXT("[%s] Scene %d/%d (%.1f%%) - %s"),
+			*StateString,
+			CurrentStatus.CurrentSceneIndex + 1,
+			CurrentStatus.TotalScenes,
+			CurrentStatus.Progress * 100.0f,
+			*CurrentStatus.CurrentFileName);
+	}
+}
+
 bool UDatasetAutomationBPLib::IsRunning()
 {
 	return CurrentStatus.State != EDatasetGenerationState::Idle &&
@@ -79,6 +149,29 @@ void UDatasetAutomationBPLib::TickAutomation(UObject* WorldContextObject, float 
 	}
 
 	ProcessState(DeltaTime);
+}
+
+void UDatasetAutomationBPLib::AutoTick()
+{
+	if (!IsRunning())
+	{
+		if (WorldContext && AutomationTimerHandle.IsValid())
+		{
+			WorldContext->GetTimerManager().ClearTimer(AutomationTimerHandle);
+		}
+		return;
+	}
+
+	ProcessState(0.016f);
+
+	if (CurrentStatus.State == EDatasetGenerationState::Completed ||
+		CurrentStatus.State == EDatasetGenerationState::Error)
+	{
+		if (WorldContext && AutomationTimerHandle.IsValid())
+		{
+			WorldContext->GetTimerManager().ClearTimer(AutomationTimerHandle);
+		}
+	}
 }
 
 void UDatasetAutomationBPLib::TransitionToState(EDatasetGenerationState NewState)
@@ -138,7 +231,8 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 				FileName,
 				CurrentConfig.TrajectoryType,
 				CurrentScene.ForegroundActor,
-				CurrentConfig.TrajectoryFrames,
+				CurrentConfig.TrajectoryFPS,
+				CurrentConfig.TrajectoryDegreesPerSecond,
 				-1
 			);
 		}

@@ -344,7 +344,8 @@ bool URecordingBPLib::StartTrajectoryRecording(
 	const FString& FileName,
 	const FString& TrajectoryType,
 	AActor* Target,
-	int32 NumFrames,
+	int32 FPS,
+	float DegreesPerSecond,
 	int32 RandomSeed)
 {
 	// Validate target
@@ -370,10 +371,10 @@ bool URecordingBPLib::StartTrajectoryRecording(
 	}
 
 	// Start trajectory recording
-	UE_LOG(LogUnrealCV, Log, TEXT("StartTrajectoryRecording: Camera %d, File: %s, Type: %s, Frames: %d, Target: %s"),
-		CameraID, *FileName, *TrajectoryType, NumFrames, *Target->GetName());
+	UE_LOG(LogUnrealCV, Log, TEXT("StartTrajectoryRecording: Camera %d, File: %s, Type: %s, FPS: %d, Deg/s: %.2f, Target: %s"),
+		CameraID, *FileName, *TrajectoryType, FPS, DegreesPerSecond, *Target->GetName());
 
-	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, NumFrames, RandomSeed);
+	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, FPS, DegreesPerSecond, RandomSeed);
 
 	return true;
 }

@@ -63,7 +63,10 @@ struct FAutomationConfig
 	FString TrajectoryType = TEXT("rotate_360");
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
-	int32 TrajectoryFrames = 121;
+	int32 TrajectoryFPS = 30;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	float TrajectoryDegreesPerSecond = 36.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -109,6 +112,9 @@ public:
 	static FAutomationStatus GetAutomationStatus();
 
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Automation")
+	static FString GetAutomationStatusString();
+
+	UFUNCTION(BlueprintPure, Category = "UnrealCV|Automation")
 	static bool IsRunning();
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation", meta = (WorldContext = "WorldContextObject"))
@@ -119,8 +125,10 @@ private:
 	static FAutomationStatus CurrentStatus;
 	static FSceneHandle CurrentScene;
 	static UWorld* WorldContext;
+	static FTimerHandle AutomationTimerHandle;
 
 	static void TransitionToState(EDatasetGenerationState NewState);
 	static void ProcessState(float DeltaTime);
 	static FString GenerateFileName(int32 Index);
+	static void AutoTick();
 };
