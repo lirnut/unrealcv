@@ -17,8 +17,10 @@ bool FPythonExecutor::ExecutePythonScript(const FExecutionParams& Params, int32*
 		ArgsString += TEXT(" ") + Arg;
 	}
 
-	FString PythonCommand = FString::Printf(TEXT("python \"%s\"%s"), *Params.ScriptPath, *ArgsString);
-	FString FullCommand = BuildCondaActivationCommand(Params.CondaEnvName, PythonCommand);
+	FString PythonExecutable = TEXT("G:\\.conda\\envs\\uezoo\\python.exe");
+	FString PythonCommand = FString::Printf(TEXT("%s \"%s\" %s"), *PythonExecutable, *Params.ScriptPath, *ArgsString);
+	// FString FullCommand = FString::Printf(TEXT("conda activate %s && %s"), *Params.CondaEnvName, *PythonCommand);
+	FString FullCommand = PythonCommand;
 
 	UE_LOG(LogUnrealCV, Display, TEXT("PythonExecutor: Executing command: %s"), *FullCommand);
 
@@ -27,6 +29,7 @@ bool FPythonExecutor::ExecutePythonScript(const FExecutionParams& Params, int32*
 		: Params.WorkingDirectory;
 
 #if PLATFORM_WINDOWS
+	// FString ShellExecutable = TEXT("powershell.exe");
 	FString ShellExecutable = TEXT("cmd.exe");
 	FString ShellArgs = FString::Printf(TEXT("/c \"%s\""), *FullCommand);
 #else
@@ -83,20 +86,13 @@ bool FPythonExecutor::ExecuteGenvidScript(
 	Params.Args.Add(FString::Printf(TEXT("\"%s\""), *InputDir));
 	Params.Args.Add(TEXT("--fps"));
 	Params.Args.Add(FString::FromInt(FPS));
+	Params.Args.Add(TEXT("--rm_after_genvid"));
+	Params.Args.Add(TEXT("False"));
 	Params.CondaEnvName = CondaEnvName;
 	Params.bLaunchDetached = true;
 	Params.bLaunchHidden = true;
 
 	return ExecutePythonScript(Params, OutProcessID);
-}
-
-FString FPythonExecutor::BuildCondaActivationCommand(const FString& EnvName, const FString& PythonCommand)
-{
-#if PLATFORM_WINDOWS
-	return FString::Printf(TEXT("conda activate %s && %s"), *EnvName, *PythonCommand);
-#else
-	return FString::Printf(TEXT("source activate %s && %s"), *EnvName, *PythonCommand);
-#endif
 }
 
 bool FPythonExecutor::ValidateScriptPath(const FString& ScriptPath)

@@ -96,11 +96,11 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 
 		FRotator CameraRotation = (ForegroundPosition - CameraPosition).Rotation();
 
-		Camera->SetWorldLocation(CameraPosition);
-		Camera->SetWorldRotation(CameraRotation);
+		Camera->SetSensorLocation(CameraPosition);
+		Camera->SetSensorRotation(CameraRotation);
 	}
 
-	FVector CameraPosition = Camera->GetComponentLocation();
+	FVector CameraPosition = Camera->GetSensorLocation();
 
 	// 3. Spawn occluders between camera and foreground
 	OutSceneHandle.OccluderActors = SpawnRandomOccluders(

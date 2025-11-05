@@ -837,8 +837,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 	float OriginalDistance = Offset.Size();
 	float MinDistance = OriginalDistance * 0.5f;
 
-	float Duration = 4.0f;
-	int32 NumFrames = FMath::CeilToInt(Duration * (1.0f / DegreesPerFrame)) + 1;
+	int32 NumFrames = 100;
 
 	for (int i = 0; i < NumFrames; i++)
 	{
@@ -869,8 +868,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 	float OriginalDistance = Offset.Size();
 	float MaxDistance = OriginalDistance * 2.0f;
 
-	float Duration = 4.0f;
-	int32 NumFrames = FMath::CeilToInt(Duration * (1.0f / DegreesPerFrame)) + 1;
+	int32 NumFrames = 100;
 
 	for (int i = 0; i < NumFrames; i++)
 	{
@@ -935,7 +933,12 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 			NewOffset = NewOffset.GetSafeNormal() * CurrentDistance;
 		}
 
+		float NewHeight = 0.;
 		FVector NewLocation = TargetLocation + NewOffset;
+		if (NewLocation.Z < NewHeight) 
+		{
+			NewLocation.Z = NewHeight;
+		}
 		FRotator NewRotation = (TargetLocation - NewLocation).Rotation() + InitRotation;
 
 		FCameraPose Pose;

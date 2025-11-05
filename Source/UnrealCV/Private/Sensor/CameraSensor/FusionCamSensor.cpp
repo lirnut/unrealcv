@@ -298,6 +298,10 @@ FRotator UFusionCamSensor::GetSensorRotation()
 void UFusionCamSensor::SetSensorLocation(FVector Location)
 {
 	this->SetWorldLocation(Location);
+	if (this->GetComponentLocation() != Location)
+	{
+		this->SetWorldLocation(Location);
+	}
 }
 
 void UFusionCamSensor::SetSensorRotation(FRotator Rotator)
