@@ -174,6 +174,47 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Recording|Trajectory")
 	static TArray<FString> GetSupportedTrajectoryTypes();
 
+	// // ========== Video Generation Configuration ==========
+
+	// /**
+	//  * Enable or disable automatic video generation after recording completes.
+	//  * @param CameraID The ID of the camera sensor
+	//  * @param bEnabled Whether to auto-generate videos
+	//  * @return True if setting was applied successfully
+	//  */
+	// UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording|VideoGen")
+	// static bool SetAutoGenerateVideo(int32 CameraID, bool bEnabled);
+
+	// /**
+	//  * Configure video generation script path and conda environment.
+	//  * @param CameraID The ID of the camera sensor
+	//  * @param ScriptPath Path to genvid.py (leave empty for auto-detection)
+	//  * @param CondaEnvName Conda environment name (default: "uezoo")
+	//  * @return True if configuration was applied successfully
+	//  */
+	// UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording|VideoGen")
+	// static bool ConfigureVideoGeneration(
+	// 	int32 CameraID,
+	// 	const FString& ScriptPath = TEXT(""),
+	// 	const FString& CondaEnvName = TEXT("uezoo")
+	// );
+
+	// /**
+	//  * Manually trigger video generation for a specific folder.
+	//  * @param FolderPath Path to folder containing image sequences
+	//  * @param FPS Frames per second for video generation
+	//  * @param ScriptPath Path to genvid.py (leave empty for auto-detection)
+	//  * @param CondaEnvName Conda environment name (default: "uezoo")
+	//  * @return True if video generation was triggered successfully
+	//  */
+	// UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording|VideoGen")
+	// static bool GenerateVideoFromImages(
+	// 	const FString& FolderPath,
+	// 	int32 FPS = 30,
+	// 	const FString& ScriptPath = TEXT(""),
+	// 	const FString& CondaEnvName = TEXT("uezoo")
+	// );
+
 private:
 	/**
 	 * Convert string trajectory type to enum.

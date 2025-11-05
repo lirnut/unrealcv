@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "UnrealcvLog.h"
+#include "Utils/PythonExecutor.h"
 
 // Static map to track recording actors (camera ID -> capture actor)
 // This replaces the need to access CameraHandler's private map
@@ -397,3 +398,105 @@ TArray<FString> URecordingBPLib::GetSupportedTrajectoryTypes()
 	};
 }
 
+
+// ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////////////////////// Video Generation Configuration /////////////////////////////////////////// 
+// ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// bool URecordingBPLib::SetAutoGenerateVideo(int32 CameraID, bool bEnabled)
+// {
+// 	if (!GlobalCameraRecordingActors.Contains(CameraID))
+// 	{
+// 		UE_LOG(LogUnrealCV, Warning, TEXT("SetAutoGenerateVideo: No recording actor found for camera %d"), CameraID);
+// 		return false;
+// 	}
+
+// 	AFusionCamCaptureActor* CaptureActor = GlobalCameraRecordingActors[CameraID];
+// 	if (!IsValid(CaptureActor))
+// 	{
+// 		GlobalCameraRecordingActors.Remove(CameraID);
+// 		return false;
+// 	}
+
+// 	CaptureActor->bAutoGenerateVideo = bEnabled;
+// 	UE_LOG(LogUnrealCV, Display, TEXT("SetAutoGenerateVideo: Camera %d auto-generate video: %s"), 
+// 		CameraID, bEnabled ? TEXT("enabled") : TEXT("disabled"));
+// 	return true;
+// }
+
+// bool URecordingBPLib::ConfigureVideoGeneration(
+// 	int32 CameraID,
+// 	const FString& ScriptPath,
+// 	const FString& CondaEnvName)
+// {
+// 	if (!GlobalCameraRecordingActors.Contains(CameraID))
+// 	{
+// 		UE_LOG(LogUnrealCV, Warning, TEXT("ConfigureVideoGeneration: No recording actor found for camera %d"), CameraID);
+// 		return false;
+// 	}
+
+// 	AFusionCamCaptureActor* CaptureActor = GlobalCameraRecordingActors[CameraID];
+// 	if (!IsValid(CaptureActor))
+// 	{
+// 		GlobalCameraRecordingActors.Remove(CameraID);
+// 		return false;
+// 	}
+
+// 	if (!ScriptPath.IsEmpty())
+// 	{
+// 		CaptureActor->VideoGenScriptPath = ScriptPath;
+// 	}
+
+// 	if (!CondaEnvName.IsEmpty())
+// 	{
+// 		CaptureActor->CondaEnvName = CondaEnvName;
+// 	}
+
+// 	UE_LOG(LogUnrealCV, Display, TEXT("ConfigureVideoGeneration: Camera %d configured (Script: %s, Env: %s)"),
+// 		CameraID, *CaptureActor->VideoGenScriptPath, *CaptureActor->CondaEnvName);
+
+// 	return true;
+// }
+
+// bool URecordingBPLib::GenerateVideoFromImages(
+// 	const FString& FolderPath,
+// 	int32 FPS,
+// 	const FString& ScriptPath,
+// 	const FString& CondaEnvName)
+// {
+// 	FString ActualScriptPath = ScriptPath;
+// 	if (ActualScriptPath.IsEmpty())
+// 	{
+// 		FString PluginBaseDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectPluginsDir() / TEXT("unrealcv/Source/uezoo"));
+// 		ActualScriptPath = FPaths::Combine(PluginBaseDir, TEXT("genvid.py"));
+
+// 		if (!FPaths::FileExists(ActualScriptPath))
+// 		{
+// 			UE_LOG(LogUnrealCV, Error, TEXT("GenerateVideoFromImages: Cannot find genvid.py at %s"), *ActualScriptPath);
+// 			return false;
+// 		}
+// 	}
+
+// 	FString ActualCondaEnv = CondaEnvName.IsEmpty() ? TEXT("uezoo") : CondaEnvName;
+
+// 	int32 ProcessID = 0;
+// 	bool bSuccess = FPythonExecutor::ExecuteGenvidScript(
+// 		ActualScriptPath,
+// 		FolderPath,
+// 		FPS,
+// 		ActualCondaEnv,
+// 		&ProcessID
+// 	);
+
+// 	if (bSuccess)
+// 	{
+// 		UE_LOG(LogUnrealCV, Display, TEXT("GenerateVideoFromImages: Video generation started (PID: %d) for folder: %s"), 
+// 			ProcessID, *FolderPath);
+// 	}
+// 	else
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("GenerateVideoFromImages: Failed to start video generation for folder: %s"), *FolderPath);
+// 	}
+
+// 	return bSuccess;
+// }

@@ -19,6 +19,7 @@
 #include "AudioMixerDevice.h"
 #include "Utils/Serialization.h"
 #include "Utils/ImageUtil.h"
+#include "Utils/PythonExecutor.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/BufferArchive.h"
 
@@ -45,7 +46,11 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	TargetToHide = nullptr;
 
 	TimeDilation = 1.0f;
-	TimeDilationBackUp = 1.0f; 
+	TimeDilationBackUp = 1.0f;
+
+	bAutoGenerateVideo = true;
+	CondaEnvName = TEXT("uezoo");
+	VideoGenScriptPath = TEXT("");
 
 	// Create billboard for editor visibility
 	Billboard = CreateDefaultSubobject<UMaterialBillboardComponent>(TEXT("BillboardComponent"));
@@ -188,6 +193,8 @@ void AFusionCamCaptureActor::StopRecord()
 		bUseBulletTime = false;
 		BulletTimeState = EBulletTimeState::Waiting;
 		GetWorld()->GetWorldSettings()->SetTimeDilation(TimeDilationBackUp);
+
+		TriggerVideoGeneration();
 	}
 }
 
@@ -606,6 +613,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 
 	// Setup recording state
 	RecordFileName = FileName;
+	RecordFPS = FPS;
 	ElapsedSteps = 0;
 	bIsRecording = true;
 	TargetToHide = Target;
@@ -615,6 +623,8 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 
 	// Render trajectory
 	RenderTrajectory(Trajectory);
+
+	TriggerVideoGeneration();
 
 	// Cleanup
 	bIsRecording = false;
@@ -762,7 +772,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
 
 	FVector ToCamera = Offset.GetSafeNormal();
-	FVector RightVector = FVector::CrossProduct(FVector::UpVector, ToCamera).GetSafeNormal();
+	FVector RightVector = FVector::CrossProduct(ToCamera, FVector::UpVector).GetSafeNormal();
 
 	float TotalRotationDeg = 45.0f;
 	int32 NumFrames = FMath::CeilToInt(TotalRotationDeg / DegreesPerFrame) + 1;
@@ -901,7 +911,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
 
 	float RandomYaw = RandomStream.FRandRange(-180.0f, 180.0f);
-	float RandomPitch = RandomStream.FRandRange(-45.0f, 45.0f);
+	float RandomPitch = RandomStream.FRandRange(0.0f, 45.0f);
 	FVector RandomAxis = FRotator(RandomPitch, RandomYaw, 0.0f).Vector();
 
 	float TotalRotationDeg = RandomStream.FRandRange(30.0f, 90.0f);
@@ -937,3 +947,51 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 	return Trajectory;
 }
 
+
+void AFusionCamCaptureActor::TriggerVideoGeneration()
+{
+	if (!bAutoGenerateVideo)
+	{
+		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Auto video generation disabled"));
+		return;
+	}
+
+	if (VideoGenScriptPath.IsEmpty())
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: VideoGenScriptPath not set, searching for genvid.py"));
+
+		FString PluginBaseDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectPluginsDir() / TEXT("unrealcv/Source/uezoo"));
+		FString AutoScriptPath = FPaths::Combine(PluginBaseDir, TEXT("genvid.py"));
+
+		if (FPaths::FileExists(AutoScriptPath))
+		{
+			VideoGenScriptPath = AutoScriptPath;
+			UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Found genvid.py at %s"), *VideoGenScriptPath);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: Cannot find genvid.py at %s"), *AutoScriptPath);
+			return;
+		}
+	}
+
+	FString InputDir = FPaths::ConvertRelativePathToFull(FinalDataFolder, RecordFileName);
+	int32 ProcessID = 0;
+
+	bool bSuccess = FPythonExecutor::ExecuteGenvidScript(
+		VideoGenScriptPath,
+		InputDir,
+		RecordFPS,
+		CondaEnvName,
+		&ProcessID
+	);
+
+	if (bSuccess)
+	{
+		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Video generation started (PID: %d) for folder: %s"), ProcessID, *InputDir);
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: Failed to start video generation for folder: %s"), *InputDir);
+	}
+}

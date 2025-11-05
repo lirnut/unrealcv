@@ -132,6 +132,18 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
 	float TimeDilation;
 
+	/** Automatically generate video from image sequences after recording */
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Video Generation")
+	bool bAutoGenerateVideo;
+
+	/** Path to genvid.py script for video generation */
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Video Generation")
+	FString VideoGenScriptPath;
+
+	/** Conda environment name for Python execution */
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Video Generation")
+	FString CondaEnvName;
+
 protected:
 	// Recording state
 	FTimerHandle TimerHandle_Record;
@@ -208,6 +220,7 @@ protected:
 	FString MakeFilename(FString DataType, FString FileExtension);
 	FString MakeFilenameNew(FString DataType, FString FileExtension);
 	void SaveCameraMetadata();
+	void TriggerVideoGeneration();
 
 private:
 	UPROPERTY()
