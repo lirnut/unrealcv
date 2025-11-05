@@ -158,6 +158,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition")
 	static void RegisterAsset(const FString& Category, const FString& AssetPath);
 
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition")
+	static void RegisterAssetWithMetadata(const FString& Category, const TMap<FString, FString>& Metadata);
+
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|SceneComposition")
 	static TArray<FString> GetForegroundCategories();
 
@@ -215,6 +218,7 @@ public:
 private:
 	static FString GenerateSceneID();
 	static AActor* LoadAndSpawnActor(UWorld* World, const FString& AssetPath, const FVector& Location, const FRotator& Rotation);
+	static AActor* SpawnActorFromMetadata(UWorld* World, const TMap<FString, FString>& Metadata, const FVector& Location, const FRotator& Rotation);
 
 	static TArray<FSceneHandle> ActiveScenes;
 };

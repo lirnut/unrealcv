@@ -42,32 +42,9 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
 
-	// ========== Recording Control ==========
-
-	/** Start recording video from the target sensor */
+	// ========== Recording Control (Neo Unified System) ==========
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
-	void StartRecord(const FString& FileName, float Duration, int32 FPS, AActor* TargetToHide = nullptr);
-
-	/** Start recording with bullet time effect (360° rotation around target) */
-	UFUNCTION(BlueprintCallable, Category = "unrealcv")
-	void StartBulletTimeRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target);
-	/** Start recording with bullet time effect (360° rotation around target) */
-	UFUNCTION(BlueprintCallable, Category = "unrealcv")
-	void StartBulletTimeRecordOnly(const FString& FileName, float Duration, int32 FPS, AActor* Target);
-
-	// ========== Camera Trajectory Recording (SOW Requirements) ==========
-
-	/**
-	 * Start camera trajectory recording
-	 * @param FileName - Output filename prefix
-	 * @param TrajectoryType - Type of camera movement
-	 * @param Target - Target actor to orbit/focus on
-	 * @param FPS - Frames per second for trajectory rendering (default 30)
-	 * @param DegreesPerSecond - Rotation speed in degrees per second (default 36 deg/s = 10s for 360°)
-	 * @param RandomSeed - Seed for random trajectories (optional)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "unrealcv")
-	void StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS = 30, float DegreesPerSecond = 36.0f, int32 RandomSeed = -1);
+	void StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS = 30, float DegreesPerSecond = 36.0f, int32 RandomSeed = -1, bool bPauseWorldTime = false);
 
 	/** Stop current recording */
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
@@ -146,35 +123,15 @@ public:
 
 protected:
 	// Recording state
+	float TimeDilationBackUp;
 	FTimerHandle TimerHandle_Record;
 	FCriticalSection RecordCriticalSection;
 	bool bIsRecording;
-	float TimePerFrame;
-	float ElapsedTime;
 	int32 ElapsedSteps;
 	FString RecordFileName;
 	FString FinalDataFolder;
 	int32 RecordFPS;
-	float RecordDuration;
-	float TimeDilationBackUp;
 	AActor* TargetToHide;
-
-	// Bullet time state
-	enum class EBulletTimeState : uint8
-	{
-		Waiting,
-		BulletTime,
-		Finished
-	};
-	EBulletTimeState BulletTimeState;
-	bool bUseBulletTime;
-
-	// Recording callbacks
-	void OnTimerRecord();
-	void RecordFrame();
-	void RecordBulletTimeSequence();
-
-	// ========== Trajectory Calculation Functions (Separated from Rendering) ==========
 
 	/**
 	 * Represents a single camera pose in a trajectory
@@ -184,23 +141,18 @@ protected:
 		FVector Location;
 		FRotator Rotation;
 	};
+	TArray<FCameraPose> CurrentTrajectory;
+	int32 CurrentTrajectoryIndex;
+	bool bPauseWorldDuringRecord;
+	FVector OriginalCameraLocation;
+	FRotator OriginalCameraRotation;
 
-	/**
-	 * Calculate camera trajectory based on type
-	 * @param TrajectoryType - Type of camera movement
-	 * @param Target - Target actor to orbit/focus on
-	 * @param DegreesPerFrame - Rotation speed in degrees per frame
-	 * @param RandomSeed - Seed for random trajectories
-	 * @return Array of camera poses
-	 */
+	void OnTimerRecord();
+	void RecordFrame();
+
+	// ========== Trajectory Calculation Functions (Separated from Rendering) ==========
 	TArray<FCameraPose> CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, float DegreesPerFrame, int32 RandomSeed);
-
-	/**
-	 * Generic trajectory rendering function
-	 * @param Trajectory - Array of camera poses to render
-	 * Renders all frames in the trajectory and saves data
-	 */
-	void RenderTrajectory(const TArray<FCameraPose>& Trajectory);
+	void RenderTrajectory(const TArray<FCameraPose>& Trajectory, bool bPauseWorldTime);
 
 	// Individual trajectory calculation functions
 	TArray<FCameraPose> CalculateRotateLeft45(AActor* Target, float DegreesPerFrame);

@@ -11,25 +11,29 @@ FAssetPoolManager& FAssetPoolManager::Get()
 FAssetPoolManager::FAssetPoolManager()
 {
 	UE_LOG(LogUnrealCV, Log, TEXT("FAssetPoolManager initialized"));
-       // ========== Foreground Assets ==========
+}
+
+void FAssetPoolManager::LoadStableAssetsPack()
+{
+    // ========== Foreground Assets ==========
 
 	// Human - Different ages, skin colors, genders (SOW requirement)
-	AssetPools.Add(TEXT("Foreground_Human"), {
-		// Adults
-		// TEXT("/Game/SocialAnimsBundle/Demo/Characters/Mannequins/girl_01_aAS_Talk7.girl_01_aAS_Talk7"),
+	// AssetPools.Add(TEXT("Foreground_Human"), {
+	// 	// Adults
+	// 	// {{"Path", TEXT("/Game/SocialAnimsBundle/Demo/Characters/Mannequins/girl_01_aAS_Talk7.girl_01_aAS_Talk7")}, {"Type", TEXT("Blueprint")}},
 
-		// // Elderly
-		// TEXT("/Game/Assets/Characters/Human_Elder_Male_01"),
+	// 	// // Elderly
+	// 	// {{"Path", TEXT("/Game/Assets/Characters/Human_Elder_Male_01")}, {"Type", TEXT("Blueprint")}},
 
-		// // Youth
-		// TEXT("/Game/Assets/Characters/Human_Teen_Male_01"),
+	// 	// // Youth
+	// 	// {{"Path", TEXT("/Game/Assets/Characters/Human_Teen_Male_01")}, {"Type", TEXT("Blueprint")}},
 
-		// // Children
-		// TEXT("/Game/Assets/Characters/Human_Child_Male_01"),
+	// 	// // Children
+	// 	// {{"Path", TEXT("/Game/Assets/Characters/Human_Child_Male_01")}, {"Type", TEXT("Blueprint")}},
 
-		// // Infants
-		// TEXT("/Game/Assets/Characters/Human_Infant_01"),
-	});
+	// 	// // Infants
+	// 	// {{"Path", TEXT("/Game/Assets/Characters/Human_Infant_01")}, {"Type", TEXT("Blueprint")}},
+	// });
 
 	// // Pets - Cats (5+ breeds, SOW requirement)
 	// AssetPools.Add(TEXT("Foreground_Pet_Cat"), {
@@ -132,35 +136,56 @@ FAssetPoolManager::FAssetPoolManager()
 
 FString FAssetPoolManager::GetRandomAsset(const FString& Category)
 {
+	TMap<FString, FString> Metadata = GetRandomAssetMetadata(Category);
+	if (Metadata.Contains(TEXT("Path")))
+	{
+		return Metadata[TEXT("Path")];
+	}
+	return FString();
+}
+
+TMap<FString, FString> FAssetPoolManager::GetRandomAssetMetadata(const FString& Category)
+{
 	if (!AssetPools.Contains(Category))
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FAssetPoolManager::GetRandomAsset: Category '%s' not found"), *Category);
-		return FString();
+		UE_LOG(LogUnrealCV, Warning, TEXT("FAssetPoolManager::GetRandomAssetMetadata: Category '%s' not found"), *Category);
+		return TMap<FString, FString>();
 	}
 
-	const TArray<FString>& Assets = AssetPools[Category];
+	const TArray<TMap<FString, FString>>& Assets = AssetPools[Category];
 	if (Assets.Num() == 0)
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FAssetPoolManager::GetRandomAsset: Category '%s' is empty"), *Category);
-		return FString();
+		UE_LOG(LogUnrealCV, Warning, TEXT("FAssetPoolManager::GetRandomAssetMetadata: Category '%s' is empty"), *Category);
+		return TMap<FString, FString>();
 	}
 
 	int32 RandomIndex = FMath::RandRange(0, Assets.Num() - 1);
-	FString SelectedAsset = Assets[RandomIndex];
+	const TMap<FString, FString>& SelectedAsset = Assets[RandomIndex];
 
-	UE_LOG(LogUnrealCV, Log, TEXT("FAssetPoolManager::GetRandomAsset: Category='%s', Selected [%d/%d]: '%s'"),
-		*Category, RandomIndex, Assets.Num(), *SelectedAsset);
+	FString AssetPath = SelectedAsset.Contains(TEXT("Path")) ? SelectedAsset[TEXT("Path")] : TEXT("(no path)");
+	UE_LOG(LogUnrealCV, Log, TEXT("FAssetPoolManager::GetRandomAssetMetadata: Category='%s', Selected [%d/%d]: '%s'"),
+		*Category, RandomIndex, Assets.Num(), *AssetPath);
 
 	return SelectedAsset;
 }
 
 TArray<FString> FAssetPoolManager::GetAssetsInCategory(const FString& Category) const
 {
+	TArray<FString> Paths;
 	if (!AssetPools.Contains(Category))
 	{
-		return TArray<FString>();
+		return Paths;
 	}
-	return AssetPools[Category];
+
+	const TArray<TMap<FString, FString>>& Assets = AssetPools[Category];
+	for (const TMap<FString, FString>& Metadata : Assets)
+	{
+		if (Metadata.Contains(TEXT("Path")))
+		{
+			Paths.Add(Metadata[TEXT("Path")]);
+		}
+	}
+	return Paths;
 }
 
 bool FAssetPoolManager::HasCategory(const FString& Category) const
@@ -186,13 +211,82 @@ int32 FAssetPoolManager::GetAssetCount(const FString& Category) const
 
 void FAssetPoolManager::RegisterAsset(const FString& Category, const FString& AssetPath)
 {
+	TMap<FString, FString> Metadata;
+	Metadata.Add(TEXT("Path"), AssetPath);
+	Metadata.Add(TEXT("Type"), TEXT("StaticMesh"));
+	RegisterAssetWithMetadata(Category, Metadata);
+}
+
+bool FAssetPoolManager::ValidateMetadata(const TMap<FString, FString>& Metadata, FString& OutErrorMessage)
+{
+	if (!Metadata.Contains(TEXT("Path")))
+	{
+		OutErrorMessage = TEXT("Metadata must contain 'Path'");
+		return false;
+	}
+
+	if (!Metadata.Contains(TEXT("Type")))
+	{
+		OutErrorMessage = TEXT("Metadata must contain 'Type' (valid values: 'StaticMesh', 'Blueprint', 'SM+AnimSeq')");
+		return false;
+	}
+
+	const FString& Type = Metadata[TEXT("Type")];
+	if (Type != TEXT("StaticMesh") && Type != TEXT("Blueprint") && Type != TEXT("SM+AnimSeq"))
+	{
+		OutErrorMessage = FString::Printf(TEXT("Invalid Type '%s'. Valid values: 'StaticMesh', 'Blueprint', 'SM+AnimSeq'"), *Type);
+		return false;
+	}
+
+	if (Type == TEXT("SM+AnimSeq"))
+	{
+		if (!Metadata.Contains(TEXT("AnimSequence")))
+		{
+			OutErrorMessage = TEXT("Type 'SM+AnimSeq' requires 'AnimSequence' key");
+			return false;
+		}
+
+		const FString& AnimSeqPath = Metadata[TEXT("AnimSequence")];
+		if (AnimSeqPath.IsEmpty())
+		{
+			OutErrorMessage = TEXT("'AnimSequence' path cannot be empty for Type 'SM+AnimSeq'");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void FAssetPoolManager::RegisterAssetWithMetadata(const FString& Category, const TMap<FString, FString>& Metadata)
+{
+	FString ErrorMessage;
+	if (!ValidateMetadata(Metadata, ErrorMessage))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("RegisterAssetWithMetadata: %s"), *ErrorMessage);
+		return;
+	}
+
 	if (!AssetPools.Contains(Category))
 	{
-		AssetPools.Add(Category, TArray<FString>());
+		AssetPools.Add(Category, TArray<TMap<FString, FString>>());
 	}
-	if (!AssetPools[Category].Contains(AssetPath))
+
+	bool bAlreadyExists = false;
+	const FString& NewPath = Metadata[TEXT("Path")];
+	for (const TMap<FString, FString>& ExistingMetadata : AssetPools[Category])
 	{
-		AssetPools[Category].Add(AssetPath);
+		if (ExistingMetadata.Contains(TEXT("Path")) && ExistingMetadata[TEXT("Path")] == NewPath)
+		{
+			bAlreadyExists = true;
+			break;
+		}
+	}
+
+	if (!bAlreadyExists)
+	{
+		AssetPools[Category].Add(Metadata);
+		UE_LOG(LogUnrealCV, Log, TEXT("RegisterAssetWithMetadata: Category='%s', Path='%s', Type='%s'"),
+			*Category, *NewPath, *Metadata[TEXT("Type")]);
 	}
 }
 
@@ -207,9 +301,20 @@ void FAssetPoolManager::PrintAllAssets() const
 		UE_LOG(LogUnrealCV, Log, TEXT("Category: '%s' (%d assets)"), *Pair.Key, Pair.Value.Num());
 
 		int32 Index = 0;
-		for (const FString& AssetPath : Pair.Value)
+		for (const TMap<FString, FString>& Metadata : Pair.Value)
 		{
-			UE_LOG(LogUnrealCV, Log, TEXT("  [%d] %s"), Index++, *AssetPath);
+			FString AssetPath = Metadata.Contains(TEXT("Path")) ? Metadata[TEXT("Path")] : TEXT("(no path)");
+			FString AssetType = Metadata.Contains(TEXT("Type")) ? Metadata[TEXT("Type")] : TEXT("(auto)");
+			FString AnimSeq = Metadata.Contains(TEXT("AnimSequence")) ? Metadata[TEXT("AnimSequence")] : TEXT("");
+
+			if (!AnimSeq.IsEmpty())
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("  [%d] %s (Type: %s, Anim: %s)"), Index++, *AssetPath, *AssetType, *AnimSeq);
+			}
+			else
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("  [%d] %s (Type: %s)"), Index++, *AssetPath, *AssetType);
+			}
 		}
 	}
 

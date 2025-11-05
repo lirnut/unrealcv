@@ -89,20 +89,20 @@ private:
 
 	FExecStatus GetCameraOneObjMask(const TArray<FString>& Args);
 
-	FExecStatus StartRecord(const TArray<FString>& Args);
-	FExecStatus StartBulletTimeRecord(const TArray<FString>& Args);
-	FExecStatus CheckRecordStatus(const TArray<FString>& Args);
+	// FExecStatus StartRecord(const TArray<FString>& Args);
+	// FExecStatus StartBulletTimeRecord(const TArray<FString>& Args);
+	// FExecStatus CheckRecordStatus(const TArray<FString>& Args);
 
-	// Camera parameter export
-	FExecStatus GetIntrinsics(const TArray<FString>& Args);
-	FExecStatus GetExtrinsics(const TArray<FString>& Args);
-	FExecStatus GetProjectionMatrix(const TArray<FString>& Args);
+	// // Camera parameter export
+	// FExecStatus GetIntrinsics(const TArray<FString>& Args);
+	// FExecStatus GetExtrinsics(const TArray<FString>& Args);
+	// FExecStatus GetProjectionMatrix(const TArray<FString>& Args);
 
-	// Camera motion control
-	FExecStatus StartCameraMotion(const TArray<FString>& Args);
-	FExecStatus StopCameraMotion(const TArray<FString>& Args);
-	FExecStatus GetCameraMotionStatus(const TArray<FString>& Args);
-	FExecStatus GetCameraMotionProgress(const TArray<FString>& Args);
+	// // Camera motion control
+	// FExecStatus StartCameraMotion(const TArray<FString>& Args);
+	// FExecStatus StopCameraMotion(const TArray<FString>& Args);
+	// FExecStatus GetCameraMotionStatus(const TArray<FString>& Args);
+	// FExecStatus GetCameraMotionProgress(const TArray<FString>& Args);
 
 private:
 	// Map camera ID to its associated CaptureActor for automatic lifecycle management

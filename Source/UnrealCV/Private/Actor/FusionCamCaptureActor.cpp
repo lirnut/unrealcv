@@ -27,7 +27,6 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// Initialize default values
 	bIsRecording = false;
 	bAddTimestamp = true;
 	bRecordRGB = true;
@@ -38,11 +37,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	bRecordMetadata = true;
 	bRecordAudio = true;
 	bRecordWithoutTarget = false;
-	BulletTimeSpeedDeg = 2.0f;
-	bUseBulletTime = false;
-	BulletTimeState = EBulletTimeState::Waiting;
 	ElapsedSteps = 0;
-	ElapsedTime = 0.0f;
 	TargetToHide = nullptr;
 
 	TimeDilation = 1.0f;
@@ -52,7 +47,9 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	CondaEnvName = TEXT("uezoo");
 	VideoGenScriptPath = TEXT("");
 
-	// Create billboard for editor visibility
+	CurrentTrajectoryIndex = 0;
+	bPauseWorldDuringRecord = true;
+
 	Billboard = CreateDefaultSubobject<UMaterialBillboardComponent>(TEXT("BillboardComponent"));
 	if (!IsRunningCommandlet() && (Billboard != nullptr))
 	{
@@ -84,98 +81,6 @@ void AFusionCamCaptureActor::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void AFusionCamCaptureActor::StartRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target)
-{
-	if (!IsValid(TargetSensor))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: TargetSensor is not set!"));
-		return;
-	}
-
-	if (bIsRecording)
-	{
-		StopRecord();
-	}
-
-	AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings();
-	TimeDilationBackUp = WorldSettings->TimeDilation;
-
-	RecordFileName = FileName;
-	RecordDuration = Duration;
-	RecordFPS = FPS;
-	TimePerFrame = 1.0f / FPS;
-	ElapsedTime = 0.0f;
-	ElapsedSteps = 0;
-	bIsRecording = true;
-	TargetToHide = Target;
-	BulletTimeState = EBulletTimeState::Waiting;
-
-
-	UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Start recording to %s"), *FileName);
-
-	// Start audio recording if enabled
-	if (bRecordAudio)
-	{
-		StartAudioRecord();
-	}
-
-	// Record first frame immediately
-	OnTimerRecord();
-
-	// Set up timer for subsequent frames
-	GetWorld()->GetTimerManager().SetTimer(
-		TimerHandle_Record,
-		this,
-		&AFusionCamCaptureActor::OnTimerRecord,
-		TimePerFrame,
-		true
-	);
-}
-
-void AFusionCamCaptureActor::StartBulletTimeRecord(const FString& FileName, float Duration, int32 FPS, AActor* Target)
-{
-	if (!IsValid(Target))
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Target is null in StartBulletTimeRecord"));
-		return;
-	}
-
-	bUseBulletTime = true;
-	StartRecord(FileName, Duration, FPS, Target);
-}
-
-void AFusionCamCaptureActor::StartBulletTimeRecordOnly(const FString& FileName, float Duration, int32 FPS, AActor* Target)
-{
-	if (!IsValid(Target))
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Target is null in StartBulletTimeRecord"));
-		return;
-	}
-	AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings();
-	TimeDilationBackUp = WorldSettings->TimeDilation;
-
-	RecordFileName = FileName;
-	RecordDuration = Duration;
-	RecordFPS = FPS;
-	TimePerFrame = 1.0f / FPS;
-	ElapsedTime = 0.0f;
-	ElapsedSteps = 0;
-	bIsRecording = true;
-	TargetToHide = Target;
-
-	if (bRecordAudio)
-	{
-		StartAudioRecord();
-	}
-	RecordBulletTimeSequence();
-	if (bRecordAudio)
-	{
-		StopAudioRecord();
-	}
-	bIsRecording = false;
-	TargetToHide = nullptr;
-}
-
 void AFusionCamCaptureActor::StopRecord()
 {
 	if (bIsRecording)
@@ -190,9 +95,19 @@ void AFusionCamCaptureActor::StopRecord()
 		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_Record);
 		bIsRecording = false;
 		TargetToHide = nullptr;
-		bUseBulletTime = false;
-		BulletTimeState = EBulletTimeState::Waiting;
-		GetWorld()->GetWorldSettings()->SetTimeDilation(TimeDilationBackUp);
+		CurrentTrajectory.Empty();
+		CurrentTrajectoryIndex = 0;
+
+		if (bPauseWorldDuringRecord)
+		{
+			GetWorld()->GetFirstPlayerController()->SetPause(false);
+		}
+
+		if (IsValid(TargetSensor))
+		{
+			TargetSensor->SetSensorLocation(OriginalCameraLocation);
+			TargetSensor->SetSensorRotation(OriginalCameraRotation);
+		}
 
 		TriggerVideoGeneration();
 	}
@@ -207,7 +122,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		return;
 	}
 
-	if (ElapsedTime >= RecordDuration)
+	if (CurrentTrajectoryIndex >= CurrentTrajectory.Num())
 	{
 		StopRecord();
 		return;
@@ -224,18 +139,13 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		WorldSettings->SetTimeDilation(0.2f * TimeDilation + 0.8f * WorldSettings->TimeDilation);
 	}
 
-	// Handle bullet time recording
-	if (bUseBulletTime && (BulletTimeState == EBulletTimeState::Waiting) && (ElapsedTime > (RecordDuration / 2)))
-	{
-		RecordBulletTimeSequence();
-		BulletTimeState = EBulletTimeState::Finished;
-		return;
-	}
 
-	// Record normal frame
+	TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
+	TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
+
 	RecordFrame();
 
-	ElapsedTime += TimePerFrame;
+	CurrentTrajectoryIndex++;
 	ElapsedSteps++;
 }
 
@@ -316,95 +226,6 @@ void AFusionCamCaptureActor::RecordFrame()
 	{
 		SaveCameraMetadata();
 	}
-}
-
-void AFusionCamCaptureActor::RecordBulletTimeSequence()
-{
-	if (!IsValid(TargetToHide))
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: No target for bullet time recording"));
-		return;
-	}
-
-	UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Starting bullet time sequence"));
-
-	// Save original camera transform
-	FVector OriginalLocation = TargetSensor->GetSensorLocation();
-	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
-
-	// Pause the world
-	GetWorld()->GetFirstPlayerController()->SetPause(true);
-
-	// Calculate rotation parameters
-	FVector TargetLocation = TargetToHide->GetActorLocation();
-	FVector Offset = OriginalLocation - TargetLocation;
-	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
-
-	float BulletTimeElapsedDeg = 0.0f;
-	TArray<TArray<FColor>> DataRGBFrames, DataMaskFrames, DataRGBNoTargetFrames;
-
-	// Capture 360° rotation
-	while (BulletTimeElapsedDeg + BulletTimeSpeedDeg <= 360.0f)
-	{
-		BulletTimeElapsedDeg += BulletTimeSpeedDeg;
-
-		// Rotate camera around target
-		FQuat RotationQuat = FQuat(FVector::UpVector, FMath::DegreesToRadians(BulletTimeSpeedDeg));
-		Offset = RotationQuat.RotateVector(Offset);
-		FVector NewCameraLocation = TargetLocation + Offset;
-		FRotator NewRotation = (TargetLocation - NewCameraLocation).Rotation() + InitRotation;
-
-		TargetSensor->SetSensorLocation(NewCameraLocation);
-		TargetSensor->SetSensorRotation(NewRotation);
-
-		// Capture frame with target
-		int Width, Height;
-		TArray<FColor> DataRGB, DataMask;
-		TargetSensor->GetLitSeg(DataRGB, DataMask, Width, Height);
-		DataRGBFrames.Add(DataRGB);
-		DataMaskFrames.Add(DataMask);
-
-		// Capture frame without target if requested
-		if (bRecordWithoutTarget)
-		{
-			TArray<FColor> DataRGBNoTarget;
-			FActorController TargetController(TargetToHide);
-			TargetController.Hide();
-			TargetSensor->GetLit(DataRGBNoTarget, Width, Height);
-			TargetController.Show();
-			DataRGBNoTargetFrames.Add(DataRGBNoTarget);
-		}
-	}
-
-	// Resume the world
-	GetWorld()->GetFirstPlayerController()->SetPause(false);
-
-	// Restore original camera transform
-	TargetSensor->SetSensorLocation(OriginalLocation);
-	TargetSensor->SetSensorRotation(OriginalRotation);
-
-	// Save all frames
-	int Width = TargetSensor->GetFilmWidth();
-	int Height = TargetSensor->GetFilmHeight();
-
-	for (int i = 0; i < DataRGBFrames.Num(); i++)
-	{
-		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
-		FString FileNameMask = MakeFilenameNew("mask", ".png");
-
-		SerializeData(DataRGBFrames[i], Width, Height, FileNameRGB);
-		SerializeData(DataMaskFrames[i], Width, Height, FileNameMask);
-
-		if (bRecordWithoutTarget && i < DataRGBNoTargetFrames.Num())
-		{
-			FString FileNameNoTarget = MakeFilenameNew("rgb_no_target", ".png");
-			SerializeData(DataRGBNoTargetFrames[i], Width, Height, FileNameNoTarget);
-		}
-
-		ElapsedSteps++;
-	}
-
-	UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Bullet time sequence complete, %d frames captured"), DataRGBFrames.Num());
 }
 
 void AFusionCamCaptureActor::StartAudioRecord()
@@ -554,22 +375,80 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		return;
 	}
 
+	FVector Location = TargetSensor->GetSensorLocation();
+	FRotator Rotation = TargetSensor->GetSensorRotation();
+	float FOV = TargetSensor->GetSensorFOV();
+	int32 Width = TargetSensor->GetFilmWidth();
+	int32 Height = TargetSensor->GetFilmHeight();
+
+	float FOVRadians = FMath::DegreesToRadians(FOV);
+	float FocalLengthX = Width / (2.0f * FMath::Tan(FOVRadians / 2.0f));
+	float FocalLengthY = FocalLengthX;
+	float PrincipalPointX = Width / 2.0f;
+	float PrincipalPointY = Height / 2.0f;
+
+	FMatrix RotationMatrix = FRotationMatrix::Make(Rotation);
+
+	TMap<FString, float> IntrinsicsMap;
+	IntrinsicsMap.Add("fx", FocalLengthX);
+	IntrinsicsMap.Add("fy", FocalLengthY);
+	IntrinsicsMap.Add("cx", PrincipalPointX);
+	IntrinsicsMap.Add("cy", PrincipalPointY);
+	IntrinsicsMap.Add("fov", FOV);
+	IntrinsicsMap.Add("width", static_cast<float>(Width));
+	IntrinsicsMap.Add("height", static_cast<float>(Height));
+
+	TArray<float> RotationArray;
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			RotationArray.Add(RotationMatrix.M[i][j]);
+		}
+	}
+
+	TArray<float> TranslationArray;
+	TranslationArray.Add(Location.X);
+	TranslationArray.Add(Location.Y);
+	TranslationArray.Add(Location.Z);
+
+	TArray<FString> ExtrinsicsKeys = {"rotation_matrix", "translation"};
+	TArray<FJsonObjectBP> ExtrinsicsValues;
+
+	TArray<FJsonObjectBP> RotMatrixArray;
+	for (float Val : RotationArray)
+	{
+		RotMatrixArray.Add(FJsonObjectBP(Val));
+	}
+	ExtrinsicsValues.Add(FJsonObjectBP(RotMatrixArray));
+
+	TArray<FJsonObjectBP> TransArray;
+	for (float Val : TranslationArray)
+	{
+		TransArray.Add(FJsonObjectBP(Val));
+	}
+	ExtrinsicsValues.Add(FJsonObjectBP(TransArray));
+
 	TArray<FString> Keys = {
 		"FrameNumber",
 		"Location",
 		"Rotation",
 		"FilmWidth",
 		"FilmHeight",
-		"FOV"
+		"FOV",
+		"Intrinsics",
+		"Extrinsics"
 	};
 
 	TArray<FJsonObjectBP> Values = {
 		FJsonObjectBP(ElapsedSteps),
-		FJsonObjectBP(TargetSensor->GetSensorLocation()),
-		FJsonObjectBP(TargetSensor->GetSensorRotation()),
-		FJsonObjectBP(TargetSensor->GetFilmWidth()),
-		FJsonObjectBP(TargetSensor->GetFilmHeight()),
-		FJsonObjectBP(TargetSensor->GetSensorFOV())
+		FJsonObjectBP(Location),
+		FJsonObjectBP(Rotation),
+		FJsonObjectBP(Width),
+		FJsonObjectBP(Height),
+		FJsonObjectBP(FOV),
+		FJsonObjectBP(IntrinsicsMap),
+		FJsonObjectBP(ExtrinsicsKeys, ExtrinsicsValues)
 	};
 
 	FJsonObjectBP JsonObject = USerializeBPLib::TMapToJson(Keys, Values);
@@ -589,7 +468,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 
 // ========== Camera Trajectory Recording Implementation ==========
 
-void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS, float DegreesPerSecond, int32 RandomSeed)
+void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS, float DegreesPerSecond, int32 RandomSeed, bool bPauseWorldTime)
 {
 	if (!IsValid(TargetSensor))
 	{
@@ -608,30 +487,29 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 		StopRecord();
 	}
 
-	// Calculate degrees per frame (passed to trajectory calculation functions)
 	float DegreesPerFrame = DegreesPerSecond / FPS;
 
-	// Setup recording state
 	RecordFileName = FileName;
 	RecordFPS = FPS;
 	ElapsedSteps = 0;
 	bIsRecording = true;
 	TargetToHide = Target;
+	bPauseWorldDuringRecord = bPauseWorldTime;
 
-	// Calculate trajectory (each function determines its own frame count)
-	TArray<FCameraPose> Trajectory = CalculateTrajectory(TrajectoryType, Target, DegreesPerFrame, RandomSeed);
+	OriginalCameraLocation = TargetSensor->GetSensorLocation();
+	OriginalCameraRotation = TargetSensor->GetSensorRotation();
 
-	// Render trajectory
-	RenderTrajectory(Trajectory);
+	CurrentTrajectory = CalculateTrajectory(TrajectoryType, Target, DegreesPerFrame, RandomSeed);
 
-	TriggerVideoGeneration();
+	if (bRecordAudio)
+	{
+		StartAudioRecord();
+	}
 
-	// Cleanup
-	bIsRecording = false;
-	TargetToHide = nullptr;
+	RenderTrajectory(CurrentTrajectory, bPauseWorldTime);
 
-	UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Trajectory recording complete - %d frames (FPS: %d, Deg/s: %.2f, Deg/frame: %.4f)"),
-		Trajectory.Num(), FPS, DegreesPerSecond, DegreesPerFrame);
+	UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Trajectory recording complete - %d frames (FPS: %d, Deg/s: %.2f, Deg/frame: %.4f, Mode: %s)"),
+		CurrentTrajectory.Num(), FPS, DegreesPerSecond, DegreesPerFrame, bPauseWorldTime ? TEXT("Paused") : TEXT("RealTime"));
 }
 
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, float DegreesPerFrame, int32 RandomSeed)
@@ -661,40 +539,63 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTra
 	}
 }
 
-void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Trajectory)
+void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Trajectory, bool bPauseWorldTime)
 {
 	if (Trajectory.Num() == 0)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("RenderTrajectory: Empty trajectory"));
 		return;
 	}
-	ElapsedSteps = 0;
 
-	// Save original camera transform
-	FVector OriginalLocation = TargetSensor->GetSensorLocation();
-	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
-
-	// Pause the world for consistent rendering
-	GetWorld()->GetFirstPlayerController()->SetPause(true);
-
-	// Render each frame
-	for (int i = 0; i < Trajectory.Num(); i++)
+	if (bPauseWorldTime)
 	{
-		// Set camera pose
-		TargetSensor->SetSensorLocation(Trajectory[i].Location);
-		TargetSensor->SetSensorRotation(Trajectory[i].Rotation);
+		GetWorld()->GetFirstPlayerController()->SetPause(true);
 
-		// Render frame
-		RecordFrame();
-		ElapsedSteps += 1;
+		ElapsedSteps = 0;
+		for (int i = 0; i < Trajectory.Num(); i++)
+		{
+			TargetSensor->SetSensorLocation(Trajectory[i].Location);
+			TargetSensor->SetSensorRotation(Trajectory[i].Rotation);
+
+			RecordFrame();
+			ElapsedSteps++;
+		}
+
+		GetWorld()->GetFirstPlayerController()->SetPause(false);
+		TargetSensor->SetSensorLocation(OriginalCameraLocation);
+		TargetSensor->SetSensorRotation(OriginalCameraRotation);
+
+		if (bRecordAudio)
+		{
+			StopAudioRecord();
+		}
+
+		TriggerVideoGeneration();
+
+		bIsRecording = false;
+		TargetToHide = nullptr;
+		CurrentTrajectory.Empty();
+		CurrentTrajectoryIndex = 0;
 	}
+	else
+	{
+		CurrentTrajectoryIndex = 0;
+		ElapsedSteps = 0;
 
-	// Resume the world
-	GetWorld()->GetFirstPlayerController()->SetPause(false);
+		TimeDilationBackUp = GetWorld()->GetWorldSettings()->TimeDilation;
 
-	// Restore original camera transform
-	TargetSensor->SetSensorLocation(OriginalLocation);
-	TargetSensor->SetSensorRotation(OriginalRotation);
+		float TimePerFrame = 1.0f / RecordFPS;
+
+		OnTimerRecord();
+
+		GetWorld()->GetTimerManager().SetTimer(
+			TimerHandle_Record,
+			this,
+			&AFusionCamCaptureActor::OnTimerRecord,
+			TimePerFrame,
+			true
+		);
+	}
 }
 
 // ========== Individual Trajectory Calculation Functions ==========

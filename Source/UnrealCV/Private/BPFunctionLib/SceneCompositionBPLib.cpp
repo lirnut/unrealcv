@@ -8,8 +8,12 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/DirectionalLight.h"
 #include "Components/DirectionalLightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimSequence.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/Blueprint.h"
 #include "GameFramework/Actor.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -328,8 +332,8 @@ AActor* USceneCompositionBPLib::SpawnRandomForeground(
 
 	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
 
-	FString AssetPath = AssetPool.GetRandomAsset(ForegroundCategory);
-	if (AssetPath.IsEmpty())
+	TMap<FString, FString> Metadata = AssetPool.GetRandomAssetMetadata(ForegroundCategory);
+	if (Metadata.Num() == 0)
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("SpawnRandomForeground: No assets in category '%s'"), *ForegroundCategory);
 		return nullptr;
@@ -338,7 +342,114 @@ AActor* USceneCompositionBPLib::SpawnRandomForeground(
 	FRotator Rotation = FRotator::ZeroRotator;
 	Rotation.Yaw = FMath::RandRange(0.0f, 360.0f);
 
-	return LoadAndSpawnActor(World, AssetPath, Position, Rotation);
+	return SpawnActorFromMetadata(World, Metadata, Position, Rotation);
+}
+
+AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap<FString, FString>& Metadata, const FVector& Location, const FRotator& Rotation)
+{
+	if (!IsValid(World))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Invalid World"));
+		return nullptr;
+	}
+
+	if (!Metadata.Contains(TEXT("Path")))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Metadata missing 'Path' key"));
+		return nullptr;
+	}
+
+	FString ErrorMessage;
+	if (!FAssetPoolManager::ValidateMetadata(Metadata, ErrorMessage))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Invalid metadata - %s"), *ErrorMessage);
+		return nullptr;
+	}
+
+	const FString& AssetPath = Metadata[TEXT("Path")];
+	const FString& AssetType = Metadata[TEXT("Type")];
+
+	if (AssetType == TEXT("StaticMesh"))
+	{
+		UStaticMesh* StaticMesh = LoadObject<UStaticMesh>(nullptr, *AssetPath);
+		if (!IsValid(StaticMesh))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: StaticMesh not found '%s'"), *AssetPath);
+			return nullptr;
+		}
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AStaticMeshActor* MeshActor = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location, Rotation, SpawnParams);
+		if (MeshActor)
+		{
+			UStaticMeshComponent* MeshComponent = MeshActor->GetStaticMeshComponent();
+			if (MeshComponent)
+			{
+				MeshComponent->SetMobility(EComponentMobility::Movable);
+				MeshComponent->SetStaticMesh(StaticMesh);
+			}
+		}
+		return MeshActor;
+	}
+	else if (AssetType == TEXT("Blueprint"))
+	{
+		UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *AssetPath);
+		if (!IsValid(Blueprint) || !Blueprint->GeneratedClass || !Blueprint->GeneratedClass->IsChildOf(AActor::StaticClass()))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Blueprint not found or invalid '%s'"), *AssetPath);
+			return nullptr;
+		}
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		return World->SpawnActor<AActor>(Blueprint->GeneratedClass, Location, Rotation, SpawnParams);
+	}
+	else if (AssetType == TEXT("SM+AnimSeq"))
+	{
+		USkeletalMesh* SkeletalMesh = LoadObject<USkeletalMesh>(nullptr, *AssetPath);
+		if (!IsValid(SkeletalMesh))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: SkeletalMesh not found '%s'"), *AssetPath);
+			return nullptr;
+		}
+
+		const FString& AnimSequencePath = Metadata[TEXT("AnimSequence")];
+		UAnimSequence* AnimSeq = LoadObject<UAnimSequence>(nullptr, *AnimSequencePath);
+		if (!IsValid(AnimSeq))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: AnimSequence not found '%s'"), *AnimSequencePath);
+			return nullptr;
+		}
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AActor* SkeletalActor = World->SpawnActor<AActor>(AActor::StaticClass(), Location, Rotation, SpawnParams);
+		if (SkeletalActor)
+		{
+			USkeletalMeshComponent* SkeletalComponent = NewObject<USkeletalMeshComponent>(SkeletalActor, TEXT("SkeletalMeshComp"));
+			if (SkeletalComponent)
+			{
+				SkeletalComponent->SetMobility(EComponentMobility::Movable);
+				SkeletalComponent->RegisterComponent();
+
+				SkeletalActor->SetRootComponent(SkeletalComponent);
+
+				SkeletalComponent->SetSkeletalMesh(SkeletalMesh);
+				SkeletalComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+				SkeletalComponent->SetAnimation(AnimSeq);
+				SkeletalComponent->SetPosition(0.0f);
+				SkeletalComponent->Play(true);
+				SkeletalComponent->InitAnim(true);
+			}
+		}
+		return SkeletalActor;
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Unknown asset type '%s'"), *AssetType);
+		return nullptr;
+	}
 }
 
 TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
@@ -361,9 +472,8 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 
 	for (int32 i = 0; i < Count; i++)
 	{
-		// Get random asset
-		FString AssetPath = AssetPool.GetRandomAsset(OccluderCategory);
-		if (AssetPath.IsEmpty())
+		TMap<FString, FString> Metadata = AssetPool.GetRandomAssetMetadata(OccluderCategory);
+		if (Metadata.Num() == 0)
 		{
 			UE_LOG(LogUnrealCV, Warning, TEXT("USceneCompositionBPLib::SpawnRandomOccluders: Failed to get asset from category '%s'"), *OccluderCategory);
 			continue;
@@ -379,11 +489,10 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 
 		BasePosition.Z = 0.0f;
 
-		// Random rotation
 		FRotator Rotation = FRotator::ZeroRotator;
 		Rotation.Yaw = FMath::RandRange(0.0f, 360.0f);
 
-		AActor* Occluder = LoadAndSpawnActor(World, AssetPath, BasePosition, Rotation);
+		AActor* Occluder = SpawnActorFromMetadata(World, Metadata, BasePosition, Rotation);
 		if (IsValid(Occluder))
 		{
 			SpawnedOccluders.Add(Occluder);
@@ -398,6 +507,11 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 void USceneCompositionBPLib::RegisterAsset(const FString& Category, const FString& AssetPath)
 {
 	FAssetPoolManager::Get().RegisterAsset(Category, AssetPath);
+}
+
+void USceneCompositionBPLib::RegisterAssetWithMetadata(const FString& Category, const TMap<FString, FString>& Metadata)
+{
+	FAssetPoolManager::Get().RegisterAssetWithMetadata(Category, Metadata);
 }
 
 TArray<FString> USceneCompositionBPLib::GetForegroundCategories()

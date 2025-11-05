@@ -1165,562 +1165,562 @@ FExecStatus FCameraHandler::GetCameraOneObjMask(const TArray<FString>& Args)
 }
 
 
-FExecStatus FCameraHandler::StartRecord(const TArray<FString>& Args)
-{
-	SL::get().print("FCameraHandler::StartRecord called");
-
-	FExecStatus ExecStatus = FExecStatus::OK();
-	AActor* Target = nullptr;
-	if (Args.Num() == 5) {
-		FString TargetId = Args[4];
-		Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
-		if (!Target) {
-			ExecStatus = FExecStatus::Error("Can not find target");
-			SL::get().print("Can not find target");
-			return ExecStatus;
-		}
-	}
-	else if (Args.Num() != 4) {
-		FString Msg = TEXT("Invalid command length.");
-		SL::get().print(TCHAR_TO_UTF8(*Msg));
-		ExecStatus = FExecStatus::Error(Msg);
-		return ExecStatus;
-	}
-
-	FString FileName = Args[1];
-	int32 index;
-	if (!FileName.FindLastChar(TEXT('.'), index)) {
-		FString msg = TEXT("File name is not a path, binary is not supported.");
-		SL::get().print(TCHAR_TO_UTF8(*msg));
-		ExecStatus = FExecStatus::Error(msg);
-		return ExecStatus;
-	}
-
-	double Time = FCString::Atod(*Args[2]);
-	float FPS = FCString::Atof(*Args[3]);
-	if (Time <= 0) {
-		FString msg = TEXT("Time is invalid: " + Args[2]);
-
-		SL::get().print(TCHAR_TO_UTF8(*msg));
-		ExecStatus = FExecStatus::Error(msg);
-		return ExecStatus;
-	}
-	if (FPS <= 0 || FPS >= 60) {
-		FString msg = TEXT("FPS is invalid: " + Args[3]);
-		SL::get().print(TCHAR_TO_UTF8(*msg));
-		ExecStatus = FExecStatus::Error(msg);
-		return ExecStatus;
-	}
-
-	// Get the camera sensor
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
-	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
-
-	// Get camera ID
-	int32 SensorId = FCString::Atoi(*Args[0]);
-
-	// Check if this camera is already recording
-	if (CameraRecordingActors.Contains(SensorId))
-	{
-		FString Msg = FString::Printf(TEXT("Camera %d is already recording"), SensorId);
-		UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *Msg);
-		return FExecStatus::Error(Msg);
-	}
-
-	// Create new CaptureActor for this camera
-	UWorld* World = FUnrealcvServer::Get().GetWorld();
-	if (!IsValid(World))
-	{
-		return FExecStatus::Error("Cannot get world");
-	}
-
-	AFusionCamCaptureActor* CaptureActor = World->SpawnActor<AFusionCamCaptureActor>();
-	if (!IsValid(CaptureActor))
-	{
-		return FExecStatus::Error("Failed to spawn FusionCamCaptureActor");
-	}
-
-	// Configure CaptureActor
-	CaptureActor->TargetSensor = FusionCamSensor;
-
-	// Store the mapping
-	CameraRecordingActors.Add(SensorId, CaptureActor);
-
-	// Start recording
-	SL::get().printf("FCameraHandler::StartRecord: FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
-	CaptureActor->StartRecord(FileName, Time, FPS, Target);
-
-	// save cmd
-    FString Content = FString::Printf(TEXT("vset /camera/%s/record %s %s %s"), *Args[0], *Args[1], *Args[2], *Args[3]);
-	FString CmdFileName = FileName;
-	CmdFileName.RemoveAt(index, FileName.Len() - index);
-	CmdFileName += TEXT(".cmd.txt");
-    FFileHelper::SaveStringToFile(Content, *CmdFileName);
-
-	SL::get().print("FCameraHandler::StartRecord returned");
-    return FExecStatus::OK();
-}
-
-FExecStatus FCameraHandler::StartBulletTimeRecord(const TArray<FString>& Args)
-{
-	SL::get().print("FCameraHandler::StartBulletTimeRecord called");
-
-	FExecStatus ExecStatus = FExecStatus::OK();
-	AActor* Target = nullptr;
-	if (Args.Num() == 5) {
-		FString TargetId = Args[4];
-		Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
-		if (!Target) {
-			ExecStatus = FExecStatus::Error("Can not find target");
-			SL::get().print("Can not find target");
-			return ExecStatus;
-		}
-	}
-	else {
-		FString Msg = TEXT("Invalid command length.");
-		SL::get().print(TCHAR_TO_UTF8(*Msg));
-		ExecStatus = FExecStatus::Error(Msg);
-		return ExecStatus;
-	}
-
-	FString FileName = Args[1];
-	int32 index;
-	if (!FileName.FindLastChar(TEXT('.'), index)) {
-		FString msg = TEXT("File name is not a path, binary is not supported.");
-		SL::get().print(TCHAR_TO_UTF8(*msg));
-		ExecStatus = FExecStatus::Error(msg);
-		return ExecStatus;
-	}
-
-	double Time = FCString::Atod(*Args[2]);
-	float FPS = FCString::Atof(*Args[3]);
-	if (Time <= 0) {
-		FString msg = TEXT("Time is invalid: " + Args[2]);
-
-		SL::get().print(TCHAR_TO_UTF8(*msg));
-		ExecStatus = FExecStatus::Error(msg);
-		return ExecStatus;
-	}
-	if (FPS <= 0 || FPS >= 60) {
-		FString msg = TEXT("FPS is invalid: " + Args[3]);
-		SL::get().print(TCHAR_TO_UTF8(*msg));
-		ExecStatus = FExecStatus::Error(msg);
-		return ExecStatus;
-	}
-
-	// Get the camera sensor
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
-	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
-
-	// Get camera ID
-	int32 SensorId = FCString::Atoi(*Args[0]);
-
-	// Check if this camera is already recording
-	if (CameraRecordingActors.Contains(SensorId))
-	{
-		FString Msg = FString::Printf(TEXT("Camera %d is already recording"), SensorId);
-		UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *Msg);
-		return FExecStatus::Error(Msg);
-	}
-
-	// Create new CaptureActor for this camera
-	UWorld* World = FUnrealcvServer::Get().GetWorld();
-	if (!IsValid(World))
-	{
-		return FExecStatus::Error("Cannot get world");
-	}
-
-	AFusionCamCaptureActor* CaptureActor = World->SpawnActor<AFusionCamCaptureActor>();
-	if (!IsValid(CaptureActor))
-	{
-		return FExecStatus::Error("Failed to spawn FusionCamCaptureActor");
-	}
-
-	// Configure CaptureActor
-	CaptureActor->TargetSensor = FusionCamSensor;
-
-	// Store the mapping
-	CameraRecordingActors.Add(SensorId, CaptureActor);
-
-	// Start bullet time recording
-	SL::get().printf("FCameraHandler::StartBulletTimeRecord: FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
-	CaptureActor->StartBulletTimeRecord(FileName, Time, FPS, Target);
-
-	// save cmd
-    FString Content = FString::Printf(TEXT("vset /camera/%s/bullet_time_record %s %s %s %s"), *Args[0], *Args[1], *Args[2], *Args[3], *Args[4]);
-	FString CmdFileName = FileName;
-	CmdFileName.RemoveAt(index, FileName.Len() - index);
-	CmdFileName += TEXT(".cmd.txt");
-    FFileHelper::SaveStringToFile(Content, *CmdFileName);
-
-	SL::get().print("FCameraHandler::StartBulletTimeRecord returned");
-    return FExecStatus::OK();
-}
-
-FExecStatus FCameraHandler::CheckRecordStatus(const TArray<FString>& Args)
-{
-	FExecStatus ExecStatus = FExecStatus::OK();
-
-	// Get camera ID
-	int32 SensorId = FCString::Atoi(*Args[0]);
-
-	// Check if we have a CaptureActor for this camera
-	if (!CameraRecordingActors.Contains(SensorId))
-	{
-		// No CaptureActor means not recording
-		return FExecStatus::OK("false");
-	}
-
-	AFusionCamCaptureActor* CaptureActor = CameraRecordingActors[SensorId];
-	if (!IsValid(CaptureActor))
-	{
-		// CaptureActor was destroyed, clean up the mapping
-		CameraRecordingActors.Remove(SensorId);
-		return FExecStatus::OK("false");
-	}
-
-	// Check if recording is still active
-	if (CaptureActor->IsRecording())
-	{
-		return FExecStatus::OK("true");
-	}
-	else
-	{
-		// Recording finished, destroy the CaptureActor and clean up
-		CaptureActor->Destroy();
-		CameraRecordingActors.Remove(SensorId);
-		return FExecStatus::OK("false");
-	}
-}
-
-// Camera parameter export methods
-
-FExecStatus FCameraHandler::GetIntrinsics(const TArray<FString>& Args)
-{
-	FExecStatus Status = FExecStatus::OK();
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return Status;
-
-	// Get camera parameters
-	float FOV = FusionCamSensor->GetSensorFOV();
-	int Width = FusionCamSensor->GetFilmWidth();
-	int Height = FusionCamSensor->GetFilmHeight();
-
-	// Calculate focal length from FOV
-	// FOV is horizontal field of view in degrees
-	// Focal length (in pixels) = Width / (2 * tan(FOV/2))
-	float FOVRadians = FMath::DegreesToRadians(FOV);
-	float FocalLengthX = Width / (2.0f * FMath::Tan(FOVRadians / 2.0f));
-
-	// Assuming square pixels and symmetric FOV
-	float FocalLengthY = FocalLengthX;
-
-	// Principal point (image center)
-	float PrincipalPointX = Width / 2.0f;
-	float PrincipalPointY = Height / 2.0f;
-
-	// Format: fx fy cx cy fov width height
-	// fx, fy: focal length in pixels
-	// cx, cy: principal point (image center)
-	// fov: field of view in degrees
-	// width, height: image resolution
-	FString Result = FString::Printf(TEXT("%f %f %f %f %f %d %d"),
-		FocalLengthX, FocalLengthY,
-		PrincipalPointX, PrincipalPointY,
-		FOV,
-		Width, Height);
-
-	return FExecStatus::OK(Result);
-}
-
-FExecStatus FCameraHandler::GetExtrinsics(const TArray<FString>& Args)
-{
-	FExecStatus Status = FExecStatus::OK();
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return Status;
-
-	// Get camera location and rotation
-	FVector Location = FusionCamSensor->GetSensorLocation();
-	FRotator Rotation = FusionCamSensor->GetSensorRotation();
-
-	// Convert rotation to rotation matrix
-	FMatrix RotationMatrix = FRotationMatrix::Make(Rotation);
-
-	// Extract rotation matrix elements (3x3)
-	// Row-major format
-	FString Result = FString::Printf(
-		TEXT("%f %f %f %f %f %f %f %f %f %f %f %f"),
-		// Rotation matrix (3x3, row-major)
-		RotationMatrix.M[0][0], RotationMatrix.M[0][1], RotationMatrix.M[0][2],
-		RotationMatrix.M[1][0], RotationMatrix.M[1][1], RotationMatrix.M[1][2],
-		RotationMatrix.M[2][0], RotationMatrix.M[2][1], RotationMatrix.M[2][2],
-		// Translation vector (camera location)
-		Location.X, Location.Y, Location.Z
-	);
-
-	return FExecStatus::OK(Result);
-}
-
-FExecStatus FCameraHandler::GetProjectionMatrix(const TArray<FString>& Args)
-{
-	FExecStatus Status = FExecStatus::OK();
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return Status;
-
-	// Get camera parameters
-	float FOV = FusionCamSensor->GetSensorFOV();
-	int Width = FusionCamSensor->GetFilmWidth();
-	int Height = FusionCamSensor->GetFilmHeight();
-
-	// Calculate aspect ratio
-	float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
-
-	// Near and far clipping planes (typical values for UE5)
-	float NearClipPlane = 10.0f;  // 10 cm
-	float FarClipPlane = 1000000.0f;  // 10 km
-
-	// Build perspective projection matrix
-	// Using UE's convention: FOV is horizontal
-	float HalfFOVRadians = FMath::DegreesToRadians(FOV) / 2.0f;
-	float TanHalfFOV = FMath::Tan(HalfFOVRadians);
-
-	FMatrix ProjectionMatrix = FMatrix::Identity;
-
-	// Standard perspective projection matrix
-	float fRange = FarClipPlane / (FarClipPlane - NearClipPlane);
-
-	ProjectionMatrix.M[0][0] = 1.0f / (TanHalfFOV * AspectRatio);
-	ProjectionMatrix.M[1][1] = 1.0f / TanHalfFOV;
-	ProjectionMatrix.M[2][2] = fRange;
-	ProjectionMatrix.M[2][3] = 1.0f;
-	ProjectionMatrix.M[3][2] = -fRange * NearClipPlane;
-	ProjectionMatrix.M[3][3] = 0.0f;
-
-	// Return 4x4 matrix in row-major format
-	FString Result = FString::Printf(
-		TEXT("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f"),
-		ProjectionMatrix.M[0][0], ProjectionMatrix.M[0][1], ProjectionMatrix.M[0][2], ProjectionMatrix.M[0][3],
-		ProjectionMatrix.M[1][0], ProjectionMatrix.M[1][1], ProjectionMatrix.M[1][2], ProjectionMatrix.M[1][3],
-		ProjectionMatrix.M[2][0], ProjectionMatrix.M[2][1], ProjectionMatrix.M[2][2], ProjectionMatrix.M[2][3],
-		ProjectionMatrix.M[3][0], ProjectionMatrix.M[3][1], ProjectionMatrix.M[3][2], ProjectionMatrix.M[3][3]
-	);
-
-	return FExecStatus::OK(Result);
-}
-
-// Camera motion control methods
-
-FExecStatus FCameraHandler::StartCameraMotion(const TArray<FString>& Args)
-{
-	// Args: [camera_id, motion_type, ...params]
-	if (Args.Num() < 2)
-	{
-		return FExecStatus::Error("Usage: vset /camera/[uint]/motion/start [motion_type] [params...]");
-	}
-
-	FExecStatus Status = FExecStatus::OK();
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return Status;
-
-	int32 CameraId = FCString::Atoi(*Args[0]);
-	FString MotionType = Args[1].ToLower();
-
-	// Check if camera already has a motion controller
-	if (CameraMotionControllers.Contains(CameraId))
-	{
-		ACameraMotionController* ExistingController = CameraMotionControllers[CameraId];
-		if (IsValid(ExistingController) && ExistingController->IsMoving())
-		{
-			return FExecStatus::Error(FString::Printf(TEXT("Camera %d is already in motion"), CameraId));
-		}
-		// Clean up old controller if it exists but is not moving
-		if (IsValid(ExistingController))
-		{
-			ExistingController->Destroy();
-		}
-		CameraMotionControllers.Remove(CameraId);
-	}
-
-	// Spawn new motion controller
-	UWorld* World = FUnrealcvServer::Get().GetWorld();
-	if (!IsValid(World))
-	{
-		return FExecStatus::Error("Cannot get world");
-	}
-
-	ACameraMotionController* MotionController = World->SpawnActor<ACameraMotionController>();
-	if (!IsValid(MotionController))
-	{
-		return FExecStatus::Error("Failed to spawn CameraMotionController");
-	}
-
-	// Configure motion controller
-	MotionController->SetTargetCamera(FusionCamSensor);
-
-	// Store mapping
-	CameraMotionControllers.Add(CameraId, MotionController);
-
-	// Parse motion type and start motion
-	if (MotionType == TEXT("rotate_left_45") || MotionType == TEXT("rotateleft45"))
-	{
-		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
-		MotionController->StartRotateLeft45(Duration);
-	}
-	else if (MotionType == TEXT("rotate_right_45") || MotionType == TEXT("rotateright45"))
-	{
-		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
-		MotionController->StartRotateRight45(Duration);
-	}
-	else if (MotionType == TEXT("rotate_up_45") || MotionType == TEXT("rotateup45"))
-	{
-		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
-		MotionController->StartRotateUp45(Duration);
-	}
-	else if (MotionType == TEXT("rotate_down_45") || MotionType == TEXT("rotatedown45"))
-	{
-		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
-		MotionController->StartRotateDown45(Duration);
-	}
-	else if (MotionType == TEXT("rotate_360") || MotionType == TEXT("rotate360"))
-	{
-		AActor* Target = nullptr;
-		if (Args.Num() > 2)
-		{
-			FString TargetId = Args[2];
-			Target = GetActorById(World, TargetId);
-		}
-		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 5.0f;
-		MotionController->StartRotate360(Target, Duration);
-	}
-	else if (MotionType == TEXT("rotate_360_slow") || MotionType == TEXT("rotate360slow"))
-	{
-		// Bullet-time compatible slow rotation
-		AActor* Target = nullptr;
-		if (Args.Num() > 2)
-		{
-			FString TargetId = Args[2];
-			Target = GetActorById(World, TargetId);
-		}
-		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 10.0f;
-		float SpeedDegPerFrame = Args.Num() > 4 ? FCString::Atof(*Args[4]) : 2.0f;
-		MotionController->StartRotate360Slow(Target, Duration, SpeedDegPerFrame);
-	}
-	else if (MotionType == TEXT("zoom_in") || MotionType == TEXT("zoomin"))
-	{
-		float Distance = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 200.0f;
-		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 2.0f;
-		MotionController->StartZoomIn(Distance, Duration);
-	}
-	else if (MotionType == TEXT("zoom_out") || MotionType == TEXT("zoomout"))
-	{
-		float Distance = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 200.0f;
-		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 2.0f;
-		MotionController->StartZoomOut(Distance, Duration);
-	}
-	else if (MotionType == TEXT("random_rotation") || MotionType == TEXT("randomrotation"))
-	{
-		AActor* Target = nullptr;
-		if (Args.Num() > 2)
-		{
-			FString TargetId = Args[2];
-			Target = GetActorById(World, TargetId);
-		}
-		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 5.0f;
-		MotionController->StartRandomRotation(Target, Duration);
-	}
-	else
-	{
-		MotionController->Destroy();
-		CameraMotionControllers.Remove(CameraId);
-		return FExecStatus::Error(FString::Printf(TEXT("Unknown motion type: %s"), *MotionType));
-	}
-
-	return FExecStatus::OK();
-}
-
-FExecStatus FCameraHandler::StopCameraMotion(const TArray<FString>& Args)
-{
-	FExecStatus Status = FExecStatus::OK();
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return Status;
-
-	int32 CameraId = FCString::Atoi(*Args[0]);
-
-	if (!CameraMotionControllers.Contains(CameraId))
-	{
-		return FExecStatus::Error(FString::Printf(TEXT("Camera %d has no active motion controller"), CameraId));
-	}
-
-	ACameraMotionController* MotionController = CameraMotionControllers[CameraId];
-	if (IsValid(MotionController))
-	{
-		MotionController->StopMotion();
-		MotionController->Destroy();
-	}
-
-	CameraMotionControllers.Remove(CameraId);
-
-	return FExecStatus::OK();
-}
-
-FExecStatus FCameraHandler::GetCameraMotionStatus(const TArray<FString>& Args)
-{
-	FExecStatus Status = FExecStatus::OK();
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return Status;
-
-	int32 CameraId = FCString::Atoi(*Args[0]);
-
-	if (!CameraMotionControllers.Contains(CameraId))
-	{
-		return FExecStatus::OK("idle");
-	}
-
-	ACameraMotionController* MotionController = CameraMotionControllers[CameraId];
-	if (!IsValid(MotionController))
-	{
-		CameraMotionControllers.Remove(CameraId);
-		return FExecStatus::OK("idle");
-	}
-
-	// Return motion state
-	if (MotionController->IsMoving())
-	{
-		return FExecStatus::OK("moving");
-	}
-	else
-	{
-		// Motion completed or cancelled, clean up
-		CameraMotionControllers.Remove(CameraId);
-		return FExecStatus::OK("idle");
-	}
-}
-
-FExecStatus FCameraHandler::GetCameraMotionProgress(const TArray<FString>& Args)
-{
-	FExecStatus Status = FExecStatus::OK();
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return Status;
-
-	int32 CameraId = FCString::Atoi(*Args[0]);
-
-	if (!CameraMotionControllers.Contains(CameraId))
-	{
-		return FExecStatus::OK("0.0");
-	}
-
-	ACameraMotionController* MotionController = CameraMotionControllers[CameraId];
-	if (!IsValid(MotionController))
-	{
-		CameraMotionControllers.Remove(CameraId);
-		return FExecStatus::OK("0.0");
-	}
-
-	float Progress = MotionController->GetProgress();
-	FString Result = FString::Printf(TEXT("%f"), Progress);
-
-	return FExecStatus::OK(Result);
-}
+// FExecStatus FCameraHandler::StartRecord(const TArray<FString>& Args)
+// {
+// 	SL::get().print("FCameraHandler::StartRecord called");
+
+// 	FExecStatus ExecStatus = FExecStatus::OK();
+// 	AActor* Target = nullptr;
+// 	if (Args.Num() == 5) {
+// 		FString TargetId = Args[4];
+// 		Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+// 		if (!Target) {
+// 			ExecStatus = FExecStatus::Error("Can not find target");
+// 			SL::get().print("Can not find target");
+// 			return ExecStatus;
+// 		}
+// 	}
+// 	else if (Args.Num() != 4) {
+// 		FString Msg = TEXT("Invalid command length.");
+// 		SL::get().print(TCHAR_TO_UTF8(*Msg));
+// 		ExecStatus = FExecStatus::Error(Msg);
+// 		return ExecStatus;
+// 	}
+
+// 	FString FileName = Args[1];
+// 	int32 index;
+// 	if (!FileName.FindLastChar(TEXT('.'), index)) {
+// 		FString msg = TEXT("File name is not a path, binary is not supported.");
+// 		SL::get().print(TCHAR_TO_UTF8(*msg));
+// 		ExecStatus = FExecStatus::Error(msg);
+// 		return ExecStatus;
+// 	}
+
+// 	double Time = FCString::Atod(*Args[2]);
+// 	float FPS = FCString::Atof(*Args[3]);
+// 	if (Time <= 0) {
+// 		FString msg = TEXT("Time is invalid: " + Args[2]);
+
+// 		SL::get().print(TCHAR_TO_UTF8(*msg));
+// 		ExecStatus = FExecStatus::Error(msg);
+// 		return ExecStatus;
+// 	}
+// 	if (FPS <= 0 || FPS >= 60) {
+// 		FString msg = TEXT("FPS is invalid: " + Args[3]);
+// 		SL::get().print(TCHAR_TO_UTF8(*msg));
+// 		ExecStatus = FExecStatus::Error(msg);
+// 		return ExecStatus;
+// 	}
+
+// 	// Get the camera sensor
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+// 	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+// 	// Get camera ID
+// 	int32 SensorId = FCString::Atoi(*Args[0]);
+
+// 	// Check if this camera is already recording
+// 	if (CameraRecordingActors.Contains(SensorId))
+// 	{
+// 		FString Msg = FString::Printf(TEXT("Camera %d is already recording"), SensorId);
+// 		UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *Msg);
+// 		return FExecStatus::Error(Msg);
+// 	}
+
+// 	// Create new CaptureActor for this camera
+// 	UWorld* World = FUnrealcvServer::Get().GetWorld();
+// 	if (!IsValid(World))
+// 	{
+// 		return FExecStatus::Error("Cannot get world");
+// 	}
+
+// 	AFusionCamCaptureActor* CaptureActor = World->SpawnActor<AFusionCamCaptureActor>();
+// 	if (!IsValid(CaptureActor))
+// 	{
+// 		return FExecStatus::Error("Failed to spawn FusionCamCaptureActor");
+// 	}
+
+// 	// Configure CaptureActor
+// 	CaptureActor->TargetSensor = FusionCamSensor;
+
+// 	// Store the mapping
+// 	CameraRecordingActors.Add(SensorId, CaptureActor);
+
+// 	// Start recording
+// 	SL::get().printf("FCameraHandler::StartRecord: FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
+// 	CaptureActor->StartRecord(FileName, Time, FPS, Target);
+
+// 	// save cmd
+//     FString Content = FString::Printf(TEXT("vset /camera/%s/record %s %s %s"), *Args[0], *Args[1], *Args[2], *Args[3]);
+// 	FString CmdFileName = FileName;
+// 	CmdFileName.RemoveAt(index, FileName.Len() - index);
+// 	CmdFileName += TEXT(".cmd.txt");
+//     FFileHelper::SaveStringToFile(Content, *CmdFileName);
+
+// 	SL::get().print("FCameraHandler::StartRecord returned");
+//     return FExecStatus::OK();
+// }
+
+// FExecStatus FCameraHandler::StartBulletTimeRecord(const TArray<FString>& Args)
+// {
+// 	SL::get().print("FCameraHandler::StartBulletTimeRecord called");
+
+// 	FExecStatus ExecStatus = FExecStatus::OK();
+// 	AActor* Target = nullptr;
+// 	if (Args.Num() == 5) {
+// 		FString TargetId = Args[4];
+// 		Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+// 		if (!Target) {
+// 			ExecStatus = FExecStatus::Error("Can not find target");
+// 			SL::get().print("Can not find target");
+// 			return ExecStatus;
+// 		}
+// 	}
+// 	else {
+// 		FString Msg = TEXT("Invalid command length.");
+// 		SL::get().print(TCHAR_TO_UTF8(*Msg));
+// 		ExecStatus = FExecStatus::Error(Msg);
+// 		return ExecStatus;
+// 	}
+
+// 	FString FileName = Args[1];
+// 	int32 index;
+// 	if (!FileName.FindLastChar(TEXT('.'), index)) {
+// 		FString msg = TEXT("File name is not a path, binary is not supported.");
+// 		SL::get().print(TCHAR_TO_UTF8(*msg));
+// 		ExecStatus = FExecStatus::Error(msg);
+// 		return ExecStatus;
+// 	}
+
+// 	double Time = FCString::Atod(*Args[2]);
+// 	float FPS = FCString::Atof(*Args[3]);
+// 	if (Time <= 0) {
+// 		FString msg = TEXT("Time is invalid: " + Args[2]);
+
+// 		SL::get().print(TCHAR_TO_UTF8(*msg));
+// 		ExecStatus = FExecStatus::Error(msg);
+// 		return ExecStatus;
+// 	}
+// 	if (FPS <= 0 || FPS >= 60) {
+// 		FString msg = TEXT("FPS is invalid: " + Args[3]);
+// 		SL::get().print(TCHAR_TO_UTF8(*msg));
+// 		ExecStatus = FExecStatus::Error(msg);
+// 		return ExecStatus;
+// 	}
+
+// 	// Get the camera sensor
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+// 	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+
+// 	// Get camera ID
+// 	int32 SensorId = FCString::Atoi(*Args[0]);
+
+// 	// Check if this camera is already recording
+// 	if (CameraRecordingActors.Contains(SensorId))
+// 	{
+// 		FString Msg = FString::Printf(TEXT("Camera %d is already recording"), SensorId);
+// 		UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *Msg);
+// 		return FExecStatus::Error(Msg);
+// 	}
+
+// 	// Create new CaptureActor for this camera
+// 	UWorld* World = FUnrealcvServer::Get().GetWorld();
+// 	if (!IsValid(World))
+// 	{
+// 		return FExecStatus::Error("Cannot get world");
+// 	}
+
+// 	AFusionCamCaptureActor* CaptureActor = World->SpawnActor<AFusionCamCaptureActor>();
+// 	if (!IsValid(CaptureActor))
+// 	{
+// 		return FExecStatus::Error("Failed to spawn FusionCamCaptureActor");
+// 	}
+
+// 	// Configure CaptureActor
+// 	CaptureActor->TargetSensor = FusionCamSensor;
+
+// 	// Store the mapping
+// 	CameraRecordingActors.Add(SensorId, CaptureActor);
+
+// 	// Start bullet time recording
+// 	SL::get().printf("FCameraHandler::StartBulletTimeRecord: FileName: %s, Time: %lf, FPS: %lf", TCHAR_TO_UTF8(*FileName), Time, FPS);
+// 	CaptureActor->StartBulletTimeRecord(FileName, Time, FPS, Target);
+
+// 	// save cmd
+//     FString Content = FString::Printf(TEXT("vset /camera/%s/bullet_time_record %s %s %s %s"), *Args[0], *Args[1], *Args[2], *Args[3], *Args[4]);
+// 	FString CmdFileName = FileName;
+// 	CmdFileName.RemoveAt(index, FileName.Len() - index);
+// 	CmdFileName += TEXT(".cmd.txt");
+//     FFileHelper::SaveStringToFile(Content, *CmdFileName);
+
+// 	SL::get().print("FCameraHandler::StartBulletTimeRecord returned");
+//     return FExecStatus::OK();
+// }
+
+// FExecStatus FCameraHandler::CheckRecordStatus(const TArray<FString>& Args)
+// {
+// 	FExecStatus ExecStatus = FExecStatus::OK();
+
+// 	// Get camera ID
+// 	int32 SensorId = FCString::Atoi(*Args[0]);
+
+// 	// Check if we have a CaptureActor for this camera
+// 	if (!CameraRecordingActors.Contains(SensorId))
+// 	{
+// 		// No CaptureActor means not recording
+// 		return FExecStatus::OK("false");
+// 	}
+
+// 	AFusionCamCaptureActor* CaptureActor = CameraRecordingActors[SensorId];
+// 	if (!IsValid(CaptureActor))
+// 	{
+// 		// CaptureActor was destroyed, clean up the mapping
+// 		CameraRecordingActors.Remove(SensorId);
+// 		return FExecStatus::OK("false");
+// 	}
+
+// 	// Check if recording is still active
+// 	if (CaptureActor->IsRecording())
+// 	{
+// 		return FExecStatus::OK("true");
+// 	}
+// 	else
+// 	{
+// 		// Recording finished, destroy the CaptureActor and clean up
+// 		CaptureActor->Destroy();
+// 		CameraRecordingActors.Remove(SensorId);
+// 		return FExecStatus::OK("false");
+// 	}
+// }
+
+// // Camera parameter export methods
+
+// FExecStatus FCameraHandler::GetIntrinsics(const TArray<FString>& Args)
+// {
+// 	FExecStatus Status = FExecStatus::OK();
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+// 	if (!IsValid(FusionCamSensor)) return Status;
+
+// 	// Get camera parameters
+// 	float FOV = FusionCamSensor->GetSensorFOV();
+// 	int Width = FusionCamSensor->GetFilmWidth();
+// 	int Height = FusionCamSensor->GetFilmHeight();
+
+// 	// Calculate focal length from FOV
+// 	// FOV is horizontal field of view in degrees
+// 	// Focal length (in pixels) = Width / (2 * tan(FOV/2))
+// 	float FOVRadians = FMath::DegreesToRadians(FOV);
+// 	float FocalLengthX = Width / (2.0f * FMath::Tan(FOVRadians / 2.0f));
+
+// 	// Assuming square pixels and symmetric FOV
+// 	float FocalLengthY = FocalLengthX;
+
+// 	// Principal point (image center)
+// 	float PrincipalPointX = Width / 2.0f;
+// 	float PrincipalPointY = Height / 2.0f;
+
+// 	// Format: fx fy cx cy fov width height
+// 	// fx, fy: focal length in pixels
+// 	// cx, cy: principal point (image center)
+// 	// fov: field of view in degrees
+// 	// width, height: image resolution
+// 	FString Result = FString::Printf(TEXT("%f %f %f %f %f %d %d"),
+// 		FocalLengthX, FocalLengthY,
+// 		PrincipalPointX, PrincipalPointY,
+// 		FOV,
+// 		Width, Height);
+
+// 	return FExecStatus::OK(Result);
+// }
+
+// FExecStatus FCameraHandler::GetExtrinsics(const TArray<FString>& Args)
+// {
+// 	FExecStatus Status = FExecStatus::OK();
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+// 	if (!IsValid(FusionCamSensor)) return Status;
+
+// 	// Get camera location and rotation
+// 	FVector Location = FusionCamSensor->GetSensorLocation();
+// 	FRotator Rotation = FusionCamSensor->GetSensorRotation();
+
+// 	// Convert rotation to rotation matrix
+// 	FMatrix RotationMatrix = FRotationMatrix::Make(Rotation);
+
+// 	// Extract rotation matrix elements (3x3)
+// 	// Row-major format
+// 	FString Result = FString::Printf(
+// 		TEXT("%f %f %f %f %f %f %f %f %f %f %f %f"),
+// 		// Rotation matrix (3x3, row-major)
+// 		RotationMatrix.M[0][0], RotationMatrix.M[0][1], RotationMatrix.M[0][2],
+// 		RotationMatrix.M[1][0], RotationMatrix.M[1][1], RotationMatrix.M[1][2],
+// 		RotationMatrix.M[2][0], RotationMatrix.M[2][1], RotationMatrix.M[2][2],
+// 		// Translation vector (camera location)
+// 		Location.X, Location.Y, Location.Z
+// 	);
+
+// 	return FExecStatus::OK(Result);
+// }
+
+// FExecStatus FCameraHandler::GetProjectionMatrix(const TArray<FString>& Args)
+// {
+// 	FExecStatus Status = FExecStatus::OK();
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+// 	if (!IsValid(FusionCamSensor)) return Status;
+
+// 	// Get camera parameters
+// 	float FOV = FusionCamSensor->GetSensorFOV();
+// 	int Width = FusionCamSensor->GetFilmWidth();
+// 	int Height = FusionCamSensor->GetFilmHeight();
+
+// 	// Calculate aspect ratio
+// 	float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
+
+// 	// Near and far clipping planes (typical values for UE5)
+// 	float NearClipPlane = 10.0f;  // 10 cm
+// 	float FarClipPlane = 1000000.0f;  // 10 km
+
+// 	// Build perspective projection matrix
+// 	// Using UE's convention: FOV is horizontal
+// 	float HalfFOVRadians = FMath::DegreesToRadians(FOV) / 2.0f;
+// 	float TanHalfFOV = FMath::Tan(HalfFOVRadians);
+
+// 	FMatrix ProjectionMatrix = FMatrix::Identity;
+
+// 	// Standard perspective projection matrix
+// 	float fRange = FarClipPlane / (FarClipPlane - NearClipPlane);
+
+// 	ProjectionMatrix.M[0][0] = 1.0f / (TanHalfFOV * AspectRatio);
+// 	ProjectionMatrix.M[1][1] = 1.0f / TanHalfFOV;
+// 	ProjectionMatrix.M[2][2] = fRange;
+// 	ProjectionMatrix.M[2][3] = 1.0f;
+// 	ProjectionMatrix.M[3][2] = -fRange * NearClipPlane;
+// 	ProjectionMatrix.M[3][3] = 0.0f;
+
+// 	// Return 4x4 matrix in row-major format
+// 	FString Result = FString::Printf(
+// 		TEXT("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f"),
+// 		ProjectionMatrix.M[0][0], ProjectionMatrix.M[0][1], ProjectionMatrix.M[0][2], ProjectionMatrix.M[0][3],
+// 		ProjectionMatrix.M[1][0], ProjectionMatrix.M[1][1], ProjectionMatrix.M[1][2], ProjectionMatrix.M[1][3],
+// 		ProjectionMatrix.M[2][0], ProjectionMatrix.M[2][1], ProjectionMatrix.M[2][2], ProjectionMatrix.M[2][3],
+// 		ProjectionMatrix.M[3][0], ProjectionMatrix.M[3][1], ProjectionMatrix.M[3][2], ProjectionMatrix.M[3][3]
+// 	);
+
+// 	return FExecStatus::OK(Result);
+// }
+
+// // Camera motion control methods
+
+// FExecStatus FCameraHandler::StartCameraMotion(const TArray<FString>& Args)
+// {
+// 	// Args: [camera_id, motion_type, ...params]
+// 	if (Args.Num() < 2)
+// 	{
+// 		return FExecStatus::Error("Usage: vset /camera/[uint]/motion/start [motion_type] [params...]");
+// 	}
+
+// 	FExecStatus Status = FExecStatus::OK();
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+// 	if (!IsValid(FusionCamSensor)) return Status;
+
+// 	int32 CameraId = FCString::Atoi(*Args[0]);
+// 	FString MotionType = Args[1].ToLower();
+
+// 	// Check if camera already has a motion controller
+// 	if (CameraMotionControllers.Contains(CameraId))
+// 	{
+// 		ACameraMotionController* ExistingController = CameraMotionControllers[CameraId];
+// 		if (IsValid(ExistingController) && ExistingController->IsMoving())
+// 		{
+// 			return FExecStatus::Error(FString::Printf(TEXT("Camera %d is already in motion"), CameraId));
+// 		}
+// 		// Clean up old controller if it exists but is not moving
+// 		if (IsValid(ExistingController))
+// 		{
+// 			ExistingController->Destroy();
+// 		}
+// 		CameraMotionControllers.Remove(CameraId);
+// 	}
+
+// 	// Spawn new motion controller
+// 	UWorld* World = FUnrealcvServer::Get().GetWorld();
+// 	if (!IsValid(World))
+// 	{
+// 		return FExecStatus::Error("Cannot get world");
+// 	}
+
+// 	ACameraMotionController* MotionController = World->SpawnActor<ACameraMotionController>();
+// 	if (!IsValid(MotionController))
+// 	{
+// 		return FExecStatus::Error("Failed to spawn CameraMotionController");
+// 	}
+
+// 	// Configure motion controller
+// 	MotionController->SetTargetCamera(FusionCamSensor);
+
+// 	// Store mapping
+// 	CameraMotionControllers.Add(CameraId, MotionController);
+
+// 	// Parse motion type and start motion
+// 	if (MotionType == TEXT("rotate_left_45") || MotionType == TEXT("rotateleft45"))
+// 	{
+// 		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
+// 		MotionController->StartRotateLeft45(Duration);
+// 	}
+// 	else if (MotionType == TEXT("rotate_right_45") || MotionType == TEXT("rotateright45"))
+// 	{
+// 		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
+// 		MotionController->StartRotateRight45(Duration);
+// 	}
+// 	else if (MotionType == TEXT("rotate_up_45") || MotionType == TEXT("rotateup45"))
+// 	{
+// 		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
+// 		MotionController->StartRotateUp45(Duration);
+// 	}
+// 	else if (MotionType == TEXT("rotate_down_45") || MotionType == TEXT("rotatedown45"))
+// 	{
+// 		float Duration = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 2.0f;
+// 		MotionController->StartRotateDown45(Duration);
+// 	}
+// 	else if (MotionType == TEXT("rotate_360") || MotionType == TEXT("rotate360"))
+// 	{
+// 		AActor* Target = nullptr;
+// 		if (Args.Num() > 2)
+// 		{
+// 			FString TargetId = Args[2];
+// 			Target = GetActorById(World, TargetId);
+// 		}
+// 		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 5.0f;
+// 		MotionController->StartRotate360(Target, Duration);
+// 	}
+// 	else if (MotionType == TEXT("rotate_360_slow") || MotionType == TEXT("rotate360slow"))
+// 	{
+// 		// Bullet-time compatible slow rotation
+// 		AActor* Target = nullptr;
+// 		if (Args.Num() > 2)
+// 		{
+// 			FString TargetId = Args[2];
+// 			Target = GetActorById(World, TargetId);
+// 		}
+// 		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 10.0f;
+// 		float SpeedDegPerFrame = Args.Num() > 4 ? FCString::Atof(*Args[4]) : 2.0f;
+// 		MotionController->StartRotate360Slow(Target, Duration, SpeedDegPerFrame);
+// 	}
+// 	else if (MotionType == TEXT("zoom_in") || MotionType == TEXT("zoomin"))
+// 	{
+// 		float Distance = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 200.0f;
+// 		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 2.0f;
+// 		MotionController->StartZoomIn(Distance, Duration);
+// 	}
+// 	else if (MotionType == TEXT("zoom_out") || MotionType == TEXT("zoomout"))
+// 	{
+// 		float Distance = Args.Num() > 2 ? FCString::Atof(*Args[2]) : 200.0f;
+// 		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 2.0f;
+// 		MotionController->StartZoomOut(Distance, Duration);
+// 	}
+// 	else if (MotionType == TEXT("random_rotation") || MotionType == TEXT("randomrotation"))
+// 	{
+// 		AActor* Target = nullptr;
+// 		if (Args.Num() > 2)
+// 		{
+// 			FString TargetId = Args[2];
+// 			Target = GetActorById(World, TargetId);
+// 		}
+// 		float Duration = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 5.0f;
+// 		MotionController->StartRandomRotation(Target, Duration);
+// 	}
+// 	else
+// 	{
+// 		MotionController->Destroy();
+// 		CameraMotionControllers.Remove(CameraId);
+// 		return FExecStatus::Error(FString::Printf(TEXT("Unknown motion type: %s"), *MotionType));
+// 	}
+
+// 	return FExecStatus::OK();
+// }
+
+// FExecStatus FCameraHandler::StopCameraMotion(const TArray<FString>& Args)
+// {
+// 	FExecStatus Status = FExecStatus::OK();
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+// 	if (!IsValid(FusionCamSensor)) return Status;
+
+// 	int32 CameraId = FCString::Atoi(*Args[0]);
+
+// 	if (!CameraMotionControllers.Contains(CameraId))
+// 	{
+// 		return FExecStatus::Error(FString::Printf(TEXT("Camera %d has no active motion controller"), CameraId));
+// 	}
+
+// 	ACameraMotionController* MotionController = CameraMotionControllers[CameraId];
+// 	if (IsValid(MotionController))
+// 	{
+// 		MotionController->StopMotion();
+// 		MotionController->Destroy();
+// 	}
+
+// 	CameraMotionControllers.Remove(CameraId);
+
+// 	return FExecStatus::OK();
+// }
+
+// FExecStatus FCameraHandler::GetCameraMotionStatus(const TArray<FString>& Args)
+// {
+// 	FExecStatus Status = FExecStatus::OK();
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+// 	if (!IsValid(FusionCamSensor)) return Status;
+
+// 	int32 CameraId = FCString::Atoi(*Args[0]);
+
+// 	if (!CameraMotionControllers.Contains(CameraId))
+// 	{
+// 		return FExecStatus::OK("idle");
+// 	}
+
+// 	ACameraMotionController* MotionController = CameraMotionControllers[CameraId];
+// 	if (!IsValid(MotionController))
+// 	{
+// 		CameraMotionControllers.Remove(CameraId);
+// 		return FExecStatus::OK("idle");
+// 	}
+
+// 	// Return motion state
+// 	if (MotionController->IsMoving())
+// 	{
+// 		return FExecStatus::OK("moving");
+// 	}
+// 	else
+// 	{
+// 		// Motion completed or cancelled, clean up
+// 		CameraMotionControllers.Remove(CameraId);
+// 		return FExecStatus::OK("idle");
+// 	}
+// }
+
+// FExecStatus FCameraHandler::GetCameraMotionProgress(const TArray<FString>& Args)
+// {
+// 	FExecStatus Status = FExecStatus::OK();
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
+// 	if (!IsValid(FusionCamSensor)) return Status;
+
+// 	int32 CameraId = FCString::Atoi(*Args[0]);
+
+// 	if (!CameraMotionControllers.Contains(CameraId))
+// 	{
+// 		return FExecStatus::OK("0.0");
+// 	}
+
+// 	ACameraMotionController* MotionController = CameraMotionControllers[CameraId];
+// 	if (!IsValid(MotionController))
+// 	{
+// 		CameraMotionControllers.Remove(CameraId);
+// 		return FExecStatus::OK("0.0");
+// 	}
+
+// 	float Progress = MotionController->GetProgress();
+// 	FString Result = FString::Printf(TEXT("%f"), Progress);
+
+// 	return FExecStatus::OK(Result);
+// }
 
 void FCameraHandler::RegisterCommands()
 {
@@ -1766,27 +1766,27 @@ void FCameraHandler::RegisterCommands()
 		"hwobs xxx.bmp target_id"
 	);
 
-	CommandDispatcher->BindCommand(
-        "vset /camera/[uint]/record [str] [float] [float]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartRecord),
-        "vset /camera/{cam_id}/record {mode} {time_s} {fps}"
-	);
-	CommandDispatcher->BindCommand(
-        "vset /camera/[uint]/record [str] [float] [float] [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartRecord),
-        "vset /camera/{cam_id}/record {mode} {time_s} {fps} {target_id}"
-	);
-	CommandDispatcher->BindCommand(
-        "vset /camera/[uint]/bullet_time_record [str] [float] [float] [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartBulletTimeRecord),
-        "vset /camera/{cam_id}/bullet_time_record {mode} {time_s} {fps} {target_id}"
-	);
+	// CommandDispatcher->BindCommand(
+    //     "vset /camera/[uint]/record [str] [float] [float]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartRecord),
+    //     "vset /camera/{cam_id}/record {mode} {time_s} {fps}"
+	// );
+	// CommandDispatcher->BindCommand(
+    //     "vset /camera/[uint]/record [str] [float] [float] [str]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartRecord),
+    //     "vset /camera/{cam_id}/record {mode} {time_s} {fps} {target_id}"
+	// );
+	// CommandDispatcher->BindCommand(
+    //     "vset /camera/[uint]/bullet_time_record [str] [float] [float] [str]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartBulletTimeRecord),
+    //     "vset /camera/{cam_id}/bullet_time_record {mode} {time_s} {fps} {target_id}"
+	// );
 
-	CommandDispatcher->BindCommand(
-        "vget /camera/[uint]/record",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::CheckRecordStatus),
-    	"vget /camera/{cam_id}/record"
-	);
+	// CommandDispatcher->BindCommand(
+    //     "vget /camera/[uint]/record",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::CheckRecordStatus),
+    // 	"vget /camera/{cam_id}/record"
+	// );
 
 	CommandDispatcher->BindCommand(
 		"vget /screenshot [str]",
@@ -1979,65 +1979,65 @@ void FCameraHandler::RegisterCommands()
         "Set camera focus distance and range"
     );
 
-	// Camera parameter export commands
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/intrinsics",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetIntrinsics),
-		"Get camera intrinsic parameters: fx fy cx cy fov width height"
-	);
+	// // Camera parameter export commands
+	// CommandDispatcher->BindCommand(
+	// 	"vget /camera/[uint]/intrinsics",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetIntrinsics),
+	// 	"Get camera intrinsic parameters: fx fy cx cy fov width height"
+	// );
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/extrinsics",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetExtrinsics),
-		"Get camera extrinsic parameters: rotation matrix (3x3) and translation vector (xyz)"
-	);
+	// CommandDispatcher->BindCommand(
+	// 	"vget /camera/[uint]/extrinsics",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetExtrinsics),
+	// 	"Get camera extrinsic parameters: rotation matrix (3x3) and translation vector (xyz)"
+	// );
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/projection_matrix",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetProjectionMatrix),
-		"Get camera projection matrix (4x4)"
-	);
+	// CommandDispatcher->BindCommand(
+	// 	"vget /camera/[uint]/projection_matrix",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetProjectionMatrix),
+	// 	"Get camera projection matrix (4x4)"
+	// );
 
-	// Camera motion control commands
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/motion/start [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
-		"Start camera motion: rotate_left_45, rotate_right_45, rotate_up_45, rotate_down_45, rotate_360, rotate_360_slow, zoom_in, zoom_out, random_rotation"
-	);
+	// // Camera motion control commands
+	// CommandDispatcher->BindCommand(
+	// 	"vset /camera/[uint]/motion/start [str]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
+	// 	"Start camera motion: rotate_left_45, rotate_right_45, rotate_up_45, rotate_down_45, rotate_360, rotate_360_slow, zoom_in, zoom_out, random_rotation"
+	// );
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/motion/start [str] [float]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
-		"Start camera motion with duration parameter"
-	);
+	// CommandDispatcher->BindCommand(
+	// 	"vset /camera/[uint]/motion/start [str] [float]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
+	// 	"Start camera motion with duration parameter"
+	// );
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/motion/start [str] [str] [float]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
-		"Start camera motion with target and duration (for orbit motions)"
-	);
+	// CommandDispatcher->BindCommand(
+	// 	"vset /camera/[uint]/motion/start [str] [str] [float]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
+	// 	"Start camera motion with target and duration (for orbit motions)"
+	// );
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/motion/start [str] [str] [float] [float]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
-		"Start camera motion with target, duration, and extra params (for rotate_360_slow)"
-	);
+	// CommandDispatcher->BindCommand(
+	// 	"vset /camera/[uint]/motion/start [str] [str] [float] [float]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
+	// 	"Start camera motion with target, duration, and extra params (for rotate_360_slow)"
+	// );
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/motion/stop",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StopCameraMotion),
-		"Stop current camera motion"
-	);
+	// CommandDispatcher->BindCommand(
+	// 	"vset /camera/[uint]/motion/stop",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StopCameraMotion),
+	// 	"Stop current camera motion"
+	// );
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/motion/status",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraMotionStatus),
-		"Get camera motion status: idle or moving"
-	);
+	// CommandDispatcher->BindCommand(
+	// 	"vget /camera/[uint]/motion/status",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraMotionStatus),
+	// 	"Get camera motion status: idle or moving"
+	// );
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/motion/progress",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraMotionProgress),
-		"Get camera motion progress (0.0 to 1.0)"
-	);
+	// CommandDispatcher->BindCommand(
+	// 	"vget /camera/[uint]/motion/progress",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraMotionProgress),
+	// 	"Get camera motion progress (0.0 to 1.0)"
+	// );
 }

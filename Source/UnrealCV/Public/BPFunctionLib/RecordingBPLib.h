@@ -20,54 +20,54 @@ private:
 
 
 public:
-	/**
-	 * Start normal recording from a specific camera.
-	 * @param CameraID The ID of the camera sensor (0 for player camera, 1+ for spawned cameras)
-	 * @param FileName Output file path (e.g., "C:/Output/video.mp4")
-	 * @param Duration Recording duration in seconds
-	 * @param FPS Frames per second (typically 30 or 60)
-	 * @param TargetToHide Optional actor to hide during recording (for dataset generation)
-	 * @return True if recording started successfully, false otherwise
-	 */
-	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording")
-	static bool StartNormalRecording(
-		int32 CameraID,
-		const FString& FileName,
-		float Duration,
-		int32 FPS,
-		AActor* TargetToHide = nullptr,
-		float TimeDilation = 1.0f
-	);
+	// /**
+	//  * Start normal recording from a specific camera.
+	//  * @param CameraID The ID of the camera sensor (0 for player camera, 1+ for spawned cameras)
+	//  * @param FileName Output file path (e.g., "C:/Output/video.mp4")
+	//  * @param Duration Recording duration in seconds
+	//  * @param FPS Frames per second (typically 30 or 60)
+	//  * @param TargetToHide Optional actor to hide during recording (for dataset generation)
+	//  * @return True if recording started successfully, false otherwise
+	//  */
+	// UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording")
+	// static bool StartNormalRecording(
+	// 	int32 CameraID,
+	// 	const FString& FileName,
+	// 	float Duration,
+	// 	int32 FPS,
+	// 	AActor* TargetToHide = nullptr,
+	// 	float TimeDilation = 1.0f
+	// );
 
-	/**
-	 * Start bullet time recording (360° rotation around target).
-	 * Camera will orbit around the target actor during recording.
-	 * @param CameraID The ID of the camera sensor
-	 * @param FileName Output file path (e.g., "C:/Output/bullettime.mp4")
-	 * @param Duration Recording duration in seconds
-	 * @param FPS Frames per second
-	 * @param Target Target actor to orbit around (required for bullet time)
-	 * @return True if recording started successfully, false otherwise
-	 */
-	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording")
-	static bool StartBulletTimeRecording(
-		int32 CameraID,
-		const FString& FileName,
-		float Duration,
-		int32 FPS,
-		AActor* Target,
-		float TimeDilation = 1.0f
-	);
+	// /**
+	//  * Start bullet time recording (360° rotation around target).
+	//  * Camera will orbit around the target actor during recording.
+	//  * @param CameraID The ID of the camera sensor
+	//  * @param FileName Output file path (e.g., "C:/Output/bullettime.mp4")
+	//  * @param Duration Recording duration in seconds
+	//  * @param FPS Frames per second
+	//  * @param Target Target actor to orbit around (required for bullet time)
+	//  * @return True if recording started successfully, false otherwise
+	//  */
+	// UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording")
+	// static bool StartBulletTimeRecording(
+	// 	int32 CameraID,
+	// 	const FString& FileName,
+	// 	float Duration,
+	// 	int32 FPS,
+	// 	AActor* Target,
+	// 	float TimeDilation = 1.0f
+	// );
 
-	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording")
-	static bool StartBulletTimeOnlyRecording(
-		int32 CameraID,
-		const FString& FileName,
-		float Duration,
-		int32 FPS,
-		AActor* Target,
-		float TimeDilation = 1.0f
-	);
+	// UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording")
+	// static bool StartBulletTimeOnlyRecording(
+	// 	int32 CameraID,
+	// 	const FString& FileName,
+	// 	float Duration,
+	// 	int32 FPS,
+	// 	AActor* Target,
+	// 	float TimeDilation = 1.0f
+	// );
 
 
 
@@ -87,19 +87,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Recording")
 	static bool IsRecording(int32 CameraID);
 
-	/**
-	 * Get recording progress for a specific camera.
-	 * @param CameraID The ID of the camera sensor
-	 * @param OutProgress Output parameter: progress from 0.0 to 1.0
-	 * @param OutFrameCount Output parameter: number of frames recorded so far
-	 * @return True if camera is recording, false otherwise
-	 */
-	UFUNCTION(BlueprintPure, Category = "UnrealCV|Recording")
-	static bool GetRecordingProgress(
-		int32 CameraID,
-		float& OutProgress,
-		int32& OutFrameCount
-	);
+	// /**
+	//  * Get recording progress for a specific camera.
+	//  * @param CameraID The ID of the camera sensor
+	//  * @param OutProgress Output parameter: progress from 0.0 to 1.0
+	//  * @param OutFrameCount Output parameter: number of frames recorded so far
+	//  * @return True if camera is recording, false otherwise
+	//  */
+	// UFUNCTION(BlueprintPure, Category = "UnrealCV|Recording")
+	// static bool GetRecordingProgress(
+	// 	int32 CameraID,
+	// 	float& OutProgress,
+	// 	int32& OutFrameCount
+	// );
 
 	/**
 	 * Get list of all available camera sensors in the scene.
@@ -131,12 +131,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Recording")
 	static int32 GetCameraCount();
 
-	// UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording", meta = (WorldContext = "WorldContextObject"))
-	// static int32 CreateFreeCamera(
-	// 	UObject* WorldContextObject,
-	// 	FVector Location = FVector::ZeroVector,
-	// 	FRotator Rotation = FRotator::ZeroRotator
-	// );
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording", meta = (WorldContext = "WorldContextObject"))
+	static int32 CreateFreeCamera(
+		UObject* WorldContextObject,
+		FVector Location = FVector::ZeroVector,
+		FRotator Rotation = FRotator::ZeroRotator
+	);
 
 	// ========== Camera Trajectory Recording (SOW Requirements) ==========
 

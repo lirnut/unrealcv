@@ -85,7 +85,7 @@ void FUnrealcvServer::RegisterCommandHandlers()
 	CommandHandlers.Add(new FActionHandler());
 	CommandHandlers.Add(new FAliasHandler());
 	CommandHandlers.Add(new FCameraHandler());
-	CommandHandlers.Add(new FCaptureActorHandler());
+	// CommandHandlers.Add(new FCaptureActorHandler());
 	CommandHandlers.Add(new FAgentNavHandler());
 	for (FCommandHandler* Handler : CommandHandlers)
 	{
