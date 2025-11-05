@@ -11,6 +11,178 @@ FSceneHandle UDatasetAutomationBPLib::CurrentScene;
 UWorld* UDatasetAutomationBPLib::WorldContext = nullptr;
 FTimerHandle UDatasetAutomationBPLib::AutomationTimerHandle;
 
+TArray<FAutomationStep> UDatasetAutomationBPLib::CommandQueue;
+int32 UDatasetAutomationBPLib::CurrentCommandIndex = 0;
+int32 UDatasetAutomationBPLib::CurrentSceneCounter = 0;
+FString UDatasetAutomationBPLib::CurrentSceneID = TEXT("");
+float UDatasetAutomationBPLib::DelayTimer = 0.0f;
+float UDatasetAutomationBPLib::DelayDuration = 0.0f;
+
+void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
+{
+	CommandQueue.Empty();
+
+	CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
+
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_45")));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_45")));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_45")));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_360")));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
+
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
+
+	CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
+
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+
+	CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
+
+	CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
+
+	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Built command sequence with %d commands"), CommandQueue.Num());
+}
+
+FString UDatasetAutomationBPLib::GenerateSceneID(int32 SceneIndex)
+{
+	FGuid UUID = FGuid::NewGuid();
+	FString UUIDShort = UUID.ToString().Left(8);
+	return FString::Printf(TEXT("scene_%04d_%s"), SceneIndex, *UUIDShort);
+}
+
+FString UDatasetAutomationBPLib::GenerateOutputPath(const FString& SceneID, const FString& TrajectoryType)
+{
+	return FString::Printf(TEXT("%s/%s/%s"),
+		*CurrentConfig.OutputDirectory,
+		*SceneID,
+		*TrajectoryType);
+}
+
+void UDatasetAutomationBPLib::ExecuteNextCommand()
+{
+	if (CurrentCommandIndex >= CommandQueue.Num())
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Command index out of bounds"));
+		return;
+	}
+
+	const FAutomationStep& Step = CommandQueue[CurrentCommandIndex];
+	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Executing command %d/%d: %s"),
+		CurrentCommandIndex + 1, CommandQueue.Num(), *Step.Command);
+
+	CurrentCommandIndex++;
+	ExecuteCommand(Step);
+}
+
+void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
+{
+	TransitionToState(EDatasetGenerationState::ExecutingCommand);
+
+	if (Step.Command == TEXT("create_scene"))
+	{
+		CurrentSceneID = GenerateSceneID(CurrentSceneCounter);
+
+		bool Success = USceneCompositionBPLib::GenerateRandomScene(
+			WorldContext,
+			CurrentConfig.SpawnAreaMin,
+			CurrentConfig.SpawnAreaMax,
+			CurrentConfig.ForegroundCategory,
+			CurrentConfig.OccluderCategory,
+			CurrentConfig.OccluderCount,
+			CurrentConfig.CameraID,
+			CurrentScene,
+			true
+		);
+
+		if (Success)
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Created scene: %s"), *CurrentSceneID);
+			ExecuteNextCommand();
+		}
+		else
+		{
+			CurrentStatus.ErrorMessage = FString::Printf(TEXT("Failed to create scene %d"), CurrentSceneCounter);
+			TransitionToState(EDatasetGenerationState::Error);
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
+		}
+	}
+	else if (Step.Command == TEXT("record_trajectory"))
+	{
+		FString TrajectoryType = Step.StringParam;
+		FString OutputPath = GenerateOutputPath(CurrentSceneID, TrajectoryType);
+
+		bool RecordingStarted = URecordingBPLib::StartTrajectoryRecording(
+			CurrentConfig.CameraID,
+			OutputPath,
+			TrajectoryType,
+			CurrentScene.ForegroundActor,
+			CurrentConfig.TrajectoryFPS,
+			CurrentConfig.TrajectoryDegreesPerSecond,
+			-1
+		);
+
+		if (RecordingStarted)
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Recording trajectory: %s -> %s"), *TrajectoryType, *OutputPath);
+			CurrentStatus.CurrentFileName = OutputPath;
+			TransitionToState(EDatasetGenerationState::WaitingAsync);
+		}
+		else
+		{
+			CurrentStatus.ErrorMessage = FString::Printf(TEXT("Failed to start recording: %s"), *TrajectoryType);
+			TransitionToState(EDatasetGenerationState::Error);
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
+		}
+	}
+	else if (Step.Command == TEXT("clear_scene"))
+	{
+		USceneCompositionBPLib::ClearScene(CurrentScene);
+		CurrentScene = FSceneHandle();
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Cleared scene: %s"), *CurrentSceneID);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("delay"))
+	{
+		DelayTimer = 0.0f;
+		DelayDuration = Step.FloatParam;
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Delaying %.1f seconds"), DelayDuration);
+		TransitionToState(EDatasetGenerationState::WaitingAsync);
+	}
+	else if (Step.Command == TEXT("increment_counter"))
+	{
+		CurrentSceneCounter++;
+		CurrentStatus.CurrentSceneIndex = CurrentSceneCounter;
+		CurrentStatus.Progress = (float)CurrentSceneCounter / (float)CurrentStatus.TotalScenes;
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Scene counter: %d/%d (%.1f%%)"),
+			CurrentSceneCounter, CurrentStatus.TotalScenes, CurrentStatus.Progress * 100.0f);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("check_completion"))
+	{
+		if (CurrentSceneCounter >= CurrentStatus.TotalScenes)
+		{
+			TransitionToState(EDatasetGenerationState::Completed);
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Completed all %d scenes"), CurrentStatus.TotalScenes);
+		}
+		else
+		{
+			CurrentCommandIndex = 0;
+			ExecuteNextCommand();
+		}
+	}
+	else
+	{
+		CurrentStatus.ErrorMessage = FString::Printf(TEXT("Unknown command: %s"), *Step.Command);
+		TransitionToState(EDatasetGenerationState::Error);
+		UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
+	}
+}
+
+
 bool UDatasetAutomationBPLib::StartBatchGeneration(
 	UObject* WorldContextObject,
 	const FAutomationConfig& Config)
@@ -33,7 +205,9 @@ bool UDatasetAutomationBPLib::StartBatchGeneration(
 	CurrentStatus.TotalScenes = Config.TotalScenes;
 	CurrentStatus.CurrentSceneIndex = 0;
 
-	TransitionToState(EDatasetGenerationState::GeneratingScene);
+	BuildCommandSequenceForScene();
+	CurrentCommandIndex = 0;
+	CurrentSceneCounter = 0;
 
 	WorldContext->GetTimerManager().SetTimer(
 		AutomationTimerHandle,
@@ -43,6 +217,8 @@ bool UDatasetAutomationBPLib::StartBatchGeneration(
 	);
 
 	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Started batch generation (%d scenes)"), Config.TotalScenes);
+
+	ExecuteNextCommand();
 
 	return true;
 }
@@ -59,11 +235,7 @@ void UDatasetAutomationBPLib::StopBatchGeneration()
 		WorldContext->GetTimerManager().ClearTimer(AutomationTimerHandle);
 	}
 
-	// This can cause duplicate scene destruction
-	// USceneCompositionBPLib::ClearScene(CurrentScene);
-
-	if (CurrentStatus.State == EDatasetGenerationState::Recording ||
-		CurrentStatus.State == EDatasetGenerationState::WaitingForRecordingComplete)
+	if (CurrentStatus.State == EDatasetGenerationState::WaitingAsync)
 	{
 		URecordingBPLib::StopRecording(CurrentConfig.CameraID);
 	}
@@ -86,17 +258,11 @@ FString UDatasetAutomationBPLib::GetAutomationStatusString()
 	case EDatasetGenerationState::Idle:
 		StateString = TEXT("Idle");
 		break;
-	case EDatasetGenerationState::GeneratingScene:
-		StateString = TEXT("Generating Scene");
+	case EDatasetGenerationState::ExecutingCommand:
+		StateString = TEXT("Executing Command");
 		break;
-	case EDatasetGenerationState::Recording:
-		StateString = TEXT("Recording");
-		break;
-	case EDatasetGenerationState::WaitingForRecordingComplete:
-		StateString = TEXT("Waiting for Recording");
-		break;
-	case EDatasetGenerationState::CleaningUp:
-		StateString = TEXT("Cleaning Up");
+	case EDatasetGenerationState::WaitingAsync:
+		StateString = TEXT("Waiting");
 		break;
 	case EDatasetGenerationState::Completed:
 		StateString = TEXT("Completed");
@@ -183,118 +349,29 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 {
 	switch (CurrentStatus.State)
 	{
-	case EDatasetGenerationState::GeneratingScene:
-	{
-		if (CurrentStatus.CurrentSceneIndex >= CurrentStatus.TotalScenes)
-		{
-			TransitionToState(EDatasetGenerationState::Completed);
-			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Completed all %d scenes"), CurrentStatus.TotalScenes);
-			return;
-		}
-
-		bool Success = USceneCompositionBPLib::GenerateRandomScene(
-			WorldContext,
-			CurrentConfig.SpawnAreaMin,
-			CurrentConfig.SpawnAreaMax,
-			CurrentConfig.ForegroundCategory,
-			CurrentConfig.OccluderCategory,
-			CurrentConfig.OccluderCount,
-			CurrentConfig.CameraID,
-			CurrentScene,
-			true
-		);
-
-		if (!Success)
-		{
-			CurrentStatus.ErrorMessage = FString::Printf(
-				TEXT("Failed to generate scene %d"), CurrentStatus.CurrentSceneIndex);
-			TransitionToState(EDatasetGenerationState::Error);
-			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
-			return;
-		}
-
-		TransitionToState(EDatasetGenerationState::Recording);
+	case EDatasetGenerationState::ExecutingCommand:
 		break;
-	}
 
-	case EDatasetGenerationState::Recording:
+	case EDatasetGenerationState::WaitingAsync:
 	{
-		FString FileName = GenerateFileName(CurrentStatus.CurrentSceneIndex);
-		CurrentStatus.CurrentFileName = FileName;
+		bool RecordingComplete = !URecordingBPLib::IsRecording(CurrentConfig.CameraID);
+		bool DelayComplete = (DelayTimer >= DelayDuration);
 
-		bool RecordingStarted = false;
-
-		if (CurrentConfig.bUseTrajectory)
+		if (RecordingComplete || DelayComplete)
 		{
-			RecordingStarted = URecordingBPLib::StartTrajectoryRecording(
-				CurrentConfig.CameraID,
-				FileName,
-				CurrentConfig.TrajectoryType,
-				CurrentScene.ForegroundActor,
-				CurrentConfig.TrajectoryFPS,
-				CurrentConfig.TrajectoryDegreesPerSecond,
-				-1
-			);
-		}
-		else if (CurrentConfig.bUseBulletTime)
-		{
-			RecordingStarted = URecordingBPLib::StartBulletTimeRecording(
-				CurrentConfig.CameraID,
-				FileName,
-				CurrentConfig.RecordingDuration,
-				CurrentConfig.RecordingFPS,
-				CurrentScene.ForegroundActor,
-				1.0f
-			);
+			if (!RecordingComplete)
+			{
+				DelayTimer += DeltaTime;
+			}
+			else
+			{
+				ExecuteNextCommand();
+			}
 		}
 		else
 		{
-			RecordingStarted = URecordingBPLib::StartNormalRecording(
-				CurrentConfig.CameraID,
-				FileName,
-				CurrentConfig.RecordingDuration,
-				CurrentConfig.RecordingFPS,
-				nullptr,
-				1.0f
-			);
+			DelayTimer += DeltaTime;
 		}
-
-		if (!RecordingStarted)
-		{
-			CurrentStatus.ErrorMessage = FString::Printf(
-				TEXT("Failed to start recording for scene %d"), CurrentStatus.CurrentSceneIndex);
-			TransitionToState(EDatasetGenerationState::Error);
-			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
-			return;
-		}
-
-		TransitionToState(EDatasetGenerationState::WaitingForRecordingComplete);
-		break;
-	}
-
-	case EDatasetGenerationState::WaitingForRecordingComplete:
-	{
-		bool StillRecording = URecordingBPLib::IsRecording(CurrentConfig.CameraID);
-
-		if (!StillRecording)
-		{
-			TransitionToState(EDatasetGenerationState::CleaningUp);
-		}
-		break;
-	}
-
-	case EDatasetGenerationState::CleaningUp:
-	{
-		USceneCompositionBPLib::ClearScene(CurrentScene);
-		CurrentScene = FSceneHandle();
-
-		CurrentStatus.CurrentSceneIndex++;
-		CurrentStatus.Progress = (float)CurrentStatus.CurrentSceneIndex / (float)CurrentStatus.TotalScenes;
-
-		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Completed scene %d/%d (%.1f%%)"),
-			CurrentStatus.CurrentSceneIndex, CurrentStatus.TotalScenes, CurrentStatus.Progress * 100.0f);
-
-		TransitionToState(EDatasetGenerationState::GeneratingScene);
 		break;
 	}
 
@@ -304,20 +381,4 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 	default:
 		break;
 	}
-}
-
-FString UDatasetAutomationBPLib::GenerateFileName(int32 Index)
-{
-	FString FileType = TEXT("normal");
-	if (CurrentConfig.bUseTrajectory)
-	{
-		FileType = CurrentConfig.TrajectoryType;
-	}
-	else if (CurrentConfig.bUseBulletTime)
-	{
-		FileType = TEXT("bullettime");
-	}
-
-	return FString::Printf(TEXT("%s/%s_%04d"),
-		*CurrentConfig.OutputDirectory, *FileType, Index);
 }

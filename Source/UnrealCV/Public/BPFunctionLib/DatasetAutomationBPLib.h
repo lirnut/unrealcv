@@ -10,12 +10,28 @@ UENUM(BlueprintType)
 enum class EDatasetGenerationState : uint8
 {
 	Idle,
-	GeneratingScene,
-	Recording,
-	WaitingForRecordingComplete,
-	CleaningUp,
+	ExecutingCommand,
+	WaitingAsync,
 	Completed,
 	Error
+};
+
+USTRUCT()
+struct FAutomationStep
+{
+	GENERATED_BODY()
+
+	FString Command;
+	FString StringParam;
+	float FloatParam;
+
+	FAutomationStep()
+		: Command(TEXT("")), StringParam(TEXT("")), FloatParam(0.0f)
+	{}
+
+	FAutomationStep(const FString& InCommand, const FString& InStringParam = TEXT(""), float InFloatParam = 0.0f)
+		: Command(InCommand), StringParam(InStringParam), FloatParam(InFloatParam)
+	{}
 };
 
 USTRUCT(BlueprintType)
@@ -46,21 +62,6 @@ struct FAutomationConfig
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	FString OutputDirectory = TEXT("C:/Dataset");
-
-	UPROPERTY(BlueprintReadWrite, Category = "Automation")
-	float RecordingDuration = 10.0f;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Automation")
-	int32 RecordingFPS = 30;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Automation")
-	bool bUseBulletTime = false;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Automation")
-	bool bUseTrajectory = false;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Automation")
-	FString TrajectoryType = TEXT("rotate_360");
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	int32 TrajectoryFPS = 30;
@@ -127,8 +128,20 @@ private:
 	static UWorld* WorldContext;
 	static FTimerHandle AutomationTimerHandle;
 
+	static TArray<FAutomationStep> CommandQueue;
+	static int32 CurrentCommandIndex;
+	static int32 CurrentSceneCounter;
+	static FString CurrentSceneID;
+	static float DelayTimer;
+	static float DelayDuration;
+
 	static void TransitionToState(EDatasetGenerationState NewState);
 	static void ProcessState(float DeltaTime);
-	static FString GenerateFileName(int32 Index);
 	static void AutoTick();
+
+	static void BuildCommandSequenceForScene();
+	static void ExecuteNextCommand();
+	static void ExecuteCommand(const FAutomationStep& Step);
+	static FString GenerateSceneID(int32 SceneIndex);
+	static FString GenerateOutputPath(const FString& SceneID, const FString& TrajectoryType);
 };
