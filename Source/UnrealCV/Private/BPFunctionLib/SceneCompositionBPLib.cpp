@@ -16,6 +16,7 @@
 #include "Engine/Blueprint.h"
 #include "GameFramework/Actor.h"
 #include "Kismet/GameplayStatics.h"
+#include "AnimatedSkeletalActor.h"
 
 TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
 
@@ -424,26 +425,19 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		AActor* SkeletalActor = World->SpawnActor<AActor>(AActor::StaticClass(), Location, Rotation, SpawnParams);
-		if (SkeletalActor)
+		AAnimatedSkeletalActor* AnimatedActor = World->SpawnActor<AAnimatedSkeletalActor>(
+			AAnimatedSkeletalActor::StaticClass(),
+			Location,
+			Rotation,
+			SpawnParams
+		);
+
+		if (AnimatedActor)
 		{
-			USkeletalMeshComponent* SkeletalComponent = NewObject<USkeletalMeshComponent>(SkeletalActor, TEXT("SkeletalMeshComp"));
-			if (SkeletalComponent)
-			{
-				SkeletalComponent->SetMobility(EComponentMobility::Movable);
-				SkeletalComponent->RegisterComponent();
-
-				SkeletalActor->SetRootComponent(SkeletalComponent);
-
-				SkeletalComponent->SetSkeletalMesh(SkeletalMesh);
-				SkeletalComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-				SkeletalComponent->SetAnimation(AnimSeq);
-				SkeletalComponent->SetPosition(0.0f);
-				SkeletalComponent->Play(true);
-				SkeletalComponent->InitAnim(true);
-			}
+			AnimatedActor->InitializeFromAssets(SkeletalMesh, AnimSeq);
 		}
-		return SkeletalActor;
+
+		return AnimatedActor;
 	}
 	else
 	{
