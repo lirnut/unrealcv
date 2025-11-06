@@ -219,6 +219,7 @@ private:
 	static FString GenerateSceneID();
 	static AActor* LoadAndSpawnActor(UWorld* World, const FString& AssetPath, const FVector& Location, const FRotator& Rotation);
 	static AActor* SpawnActorFromMetadata(UWorld* World, const TMap<FString, FString>& Metadata, const FVector& Location, const FRotator& Rotation);
+	static float GetBoundsRadiusFromMetadata(const TMap<FString, FString>& Metadata);
 
 	static TArray<FSceneHandle> ActiveScenes;
 };

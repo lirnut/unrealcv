@@ -475,6 +475,38 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 	return SpawnedActor;
 }
 
+float USceneCompositionBPLib::GetBoundsRadiusFromMetadata(const TMap<FString, FString>& Metadata)
+{
+	FString ErrorMessage;
+	if (!FAssetPoolManager::ValidateMetadata(Metadata, ErrorMessage))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("GetBoundsRadiusFromMetadata: Invalid metadata - %s"), *ErrorMessage);
+		return 150.0f;
+	}
+
+	const FString& AssetPath = Metadata[TEXT("Path")];
+	const FString& AssetType = Metadata[TEXT("Type")];
+
+	if (AssetType == TEXT("StaticMesh"))
+	{
+		UStaticMesh* StaticMesh = LoadObject<UStaticMesh>(nullptr, *AssetPath);
+		if (IsValid(StaticMesh))
+		{
+			return StaticMesh->GetBounds().SphereRadius;
+		}
+	}
+	else if (AssetType == TEXT("SM+AnimSeq"))
+	{
+		USkeletalMesh* SkeletalMesh = LoadObject<USkeletalMesh>(nullptr, *AssetPath);
+		if (IsValid(SkeletalMesh))
+		{
+			return SkeletalMesh->GetBounds().SphereRadius;
+		}
+	}
+
+	return 150.0f;
+}
+
 TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 	UObject* WorldContextObject,
 	int32 Count,
@@ -493,6 +525,16 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 
 	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
 
+	struct FOccupiedSpace
+	{
+		FVector Position;
+		float Radius;
+	};
+	TArray<FOccupiedSpace> OccupiedSpaces;
+
+	const float SafetyMargin = 50.0f;
+	const int32 MaxAttempts = 10;
+
 	for (int32 i = 0; i < Count; i++)
 	{
 		TMap<FString, FString> Metadata = AssetPool.GetRandomAssetMetadata(OccluderCategory);
@@ -502,23 +544,52 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 			continue;
 		}
 
-		float Alpha = FMath::RandRange(0.3f, 0.7f);
-		FVector BasePosition = FMath::Lerp(CameraPosition, ForegroundPosition, Alpha);
+		float CurrentRadius = GetBoundsRadiusFromMetadata(Metadata);
 
-		FVector Direction = (ForegroundPosition - CameraPosition).GetSafeNormal();
-		FVector Perpendicular = FVector::CrossProduct(Direction, FVector::UpVector).GetSafeNormal();
-		float LateralOffset = FMath::RandRange(-200.0f, 200.0f);
-		BasePosition += Perpendicular * LateralOffset;
-
-		BasePosition.Z = 0.0f;
-
-		FRotator Rotation = FRotator::ZeroRotator;
-		Rotation.Yaw = FMath::RandRange(0.0f, 360.0f);
-
-		AActor* Occluder = SpawnActorFromMetadata(World, Metadata, BasePosition, Rotation);
-		if (IsValid(Occluder))
+		bool bSpawned = false;
+		for (int32 Attempt = 0; Attempt < MaxAttempts; Attempt++)
 		{
-			SpawnedOccluders.Add(Occluder);
+			float Alpha = FMath::RandRange(0.3f, 0.7f);
+			FVector CandidatePosition = FMath::Lerp(CameraPosition, ForegroundPosition, Alpha);
+
+			FVector Direction = (ForegroundPosition - CameraPosition).GetSafeNormal();
+			FVector Perpendicular = FVector::CrossProduct(Direction, FVector::UpVector).GetSafeNormal();
+			float LateralOffset = FMath::RandRange(-200.0f, 200.0f);
+			CandidatePosition += Perpendicular * LateralOffset;
+
+			CandidatePosition.Z = 0.0f;
+
+			bool bHasOverlap = false;
+			for (const FOccupiedSpace& Occupied : OccupiedSpaces)
+			{
+				float MinDistance = Occupied.Radius + CurrentRadius + SafetyMargin;
+				float Distance = FVector::Dist2D(CandidatePosition, Occupied.Position);
+				if (Distance < MinDistance)
+				{
+					bHasOverlap = true;
+					break;
+				}
+			}
+
+			if (!bHasOverlap)
+			{
+				FRotator Rotation = FRotator::ZeroRotator;
+				Rotation.Yaw = FMath::RandRange(0.0f, 360.0f);
+
+				AActor* Occluder = SpawnActorFromMetadata(World, Metadata, CandidatePosition, Rotation);
+				if (IsValid(Occluder))
+				{
+					SpawnedOccluders.Add(Occluder);
+					OccupiedSpaces.Add({CandidatePosition, CurrentRadius});
+					bSpawned = true;
+					break;
+				}
+			}
+		}
+
+		if (!bSpawned)
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("USceneCompositionBPLib::SpawnRandomOccluders: Failed to find non-overlapping position after %d attempts"), MaxAttempts);
 		}
 	}
 

@@ -40,19 +40,19 @@ void FAssetPoolManager::LoadStableAssetsPack()
 		// {{"Path", TEXT("/Game/Assets/Characters/Human_Infant_01")}, {"Type", TEXT("Blueprint")}},
 	});
 	TArray<FString> HumanAnimations = {
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk7"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk6"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk5"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk7.AS_Talk7"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk6.AS_Talk6"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk5.AS_Talk5"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk4"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk3.AS_Talk3"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk3.AS_Talk2"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk3.AS_Talk1"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk3.AS_Talk"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk2.AS_Talk2"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk1.AS_Talk1"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk.AS_Talk"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Thinking.AS_Thinking"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Smoking.AS_Smoking"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere2.AS_OverThere2"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere2.AS_OverThere"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere2.AS_OverHere"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere.AS_OverThere"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere.AS_OverHere"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_No.AS_No")
 	};
 	TArray<FString> SKMs = {

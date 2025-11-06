@@ -13,13 +13,29 @@ class UNREALCV_API AFusionCameraActor : public ACamSensorActor
 public:
 	AFusionCameraActor();
 
-	// This can be extended to support multiple cameras
+	virtual void Tick(float DeltaTime) override;
+
 	virtual TArray<FString> GetSensorNames();
 
 	virtual TArray<UFusionCamSensor*> GetSensors();
 
+	UFUNCTION(BlueprintCallable, Category = "Tracking")
+	void StartTracking(AActor* Target, float Distance = 300.0f, float AngleOffset = 0.0f, float Gain = 0.1f);
+
+	UFUNCTION(BlueprintCallable, Category = "Tracking")
+	void StopTracking();
+
 private:
-	// Define it to be VisibleAnywhere not EditableAnywhere. This is enough for changing the component property
 	UPROPERTY(Category = AFusionCameraActor, VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
 	UFusionCamSensor* FusionCamSensor;
+
+	UPROPERTY()
+	AActor* TrackedActor;
+
+	float DesiredDistance;
+	float HorizontalAngleOffset;
+	float TrackingGain;
+	bool bEnableTracking;
+
+	void UpdateTrackingPosition();
 };
