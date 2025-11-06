@@ -494,6 +494,15 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		OccluderArray.Add(OccluderJson);
 	}
 
+	FString ForegroundColor = FString::Printf(TEXT("%d,%d,%d"), SceneHandle.AnnotationColor.R, SceneHandle.AnnotationColor.G, SceneHandle.AnnotationColor.B);
+	TMap<FString, FString> ColorMap;
+	for (const TPair<FString, FColor>& KV : SceneHandle.AllAnnotationColors)
+	{
+		FString ColorJson = FString::Printf(TEXT("%d,%d,%d"), KV.Value.R, KV.Value.G, KV.Value.B);
+		ColorMap.Add(KV.Key, ColorJson);
+	}
+
+
 	TArray<FString> Keys = {
 		"FrameNumber",
 		"VideoName",
@@ -511,7 +520,9 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		"Rotation",
 		"FOV",
 		"Intrinsics",
-		"Extrinsics"
+		"Extrinsics",
+		"ForegroundColor",
+		"AnnotationColors",
 	};
 
 	FString ResolutionStr = FString::Printf(TEXT("%dx%d"), Width, Height);
@@ -533,7 +544,9 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		FJsonObjectBP(Rotation),
 		FJsonObjectBP(FOV),
 		FJsonObjectBP(IntrinsicsMap),
-		FJsonObjectBP(ExtrinsicsKeys, ExtrinsicsValues)
+		FJsonObjectBP(ExtrinsicsKeys, ExtrinsicsValues),
+		FJsonObjectBP(ForegroundColor),
+		FJsonObjectBP(ColorMap),
 	};
 
 	FJsonObjectBP JsonObject = USerializeBPLib::TMapToJson(Keys, Values);
@@ -785,12 +798,12 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 	if (ROTATE_NUM_FRAMES_OVERRIDE > 0)
 	{
 		NumFrames = ROTATE_NUM_FRAMES_OVERRIDE;
-		DegreesPerFrame = TotalRotationDeg / (NumFrames - 1);
+		DegreesPerFrame = FMath::Abs(TotalRotationDeg) / (NumFrames - 1);
 	}
 
 	for (int i = 0; i < NumFrames; i++)
 	{
-		float CurrentDeg = FMath::Max(DegreesPerFrame * i * -1.0f, TotalRotationDeg);
+		float CurrentDeg = FMath::Max(DegreesPerFrame * i * -1.0, TotalRotationDeg);
 
 		FQuat RotationQuat = FQuat(FVector::UpVector, FMath::DegreesToRadians(CurrentDeg));
 		FVector NewOffset = RotationQuat.RotateVector(Offset);
