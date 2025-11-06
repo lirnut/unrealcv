@@ -30,8 +30,12 @@ AFusionCamCaptureActor* URecordingBPLib::PrepareRecording(int32 CameraID)
 		AFusionCamCaptureActor* ExistingActor = GlobalCameraRecordingActors[CameraID];
 		if (IsValid(ExistingActor) && ExistingActor->IsRecording())
 		{
-			UE_LOG(LogUnrealCV, Warning, TEXT("URecordingBPLib::StartNormalRecording: Camera %d is already recording"), CameraID);
-			return nullptr;
+			ExistingActor->StopRecord();
+			if (ExistingActor->IsRecording())
+			{
+				UE_LOG(LogUnrealCV, Warning, TEXT("URecordingBPLib::StartNormalRecording: Camera %d is already recording"), CameraID);
+				return nullptr;
+			}
 		}
 		// // Clean up stale actor
 		// if (IsValid(ExistingActor))
@@ -304,6 +308,8 @@ bool URecordingBPLib::ParseTrajectoryType(const FString& TrajectoryTypeStr, ECam
 		{TEXT("random_2"),       ECameraTrajectoryType::RandomDirection2},
 		{TEXT("random_3"),       ECameraTrajectoryType::RandomDirection3},
 		{TEXT("random_4"),       ECameraTrajectoryType::RandomDirection4},
+
+		{TEXT("render_only"),       ECameraTrajectoryType::RenderOnly},
 	};
 
 	const ECameraTrajectoryType* Found = TrajectoryMap.Find(Normalized);
@@ -373,7 +379,9 @@ TArray<FString> URecordingBPLib::GetSupportedTrajectoryTypes()
 		TEXT("random_1"),
 		TEXT("random_2"),
 		TEXT("random_3"),
-		TEXT("random_4")
+		TEXT("random_4"),
+		// Render only trajectory
+		TEXT("render_only")
 	};
 }
 

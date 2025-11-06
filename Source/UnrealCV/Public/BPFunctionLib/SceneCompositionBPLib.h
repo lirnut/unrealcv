@@ -41,6 +41,14 @@ struct FSceneHandle
 	UPROPERTY(BlueprintReadOnly, Category = "UnrealCV|SceneComposition")
 	float OcclusionRatio;
 
+	/** Navigation controller for Blueprint actors */
+	UPROPERTY(BlueprintReadOnly, Category = "UnrealCV|SceneComposition")
+	class ANavAgentController* NavController;
+
+	/** Whether this scene has navigation enabled */
+	UPROPERTY(BlueprintReadOnly, Category = "UnrealCV|SceneComposition")
+	bool bHasNavigation;
+
 	FSceneHandle()
 		: SceneID(TEXT(""))
 		, ForegroundActor(nullptr)
@@ -48,6 +56,8 @@ struct FSceneHandle
 		, CameraID(0)
 		, ForegroundCategory(TEXT(""))
 		, OcclusionRatio(0.0f)
+		, NavController(nullptr)
+		, bHasNavigation(false)
 	{
 	}
 };
@@ -82,6 +92,13 @@ public:
 		FSceneHandle& OutSceneHandle,
 		bool bAutoPositionCamera = true
 	);
+
+	/**
+	 * Load stable assets pack for scene composition.
+	 * @param WorldContextObject World context
+	 */
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
+	static void LoadStableAssetsPack(UObject* WorldContextObject);
 
 	// /**
 	//  * Calculate occlusion ratio for a specific foreground actor from camera view.
@@ -220,6 +237,7 @@ private:
 	static AActor* LoadAndSpawnActor(UWorld* World, const FString& AssetPath, const FVector& Location, const FRotator& Rotation);
 	static AActor* SpawnActorFromMetadata(UWorld* World, const TMap<FString, FString>& Metadata, const FVector& Location, const FRotator& Rotation);
 	static float GetBoundsRadiusFromMetadata(const TMap<FString, FString>& Metadata);
+	static class ANavAgentController* CreateNavAgentController(UObject* WorldContextObject, AActor* ControlledAgent);
 
 	static TArray<FSceneHandle> ActiveScenes;
 };

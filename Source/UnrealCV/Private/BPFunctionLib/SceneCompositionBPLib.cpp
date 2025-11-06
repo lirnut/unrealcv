@@ -20,6 +20,7 @@
 #include "UnrealcvServer.h"
 #include "WorldController.h"
 #include "ObjectAnnotator.h"
+#include "NavAgentController.h"
 
 TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
 
@@ -30,6 +31,12 @@ FString USceneCompositionBPLib::GenerateSceneID()
 	static int32 SceneCounter = 0;
 	SceneCounter++;
 	return FString::Printf(TEXT("scene_%04d"), SceneCounter);
+}
+
+void USceneCompositionBPLib::LoadStableAssetsPack(UObject* WorldContextObject)
+{
+	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
+	AssetPool.LoadStableAssetsPack();
 }
 
 bool USceneCompositionBPLib::GenerateRandomScene(
@@ -71,17 +78,38 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	OutSceneHandle.CameraID = CameraID;
 	OutSceneHandle.ForegroundCategory = ForegroundCategory;
 
-	// 1. Spawn foreground actor at random position in XY area
+	// 1. Spawn foreground actor - get metadata to check type
 	FVector ForegroundPosition;
 	ForegroundPosition.X = FMath::RandRange(SpawnAreaMin.X, SpawnAreaMax.X);
 	ForegroundPosition.Y = FMath::RandRange(SpawnAreaMin.Y, SpawnAreaMax.Y);
-	ForegroundPosition.Z = 0.0f; // Ground level (adjust if needed)
+	ForegroundPosition.Z = 0.0f;
 
-	OutSceneHandle.ForegroundActor = SpawnRandomForeground(WorldContextObject, ForegroundPosition, ForegroundCategory);
+	TMap<FString, FString> ForegroundMetadata = AssetPool.GetRandomAssetMetadata(ForegroundCategory);
+	if (ForegroundMetadata.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: No assets in foreground category '%s'"), *ForegroundCategory);
+		return false;
+	}
+
+	FRotator ForegroundRotation = FRotator::ZeroRotator;
+	ForegroundRotation.Yaw = FMath::RandRange(0.0f, 360.0f);
+
+	OutSceneHandle.ForegroundActor = SpawnActorFromMetadata(World, ForegroundMetadata, ForegroundPosition, ForegroundRotation);
 	if (!IsValid(OutSceneHandle.ForegroundActor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Failed to spawn foreground actor"));
 		return false;
+	}
+
+	// Check if foreground is Blueprint type and create NavAgent
+	if (ForegroundMetadata.Contains(TEXT("Type")) && ForegroundMetadata[TEXT("Type")] == TEXT("Blueprint"))
+	{
+		OutSceneHandle.NavController = CreateNavAgentController(WorldContextObject, OutSceneHandle.ForegroundActor);
+		if (IsValid(OutSceneHandle.NavController))
+		{
+			OutSceneHandle.bHasNavigation = true;
+			UE_LOG(LogUnrealCV, Log, TEXT("GenerateRandomScene: Applied NavAgent to Blueprint actor '%s'"), *OutSceneHandle.ForegroundActor->GetName());
+		}
 	}
 
 	UFusionCamSensor* Camera = USensorBPLib::GetSensorById(CameraID);
@@ -147,6 +175,11 @@ void USceneCompositionBPLib::ClearScene(const FSceneHandle& SceneHandle)
 	if (IsValid(SceneHandle.DirectionalLight))
 	{
 		SceneHandle.DirectionalLight->Destroy();
+	}
+
+	if (IsValid(SceneHandle.NavController))
+	{
+		SceneHandle.NavController->Destroy();
 	}
 
 	ActiveScenes.RemoveAll([&SceneHandle](const FSceneHandle& Handle) {
@@ -746,4 +779,35 @@ bool USceneCompositionBPLib::PositionCameraToViewTarget(
 	Camera->SetWorldRotation(CameraRotation);
 
 	return true;
+}
+
+ANavAgentController* USceneCompositionBPLib::CreateNavAgentController(UObject* WorldContextObject, AActor* ControlledAgent)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World || !IsValid(ControlledAgent))
+	{
+		return nullptr;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ANavAgentController* NavController = World->SpawnActor<ANavAgentController>(
+		ANavAgentController::StaticClass(),
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		SpawnParams
+	);
+
+	if (NavController)
+	{
+		NavController->ControlledAgent = ControlledAgent;
+		NavController->DefaultNavRadius = 1000.0f;
+		NavController->MinNavRadius = 200.0f;
+		NavController->ReachThreshold = 50.0f;
+		NavController->MaxSteps = 200;
+		NavController->bDebugDraw = false;
+	}
+
+	return NavController;
 }

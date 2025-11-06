@@ -2,6 +2,9 @@
 #include "DatasetAutomationBPLib.h"
 #include "SceneCompositionBPLib.h"
 #include "RecordingBPLib.h"
+#include "SensorBPLib.h"
+#include "FusionCameraActor.h"
+#include "NavAgentController.h"
 #include "UnrealcvLog.h"
 #include "Engine/World.h"
 
@@ -44,6 +47,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+
+	CommandQueue.Add(FAutomationStep(TEXT("record_nav_track")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 
 	CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
@@ -146,6 +152,63 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			CurrentStatus.ErrorMessage = FString::Printf(TEXT("Failed to start recording: %s"), *TrajectoryType);
 			TransitionToState(EDatasetGenerationState::Error);
 			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
+		}
+	}
+	else if (Step.Command == TEXT("record_nav_track"))
+	{
+		if (!CurrentScene.bHasNavigation || !IsValid(CurrentScene.NavController))
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Scene has no navigation (not Blueprint), skipping nav-track"));
+			ExecuteNextCommand();
+			return;
+		}
+
+		AFusionCameraActor* CameraActor = GetFusionCameraActor(CurrentConfig.CameraID);
+		if (!IsValid(CameraActor))
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Camera is not FusionCameraActor, skipping nav-track"));
+			ExecuteNextCommand();
+			return;
+		}
+
+		float TrackingDistance = FMath::RandRange(300.0f, 600.0f);
+		float TrackingAngleOffset = FMath::RandRange(-45.0f, 45.0f);
+		float TrackingGain = FMath::RandRange(0.1f, 0.2f);
+
+		CurrentScene.NavController->StartAutonomousNav();
+
+		CameraActor->StartTracking(
+			CurrentScene.ForegroundActor,
+			TrackingDistance,
+			TrackingAngleOffset,
+			TrackingGain
+		);
+
+		FString OutputPath = GenerateOutputPath(CurrentSceneID, TEXT("nav_track"));
+		bool RecordingStarted = URecordingBPLib::StartTrajectoryRecording(
+			CurrentConfig.CameraID,
+			OutputPath,
+			TEXT("render_only"),
+			CurrentScene.ForegroundActor,
+			CurrentConfig.TrajectoryFPS,
+			CurrentConfig.TrajectoryDegreesPerSecond,
+			-1
+		);
+
+		if (RecordingStarted)
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Nav-Track recording (D:%.1f A:%.1f G:%.2f) -> %s"),
+				TrackingDistance, TrackingAngleOffset, TrackingGain, *OutputPath);
+			CurrentStatus.CurrentFileName = OutputPath;
+			TransitionToState(EDatasetGenerationState::WaitingAsync);
+		}
+		else
+		{
+			CurrentScene.NavController->StopNavigation();
+			CameraActor->StopTracking();
+
+			CurrentStatus.ErrorMessage = TEXT("Failed to start Nav-Track recording");
+			TransitionToState(EDatasetGenerationState::Error);
 		}
 	}
 	else if (Step.Command == TEXT("clear_scene"))
@@ -372,14 +435,18 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 
 		if (RecordingComplete || DelayComplete)
 		{
-			if (!RecordingComplete)
+			if (IsValid(CurrentScene.NavController) && CurrentScene.NavController->IsNavigating())
 			{
-				DelayTimer += DeltaTime;
+				CurrentScene.NavController->StopNavigation();
 			}
-			else
+
+			AFusionCameraActor* CameraActor = GetFusionCameraActor(CurrentConfig.CameraID);
+			if (IsValid(CameraActor))
 			{
-				ExecuteNextCommand();
+				CameraActor->StopTracking();
 			}
+
+			ExecuteNextCommand();
 		}
 		else
 		{
@@ -394,4 +461,16 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 	default:
 		break;
 	}
+}
+
+AFusionCameraActor* UDatasetAutomationBPLib::GetFusionCameraActor(int32 CameraID)
+{
+	UFusionCamSensor* Sensor = USensorBPLib::GetSensorById(CameraID);
+	if (!IsValid(Sensor))
+	{
+		return nullptr;
+	}
+
+	AActor* Owner = Sensor->GetOwner();
+	return Cast<AFusionCameraActor>(Owner);
 }

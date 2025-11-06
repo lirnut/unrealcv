@@ -11,7 +11,7 @@ FAssetPoolManager& FAssetPoolManager::Get()
 FAssetPoolManager::FAssetPoolManager()
 {
 	UE_LOG(LogUnrealCV, Log, TEXT("FAssetPoolManager initialized"));
-	LoadStableAssetsPack();
+	// LoadStableAssetsPack();
 }
 
 void FAssetPoolManager::LoadStableAssetsPack()

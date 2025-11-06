@@ -144,4 +144,5 @@ private:
 	static void ExecuteCommand(const FAutomationStep& Step);
 	static FString GenerateSceneID(int32 SceneIndex);
 	static FString GenerateOutputPath(const FString& SceneID, const FString& TrajectoryType);
+	static class AFusionCameraActor* GetFusionCameraActor(int32 CameraID);
 };
