@@ -6,6 +6,21 @@
 #include "SceneCompositionBPLib.generated.h"
 
 /**
+ * Metadata wrapper for occluder actors
+ */
+USTRUCT(BlueprintType)
+struct FOccluderMetadata
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
+	TMap<FString, FString> Metadata;
+
+	FOccluderMetadata() {}
+	FOccluderMetadata(TMap<FString, FString> InMetadata) : Metadata(InMetadata) {}
+};
+
+/**
  * Scene Handle - Reference to a generated scene for later manipulation/cleanup.
  */
 USTRUCT(BlueprintType)
@@ -49,6 +64,30 @@ struct FSceneHandle
 	UPROPERTY(BlueprintReadOnly, Category = "UnrealCV|SceneComposition")
 	bool bHasNavigation;
 
+	////////////////////////////////////////////////////////////////////////////////////////////////
+	// Scene Recording Metadata
+	////////////////////////////////////////////////////////////////////////////////////////////////
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
+	FString SceneCategory;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
+	FString ForegroundSubcategory;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
+	FString OccluderCategory;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
+	TArray<FOccluderMetadata> OccluderMetadataList;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
+	TMap<FString, FString> ForegroundObjectMetadata;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
+	FColor AnnotationColor;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
+	TMap<FString, FColor> AllAnnotationColors;
+
 	FSceneHandle()
 		: SceneID(TEXT(""))
 		, ForegroundActor(nullptr)
@@ -58,6 +97,14 @@ struct FSceneHandle
 		, OcclusionRatio(0.0f)
 		, NavController(nullptr)
 		, bHasNavigation(false)
+
+		, SceneCategory(TEXT(""))
+		, ForegroundSubcategory(TEXT(""))
+		, OccluderCategory(TEXT(""))
+		, OccluderMetadataList({})
+		, ForegroundObjectMetadata({})
+		, AnnotationColor(FColor::White)
+		, AllAnnotationColors({})
 	{
 	}
 };
@@ -135,20 +182,6 @@ public:
 	// ========== Actor Spawning ==========
 
 	/**
-	 * Spawn a random foreground actor from asset pool.
-	 * @param WorldContextObject World context
-	 * @param Position World position to spawn at
-	 * @param ForegroundCategory Category (e.g., "Foreground_Human", "Foreground_Pet_Dog")
-	 * @return Spawned actor, or nullptr if failed
-	 */
-	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
-	static AActor* SpawnRandomForeground(
-		UObject* WorldContextObject,
-		FVector Position,
-		const FString& ForegroundCategory
-	);
-
-	/**
 	 * Spawn random occluder actors between camera and foreground.
 	 *
 	 * Occluders are placed randomly in a box volume between camera and foreground,
@@ -167,7 +200,8 @@ public:
 		int32 Count,
 		FVector CameraPosition,
 		FVector ForegroundPosition,
-		const FString& OccluderCategory
+		const FString& OccluderCategory,
+		FSceneHandle& OutSceneHandle
 	);
 
 	// ========== Asset Pool Management ==========

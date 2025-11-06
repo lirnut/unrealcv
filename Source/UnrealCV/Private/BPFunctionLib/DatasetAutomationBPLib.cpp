@@ -131,14 +131,9 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		FString TrajectoryType = Step.StringParam;
 		FString OutputPath = GenerateOutputPath(CurrentSceneID, TrajectoryType);
 
-		bool RecordingStarted = URecordingBPLib::StartTrajectoryRecording(
-			CurrentConfig.CameraID,
+		bool RecordingStarted = StartTrajectoryRecording(
 			OutputPath,
-			TrajectoryType,
-			CurrentScene.ForegroundActor,
-			CurrentConfig.TrajectoryFPS,
-			CurrentConfig.TrajectoryDegreesPerSecond,
-			-1
+			TrajectoryType
 		);
 
 		if (RecordingStarted)
@@ -185,14 +180,9 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		);
 
 		FString OutputPath = GenerateOutputPath(CurrentSceneID, TEXT("nav_track"));
-		bool RecordingStarted = URecordingBPLib::StartTrajectoryRecording(
-			CurrentConfig.CameraID,
+		bool RecordingStarted = StartTrajectoryRecording(
 			OutputPath,
-			TEXT("render_only"),
-			CurrentScene.ForegroundActor,
-			CurrentConfig.TrajectoryFPS,
-			CurrentConfig.TrajectoryDegreesPerSecond,
-			-1
+			TEXT("render_only")
 		);
 
 		if (RecordingStarted)
@@ -285,7 +275,7 @@ bool UDatasetAutomationBPLib::StartBatchGeneration(
 	WorldContext->GetTimerManager().SetTimer(
 		AutomationTimerHandle,
 		FTimerDelegate::CreateStatic(&UDatasetAutomationBPLib::AutoTick),
-		0.016f,
+		0.5f,
 		true
 	);
 
@@ -404,7 +394,7 @@ void UDatasetAutomationBPLib::AutoTick()
 		return;
 	}
 
-	ProcessState(0.016f);
+	ProcessState(0.5f);
 
 	if (CurrentStatus.State == EDatasetGenerationState::Completed ||
 		CurrentStatus.State == EDatasetGenerationState::Error)
@@ -433,7 +423,7 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 		bool RecordingComplete = !URecordingBPLib::IsRecording(CurrentConfig.CameraID);
 		bool DelayComplete = (DelayTimer >= DelayDuration);
 
-		if (RecordingComplete || DelayComplete)
+		if (RecordingComplete && DelayComplete)
 		{
 			if (IsValid(CurrentScene.NavController) && CurrentScene.NavController->IsNavigating())
 			{
@@ -473,4 +463,49 @@ AFusionCameraActor* UDatasetAutomationBPLib::GetFusionCameraActor(int32 CameraID
 
 	AActor* Owner = Sensor->GetOwner();
 	return Cast<AFusionCameraActor>(Owner);
+}
+
+
+bool UDatasetAutomationBPLib::StartTrajectoryRecording(
+	const FString& FileName,
+	const FString& TrajectoryType)
+{
+
+	int32 CameraID = CurrentConfig.CameraID;
+	AActor* Target = CurrentScene.ForegroundActor;
+	int32 FPS = CurrentConfig.TrajectoryFPS;
+	float DegreesPerSecond = CurrentConfig.TrajectoryDegreesPerSecond;
+	int32 RandomSeed = -1;
+	// Validate target
+	if (!IsValid(Target))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Target actor is null"));
+		return false;
+	}
+
+	// Parse trajectory type
+	ECameraTrajectoryType TrajectoryEnum;
+	if (!URecordingBPLib::ParseTrajectoryType(TrajectoryType, TrajectoryEnum))
+	{
+		return false;
+	}
+
+	// Prepare recording (reuse existing function)
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::PrepareRecording(CameraID);
+	if (!IsValid(CaptureActor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Failed to prepare recording for camera %d"), CameraID);
+		return false;
+	}
+	CaptureActor->SetSceneHandle(CurrentScene);
+
+	bool PauseWorldTime = false;
+
+	// Start trajectory recording
+	UE_LOG(LogUnrealCV, Log, TEXT("StartTrajectoryRecording: Camera %d, File: %s, Type: %s, FPS: %d, Deg/s: %.2f, Target: %s"),
+		CameraID, *FileName, *TrajectoryType, FPS, DegreesPerSecond, *Target->GetName());
+
+	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, FPS, DegreesPerSecond, RandomSeed, PauseWorldTime);
+
+	return true;
 }

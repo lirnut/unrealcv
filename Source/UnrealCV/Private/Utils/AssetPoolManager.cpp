@@ -52,7 +52,7 @@ void FAssetPoolManager::LoadStableAssetsPack()
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Smoking.AS_Smoking"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere2.AS_OverThere2"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere.AS_OverThere"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere.AS_OverHere"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverHere.AS_OverHere"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_No.AS_No")
 	};
 	TArray<FString> SKMs = {

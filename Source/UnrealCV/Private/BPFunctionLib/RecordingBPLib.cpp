@@ -1,4 +1,4 @@
-// Weichao Qiu @ 2018
+// shc @ 2025
 // Recording control function library for Blueprint/C++ access
 #include "RecordingBPLib.h"
 #include "SensorBPLib.h"
@@ -12,7 +12,7 @@
 
 // Static map to track recording actors (camera ID -> capture actor)
 // This replaces the need to access CameraHandler's private map
-static TMap<int32, AFusionCamCaptureActor*> GlobalCameraRecordingActors;
+TMap<int32, AFusionCamCaptureActor*> URecordingBPLib::GlobalCameraRecordingActors;
 
 AFusionCamCaptureActor* URecordingBPLib::PrepareRecording(int32 CameraID)
 {
@@ -30,10 +30,11 @@ AFusionCamCaptureActor* URecordingBPLib::PrepareRecording(int32 CameraID)
 		AFusionCamCaptureActor* ExistingActor = GlobalCameraRecordingActors[CameraID];
 		if (IsValid(ExistingActor) && ExistingActor->IsRecording())
 		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("URecordingBPLib::StartNormalRecording: Camera %d is already recording"), CameraID);
 			ExistingActor->StopRecord();
 			if (ExistingActor->IsRecording())
 			{
-				UE_LOG(LogUnrealCV, Warning, TEXT("URecordingBPLib::StartNormalRecording: Camera %d is already recording"), CameraID);
+				UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StartNormalRecording: Camera %d is already recording"), CameraID);
 				return nullptr;
 			}
 		}
@@ -156,14 +157,14 @@ bool URecordingBPLib::StopRecording(int32 CameraID)
 		return false;
 	}
 
-	// {
-	// 	// Stop recording
-	// 	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::StopRecording: Stopping camera %d"), CameraID);
-	// 	CaptureActor->StopRecord();
+	if (CaptureActor->IsRecording()){
+		// Stop recording
+		UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::StopRecording: Stopping camera %d"), CameraID);
+		CaptureActor->StopRecord();
+	}
 
-	// 	// Destroy the actor and clean up
-	// 	CaptureActor->Destroy();
-	// }
+	// // Destroy the actor and clean up
+	// CaptureActor->Destroy();
 	GlobalCameraRecordingActors.Remove(CameraID);
 
 	return true;
@@ -174,6 +175,7 @@ bool URecordingBPLib::IsRecording(int32 CameraID)
 	// Check if we have a CaptureActor for this camera
 	if (!GlobalCameraRecordingActors.Contains(CameraID))
 	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("URecordingBPLib::IsRecording: Camera %d does not have a recording actor"), CameraID);
 		return false;
 	}
 

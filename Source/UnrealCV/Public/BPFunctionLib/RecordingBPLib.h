@@ -15,11 +15,9 @@ UCLASS()
 class UNREALCV_API URecordingBPLib : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
-private:
+public:
 	static AFusionCamCaptureActor* PrepareRecording(int32 CameraID);
 
-
-public:
 	// /**
 	//  * Start normal recording from a specific camera.
 	//  * @param CameraID The ID of the camera sensor (0 for player camera, 1+ for spawned cameras)
@@ -215,7 +213,6 @@ public:
 	// 	const FString& CondaEnvName = TEXT("uezoo")
 	// );
 
-private:
 	/**
 	 * Convert string trajectory type to enum.
 	 * @param TrajectoryTypeStr String representation of trajectory type
@@ -223,4 +220,8 @@ private:
 	 * @return True if conversion successful, false if invalid string
 	 */
 	static bool ParseTrajectoryType(const FString& TrajectoryTypeStr, ECameraTrajectoryType& OutTrajectoryType);
+private:
+	// Static map to track recording actors (camera ID -> capture actor)
+	// This replaces the need to access CameraHandler's private map
+	static TMap<int32, AFusionCamCaptureActor*> GlobalCameraRecordingActors;
 };

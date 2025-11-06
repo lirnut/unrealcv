@@ -212,3 +212,42 @@ FExecStatus SerializeData(const TArray<float>& Data, int Width, int Height, cons
 	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
 }
 
+void ConvertDepthToPreview(const TArray<float>& DepthData, TArray<FColor>& OutPreview)
+{
+	OutPreview.SetNum(DepthData.Num());
+
+	if (DepthData.Num() == 0)
+	{
+		return;
+	}
+
+	float MinDepth = TNumericLimits<float>::Max();
+	float MaxDepth = TNumericLimits<float>::Min();
+	for (float Depth : DepthData)
+	{
+		if (Depth < MinDepth) MinDepth = Depth;
+		if (Depth > MaxDepth) MaxDepth = Depth;
+	}
+	if (MaxDepth > 5000.0f)
+	{
+		MaxDepth = 5000.0f;
+	}
+
+	float DepthRange = MaxDepth - MinDepth;
+	if (DepthRange > 0.0f)
+	{
+		for (int32 i = 0; i < DepthData.Num(); i++)
+		{
+			uint8 NormalizedDepth = static_cast<uint8>(FMath::Clamp((DepthData[i] - MinDepth) / DepthRange, 0.0f, 1.0f) * 255.0f);
+			OutPreview[i] = FColor(NormalizedDepth, NormalizedDepth, NormalizedDepth, 255);
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < DepthData.Num(); i++)
+		{
+			OutPreview[i] = FColor(0, 0, 0, 255);
+		}
+	}
+}
+

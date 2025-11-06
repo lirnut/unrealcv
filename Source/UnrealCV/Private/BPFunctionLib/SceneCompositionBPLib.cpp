@@ -101,6 +101,11 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		return false;
 	}
 
+	OutSceneHandle.ForegroundCategory = ForegroundCategory;
+	OutSceneHandle.ForegroundObjectMetadata = ForegroundMetadata;
+	OutSceneHandle.SceneCategory = World->GetMapName();
+	
+
 	// Check if foreground is Blueprint type and create NavAgent
 	if (ForegroundMetadata.Contains(TEXT("Type")) && ForegroundMetadata[TEXT("Type")] == TEXT("Blueprint"))
 	{
@@ -144,13 +149,26 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		OccluderCount,
 		CameraPosition,
 		ForegroundPosition,
-		OccluderCategory
+		OccluderCategory,
+		OutSceneHandle
 	);
 
 	// OutSceneHandle.DirectionalLight = CreateDirectionalLight(WorldContextObject);
 	OutSceneHandle.DirectionalLight = nullptr;
 
 	OutSceneHandle.OcclusionRatio = 0.0f;
+
+
+	if (IsValid(OutSceneHandle.ForegroundActor))
+	{
+		AUnrealcvWorldController* WorldController = FUnrealcvServer::Get().WorldController.Get();
+		if (IsValid(WorldController))
+		{
+			WorldController->ObjectAnnotator.GetAnnotationColor(OutSceneHandle.ForegroundActor, OutSceneHandle.AnnotationColor);
+			OutSceneHandle.AllAnnotationColors = WorldController->ObjectAnnotator.GetAnnotationColors();
+		}
+	}
+
 
 	ActiveScenes.Add(OutSceneHandle);
 
@@ -355,33 +373,6 @@ AActor* USceneCompositionBPLib::LoadAndSpawnActor(UWorld* World, const FString& 
 	return SpawnedActor;
 }
 
-AActor* USceneCompositionBPLib::SpawnRandomForeground(
-	UObject* WorldContextObject,
-	FVector Position,
-	const FString& ForegroundCategory)
-{
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	if (!World)
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("SpawnRandomForeground: Invalid world context"));
-		return nullptr;
-	}
-
-	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
-
-	TMap<FString, FString> Metadata = AssetPool.GetRandomAssetMetadata(ForegroundCategory);
-	if (Metadata.Num() == 0)
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("SpawnRandomForeground: No assets in category '%s'"), *ForegroundCategory);
-		return nullptr;
-	}
-
-	FRotator Rotation = FRotator::ZeroRotator;
-	Rotation.Yaw = FMath::RandRange(0.0f, 360.0f);
-
-	return SpawnActorFromMetadata(World, Metadata, Position, Rotation);
-}
-
 AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap<FString, FString>& Metadata, const FVector& Location, const FRotator& Rotation)
 {
 	if (!IsValid(World))
@@ -545,7 +536,8 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 	int32 Count,
 	FVector CameraPosition,
 	FVector ForegroundPosition,
-	const FString& OccluderCategory)
+	const FString& OccluderCategory,
+	FSceneHandle& OutSceneHandle)
 {
 	TArray<AActor*> SpawnedOccluders;
 
@@ -614,6 +606,8 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 				{
 					SpawnedOccluders.Add(Occluder);
 					OccupiedSpaces.Add({CandidatePosition, CurrentRadius});
+					OutSceneHandle.OccluderMetadataList.Add({Metadata});
+					OutSceneHandle.OccluderCategory = OccluderCategory;
 					bSpawned = true;
 					break;
 				}

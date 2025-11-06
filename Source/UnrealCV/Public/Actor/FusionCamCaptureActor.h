@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "JsonObjectBP.h"
+#include "BPFunctionLib\SceneCompositionBPLib.h"
 #include "FusionCamCaptureActor.generated.h"
 
 /**
@@ -54,6 +55,10 @@ public:
 	/** Check if currently recording */
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	bool IsRecording() const { return bIsRecording; }
+
+	/** Set scene handle for next recording session */
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void SetSceneHandle(const FSceneHandle& InSceneHandle);
 
 	// ========== Configuration ==========
 
@@ -133,18 +138,22 @@ protected:
 	FString FinalDataFolder;
 	int32 RecordFPS;
 	AActor* TargetToHide;
+	int32 NumFrames;
 
 	struct FCameraPose
 	{
 		FVector Location;
 		FRotator Rotation;
 		bool bManageTransform = true;
+		float DesiredEstTimeDilation = 1.0f;
 	};
 	TArray<FCameraPose> CurrentTrajectory;
 	int32 CurrentTrajectoryIndex;
 	bool bPauseWorldDuringRecord;
 	FVector OriginalCameraLocation;
 	FRotator OriginalCameraRotation;
+
+	FSceneHandle SceneHandle;
 
 	void OnTimerRecord();
 	void RecordFrame();
@@ -161,7 +170,8 @@ protected:
 	TArray<FCameraPose> CalculateZoomIn(AActor* Target, float DegreesPerFrame);
 	TArray<FCameraPose> CalculateZoomOut(AActor* Target, float DegreesPerFrame);
 	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, float DegreesPerFrame, int32 RandomSeed);
-	TArray<FCameraPose> CalculateRenderOnly(int32 NumFrames);
+	TArray<FCameraPose> CalculateRenderOnly();
+	TArray<FCameraPose> AddRotateBufferFrames(const TArray<FCameraPose>& CoreTrajectory);
 
 	// Audio recording
 	void StartAudioRecord();

@@ -145,4 +145,6 @@ private:
 	static FString GenerateSceneID(int32 SceneIndex);
 	static FString GenerateOutputPath(const FString& SceneID, const FString& TrajectoryType);
 	static class AFusionCameraActor* GetFusionCameraActor(int32 CameraID);
+	static bool StartTrajectoryRecording(const FString& FileName, const FString& TrajectoryType);
+
 };

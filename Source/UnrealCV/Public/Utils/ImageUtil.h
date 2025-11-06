@@ -77,3 +77,5 @@ FExecStatus SerializeData(const TArray<FColor>& Data, int Width, int Height, con
 FExecStatus SerializeData(const TArray<FFloat16Color>& Data, int Width, int Height, const FString& Filename);
 
 FExecStatus SerializeData(const TArray<float>& Data, int Width, int Height, const FString& Filename);
+
+void ConvertDepthToPreview(const TArray<float>& DepthData, TArray<FColor>& OutPreview);
