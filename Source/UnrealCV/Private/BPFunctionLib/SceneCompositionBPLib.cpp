@@ -17,6 +17,9 @@
 #include "GameFramework/Actor.h"
 #include "Kismet/GameplayStatics.h"
 #include "AnimatedSkeletalActor.h"
+#include "UnrealcvServer.h"
+#include "WorldController.h"
+#include "ObjectAnnotator.h"
 
 TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
 
@@ -41,7 +44,7 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	bool bAutoPositionCamera
 )
 {
-	float CameraHeight = 160.0f;
+	float CameraHeight = FMath::RandRange(20, 140);
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (!World)
 	{
@@ -370,6 +373,8 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 	const FString& AssetPath = Metadata[TEXT("Path")];
 	const FString& AssetType = Metadata[TEXT("Type")];
 
+	AActor* SpawnedActor = nullptr;
+
 	if (AssetType == TEXT("StaticMesh"))
 	{
 		UStaticMesh* StaticMesh = LoadObject<UStaticMesh>(nullptr, *AssetPath);
@@ -391,7 +396,7 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 				MeshComponent->SetStaticMesh(StaticMesh);
 			}
 		}
-		return MeshActor;
+		SpawnedActor = MeshActor;
 	}
 	else if (AssetType == TEXT("Blueprint"))
 	{
@@ -404,7 +409,7 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		return World->SpawnActor<AActor>(Blueprint->GeneratedClass, Location, Rotation, SpawnParams);
+		SpawnedActor = World->SpawnActor<AActor>(Blueprint->GeneratedClass, Location, Rotation, SpawnParams);
 	}
 	else if (AssetType == TEXT("SM+AnimSeq"))
 	{
@@ -437,13 +442,37 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 			AnimatedActor->InitializeFromAssets(SkeletalMesh, AnimSeq);
 		}
 
-		return AnimatedActor;
+		SpawnedActor = AnimatedActor;
 	}
 	else
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Unknown asset type '%s'"), *AssetType);
 		return nullptr;
 	}
+
+	if (IsValid(SpawnedActor))
+	{
+		AUnrealcvWorldController* WorldController = FUnrealcvServer::Get().WorldController.Get();
+		if (IsValid(WorldController))
+		{
+			int32 ColorIndex = WorldController->ObjectAnnotator.GetAnnotationColors().Num();
+			FColor AnnotationColor = FColor::MakeRandomColor();
+
+			if (ColorIndex < 32768)
+			{
+				FColorGenerator ColorGen;
+				AnnotationColor = ColorGen.GetColorFromColorMap(ColorIndex);
+			}
+
+			WorldController->ObjectAnnotator.SetAnnotationColor(SpawnedActor, AnnotationColor);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("SpawnActorFromMetadata: WorldController not available, actor not annotated"));
+		}
+	}
+
+	return SpawnedActor;
 }
 
 TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(

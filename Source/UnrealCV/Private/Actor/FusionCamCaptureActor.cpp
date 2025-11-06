@@ -40,7 +40,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	ElapsedSteps = 0;
 	TargetToHide = nullptr;
 
-	TimeDilation = 1.0f;
+	TimeDilation = 0.2f;
 	TimeDilationBackUp = 1.0f;
 
 	bAutoGenerateVideo = true;
@@ -103,6 +103,11 @@ void AFusionCamCaptureActor::StopRecord()
 			GetWorld()->GetFirstPlayerController()->SetPause(false);
 		}
 
+		if (TimeDilationBackUp > 0.0f)
+		{
+			GetWorld()->GetWorldSettings()->SetTimeDilation(TimeDilationBackUp);
+		}
+
 		if (IsValid(TargetSensor))
 		{
 			TargetSensor->SetSensorLocation(OriginalCameraLocation);
@@ -140,8 +145,11 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	}
 
 
-	TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
-	TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
+	if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
+	{
+		TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
+		TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
+	}
 
 	RecordFrame();
 
@@ -533,6 +541,8 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTra
 	case ECameraTrajectoryType::RandomDirection3:
 	case ECameraTrajectoryType::RandomDirection4:
 		return CalculateRandomDirection(Target, DegreesPerFrame, RandomSeed);
+	case ECameraTrajectoryType::RenderOnly:
+		return CalculateRenderOnly(200);
 	default:
 		UE_LOG(LogUnrealCV, Error, TEXT("Unknown trajectory type"));
 		return TArray<FCameraPose>();
@@ -554,8 +564,11 @@ void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Traject
 		ElapsedSteps = 0;
 		for (int i = 0; i < Trajectory.Num(); i++)
 		{
-			TargetSensor->SetSensorLocation(Trajectory[i].Location);
-			TargetSensor->SetSensorRotation(Trajectory[i].Rotation);
+			if (Trajectory[i].bManageTransform)
+			{
+				TargetSensor->SetSensorLocation(Trajectory[i].Location);
+				TargetSensor->SetSensorRotation(Trajectory[i].Rotation);
+			}
 
 			RecordFrame();
 			ElapsedSteps++;
@@ -845,6 +858,20 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
+		Trajectory.Add(Pose);
+	}
+
+	return Trajectory;
+}
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRenderOnly(int32 NumFrames)
+{
+	TArray<FCameraPose> Trajectory;
+
+	for (int i = 0; i < NumFrames; i++)
+	{
+		FCameraPose Pose;
+		Pose.bManageTransform = false;
 		Trajectory.Add(Pose);
 	}
 

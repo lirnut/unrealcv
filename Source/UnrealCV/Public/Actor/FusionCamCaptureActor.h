@@ -23,7 +23,8 @@ enum class ECameraTrajectoryType : uint8
 	RandomDirection1 UMETA(DisplayName = "Random Direction 1"),
 	RandomDirection2 UMETA(DisplayName = "Random Direction 2"),
 	RandomDirection3 UMETA(DisplayName = "Random Direction 3"),
-	RandomDirection4 UMETA(DisplayName = "Random Direction 4")
+	RandomDirection4 UMETA(DisplayName = "Random Direction 4"),
+	RenderOnly UMETA(DisplayName = "Render Only (No Camera Movement)")
 };
 
 /**
@@ -133,13 +134,11 @@ protected:
 	int32 RecordFPS;
 	AActor* TargetToHide;
 
-	/**
-	 * Represents a single camera pose in a trajectory
-	 */
 	struct FCameraPose
 	{
 		FVector Location;
 		FRotator Rotation;
+		bool bManageTransform = true;
 	};
 	TArray<FCameraPose> CurrentTrajectory;
 	int32 CurrentTrajectoryIndex;
@@ -162,6 +161,7 @@ protected:
 	TArray<FCameraPose> CalculateZoomIn(AActor* Target, float DegreesPerFrame);
 	TArray<FCameraPose> CalculateZoomOut(AActor* Target, float DegreesPerFrame);
 	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, float DegreesPerFrame, int32 RandomSeed);
+	TArray<FCameraPose> CalculateRenderOnly(int32 NumFrames);
 
 	// Audio recording
 	void StartAudioRecord();

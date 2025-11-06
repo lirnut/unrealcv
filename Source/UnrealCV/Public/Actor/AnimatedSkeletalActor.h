@@ -1,13 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "Actor/CollisionDetectableActor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"
 #include "AnimatedSkeletalActor.generated.h"
 
 UCLASS()
-class UNREALCV_API AAnimatedSkeletalActor : public AActor
+class UNREALCV_API AAnimatedSkeletalActor : public ACollisionDetectableActor
 {
 	GENERATED_BODY()
 

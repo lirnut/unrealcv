@@ -16,6 +16,11 @@ void AAnimatedSkeletalActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (bEnableCollisionDetection && IsValid(SkeletalMeshComponent))
+	{
+		SetupCollisionDetection(SkeletalMeshComponent);
+	}
+
 	if (IsValid(SkeletalMeshAsset) && IsValid(AnimSequenceAsset))
 	{
 		SkeletalMeshComponent->SetSkeletalMesh(SkeletalMeshAsset);

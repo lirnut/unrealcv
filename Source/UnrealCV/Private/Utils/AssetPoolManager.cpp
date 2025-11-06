@@ -11,6 +11,7 @@ FAssetPoolManager& FAssetPoolManager::Get()
 FAssetPoolManager::FAssetPoolManager()
 {
 	UE_LOG(LogUnrealCV, Log, TEXT("FAssetPoolManager initialized"));
+	LoadStableAssetsPack();
 }
 
 void FAssetPoolManager::LoadStableAssetsPack()
@@ -18,22 +19,64 @@ void FAssetPoolManager::LoadStableAssetsPack()
     // ========== Foreground Assets ==========
 
 	// Human - Different ages, skin colors, genders (SOW requirement)
-	// AssetPools.Add(TEXT("Foreground_Human"), {
-	// 	// Adults
-	// 	// {{"Path", TEXT("/Game/SocialAnimsBundle/Demo/Characters/Mannequins/girl_01_aAS_Talk7.girl_01_aAS_Talk7")}, {"Type", TEXT("Blueprint")}},
+	AssetPools.Add(TEXT("Foreground_Human"), {
+		// // Adults
+		// {
+		// 	{"Path", TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_Jaket.Man_in_Jaket")},
+		// 	{"Type", TEXT("SM+AnimSeq")},
+		// 	{"AnimSequence", TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk4")}
+		// }
 
-	// 	// // Elderly
-	// 	// {{"Path", TEXT("/Game/Assets/Characters/Human_Elder_Male_01")}, {"Type", TEXT("Blueprint")}},
+		// // Elderly
+		// {{"Path", TEXT("/Game/Assets/Characters/Human_Elder_Male_01")}, {"Type", TEXT("Blueprint")}},
 
-	// 	// // Youth
-	// 	// {{"Path", TEXT("/Game/Assets/Characters/Human_Teen_Male_01")}, {"Type", TEXT("Blueprint")}},
+		// // Youth
+		// {{"Path", TEXT("/Game/Assets/Characters/Human_Teen_Male_01")}, {"Type", TEXT("Blueprint")}},
 
-	// 	// // Children
-	// 	// {{"Path", TEXT("/Game/Assets/Characters/Human_Child_Male_01")}, {"Type", TEXT("Blueprint")}},
+		// // Children
+		// {{"Path", TEXT("/Game/Assets/Characters/Human_Child_Male_01")}, {"Type", TEXT("Blueprint")}},
 
-	// 	// // Infants
-	// 	// {{"Path", TEXT("/Game/Assets/Characters/Human_Infant_01")}, {"Type", TEXT("Blueprint")}},
-	// });
+		// // Infants
+		// {{"Path", TEXT("/Game/Assets/Characters/Human_Infant_01")}, {"Type", TEXT("Blueprint")}},
+	});
+	TArray<FString> HumanAnimations = {
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk7"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk6"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk5"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk4"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk3.AS_Talk3"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk3.AS_Talk2"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk3.AS_Talk1"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk3.AS_Talk"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Thinking.AS_Thinking"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Smoking.AS_Smoking"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere2.AS_OverThere2"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere2.AS_OverThere"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_OverThere2.AS_OverHere"),
+		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_No.AS_No")
+	};
+	TArray<FString> SKMs = {
+		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_Jaket.Man_in_Jaket"),
+		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_Jaket_NoGlass.Man_in_Jaket_NoGlass"),
+		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_ShortGolf.Man_in_ShortGolf"),
+		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_ShortGolf_NoGlass.Man_in_ShortGolf_NoGlass"),
+		TEXT("/Game/HumanCharacter/Businessmen/Man_in_Shirt/Meshes/Man_In_Shirt.Man_In_Shirt"),
+		TEXT("/Game/HumanCharacter/Businessmen/Man_in_Shirt/Meshes/Man_In_Shirt_Suit.Man_In_Shirt_Suit"),
+		TEXT("/Game/HumanCharacter/Businessmen/Man_in_Shirt/Meshes/Man_In_Shirt_Vest.Man_In_Shirt_Vest"),
+		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Polo/Meshes/Man_In_Polo.Man_In_Polo"),
+		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Polo/Meshes/Man_In_Polo_Glasses.Man_In_Polo_Glasses")
+	};
+	for (FString& Anim : HumanAnimations)
+	{
+		for (FString& SKM : SKMs)
+		{
+			AssetPools["Foreground_Human"].Add({
+				{"Path", SKM},
+				{"Type", TEXT("SM+AnimSeq")},
+				{"AnimSequence", Anim}
+			});
+		}
+	}
 
 	// // Pets - Cats (5+ breeds, SOW requirement)
 	// AssetPools.Add(TEXT("Foreground_Pet_Cat"), {
@@ -127,11 +170,11 @@ void FAssetPoolManager::LoadStableAssetsPack()
 	// 	TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Exterior_props_usable/BP_Trashbin.BP_Trashbin"),
 	// });
 
-	// // Log asset pool statistics
-	// for (const auto& Pair : AssetPools)
-	// {
-	// 	UE_LOG(LogUnrealCV, Log, TEXT("  Category '%s': %d assets"), *Pair.Key, Pair.Value.Num());
-	// }
+	// Log asset pool statistics
+	for (const auto& Pair : AssetPools)
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("  Category '%s': %d assets"), *Pair.Key, Pair.Value.Num());
+	}
 }
 
 FString FAssetPoolManager::GetRandomAsset(const FString& Category)

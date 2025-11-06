@@ -348,7 +348,6 @@ bool URecordingBPLib::StartTrajectoryRecording(
 		return false;
 	}
 
-	CaptureActor->BulletTimeSpeedDeg = 0.2f;
 	bool PauseWorldTime = false;
 
 	// Start trajectory recording
