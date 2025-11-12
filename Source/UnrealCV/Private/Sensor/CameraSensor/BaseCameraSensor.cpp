@@ -8,6 +8,7 @@
 #include "UnrealcvStats.h"
 #include "UnrealcvLog.h"
 #include "ImageUtil.h"
+#include "Sensor/AsyncCaptureHelper.h"
 
 DECLARE_CYCLE_STAT(TEXT("ReadBuffer"), STAT_ReadBuffer, STATGROUP_UnrealCV);
 DECLARE_CYCLE_STAT(TEXT("ReadBufferFast"), STAT_ReadBufferFast, STATGROUP_UnrealCV);
@@ -30,7 +31,10 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	FilmWidth = Config.Width == 0 ? 640 : Config.Width;
 	FilmHeight = Config.Height == 0 ? 480 : Config.Height;
-	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV; 
+	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
+
+	PendingCaptureRequestID = -1;
+	bUseAsyncCapture = true;
 	// Avoid calling virtual function in a constructor
 }
 
@@ -59,13 +63,14 @@ void UBaseCameraSensor::SetFilmSize(int Width, int Height)
 	this->FilmHeight = Height;
 	if (!IsValid(TextureTarget))
 	{
-		TextureTarget = NewObject<UTextureRenderTarget2D>(this); 
-		// TextureTarget = CreateDefaultSubobject<UTextureRenderTarget2D>(TEXT("CamSensorRenderTarget"));
+		TextureTarget = NewObject<UTextureRenderTarget2D>(this);
 	}
 
-	if (TextureTarget->SizeX != Width || TextureTarget->SizeY != Height) 
+	if (TextureTarget->SizeX != Width || TextureTarget->SizeY != Height)
 	{
 		InitTextureTarget(Width, Height);
+		ShutdownAsyncCapture();
+		InitializeAsyncCapture();
 	}
 }
 
@@ -120,9 +125,142 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 		UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
 		return;
 	}
+
 	this->CaptureScene();
 
-	ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
+	if (bUseAsyncCapture && AsyncCapturePool.IsValid())
+	{
+		if (PendingCaptureRequestID != -1)
+		{
+			FAsyncCaptureFrame Frame;
+			if (AsyncCapturePool->GetCapturedFrame(PendingCaptureRequestID, Frame))
+			{
+				ImageData = MoveTemp(Frame.Data);
+				Width = Frame.Width;
+				Height = Frame.Height;
+			}
+			else
+			{
+				UE_LOG(LogUnrealCV, Warning, TEXT("Previous frame not ready yet, using sync readback"));
+				ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
+			}
+			PendingCaptureRequestID = -1;
+		}
+		else
+		{
+			ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
+		}
+
+		auto RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+		if (RenderTargetResource)
+		{
+			PendingCaptureRequestID = AsyncCapturePool->RequestCapture(
+				RenderTargetResource->GetRenderTargetTexture()
+			);
+		}
+	}
+	else
+	{
+		ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
+	}
+}
+
+void UBaseCameraSensor::CaptureFloat16(TArray<FFloat16Color>& ImageData, int& Width, int& Height)
+{
+	if (!CheckTextureTarget())
+	{
+		UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. CaptureFloat16 failed."));
+		return;
+	}
+
+	this->CaptureScene();
+
+	if (bUseAsyncCapture && AsyncCapturePool.IsValid())
+	{
+		if (PendingCaptureRequestID != -1)
+		{
+			FAsyncCaptureFrame Frame;
+			if (AsyncCapturePool->GetCapturedFrame(PendingCaptureRequestID, Frame))
+			{
+				if (Frame.bIsFloat16)
+				{
+					ImageData = MoveTemp(Frame.Float16Data);
+					Width = Frame.Width;
+					Height = Frame.Height;
+				}
+				else
+				{
+					UE_LOG(LogUnrealCV, Warning, TEXT("Previous frame was not Float16, using sync readback"));
+					FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+					RenderTargetResource->ReadFloat16Pixels(ImageData);
+					Width = TextureTarget->SizeX;
+					Height = TextureTarget->SizeY;
+				}
+			}
+			else
+			{
+				UE_LOG(LogUnrealCV, Warning, TEXT("Previous Float16 frame not ready yet, using sync readback"));
+				FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+				RenderTargetResource->ReadFloat16Pixels(ImageData);
+				Width = TextureTarget->SizeX;
+				Height = TextureTarget->SizeY;
+			}
+			PendingCaptureRequestID = -1;
+		}
+		else
+		{
+			FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+			RenderTargetResource->ReadFloat16Pixels(ImageData);
+			Width = TextureTarget->SizeX;
+			Height = TextureTarget->SizeY;
+		}
+
+		auto RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+		if (RenderTargetResource)
+		{
+			PendingCaptureRequestID = AsyncCapturePool->RequestCaptureFloat16(
+				RenderTargetResource->GetRenderTargetTexture()
+			);
+		}
+	}
+	else
+	{
+		FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+		RenderTargetResource->ReadFloat16Pixels(ImageData);
+		Width = TextureTarget->SizeX;
+		Height = TextureTarget->SizeY;
+	}
+}
+
+void UBaseCameraSensor::InitializeAsyncCapture()
+{
+	if (!bUseAsyncCapture || !IsValid(TextureTarget))
+	{
+		return;
+	}
+
+	if (AsyncCapturePool.IsValid())
+	{
+		return;
+	}
+
+	AsyncCapturePool = MakeShared<FAsyncCapturePool>(
+		EPixelFormat::PF_B8G8R8A8,
+		FIntPoint(FilmWidth, FilmHeight)
+	);
+	AsyncCapturePool->Initialize();
+
+	UE_LOG(LogUnrealCV, Log, TEXT("Async capture initialized for %dx%d"), FilmWidth, FilmHeight);
+}
+
+void UBaseCameraSensor::ShutdownAsyncCapture()
+{
+	if (AsyncCapturePool.IsValid())
+	{
+		AsyncCapturePool->Shutdown();
+		AsyncCapturePool.Reset();
+		PendingCaptureRequestID = -1;
+	}
 }
 
 void UBaseCameraSensor::SetPostProcessMaterial(UMaterial* PostProcessMaterial)

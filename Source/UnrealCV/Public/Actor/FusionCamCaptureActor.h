@@ -140,6 +140,12 @@ protected:
 	AActor* TargetToHide;
 	int32 NumFrames;
 
+	FDateTime RealWorldTimeRecordingStart;
+	FDateTime RealWorldTimeRecordingEnd;
+	double RealWorldTimeDurationSeconds;
+	double RealWorldTimeFPS;
+	bool bAsyncCaptureEnabled;
+
 	struct FCameraPose
 	{
 		FVector Location;

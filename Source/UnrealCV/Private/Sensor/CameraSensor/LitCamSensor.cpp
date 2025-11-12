@@ -45,15 +45,22 @@ void ULitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)
 			return;
 		}
 	}
-	this->CaptureScene();
-	FReadSurfaceDataFlags ReadSurfaceDataFlags;
-	ReadSurfaceDataFlags.SetLinearToGamma(false); 
-	// TextureTarget->GetRenderTargetResource()->ReadPixels(Image, ReadSurfaceDataFlags);
-	TextureTarget->GameThread_GetRenderTargetResource()->ReadPixels(Image, ReadSurfaceDataFlags);
-	if (Image.Num() == 0)
+
+	if (bUseAsyncCapture)
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("Captured lit data is empty."));
+		Capture(Image, Width, Height);
 	}
-	Width = GetFilmWidth();
-	Height = GetFilmHeight();
+	else
+	{
+		this->CaptureScene();
+		FReadSurfaceDataFlags ReadSurfaceDataFlags;
+		ReadSurfaceDataFlags.SetLinearToGamma(false);
+		TextureTarget->GameThread_GetRenderTargetResource()->ReadPixels(Image, ReadSurfaceDataFlags);
+		if (Image.Num() == 0)
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("Captured lit data is empty."));
+		}
+		Width = GetFilmWidth();
+		Height = GetFilmHeight();
+	}
 }

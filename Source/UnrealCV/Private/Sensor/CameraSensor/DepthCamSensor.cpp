@@ -31,14 +31,18 @@ void UDepthCamSensor::CaptureDepth(TArray<float>& DepthData, int& Width, int& He
 	}
 
 	if (!CheckTextureTarget()) return;
-	this->CaptureScene();
-	Width = this->TextureTarget->SizeX, Height = TextureTarget->SizeY;
-	DepthData.AddZeroed(Width * Height); // or AddUninitialized(FloatColorDepthData.Num());
-	FTextureRenderTargetResource* RenderTargetResource = this->TextureTarget->GameThread_GetRenderTargetResource();
-	TArray<FFloat16Color> FloatColorDepthData;
-	RenderTargetResource->ReadFloat16Pixels(FloatColorDepthData);
 
-	ParallelFor(FloatColorDepthData.Num(), [&](int32 i)
+	if (bUseAsyncCapture)
+	{
+		TArray<FFloat16Color> FloatColorDepthData;
+		int TempWidth, TempHeight;
+		CaptureFloat16(FloatColorDepthData, TempWidth, TempHeight);
+
+		Width = TempWidth;
+		Height = TempHeight;
+		DepthData.SetNum(Width * Height);
+
+		ParallelFor(FloatColorDepthData.Num(), [&](int32 i)
 		{
 			if (i >= 0 && i < FloatColorDepthData.Num() && i < DepthData.Num())
 			{
@@ -46,4 +50,24 @@ void UDepthCamSensor::CaptureDepth(TArray<float>& DepthData, int& Width, int& He
 				DepthData[i] = FloatColor.R;
 			}
 		});
+	}
+	else
+	{
+		this->CaptureScene();
+		Width = this->TextureTarget->SizeX;
+		Height = TextureTarget->SizeY;
+		DepthData.AddZeroed(Width * Height);
+		FTextureRenderTargetResource* RenderTargetResource = this->TextureTarget->GameThread_GetRenderTargetResource();
+		TArray<FFloat16Color> FloatColorDepthData;
+		RenderTargetResource->ReadFloat16Pixels(FloatColorDepthData);
+
+		ParallelFor(FloatColorDepthData.Num(), [&](int32 i)
+		{
+			if (i >= 0 && i < FloatColorDepthData.Num() && i < DepthData.Num())
+			{
+				FFloat16Color& FloatColor = FloatColorDepthData[i];
+				DepthData[i] = FloatColor.R;
+			}
+		});
+	}
 }

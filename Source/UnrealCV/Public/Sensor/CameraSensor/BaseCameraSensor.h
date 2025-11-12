@@ -30,6 +30,8 @@ public:
 	/** The old version to read TextureBuffer, slow but is sync operation and  correct */
 	void Capture(TArray<FColor>& ImageData, int& Width, int& Height);
 
+	void CaptureFloat16(TArray<FFloat16Color>& ImageData, int& Width, int& Height);
+
 	/** Get/set the sensor location / rotation */
 	FVector GetSensorLocation()
 	{
@@ -73,8 +75,18 @@ public:
 
 	void ReadCaptureResults(TArray<FColor>& Data);
 
+	void InitializeAsyncCapture();
+	void ShutdownAsyncCapture();
+
+	void SetUseAsyncCapture(bool bInUseAsync) { bUseAsyncCapture = bInUseAsync; }
+	bool GetUseAsyncCapture() const { return bUseAsyncCapture; }
+
 protected:
 	int FilmWidth;
 
 	int FilmHeight;
+
+	TSharedPtr<class FAsyncCapturePool> AsyncCapturePool;
+	int32 PendingCaptureRequestID;
+	bool bUseAsyncCapture;
 };

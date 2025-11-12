@@ -136,6 +136,14 @@ void UFusionCamSensor::BeginPlay()
 
 	SetFilmSize(FilmWidth, FilmHeight);
 	SetSensorFOV(FOV);
+
+	for (UBaseCameraSensor* Sensor : FusionSensors)
+	{
+		if (IsValid(Sensor))
+		{
+			Sensor->InitializeAsyncCapture();
+		}
+	}
 }
 
 // void UFusionCamSensor::OnRegister()
@@ -521,4 +529,34 @@ void UFusionCamSensor::SetFocalParams(float FocalDistance, float FocalRegion)
     this->LitCamSensor->PostProcessSettings.DepthOfFieldFocalDistance = FocalDistance;
     this->LitCamSensor->PostProcessSettings.bOverride_DepthOfFieldFocalRegion = true;
     this->LitCamSensor->PostProcessSettings.DepthOfFieldFocalRegion = FocalRegion;
+}
+
+void UFusionCamSensor::SetUseAsyncCapture(bool bInUseAsync)
+{
+	for (UBaseCameraSensor* Sensor : FusionSensors)
+	{
+		if (IsValid(Sensor))
+		{
+			Sensor->SetUseAsyncCapture(bInUseAsync);
+		}
+	}
+	this->LitCamSensor->SetUseAsyncCapture(bInUseAsync);
+	this->DepthCamSensor->SetUseAsyncCapture(bInUseAsync);
+	this->AnnotationCamSensor->SetUseAsyncCapture(bInUseAsync);
+	this->NormalCamSensor->SetUseAsyncCapture(bInUseAsync);
+	this->FlowCamSensor->SetUseAsyncCapture(bInUseAsync);
+}
+
+bool UFusionCamSensor::GetUseAsyncCapture() const
+{
+	bool bLitAsyncCapture = this->LitCamSensor->GetUseAsyncCapture();
+	bool bDepthAsyncCapture = this->DepthCamSensor->GetUseAsyncCapture();
+	bool bAnnotationAsyncCapture = this->AnnotationCamSensor->GetUseAsyncCapture();
+	bool bNormalAsyncCapture = this->NormalCamSensor->GetUseAsyncCapture();
+	bool bFlowAsyncCapture = this->FlowCamSensor->GetUseAsyncCapture();
+	if (!(bLitAsyncCapture == bDepthAsyncCapture && bLitAsyncCapture == bAnnotationAsyncCapture && bLitAsyncCapture == bNormalAsyncCapture && bLitAsyncCapture == bFlowAsyncCapture))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetUseAsyncCapture: Inconsistent async settings detected!"));
+	}
+	return bLitAsyncCapture;
 }

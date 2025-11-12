@@ -1,4 +1,4 @@
-// Weichao Qiu @ 2018
+// shc @ 2025
 // Modified for FusionCamSensor-specific recording
 #include "FusionCamCaptureActor.h"
 #include "Runtime/Core/Public/Misc/Paths.h"
@@ -94,7 +94,8 @@ void AFusionCamCaptureActor::StopRecord()
 {
 	if (bIsRecording)
 	{
-		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded."), ElapsedSteps);
+		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded. Real Duration: %.2fs, Real FPS: %.2f"),
+			ElapsedSteps, RealWorldTimeDurationSeconds, RealWorldTimeFPS);
 
 		if (bRecordAudio)
 		{
@@ -202,30 +203,31 @@ void AFusionCamCaptureActor::RecordFrame()
 	int32 Width, Height;
 
 	// Record RGB and Mask together for efficiency
-	if (bRecordRGB && bRecordMask)
-	{
-		TArray<FColor> DataRGB, DataMask;
-		TargetSensor->GetLitSeg(DataRGB, DataMask, Width, Height);
+	// if (bRecordRGB && bRecordMask)
+	// {
+	// 	TArray<FColor> DataRGB, DataMask;
+	// 	TargetSensor->GetLitSeg(DataRGB, DataMask, Width, Height);
 
-		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
-		FString FileNameMask = MakeFilenameNew("mask", ".png");
-		SerializeData(DataRGB, Width, Height, FileNameRGB);
-		SerializeData(DataMask, Width, Height, FileNameMask);
+	// 	FString FileNameRGB = MakeFilenameNew("rgb", ".png");
+	// 	FString FileNameMask = MakeFilenameNew("mask", ".png");
+	// 	SerializeData(DataRGB, Width, Height, FileNameRGB);
+	// 	SerializeData(DataMask, Width, Height, FileNameMask);
 
-		// Record version without target if requested
-		if (bRecordWithoutTarget && IsValid(TargetToHide))
-		{
-			TArray<FColor> DataRGBNoTarget;
-			FActorController TargetController(TargetToHide);
-			TargetController.Hide();
-			TargetSensor->GetLit(DataRGBNoTarget, Width, Height);
-			TargetController.Show();
+	// 	// Record version without target if requested
+	// 	if (bRecordWithoutTarget && IsValid(TargetToHide))
+	// 	{
+	// 		TArray<FColor> DataRGBNoTarget;
+	// 		FActorController TargetController(TargetToHide);
+	// 		TargetController.Hide();
+	// 		TargetSensor->GetLit(DataRGBNoTarget, Width, Height);
+	// 		TargetController.Show();
 
-			FString FileNameNoTarget = MakeFilenameNew("rgb_no_target", ".png");
-			SerializeData(DataRGBNoTarget, Width, Height, FileNameNoTarget);
-		}
-	}
-	else if (bRecordRGB)
+	// 		FString FileNameNoTarget = MakeFilenameNew("rgb_no_target", ".png");
+	// 		SerializeData(DataRGBNoTarget, Width, Height, FileNameNoTarget);
+	// 	}
+	// }
+	// else
+	if (bRecordRGB)
 	{
 		TArray<FColor> DataRGB;
 		TargetSensor->GetLit(DataRGB, Width, Height);
@@ -523,9 +525,26 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		"Extrinsics",
 		"ForegroundColor",
 		"AnnotationColors",
+		"RealWorldTimeRecordingStart",
+		"RealWorldTimeRecordingEnd",
+		"RealWorldTimeDurationSeconds",
+		"RealWorldTimeFPS",
+		"AsyncCaptureEnabled",
 	};
 
+	RealWorldTimeRecordingEnd = FDateTime::Now();
+	RealWorldTimeDurationSeconds = (RealWorldTimeRecordingEnd - RealWorldTimeRecordingStart).GetTotalSeconds();
+	if (RealWorldTimeDurationSeconds > 0.0)
+	{
+		RealWorldTimeFPS = ElapsedSteps / RealWorldTimeDurationSeconds;
+	}
+	else
+	{
+		RealWorldTimeFPS = 0.0;
+	}
 	FString ResolutionStr = FString::Printf(TEXT("%dx%d"), Width, Height);
+	FString RealWorldTimeStartStr = RealWorldTimeRecordingStart.ToString(TEXT("%Y-%m-%d %H:%M:%S"));
+	FString RealWorldTimeEndStr = RealWorldTimeRecordingEnd.ToString(TEXT("%Y-%m-%d %H:%M:%S"));
 
 	TArray<FJsonObjectBP> Values = {
 		FJsonObjectBP(NumFrames),
@@ -547,6 +566,11 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		FJsonObjectBP(ExtrinsicsKeys, ExtrinsicsValues),
 		FJsonObjectBP(ForegroundColor),
 		FJsonObjectBP(ColorMap),
+		FJsonObjectBP(RealWorldTimeStartStr),
+		FJsonObjectBP(RealWorldTimeEndStr),
+		FJsonObjectBP(static_cast<float>(RealWorldTimeDurationSeconds)),
+		FJsonObjectBP(static_cast<float>(RealWorldTimeFPS)),
+		FJsonObjectBP(bAsyncCaptureEnabled),
 	};
 
 	FJsonObjectBP JsonObject = USerializeBPLib::TMapToJson(Keys, Values);
@@ -593,6 +617,14 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	bIsRecording = true;
 	TargetToHide = Target;
 	bPauseWorldDuringRecord = bPauseWorldTime;
+
+	bAsyncCaptureEnabled = FMath::RandBool();
+	UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bAsyncCaptureEnabled);
+	TargetSensor->SetUseAsyncCapture(bAsyncCaptureEnabled);
+
+	RealWorldTimeRecordingStart = FDateTime::Now();
+	bAsyncCaptureEnabled = TargetSensor->GetUseAsyncCapture();
+	UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bAsyncCaptureEnabled);
 
 	static const TArray<FIntPoint> Resolutions = {
 		// FIntPoint(1920, 1080),

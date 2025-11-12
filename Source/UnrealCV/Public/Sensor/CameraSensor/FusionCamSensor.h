@@ -221,4 +221,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	ULitCamSensor* GetLitCamSensor() const { return LitCamSensor; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void SetUseAsyncCapture(bool bInUseAsync);
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	bool GetUseAsyncCapture() const;
 };
