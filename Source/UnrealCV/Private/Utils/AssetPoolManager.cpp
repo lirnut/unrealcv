@@ -1,6 +1,7 @@
 // Copyright 2025 UnrealCV Team. All Rights Reserved.
 #include "AssetPoolManager.h"
 #include "UnrealcvLog.h"
+#include "BPFunctionLib/MetaHumanBPLib.h"
 
 FAssetPoolManager& FAssetPoolManager::Get()
 {
@@ -17,6 +18,16 @@ FAssetPoolManager::FAssetPoolManager()
 void FAssetPoolManager::LoadStableAssetsPack()
 {
     // ========== Foreground Assets ==========
+
+	AssetPools.Add(TEXT("Foreground_Human"), {});
+	TArray<FString> MetaHumanPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
+	for (const FString& MetaHumanPath : MetaHumanPaths)
+	{
+		AssetPools[TEXT("Foreground_Human")].Add({
+			{"Path", MetaHumanPath},
+			{"Type", TEXT("Blueprint")}
+		});
+	}
 
 	// Human - Different ages, skin colors, genders (SOW requirement)
 	AssetPools.Add(TEXT("Foreground_Human"), {
@@ -70,7 +81,7 @@ void FAssetPoolManager::LoadStableAssetsPack()
 	{
 		for (FString& SKM : SKMs)
 		{
-			AssetPools["Foreground_Human"].Add({
+			AssetPools["Foreground_Human_SKM"].Add({
 				{"Path", SKM},
 				{"Type", TEXT("SM+AnimSeq")},
 				{"AnimSequence", Anim}
