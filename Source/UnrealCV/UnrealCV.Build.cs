@@ -55,7 +55,8 @@ public class UnrealcvBuildConfig
             "AudioCaptureCore",
             "AudioMixer",
 			"NavigationSystem", // For NavAgentController
-			"AIModule" // For AI navigation
+			"AIModule", // For AI navigation
+			"AssetRegistry" // For MetaHuman asset discovery
 		});
 
 		EditorPrivateDependencyModuleNames.AddRange(

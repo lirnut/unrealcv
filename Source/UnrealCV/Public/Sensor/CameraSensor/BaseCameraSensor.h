@@ -7,6 +7,7 @@
 #include "Runtime/Engine/Classes/Engine/TextureRenderTarget2D.h"
 #include "Materials/Material.h"
 #include "Runtime/CoreUObject/Public/UObject/ConstructorHelpers.h"
+#include "RHIGPUReadback.h"
 
 #include "BaseCameraSensor.generated.h"
 
@@ -21,8 +22,8 @@ class UNREALCV_API UBaseCameraSensor : public USceneCaptureComponent2D
 public:
 	UBaseCameraSensor(const FObjectInitializer& ObjectInitializer);
 
-	// 	FlushRenderingCommands() can make sure the rendering command is finished, but will slow down the game thread
-	void CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height);
+	// // 	FlushRenderingCommands() can make sure the rendering command is finished, but will slow down the game thread
+	// void CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height);
 
 	/** Save lit to an image file, send the capture command to rendering thread */
 	void CaptureToFile(const FString& Filename);
@@ -30,7 +31,7 @@ public:
 	/** The old version to read TextureBuffer, slow but is sync operation and  correct */
 	void Capture(TArray<FColor>& ImageData, int& Width, int& Height);
 
-	void CaptureFloat16(TArray<FFloat16Color>& ImageData, int& Width, int& Height);
+	// void CaptureFloat16(TArray<FFloat16Color>& ImageData, int& Width, int& Height);
 
 	/** Get/set the sensor location / rotation */
 	FVector GetSensorLocation()
@@ -60,8 +61,8 @@ public:
 	int GetFilmWidth();
 	int GetFilmHeight();
 
-	/** Get the projection matrix of this camera */
-	FString GetProjectionMatrix();
+	// /** Get the projection matrix of this camera */
+	// FString GetProjectionMatrix();
 
 	virtual void InitTextureTarget(int FilmWidth, int FilmHeight);
 
@@ -75,18 +76,33 @@ public:
 
 	void ReadCaptureResults(TArray<FColor>& Data);
 
-	void InitializeAsyncCapture();
-	void ShutdownAsyncCapture();
+	// void InitializeAsyncCapture();
+	// void ShutdownAsyncCapture();
 
 	void SetUseAsyncCapture(bool bInUseAsync) { bUseAsyncCapture = bInUseAsync; }
 	bool GetUseAsyncCapture() const { return bUseAsyncCapture; }
+
+	virtual void CaptureToGPUQueue(const FString& Filename);
+	void FlushCapturesToDisk();
 
 protected:
 	int FilmWidth;
 
 	int FilmHeight;
 
-	TSharedPtr<class FAsyncCapturePool> AsyncCapturePool;
-	int32 PendingCaptureRequestID;
+	// TSharedPtr<class FAsyncCapturePool> AsyncCapturePool;
+	// int32 PendingCaptureRequestID;
 	bool bUseAsyncCapture;
+
+private:
+	struct FQueuedCapture
+	{
+		TUniquePtr<FRHIGPUTextureReadback> Readback;
+		FString OutputPath;
+		int32 Width;
+		int32 Height;
+		EPixelFormat PixelFormat;
+	};
+
+	TArray<FQueuedCapture> QueuedCaptures;
 };

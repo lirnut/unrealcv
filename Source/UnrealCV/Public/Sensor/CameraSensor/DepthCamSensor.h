@@ -15,6 +15,8 @@ public:
 
 	void CaptureDepth(TArray<float>& DepthData, int& Width, int& Height);
 
+	void CaptureDepthToFile(const FString& Filename);
+
 	virtual void InitTextureTarget(int FilmWidth, int FilmHeight) override;
 
 	UPROPERTY(EditInstanceOnly, Category = "unrealcv")

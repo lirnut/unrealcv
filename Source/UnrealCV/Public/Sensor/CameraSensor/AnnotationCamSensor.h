@@ -19,5 +19,7 @@ public:
 
 	void CaptureSeg(TArray<FColor>& ImageData, int& Width, int& Height);
 
+	void CaptureSegToFile(const FString& Filename);
+
 	void InitTextureTarget(int FilmWidth, int FilmHeight);
 };

@@ -64,3 +64,18 @@ void ULitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)
 		Height = GetFilmHeight();
 	}
 }
+
+void ULitCamSensor::CaptureToGPUQueue(const FString& Filename)
+{
+	if (!CheckTextureTarget())
+	{
+		InitTextureTarget(this->FilmWidth, this->FilmHeight);
+		if (!CheckTextureTarget())
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Failed to initialize TextureTarget for CaptureToGPUQueue."));
+			return;
+		}
+	}
+
+	Super::CaptureToGPUQueue(Filename);
+}

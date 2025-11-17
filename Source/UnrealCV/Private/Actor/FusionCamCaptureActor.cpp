@@ -11,6 +11,11 @@
 #include "Materials/Material.h"
 
 #include "FusionCamSensor.h"
+#include "LitCamSensor.h"
+#include "DepthCamSensor.h"
+#include "AnnotationCamSensor.h"
+#include "NormalCamSensor.h"
+#include "FlowCamSensor.h"
 #include "BPFunctionLib/VisionBPLib.h"
 #include "BPFunctionLib/SerializeBPLib.h"
 #include "Controller/ActorController.h"
@@ -33,8 +38,8 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	bIsRecording = false;
 	bAddTimestamp = true;
 	bRecordRGB = true;
-	bRecordMask = true;
-	bRecordDepth = true;
+	bRecordMask = false;
+	bRecordDepth = false;
 	bRecordNormal = false;
 	bRecordFlow = false;
 	bRecordMetadata = true;
@@ -44,7 +49,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	TargetToHide = nullptr;
 	NumFrames = 0;
 
-	TimeDilation = 0.2f;
+	TimeDilation = 1.0f;
 	TimeDilationBackUp = 1.0f;
 
 	bAutoGenerateVideo = true;
@@ -94,6 +99,12 @@ void AFusionCamCaptureActor::StopRecord()
 {
 	if (bIsRecording)
 	{
+     	TargetSensor->GetLitCamSensor()->FlushCapturesToDisk();
+      	TargetSensor->GetDepthCamSensor()->FlushCapturesToDisk();
+      	TargetSensor->GetAnnotationCamSensor()->FlushCapturesToDisk();
+      	TargetSensor->GetNormalCamSensor()->FlushCapturesToDisk();
+      	TargetSensor->GetFlowCamSensor()->FlushCapturesToDisk();
+
 		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded. Real Duration: %.2fs, Real FPS: %.2f"),
 			ElapsedSteps, RealWorldTimeDurationSeconds, RealWorldTimeFPS);
 
@@ -202,79 +213,87 @@ void AFusionCamCaptureActor::RecordFrame()
 
 	int32 Width, Height;
 
-	// Record RGB and Mask together for efficiency
-	// if (bRecordRGB && bRecordMask)
-	// {
-	// 	TArray<FColor> DataRGB, DataMask;
-	// 	TargetSensor->GetLitSeg(DataRGB, DataMask, Width, Height);
-
-	// 	FString FileNameRGB = MakeFilenameNew("rgb", ".png");
-	// 	FString FileNameMask = MakeFilenameNew("mask", ".png");
-	// 	SerializeData(DataRGB, Width, Height, FileNameRGB);
-	// 	SerializeData(DataMask, Width, Height, FileNameMask);
-
-	// 	// Record version without target if requested
-	// 	if (bRecordWithoutTarget && IsValid(TargetToHide))
-	// 	{
-	// 		TArray<FColor> DataRGBNoTarget;
-	// 		FActorController TargetController(TargetToHide);
-	// 		TargetController.Hide();
-	// 		TargetSensor->GetLit(DataRGBNoTarget, Width, Height);
-	// 		TargetController.Show();
-
-	// 		FString FileNameNoTarget = MakeFilenameNew("rgb_no_target", ".png");
-	// 		SerializeData(DataRGBNoTarget, Width, Height, FileNameNoTarget);
-	// 	}
-	// }
-	// else
 	if (bRecordRGB)
 	{
-		TArray<FColor> DataRGB;
-		TargetSensor->GetLit(DataRGB, Width, Height);
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
-		SerializeData(DataRGB, Width, Height, FileNameRGB);
-	}
-	else if (bRecordMask)
-	{
-		TArray<FColor> DataMask;
-		TargetSensor->GetSeg(DataMask, Width, Height);
-		FString FileNameMask = MakeFilenameNew("mask", ".png");
-		SerializeData(DataMask, Width, Height, FileNameMask);
+		if (bAsyncCaptureEnabled)
+		{
+			// TargetSensor->CaptureLitToFile(FileNameRGB);
+			TargetSensor->GetLitCamSensor()->CaptureToGPUQueue(FileNameRGB);
+		}
+		else
+		{
+			TArray<FColor> DataRGB;
+			TargetSensor->GetLit(DataRGB, Width, Height);
+			SerializeData(DataRGB, Width, Height, FileNameRGB);
+		}
 	}
 
-	// Record depth
+	if (bRecordMask)
+	{
+		FString FileNameMask = MakeFilenameNew("mask", ".png");
+		if (bAsyncCaptureEnabled)
+		{
+			TargetSensor->CaptureSegToFile(FileNameMask);
+		}
+		else
+		{
+			TArray<FColor> DataMask;
+			TargetSensor->GetSeg(DataMask, Width, Height);
+			SerializeData(DataMask, Width, Height, FileNameMask);
+		}
+	}
+
 	if (bRecordDepth)
 	{
-		TArray<float> DepthData;
-		TargetSensor->GetDepth(DepthData, Width, Height);
 		FString DepthFilename = MakeFilenameNew("depth", ".npy");
-		SerializeData(DepthData, Width, Height, DepthFilename);
+		if (bAsyncCaptureEnabled)
+		{
+			TargetSensor->CaptureDepthToFile(DepthFilename);
+		}
+		else
+		{
+			TArray<float> DepthData;
+			TargetSensor->GetDepth(DepthData, Width, Height);
+			SerializeData(DepthData, Width, Height, DepthFilename);
 
-		TArray<FColor> DepthPreview;
-		ConvertDepthToPreview(DepthData, DepthPreview);
-		FString DepthPreviewFilename = MakeFilenameNew("depth_preview", ".png");
-		SerializeData(DepthPreview, Width, Height, DepthPreviewFilename);
+			TArray<FColor> DepthPreview;
+			ConvertDepthToPreview(DepthData, DepthPreview);
+			FString DepthPreviewFilename = MakeFilenameNew("depth_preview", ".png");
+			SerializeData(DepthPreview, Width, Height, DepthPreviewFilename);
+		}
 	}
 
-	// Record normal
 	if (bRecordNormal)
 	{
-		TArray<FColor> NormalData;
-		TargetSensor->GetNormal(NormalData, Width, Height);
 		FString NormalFilename = MakeFilenameNew("normal", ".png");
-		SerializeData(NormalData, Width, Height, NormalFilename);
+		if (bAsyncCaptureEnabled)
+		{
+			TargetSensor->CaptureNormalToFile(NormalFilename);
+		}
+		else
+		{
+			TArray<FColor> NormalData;
+			TargetSensor->GetNormal(NormalData, Width, Height);
+			SerializeData(NormalData, Width, Height, NormalFilename);
+		}
 	}
 
-	// Record optical flow
 	if (bRecordFlow)
 	{
-		TArray<FColor> FlowData;
-		TargetSensor->GetFlow(FlowData, Width, Height);
 		FString FlowFilename = MakeFilenameNew("flow", ".png");
-		SerializeData(FlowData, Width, Height, FlowFilename);
+		if (bAsyncCaptureEnabled)
+		{
+			TargetSensor->CaptureFlowToFile(FlowFilename);
+		}
+		else
+		{
+			TArray<FColor> FlowData;
+			TargetSensor->GetFlow(FlowData, Width, Height);
+			SerializeData(FlowData, Width, Height, FlowFilename);
+		}
 	}
 
-	// Record camera metadata
 	if (bRecordMetadata)
 	{
 		SaveCameraMetadata();
@@ -618,17 +637,18 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	TargetToHide = Target;
 	bPauseWorldDuringRecord = bPauseWorldTime;
 
-	bAsyncCaptureEnabled = FMath::RandBool();
+	// bAsyncCaptureEnabled = FMath::RandBool();
+	bAsyncCaptureEnabled = true;
 	UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bAsyncCaptureEnabled);
-	TargetSensor->SetUseAsyncCapture(bAsyncCaptureEnabled);
+	// TargetSensor->SetUseAsyncCapture(bAsyncCaptureEnabled);
 
-	RealWorldTimeRecordingStart = FDateTime::Now();
-	bAsyncCaptureEnabled = TargetSensor->GetUseAsyncCapture();
-	UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bAsyncCaptureEnabled);
+	// RealWorldTimeRecordingStart = FDateTime::Now();
+	// bAsyncCaptureEnabled = TargetSensor->GetUseAsyncCapture();
+	// UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bAsyncCaptureEnabled);
 
 	static const TArray<FIntPoint> Resolutions = {
-		// FIntPoint(1920, 1080),
-		FIntPoint(640, 480),
+		FIntPoint(1920, 1080),
+		// FIntPoint(640, 480),
 		// FIntPoint(480, 640),
 	};
 	const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];

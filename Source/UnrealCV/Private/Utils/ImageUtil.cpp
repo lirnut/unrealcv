@@ -149,6 +149,11 @@ EFilenameType ParseFilenameType(const FString& Filename)
 /** Serialize data according to filename format */
 FExecStatus SerializeData(const TArray<FColor>& Data, int Width, int Height, const FString& Filename)
 {
+	if (Width <= 0 || Height <= 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SerializeData: Invalid dimensions %dx%d, using default 640x480 with black data"), Width, Height);
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid dimensions %dx%d"), Width, Height));
+	}
 	static FImageUtil ImageUtil;
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
@@ -174,6 +179,11 @@ FExecStatus SerializeData(const TArray<FColor>& Data, int Width, int Height, con
 
 FExecStatus SerializeData(const TArray<FFloat16Color>& Data, int Width, int Height, const FString& Filename)
 {
+	if (Width <= 0 || Height <= 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SerializeData: Invalid dimensions %dx%d, using default 640x480 with black data"), Width, Height);
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid dimensions %dx%d"), Width, Height));
+	}
 	static FImageUtil ImageUtil;
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
@@ -194,6 +204,11 @@ FExecStatus SerializeData(const TArray<FFloat16Color>& Data, int Width, int Heig
 
 FExecStatus SerializeData(const TArray<float>& Data, int Width, int Height, const FString& Filename)
 {
+	if (Width <= 0 || Height <= 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SerializeData: Invalid dimensions %dx%d, using default 640x480 with black data"), Width, Height);
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid dimensions %dx%d"), Width, Height));
+	}
 	static FImageUtil ImageUtil;
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 

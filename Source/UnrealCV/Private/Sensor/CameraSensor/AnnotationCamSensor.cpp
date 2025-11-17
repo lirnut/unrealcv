@@ -7,6 +7,8 @@
 #include "Component/AnnotationComponent.h"
 #include "UnrealcvLog.h"
 #include "Runtime/Core/Public/Async/ParallelFor.h"
+#include "Serialization.h"
+#include "ImageUtil.h"
 
 UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
@@ -139,4 +141,61 @@ void UAnnotationCamSensor::CaptureSeg(TArray<FColor>& ImageData, int& Width, int
             UE_LOG(LogUnrealCV, Warning, TEXT("Invalid Width or Height for ImageData in CaptureSeg"));
         }
     }
+}
+
+void UAnnotationCamSensor::CaptureSegToFile(const FString& Filename)
+{
+	if (!CheckTextureTarget())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("TextureTarget not initialized, CaptureSegToFile failed."));
+		return;
+	}
+
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+	GetAnnotationComponents(this->GetWorld(), ComponentList);
+	this->ShowOnlyComponents = ComponentList;
+
+	this->CaptureScene();
+
+	FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+	int32 Width = TextureTarget->SizeX;
+	int32 Height = TextureTarget->SizeY;
+
+	FString OutputPath = Filename;
+
+	ENQUEUE_RENDER_COMMAND(CaptureSegToFileCommand)(
+		[RenderTargetResource, Width, Height, OutputPath](FRHICommandListImmediate& RHICmdList)
+		{
+			TArray<FColor> PixelData;
+			PixelData.AddUninitialized(Width * Height);
+
+			FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
+			RHICmdList.ReadSurfaceData(
+				RenderTargetResource->GetRenderTargetTexture(),
+				FIntRect(0, 0, Width, Height),
+				PixelData,
+				ReadFlags
+			);
+
+			ParallelFor(PixelData.Num(), [&](int32 i)
+			{
+				if (i >= 0 && i < PixelData.Num())
+				{
+					PixelData[i].A = 255;
+				}
+			});
+
+			AsyncTask(ENamedThreads::GameThread, [PixelData = MoveTemp(PixelData), Width, Height, OutputPath]()
+			{
+				if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
+				{
+					UE_LOG(LogUnrealCV, Log, TEXT("[CaptureSegToFile] Saved segmentation to %s"), *OutputPath);
+				}
+				else
+				{
+					UE_LOG(LogUnrealCV, Error, TEXT("[CaptureSegToFile] Failed to save segmentation %s"), *OutputPath);
+				}
+			});
+		}
+	);
 }

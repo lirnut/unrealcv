@@ -137,13 +137,13 @@ void UFusionCamSensor::BeginPlay()
 	SetFilmSize(FilmWidth, FilmHeight);
 	SetSensorFOV(FOV);
 
-	for (UBaseCameraSensor* Sensor : FusionSensors)
-	{
-		if (IsValid(Sensor))
-		{
-			Sensor->InitializeAsyncCapture();
-		}
-	}
+	// for (UBaseCameraSensor* Sensor : FusionSensors)
+	// {
+	// 	if (IsValid(Sensor))
+	// 	{
+	// 		Sensor->InitializeAsyncCapture();
+	// 	}
+	// }
 }
 
 // void UFusionCamSensor::OnRegister()
@@ -259,20 +259,29 @@ void UFusionCamSensor::GetLit(TArray<FColor>& LitData, int& Width, int& Height, 
 {
 	this->LitCamSensor->CaptureLit(LitData, Width, Height);
 }
+void UFusionCamSensor::CaptureLitToFile(const FString& Filename)
+{
+	this->LitCamSensor->CaptureToFile(Filename);
+}
 
-// depth
 void UFusionCamSensor::GetDepth(TArray<float>& DepthData, int& Width, int& Height, EDepthMode DepthMode)
 {
 	this->DepthCamSensor->CaptureDepth(DepthData, Width, Height);
 }
+void UFusionCamSensor::CaptureDepthToFile(const FString& Filename)
+{
+	this->DepthCamSensor->CaptureDepthToFile(Filename);
+}
 
-// normal
 void UFusionCamSensor::GetNormal(TArray<FColor>& NormalData, int& Width, int& Height)
 {
 	this->NormalCamSensor->Capture(NormalData, Width, Height);
 }
+void UFusionCamSensor::CaptureNormalToFile(const FString& Filename)
+{
+	this->NormalCamSensor->CaptureToFile(Filename);
+}
 
-// optical flow
 void UFusionCamSensor::GetFlow(TArray<FColor>& FlowData, int& Width, int& Height)
 {
 	if (!FlowCamSensor)
@@ -283,14 +292,25 @@ void UFusionCamSensor::GetFlow(TArray<FColor>& FlowData, int& Width, int& Height
 		Height = 0;
 		return;
 	}
-	// this->FlowCamSensor->CaptureFlow(FlowData, Width, Height);
 	this->FlowCamSensor->Capture(FlowData, Width, Height);
 }
+void UFusionCamSensor::CaptureFlowToFile(const FString& Filename)
+{
+	if (!FlowCamSensor)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("FlowCamSensor is not initialized. CaptureFlowToFile failed."));
+		return;
+	}
+	this->FlowCamSensor->CaptureToFile(Filename);
+}
 
-// Semantic
 void UFusionCamSensor::GetSeg(TArray<FColor>& ObjMaskData, int& Width, int& Height, ESegMode SegMode)
 {
 	this->AnnotationCamSensor->CaptureSeg(ObjMaskData, Width, Height);
+}
+void UFusionCamSensor::CaptureSegToFile(const FString& Filename)
+{
+	this->AnnotationCamSensor->CaptureSegToFile(Filename);
 }
 
 FVector UFusionCamSensor::GetSensorLocation()

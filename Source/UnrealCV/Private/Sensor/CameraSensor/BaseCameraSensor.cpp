@@ -8,7 +8,9 @@
 #include "UnrealcvStats.h"
 #include "UnrealcvLog.h"
 #include "ImageUtil.h"
-#include "Sensor/AsyncCaptureHelper.h"
+#include "RHIGPUReadback.h"
+#include "RenderingThread.h"
+#include "RHISurfaceDataConversion.h"
 
 DECLARE_CYCLE_STAT(TEXT("ReadBuffer"), STAT_ReadBuffer, STATGROUP_UnrealCV);
 DECLARE_CYCLE_STAT(TEXT("ReadBufferFast"), STAT_ReadBufferFast, STATGROUP_UnrealCV);
@@ -26,16 +28,14 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
 	CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 	bUseRayTracingIfEnabled = true;
-	bAlwaysPersistRenderingState = true; 
+	bAlwaysPersistRenderingState = true;
 
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	FilmWidth = Config.Width == 0 ? 640 : Config.Width;
 	FilmHeight = Config.Height == 0 ? 480 : Config.Height;
 	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
 
-	PendingCaptureRequestID = -1;
-	bUseAsyncCapture = true;
-	// Avoid calling virtual function in a constructor
+	QueuedCaptures.Empty();
 }
 
 // Explicitly make a request to render frames
@@ -63,14 +63,13 @@ void UBaseCameraSensor::SetFilmSize(int Width, int Height)
 	this->FilmHeight = Height;
 	if (!IsValid(TextureTarget))
 	{
-		TextureTarget = NewObject<UTextureRenderTarget2D>(this);
+		TextureTarget = NewObject<UTextureRenderTarget2D>(this); 
+		// TextureTarget = CreateDefaultSubobject<UTextureRenderTarget2D>(TEXT("CamSensorRenderTarget"));
 	}
 
-	if (TextureTarget->SizeX != Width || TextureTarget->SizeY != Height)
+	if (TextureTarget->SizeX != Width || TextureTarget->SizeY != Height) 
 	{
 		InitTextureTarget(Width, Height);
-		ShutdownAsyncCapture();
-		InitializeAsyncCapture();
 	}
 }
 
@@ -125,143 +124,56 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 		UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
 		return;
 	}
-
 	this->CaptureScene();
 
-	if (bUseAsyncCapture && AsyncCapturePool.IsValid())
-	{
-		if (PendingCaptureRequestID != -1)
-		{
-			FAsyncCaptureFrame Frame;
-			if (AsyncCapturePool->GetCapturedFrame(PendingCaptureRequestID, Frame))
-			{
-				ImageData = MoveTemp(Frame.Data);
-				Width = Frame.Width;
-				Height = Frame.Height;
-			}
-			else
-			{
-				UE_LOG(LogUnrealCV, Warning, TEXT("Previous frame not ready yet, using sync readback"));
-				ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
-			}
-			PendingCaptureRequestID = -1;
-		}
-		else
-		{
-			ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
-		}
-
-		auto RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
-		if (RenderTargetResource)
-		{
-			PendingCaptureRequestID = AsyncCapturePool->RequestCapture(
-				RenderTargetResource->GetRenderTargetTexture()
-			);
-		}
-	}
-	else
-	{
-		ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
-	}
+	ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
 }
 
-void UBaseCameraSensor::CaptureFloat16(TArray<FFloat16Color>& ImageData, int& Width, int& Height)
+void UBaseCameraSensor::CaptureToFile(const FString& Filename)
 {
-	if (!CheckTextureTarget())
-	{
-		UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. CaptureFloat16 failed."));
-		return;
-	}
+    if (!CheckTextureTarget())
+    {
+        UE_LOG(LogTemp, Error, TEXT("TextureTarget not initialized, CaptureToFile failed."));
+        return;
+    }
 
-	this->CaptureScene();
+    this->CaptureScene();
 
-	if (bUseAsyncCapture && AsyncCapturePool.IsValid())
-	{
-		if (PendingCaptureRequestID != -1)
-		{
-			FAsyncCaptureFrame Frame;
-			if (AsyncCapturePool->GetCapturedFrame(PendingCaptureRequestID, Frame))
-			{
-				if (Frame.bIsFloat16)
-				{
-					ImageData = MoveTemp(Frame.Float16Data);
-					Width = Frame.Width;
-					Height = Frame.Height;
-				}
-				else
-				{
-					UE_LOG(LogUnrealCV, Warning, TEXT("Previous frame was not Float16, using sync readback"));
-					FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
-					RenderTargetResource->ReadFloat16Pixels(ImageData);
-					Width = TextureTarget->SizeX;
-					Height = TextureTarget->SizeY;
-				}
-			}
-			else
-			{
-				UE_LOG(LogUnrealCV, Warning, TEXT("Previous Float16 frame not ready yet, using sync readback"));
-				FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
-				RenderTargetResource->ReadFloat16Pixels(ImageData);
-				Width = TextureTarget->SizeX;
-				Height = TextureTarget->SizeY;
-			}
-			PendingCaptureRequestID = -1;
-		}
-		else
-		{
-			FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
-			RenderTargetResource->ReadFloat16Pixels(ImageData);
-			Width = TextureTarget->SizeX;
-			Height = TextureTarget->SizeY;
-		}
+    FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+    int32 Width = TextureTarget->SizeX;
+    int32 Height = TextureTarget->SizeY;
 
-		auto RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
-		if (RenderTargetResource)
-		{
-			PendingCaptureRequestID = AsyncCapturePool->RequestCaptureFloat16(
-				RenderTargetResource->GetRenderTargetTexture()
-			);
-		}
-	}
-	else
-	{
-		FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
-		RenderTargetResource->ReadFloat16Pixels(ImageData);
-		Width = TextureTarget->SizeX;
-		Height = TextureTarget->SizeY;
-	}
+    FString OutputPath = Filename;
+
+    ENQUEUE_RENDER_COMMAND(CaptureToFileCommand)(
+        [RenderTargetResource, Width, Height, OutputPath](FRHICommandListImmediate& RHICmdList)
+        {
+            TArray<FColor> PixelData;
+            PixelData.AddUninitialized(Width * Height);
+
+            FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
+            RHICmdList.ReadSurfaceData(
+                RenderTargetResource->GetRenderTargetTexture(),
+                FIntRect(0, 0, Width, Height),
+                PixelData,
+                ReadFlags
+            );
+
+            AsyncTask(ENamedThreads::GameThread, [PixelData = MoveTemp(PixelData), Width, Height, OutputPath]()
+            {
+                if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s"), *OutputPath);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Error, TEXT("[CaptureToFile] Failed to save %s"), *OutputPath);
+                }
+            });
+        }
+    );
 }
 
-void UBaseCameraSensor::InitializeAsyncCapture()
-{
-	if (!bUseAsyncCapture || !IsValid(TextureTarget))
-	{
-		return;
-	}
-
-	if (AsyncCapturePool.IsValid())
-	{
-		return;
-	}
-
-	AsyncCapturePool = MakeShared<FAsyncCapturePool>(
-		EPixelFormat::PF_B8G8R8A8,
-		FIntPoint(FilmWidth, FilmHeight)
-	);
-	AsyncCapturePool->Initialize();
-
-	UE_LOG(LogUnrealCV, Log, TEXT("Async capture initialized for %dx%d"), FilmWidth, FilmHeight);
-}
-
-void UBaseCameraSensor::ShutdownAsyncCapture()
-{
-	if (AsyncCapturePool.IsValid())
-	{
-		AsyncCapturePool->Shutdown();
-		AsyncCapturePool.Reset();
-		PendingCaptureRequestID = -1;
-	}
-}
 
 void UBaseCameraSensor::SetPostProcessMaterial(UMaterial* PostProcessMaterial)
 {
@@ -290,14 +202,137 @@ void UBaseCameraSensor::GetCameraView(float DeltaTime, FMinimalViewInfo& Desired
 	}
 
 }
-
 void UBaseCameraSensor::ReadCaptureResults(TArray<FColor>& Data)
 {
 	FReadSurfaceDataFlags ReadSurfaceDataFlags;
-	ReadSurfaceDataFlags.SetLinearToGamma(false); 
+	ReadSurfaceDataFlags.SetLinearToGamma(false);
 	TextureTarget->GameThread_GetRenderTargetResource()->ReadPixels(Data, ReadSurfaceDataFlags);
 	if (Data.Num() == 0)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("Captured lit data is empty."));
 	}
+}
+
+void UBaseCameraSensor::CaptureToGPUQueue(const FString& Filename)
+{
+	if (!CheckTextureTarget())
+	{
+		UE_LOG(LogTemp, Error, TEXT("TextureTarget not initialized, CaptureToGPUQueue failed."));
+		return;
+	}
+
+	EPixelFormat PixelFormat = TextureTarget->GetFormat();
+	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] TextureTarget Format: %d, SRGB: %d, Gamma: %f"),
+		(int32)PixelFormat,
+		TextureTarget->SRGB,
+		TextureTarget->TargetGamma);
+
+	this->CaptureScene();
+
+	FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+	int32 Width = TextureTarget->SizeX;
+	int32 Height = TextureTarget->SizeY;
+
+	FQueuedCapture NewCapture;
+	NewCapture.Readback = MakeUnique<FRHIGPUTextureReadback>(
+		*FString::Printf(TEXT("QueuedCapture_%d"), QueuedCaptures.Num())
+	);
+	NewCapture.OutputPath = Filename;
+	NewCapture.Width = Width;
+	NewCapture.Height = Height;
+	NewCapture.PixelFormat = PixelFormat;
+
+	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
+		[RenderTargetResource, ReadbackPtr = NewCapture.Readback.Get()](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			ReadbackPtr->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
+		}
+	);
+
+	QueuedCaptures.Add(MoveTemp(NewCapture));
+
+	UE_LOG(LogUnrealCV, Verbose, TEXT("CaptureToGPUQueue: Enqueued %s, total=%d"),
+		*Filename, QueuedCaptures.Num());
+}
+
+void UBaseCameraSensor::FlushCapturesToDisk()
+{
+	if (QueuedCaptures.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("FlushCapturesToDisk: No captures queued"));
+		return;
+	}
+
+	int32 NumCaptures = QueuedCaptures.Num();
+	UE_LOG(LogUnrealCV, Log, TEXT("FlushCapturesToDisk: Processing %d captures"), NumCaptures);
+
+	TArray<FQueuedCapture> CapturesToFlush = MoveTemp(QueuedCaptures);
+	QueuedCaptures.Empty();
+
+	ENQUEUE_RENDER_COMMAND(FlushQueuedCaptures)(
+		[CapturesToFlush = MoveTemp(CapturesToFlush)](FRHICommandListImmediate& RHICmdList) mutable
+		{
+
+			for (auto& Capture : CapturesToFlush)
+			{
+				if (!Capture.Readback->IsReady())
+				{
+					RHICmdList.BlockUntilGPUIdle();
+				}
+				TArray<FColor> PixelData;
+				PixelData.SetNumUninitialized(Capture.Width * Capture.Height);
+
+				int32 RowPitchInPixels;
+				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+
+				if (RawData)
+				{
+					FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
+					ReadFlags.SetLinearToGamma(false);
+
+					uint32 SrcPitch = RowPitchInPixels * GPixelFormats[Capture.PixelFormat].BlockBytes;
+
+					bool bConversionSuccess = ConvertRAWSurfaceDataToFColor(
+						Capture.PixelFormat,
+						Capture.Width,
+						Capture.Height,
+						(uint8*)RawData,
+						SrcPitch,
+						PixelData.GetData(),
+						ReadFlags
+					);
+
+					Capture.Readback->Unlock();
+
+					FString OutputPath = Capture.OutputPath;
+					int32 Width = Capture.Width;
+					int32 Height = Capture.Height;
+					int32 RowPitch = RowPitchInPixels;
+					FColor FirstPixel = PixelData.Num() > 0 ? PixelData[0] : FColor(0, 0, 0, 0);
+					EPixelFormat PixelFormat = Capture.PixelFormat;
+
+					AsyncTask(ENamedThreads::GameThread,
+						[PixelData = MoveTemp(PixelData), OutputPath, Width, Height, RowPitch, FirstPixel, PixelFormat, bConversionSuccess]()
+					{
+						// UE_LOG(LogTemp, Warning, TEXT("[DEBUG] RowPitch=%d, Width=%d, Height=%d, Match=%d"),
+						// 	RowPitch, Width, Height, RowPitch == Width);
+						// UE_LOG(LogTemp, Warning, TEXT("[DEBUG] PixelFormat=%d, ConversionSuccess=%d"),
+						// 	(int32)PixelFormat, bConversionSuccess);
+						// UE_LOG(LogTemp, Warning, TEXT("[DEBUG] First pixel: R=%d G=%d B=%d A=%d"),
+						// 	FirstPixel.R, FirstPixel.G, FirstPixel.B, FirstPixel.A);
+
+						if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
+						{
+							UE_LOG(LogUnrealCV, Verbose, TEXT("FlushCapturesToDisk: Saved %s"), *OutputPath);
+						}
+						else
+						{
+							UE_LOG(LogTemp, Error, TEXT("FlushCapturesToDisk: Failed to save %s"), *OutputPath);
+						}
+					});
+				}
+			}
+		}
+	);
 }

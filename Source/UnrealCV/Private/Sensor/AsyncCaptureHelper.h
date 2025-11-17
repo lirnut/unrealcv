@@ -44,6 +44,12 @@ public:
 
     bool IsReady() const;
 
+    // New two-phase async methods
+    void EnqueueCapture(const FTextureRHIRef& TextureToResolve);
+    void EnqueueCaptureFloat16(const FTextureRHIRef& TextureToResolve);
+    bool TryGetResult(TFunction<void(const FColor*, int32, int32)> Callback);
+    bool TryGetResultFloat16(TFunction<void(const FFloat16Color*, int32, int32)> Callback);
+
     EPixelFormat GetPixelFormat() const { return PixelFormat; }
 
 private:
@@ -64,7 +70,7 @@ private:
 class FAsyncCapturePool
 {
 public:
-    static constexpr int32 PoolSize = 3;
+    static constexpr int32 PoolSize = 10;
 
     FAsyncCapturePool(EPixelFormat InPixelFormat, FIntPoint InSize);
     ~FAsyncCapturePool();
@@ -76,6 +82,11 @@ public:
     int32 RequestCaptureFloat16(const FTextureRHIRef& RenderTargetTexture);
     bool GetCapturedFrame(int32 RequestID, FAsyncCaptureFrame& OutFrame);
     bool IsCaptureReady(int32 RequestID) const;
+
+    // New two-phase async methods
+    int32 RequestCaptureNonBlocking(const FTextureRHIRef& RenderTargetTexture);
+    int32 RequestCaptureFloat16NonBlocking(const FTextureRHIRef& RenderTargetTexture);
+    bool TryGetCapturedFrame(int32 RequestID, FAsyncCaptureFrame& OutFrame);
 
 private:
     struct FCaptureSlot
