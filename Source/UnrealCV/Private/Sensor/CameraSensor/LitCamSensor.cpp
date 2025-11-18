@@ -28,9 +28,15 @@ ULitCamSensor::ULitCamSensor(const FObjectInitializer& ObjectInitializer) :
 
 void ULitCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 {
+	//PF_FloatRGBA            =10, // RGBA16F
 	TextureTarget = NewObject<UTextureRenderTarget2D>(this); 
 	TextureTarget->InitAutoFormat(filmWidth, filmHeight);
-	TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
+
+	// EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
+	// bool bUseLinearGamma = false;
+	// TextureTarget = NewObject<UTextureRenderTarget2D>(this);
+	// TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
+	// TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
 }
 
 void ULitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)
