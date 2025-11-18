@@ -6,6 +6,8 @@
 #include "Animation/AnimBlueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Engine/SCS_Node.h"
+#include "Engine/SimpleConstructionScript.h"
 
 TArray<FString> UMetaHumanBPLib::GetAllMetaHumanBlueprintPaths()
 {
@@ -55,13 +57,6 @@ bool UMetaHumanBPLib::SetMetaHumanAnimationBlueprint(const FString& MetaHumanBPP
 		return false;
 	}
 
-	UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(MetaHumanBP->GeneratedClass);
-	if (!BPClass)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Invalid Blueprint Generated Class"));
-		return false;
-	}
-
 	UClass* AnimBPClass = LoadObject<UClass>(nullptr, *AnimBlueprintPath);
 	if (!AnimBPClass)
 	{
@@ -69,34 +64,43 @@ bool UMetaHumanBPLib::SetMetaHumanAnimationBlueprint(const FString& MetaHumanBPP
 		return false;
 	}
 
-	AActor* CDO = Cast<AActor>(BPClass->GetDefaultObject());
-	if (!CDO)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to get CDO from Blueprint"));
-		return false;
-	}
+	USkeletalMeshComponent* BodyComponentTemplate = nullptr;
 
-	USkeletalMeshComponent* BodyComponent = nullptr;
-	TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
-	CDO->GetComponents<USkeletalMeshComponent>(SkeletalMeshComponents);
-
-	for (USkeletalMeshComponent* SkelMeshComp : SkeletalMeshComponents)
+	if (MetaHumanBP->SimpleConstructionScript)
 	{
-		if (SkelMeshComp->GetName().Contains(TEXT("Body")))
+		const TArray<USCS_Node*>& AllNodes = MetaHumanBP->SimpleConstructionScript->GetAllNodes();
+		UE_LOG(LogTemp, Log, TEXT("Found %d SCS nodes in MetaHuman Blueprint"), AllNodes.Num());
+
+		for (USCS_Node* Node : AllNodes)
 		{
-			BodyComponent = SkelMeshComp;
-			break;
+			if (Node && Node->ComponentTemplate)
+			{
+				FString NodeName = Node->GetVariableName().ToString();
+				FString ComponentName = Node->ComponentTemplate->GetName();
+				UE_LOG(LogTemp, Log, TEXT("  Node: %s, Component: %s, Class: %s"),
+					*NodeName, *ComponentName, *Node->ComponentTemplate->GetClass()->GetName());
+
+				if (USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(Node->ComponentTemplate))
+				{
+					if (NodeName.Contains(TEXT("Body")) || ComponentName.Contains(TEXT("Body")))
+					{
+						BodyComponentTemplate = SkelMeshComp;
+						UE_LOG(LogTemp, Log, TEXT("  -> Matched 'Body' component!"));
+						break;
+					}
+				}
+			}
 		}
 	}
 
-	if (!BodyComponent)
+	if (!BodyComponentTemplate)
 	{
-		UE_LOG(LogTemp, Error, TEXT("No 'Body' SkeletalMeshComponent found in MetaHuman Blueprint"));
+		UE_LOG(LogTemp, Error, TEXT("No 'Body' SkeletalMeshComponent found in SimpleConstructionScript"));
 		return false;
 	}
 
-	BodyComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-	BodyComponent->AnimClass = AnimBPClass;
+	BodyComponentTemplate->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+	BodyComponentTemplate->AnimClass = AnimBPClass;
 
 	MetaHumanBP->Modify();
 	MetaHumanBP->MarkPackageDirty();

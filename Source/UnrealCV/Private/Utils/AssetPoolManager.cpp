@@ -19,16 +19,6 @@ void FAssetPoolManager::LoadStableAssetsPack()
 {
     // ========== Foreground Assets ==========
 
-	AssetPools.Add(TEXT("Foreground_Human"), {});
-	TArray<FString> MetaHumanPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
-	for (const FString& MetaHumanPath : MetaHumanPaths)
-	{
-		AssetPools[TEXT("Foreground_Human")].Add({
-			{"Path", MetaHumanPath},
-			{"Type", TEXT("Blueprint")}
-		});
-	}
-
 	// Human - Different ages, skin colors, genders (SOW requirement)
 	AssetPools.Add(TEXT("Foreground_Human"), {
 		// // Adults
@@ -50,6 +40,17 @@ void FAssetPoolManager::LoadStableAssetsPack()
 		// // Infants
 		// {{"Path", TEXT("/Game/Assets/Characters/Human_Infant_01")}, {"Type", TEXT("Blueprint")}},
 	});
+	TArray<FString> MetaHumanPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
+	for (const FString& MetaHumanPath : MetaHumanPaths)
+	{
+		AssetPools[TEXT("Foreground_Human")].Add({
+			{"Path", MetaHumanPath},
+			{"Type", TEXT("Blueprint")}
+		});
+	}
+
+
+
 	TArray<FString> HumanAnimations = {
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk7.AS_Talk7"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk6.AS_Talk6"),
@@ -77,6 +78,8 @@ void FAssetPoolManager::LoadStableAssetsPack()
 		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Polo/Meshes/Man_In_Polo.Man_In_Polo"),
 		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Polo/Meshes/Man_In_Polo_Glasses.Man_In_Polo_Glasses")
 	};
+
+	AssetPools.Add(TEXT("Foreground_Human_SKM"), {});
 	for (FString& Anim : HumanAnimations)
 	{
 		for (FString& SKM : SKMs)
