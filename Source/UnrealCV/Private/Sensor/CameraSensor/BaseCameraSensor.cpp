@@ -249,30 +249,33 @@ void UBaseCameraSensor::CaptureToGPUQueue(const FString& Filename)
 		{
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
-			AsyncTask(ENamedThreads::AnyThread, [RenderTargetResource, Capture](){
-				int32 RowPitchInPixels;
-				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+			int32 RowPitchInPixels;
+			const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+			// Process data immediately on render thread to avoid accessing invalid memory
+			TArray<FColor> PixelData;
+			PixelData.AddUninitialized(Capture.Width * Capture.Height);
 
-				TArray<FColor> PixelData;
-				PixelData.AddUninitialized(Capture.Width * Capture.Height);
+			FReadSurfaceDataFlags ReadFlags;
+			ReadFlags.SetLinearToGamma(false);
 
-				FReadSurfaceDataFlags ReadFlags;
-				ReadFlags.SetLinearToGamma(false);
+			uint32 SrcPitch = RowPitchInPixels * GPixelFormats[Capture.PixelFormat].BlockBytes;
 
-				uint32 SrcPitch = RowPitchInPixels * GPixelFormats[Capture.PixelFormat].BlockBytes;
+			ConvertRAWSurfaceDataToFColorOpt(
+				Capture.PixelFormat,
+				Capture.Width,
+				Capture.Height,
+				(uint8*)RawData,
+				SrcPitch,
+				PixelData.GetData(),
+				ReadFlags
+			);
 
-				ConvertRAWSurfaceDataToFColorOpt(
-					Capture.PixelFormat,
-					Capture.Width,
-					Capture.Height,
-					(uint8*)RawData,
-					SrcPitch,
-					PixelData.GetData(),
-					ReadFlags
-				);
+			// Unlock the readback data
+			Capture.Readback->Unlock();
 
-				AsyncTask(ENamedThreads::AnyThread,
-					[PixelData = MoveTemp(PixelData), OutputPath = MoveTemp(Capture.OutputPath), Width = Capture.Width, Height = Capture.Height]()
+			// Move to game thread for file I/O
+			AsyncTask(ENamedThreads::AnyThread,
+				[PixelData = MoveTemp(PixelData), OutputPath = Capture.OutputPath, Width = Capture.Width, Height = Capture.Height]()
 				{
 					double SerializeStartTime = FPlatformTime::Seconds();
 
@@ -287,7 +290,6 @@ void UBaseCameraSensor::CaptureToGPUQueue(const FString& Filename)
 						SL::get().printf("[A1] Failed to save %s", TCHAR_TO_UTF8(*OutputPath));
 					}
 				});
-			});
 		}
 	);
 

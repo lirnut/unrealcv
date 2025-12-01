@@ -40,7 +40,8 @@ void FAssetPoolManager::LoadStableAssetsPack()
 		// // Infants
 		// {{"Path", TEXT("/Game/Assets/Characters/Human_Infant_01")}, {"Type", TEXT("Blueprint")}},
 	});
-	TArray<FString> MetaHumanPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
+	// TArray<FString> MetaHumanPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
+	TArray<FString> MetaHumanPaths = UMetaHumanBPLib::GetAllMetaHumanBlueprintPaths();
 	for (const FString& MetaHumanPath : MetaHumanPaths)
 	{
 		AssetPools[TEXT("Foreground_Human")].Add({
