@@ -183,6 +183,57 @@ void FAssetPoolManager::LoadStableAssetsPack()
 	// AssetPools.Add(TEXT("Occluder_Urban"), {
 	// 	TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Exterior_props_usable/BP_Trashbin.BP_Trashbin"),
 	// });
+	AssetPools.Add(TEXT("Occluder_All"), {});
+	TArray<FString> Occluders = {
+		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Exterior_props_usable/BP_Trashbin.BP_Trashbin"),
+		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Exterior_props_usable/SM_Trashbag.SM_Trashbag"),
+		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Exterior_props_usable/SM_Lamp_Garden_Pilar.SM_Lamp_Garden_Pilar"),
+		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Exterior_props_usable/SM_Sun_Umbrella.SM_Sun_Umbrella"),
+
+		TEXT("/Game/DogRobot/BP_DogRobotSimple.BP_DogRobotSimple"),
+		TEXT("/Game/Animal_pack_ultra_2/BP_SlowDogRobotSimple.BP_SlowDogRobotSimple"),
+		TEXT("/Game/Animal_pack_ultra_2/BP_StaticPetSimple.BP_StaticPetSimple"),
+		TEXT("/Game/Animal_pack_ultra_2/BP_SlowPetSimple.BP_SlowPetSimple"),
+		///////////
+		TEXT("/Game/DogRobot/BP_DogRobotSimple.BP_DogRobotSimple"),
+		TEXT("/Game/Animal_pack_ultra_2/BP_SlowDogRobotSimple.BP_SlowDogRobotSimple"),
+		TEXT("/Game/Animal_pack_ultra_2/BP_StaticPetSimple.BP_StaticPetSimple"),
+		TEXT("/Game/Animal_pack_ultra_2/BP_SlowPetSimple.BP_SlowPetSimple"),
+		// TEXT("/Game/Animal_pack_ultra_2/BP_Beagle.BP_Beagle"),
+
+		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Foliage_usable/SM_Plant_HedgeBush.SM_Plant_HedgeBush"),
+		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Foliage_usable/SM_Plant_FlowersWhiteBush.SM_Plant_FlowersWhiteBush"),
+		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Foliage_usable/SM_Plant_Box_C.SM_Plant_Box_C"),
+		// TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Foliage_usable/SM_Plant_Box_D.SM_Plant_Box_D"),
+		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Foliage_usable/SM_Plant_Box_B.SM_Plant_Box_B"),
+		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Foliage_usable/SM_Plant_Bush_B.SM_Plant_Bush_B"),
+		// TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Foliage_usable/SM_Plant_Bush_A.SM_Plant_Bush_A"),
+		TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Foliage_usable/SM_Plant_Box_Hanging.SM_Plant_Box_Hanging"),
+		// TEXT("/Game/SuburbNeighborhoodHousePack/Meshes_usable/Foliage_usable/SM_Plant_Drygrass.SM_Plant_Drygrass"),
+
+	};
+
+	for (const FString& Path : Occluders)
+	{
+		if (Path.Contains(TEXT("BP_")))
+		{
+			AssetPools[TEXT("Occluder_All")].Add({
+				{TEXT("Path"), Path},
+				{TEXT("Type"), TEXT("Blueprint")},
+			});
+		}
+		else if(Path.Contains(TEXT("SM_")))
+		{
+			AssetPools[TEXT("Occluder_All")].Add({
+				{TEXT("Path"), Path},
+				{TEXT("Type"), TEXT("StaticMesh")},
+			});
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("FAssetPoolManager::AddAssetToPool: Unknown asset type for path '%s'"), *Path);
+		}
+	}
 
 	// Log asset pool statistics
 	for (const auto& Pair : AssetPools)

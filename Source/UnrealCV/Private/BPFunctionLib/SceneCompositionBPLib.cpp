@@ -531,6 +531,34 @@ float USceneCompositionBPLib::GetBoundsRadiusFromMetadata(const TMap<FString, FS
 	return 150.0f;
 }
 
+void USceneCompositionBPLib::AdjustActorToGroundLevel(AActor* Actor)
+{
+	if (!IsValid(Actor))
+	{
+		return;
+	}
+
+	FVector ActorLocation = Actor->GetActorLocation();
+	FVector OriginalLocation = ActorLocation;
+
+	FBox ActorBounds = Actor->GetComponentsBoundingBox();
+	if (ActorBounds.IsValid)
+	{
+		float BottomZ = ActorBounds.Min.Z;
+		float HeightOffset = -BottomZ;
+
+		ActorLocation.Z += HeightOffset;
+		Actor->SetActorLocation(ActorLocation, false, nullptr, ETeleportType::TeleportPhysics);
+
+		UE_LOG(LogUnrealCV, Log, TEXT("AdjustActorToGroundLevel: Adjusted '%s' from Z=%.2f to Z=%.2f (bottom offset=%.2f)"),
+			*Actor->GetName(), OriginalLocation.Z, ActorLocation.Z, BottomZ);
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("AdjustActorToGroundLevel: Failed to get valid bounds for actor '%s'"), *Actor->GetName());
+	}
+}
+
 TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 	UObject* WorldContextObject,
 	int32 Count,
@@ -604,6 +632,7 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 				AActor* Occluder = SpawnActorFromMetadata(World, Metadata, CandidatePosition, Rotation);
 				if (IsValid(Occluder))
 				{
+					AdjustActorToGroundLevel(Occluder);
 					SpawnedOccluders.Add(Occluder);
 					OccupiedSpaces.Add({CandidatePosition, CurrentRadius});
 					OutSceneHandle.OccluderMetadataList.Add({Metadata});

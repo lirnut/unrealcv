@@ -79,3 +79,18 @@ FExecStatus SerializeData(const TArray<FFloat16Color>& Data, int Width, int Heig
 FExecStatus SerializeData(const TArray<float>& Data, int Width, int Height, const FString& Filename);
 
 void ConvertDepthToPreview(const TArray<float>& DepthData, TArray<FColor>& OutPreview);
+
+void ConvertDepthToPNG(
+    const TArray<float>& DepthData, 
+    TArray<FColor>& Out,
+    float GlobalMinDepth,
+    float GlobalMaxDepth
+);
+
+void ConvertDepthToPNG_RGB24(
+    const TArray<float>& DepthData,
+    TArray<FColor>& Out,
+    float GlobalMinDepth,
+    float GlobalMaxDepth
+);
+float DecodeDepthFromRGB24(FColor C, float GlobalMinDepth, float GlobalMaxDepth);

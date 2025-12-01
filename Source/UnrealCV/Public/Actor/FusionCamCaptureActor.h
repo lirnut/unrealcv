@@ -187,6 +187,7 @@ protected:
 	// Utility functions
 	FString MakeFilename(FString DataType, FString FileExtension);
 	FString MakeFilenameNew(FString DataType, FString FileExtension);
+	FString MakeFilenameNewWithFolder(FString DataType, FString FileExtension);
 	void SaveCameraMetadata();
 	void TriggerVideoGeneration();
 

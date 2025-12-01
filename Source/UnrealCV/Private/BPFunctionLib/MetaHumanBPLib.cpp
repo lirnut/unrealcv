@@ -29,6 +29,18 @@ TArray<FString> UMetaHumanBPLib::GetAllMetaHumanBlueprintPaths()
 		FString ObjectPath = AssetData.GetObjectPathString();
 		MetaHumanPaths.Add(ObjectPath);
 	}
+	// print all MetaHumanPaths
+	FString LogStr = TEXT("All MetaHuman Blueprint Paths: {");
+	for (const FString& Path : MetaHumanPaths)
+	{
+		LogStr += Path + TEXT(", ");
+	}
+	LogStr += TEXT("}");
+	UE_LOG(LogTemp, Log, TEXT("%s"), *LogStr);
+
+	TArray<FString> SpecPaths = {
+
+	};
 
 	return MetaHumanPaths;
 }

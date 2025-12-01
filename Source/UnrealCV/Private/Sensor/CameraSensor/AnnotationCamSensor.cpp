@@ -10,6 +10,10 @@
 #include "Serialization.h"
 #include "ImageUtil.h"
 
+TMap<UWorld*, TArray<TWeakObjectPtr<UPrimitiveComponent>>> UAnnotationCamSensor::CachedAnnotationComponents;
+TMap<UWorld*, int32> UAnnotationCamSensor::CachedWorldFrameNumbers;
+bool UAnnotationCamSensor::bCacheEnabled = true;
+
 UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
@@ -71,7 +75,39 @@ void UAnnotationCamSensor::GetAnnotationComponents(UWorld* World, TArray<TWeakOb
 		return;
 	}
 
-	// Check how much time is spent here!
+	// Use cache if enabled and valid
+	if (bCacheEnabled && CachedAnnotationComponents.Contains(World))
+	{
+		int32 CachedFrameNumber = CachedWorldFrameNumbers.FindRef(World);
+		int32 CurrentFrameNumber = World->GetTimeSeconds() * 60; // Approximate frame number
+
+		// Check if cache is still valid (within last 120 frames)
+		if (CurrentFrameNumber - CachedFrameNumber < 120)
+		{
+			ComponentList = CachedAnnotationComponents.FindRef(World);
+
+			// Validate cached components are still valid
+			TArray<TWeakObjectPtr<UPrimitiveComponent>> ValidComponents;
+			for (const TWeakObjectPtr<UPrimitiveComponent>& WeakComponent : ComponentList)
+			{
+				if (WeakComponent.IsValid())
+				{
+					ValidComponents.Add(WeakComponent);
+				}
+			}
+
+			// Update cache with valid components
+			if (ValidComponents.Num() != ComponentList.Num())
+			{
+				CachedAnnotationComponents.Add(World, ValidComponents);
+				ComponentList = ValidComponents;
+			}
+
+			return;
+		}
+	}
+
+	// Cache miss or expired, rebuild component list
 	TArray<UObject*> UObjectList;
 	bool bIncludeDerivedClasses = false;
 	EObjectFlags ExclusionFlags = EObjectFlags::RF_ClassDefaultObject;
@@ -109,10 +145,33 @@ void UAnnotationCamSensor::GetAnnotationComponents(UWorld* World, TArray<TWeakOb
         }
     }
 
+	// Update cache
+	if (bCacheEnabled)
+	{
+		int32 CurrentFrameNumber = World->GetTimeSeconds() * 60;
+		CachedAnnotationComponents.Add(World, ComponentList);
+		CachedWorldFrameNumbers.Add(World, CurrentFrameNumber);
+	}
+
 	if (ComponentList.Num() == 0)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("No annotation in the scene to show, fall back to lit mode"));
 	}
+}
+
+void UAnnotationCamSensor::SetCacheEnabled(bool bEnabled)
+{
+	bCacheEnabled = bEnabled;
+	if (!bEnabled)
+	{
+		ClearCache();
+	}
+}
+
+void UAnnotationCamSensor::ClearCache()
+{
+	CachedAnnotationComponents.Empty();
+	CachedWorldFrameNumbers.Empty();
 }
 
 void UAnnotationCamSensor::CaptureSeg(TArray<FColor>& ImageData, int& Width, int& Height)
@@ -185,7 +244,7 @@ void UAnnotationCamSensor::CaptureSegToFile(const FString& Filename)
 				}
 			});
 
-			AsyncTask(ENamedThreads::GameThread, [PixelData = MoveTemp(PixelData), Width, Height, OutputPath]()
+			AsyncTask(ENamedThreads::AnyThread, [PixelData = MoveTemp(PixelData), Width, Height, OutputPath]()
 			{
 				if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
 				{

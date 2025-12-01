@@ -10,7 +10,7 @@
 #include "ImageUtil.h"
 #include "RHIGPUReadback.h"
 #include "RenderingThread.h"
-#include "RHISurfaceDataConversion.h"
+#include "RHISurfaceDataConversionOpt.h"
 #include "SL.h"
 
 DECLARE_CYCLE_STAT(TEXT("ReadBuffer"), STAT_ReadBuffer, STATGROUP_UnrealCV);
@@ -56,6 +56,7 @@ void UBaseCameraSensor::InitTextureTarget(int filmWidth, int filmHeight)
 	bool bUseLinearGamma = false;
 	TextureTarget = NewObject<UTextureRenderTarget2D>(this); 
 	TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
+	TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
 }
 
 void UBaseCameraSensor::SetFilmSize(int Width, int Height)
@@ -160,7 +161,7 @@ void UBaseCameraSensor::CaptureToFile(const FString& Filename)
                 ReadFlags
             );
 
-            AsyncTask(ENamedThreads::GameThread, [PixelData = MoveTemp(PixelData), Width, Height, OutputPath]()
+            AsyncTask(ENamedThreads::AnyThread, [PixelData = MoveTemp(PixelData), Width, Height, OutputPath]()
             {
                 if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
                 {
@@ -244,10 +245,49 @@ void UBaseCameraSensor::CaptureToGPUQueue(const FString& Filename)
 	NewCapture.PixelFormat = PixelFormat;
 
 	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
-		[RenderTargetResource, ReadbackPtr = NewCapture.Readback.Get()](FRHICommandListImmediate& RHICmdList)
+		[RenderTargetResource, Capture = MoveTemp(NewCapture)](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-			ReadbackPtr->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
+			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
+			AsyncTask(ENamedThreads::AnyThread, [RenderTargetResource, Capture](){
+				int32 RowPitchInPixels;
+				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+
+				TArray<FColor> PixelData;
+				PixelData.AddUninitialized(Capture.Width * Capture.Height);
+
+				FReadSurfaceDataFlags ReadFlags;
+				ReadFlags.SetLinearToGamma(false);
+
+				uint32 SrcPitch = RowPitchInPixels * GPixelFormats[Capture.PixelFormat].BlockBytes;
+
+				ConvertRAWSurfaceDataToFColorOpt(
+					Capture.PixelFormat,
+					Capture.Width,
+					Capture.Height,
+					(uint8*)RawData,
+					SrcPitch,
+					PixelData.GetData(),
+					ReadFlags
+				);
+
+				AsyncTask(ENamedThreads::AnyThread,
+					[PixelData = MoveTemp(PixelData), OutputPath = MoveTemp(Capture.OutputPath), Width = Capture.Width, Height = Capture.Height]()
+				{
+					double SerializeStartTime = FPlatformTime::Seconds();
+
+					if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
+					{
+						double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
+						SL::get().printf("[A1] Saved %s in %.3f ms",
+							TCHAR_TO_UTF8(*OutputPath), SerializeTime * 1000.0);
+					}
+					else
+					{
+						SL::get().printf("[A1] Failed to save %s", TCHAR_TO_UTF8(*OutputPath));
+					}
+				});
+			});
 		}
 	);
 
@@ -259,6 +299,25 @@ void UBaseCameraSensor::CaptureToGPUQueue(const FString& Filename)
 
 void UBaseCameraSensor::FlushCapturesToDisk()
 {
+	return;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	if (QueuedCaptures.Num() == 0)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("FlushCapturesToDisk: No captures queued"));
@@ -340,12 +399,13 @@ void UBaseCameraSensor::FlushCapturesToDisk()
 			{
 				const FLockedCaptureData& LockedData = LockedCaptures[i];
 
-				FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
+				// FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
+				FReadSurfaceDataFlags ReadFlags;
 				ReadFlags.SetLinearToGamma(false);
 
 				uint32 SrcPitch = LockedData.RowPitchInPixels * GPixelFormats[LockedData.PixelFormat].BlockBytes;
 
-				ConvertRAWSurfaceDataToFColor(
+				ConvertRAWSurfaceDataToFColorOpt(
 					LockedData.PixelFormat,
 					LockedData.Width,
 					LockedData.Height,
@@ -354,6 +414,11 @@ void UBaseCameraSensor::FlushCapturesToDisk()
 					AllPixelData[i].GetData(),
 					ReadFlags
 				);
+				// // AllPixelData[i].GetData()
+				// for (int32 Index = 0; Index < AllPixelData[i].Num(); ++Index)
+				// {
+				// 	AllPixelData[i][Index] = AllPixelData[i][Index].ReinterpretAsLinear();
+				// }
 			});
 
 			TotalConversionTime = FPlatformTime::Seconds() - ConversionStartTime;

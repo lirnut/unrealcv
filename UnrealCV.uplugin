@@ -1,7 +1,7 @@
 {
     "FileVersion" : 3,
     "Version" : 5,
-    "VersionName": "1.0.1", 
+    "VersionName": "1.0.1",
     "FriendlyName": "Unreal CV",
     "Description": "UnrealCV is a plugin to connect computer vision algorithm and the games built by Unreal Engine",
     "Category" : "Science",
@@ -14,6 +14,12 @@
     "CanContainContent": true,
     "IsBetaVersion" : true,
     "Installed" : true,
+    "Plugins" : [
+        {
+            "Name": "AudioCapture",
+            "Enabled": true
+        }
+    ],
     "Modules" :
     [
         {

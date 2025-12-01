@@ -228,6 +228,66 @@ FExecStatus SerializeData(const TArray<float>& Data, int Width, int Height, cons
 	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
 }
 
+void ConvertDepthToPNG(
+    const TArray<float>& DepthData, 
+    TArray<FColor>& Out,
+    float GlobalMinDepth,
+    float GlobalMaxDepth)
+{
+    Out.SetNum(DepthData.Num());
+
+    const float DepthRange = FMath::Max(GlobalMaxDepth - GlobalMinDepth, 1e-6f);
+
+    for (int32 i = 0; i < DepthData.Num(); i++)
+    {
+        float Depth = DepthData[i];
+
+        float Normalized = (Depth - GlobalMinDepth) / DepthRange;
+
+        uint8 Gray = static_cast<uint8>(FMath::Clamp(Normalized, 0.0f, 1.0f) * 255.0f);
+
+        Out[i] = FColor(Gray, Gray, Gray, 255);
+    }
+}
+
+void ConvertDepthToPNG_RGB24(
+    const TArray<float>& DepthData,
+    TArray<FColor>& Out,
+    float GlobalMinDepth,
+    float GlobalMaxDepth)
+{
+    Out.SetNum(DepthData.Num());
+
+    const float DepthRange = FMath::Max(GlobalMaxDepth - GlobalMinDepth, 1e-6f);
+
+    for (int32 i = 0; i < DepthData.Num(); i++)
+    {
+        float Depth = DepthData[i];
+
+        float Normalized = (Depth - GlobalMinDepth) / DepthRange;
+        Normalized = FMath::Clamp(Normalized, 0.0f, 1.0f);
+
+        // 24-bit depth (0 ~ 16777215)
+        uint32 Depth24 = static_cast<uint32>(Normalized * 16777215.0f);
+
+        uint8 R = (Depth24 >> 16) & 0xFF;
+        uint8 G = (Depth24 >> 8) & 0xFF;
+        uint8 B = Depth24 & 0xFF;
+
+        Out[i] = FColor(R, G, B, 255);
+    }
+}
+
+float DecodeDepthFromRGB24(FColor C, float GlobalMinDepth, float GlobalMaxDepth)
+{
+    uint32 Depth24 = (C.R << 16) | (C.G << 8) | C.B;
+
+    float Normalized = Depth24 / 16777215.0f;
+
+    return Normalized * (GlobalMaxDepth - GlobalMinDepth) + GlobalMinDepth;
+}
+
+
 void ConvertDepthToPreview(const TArray<float>& DepthData, TArray<FColor>& OutPreview)
 {
 	OutPreview.SetNum(DepthData.Num());
@@ -237,17 +297,20 @@ void ConvertDepthToPreview(const TArray<float>& DepthData, TArray<FColor>& OutPr
 		return;
 	}
 
-	float MinDepth = TNumericLimits<float>::Max();
-	float MaxDepth = TNumericLimits<float>::Min();
-	for (float Depth : DepthData)
-	{
-		if (Depth < MinDepth) MinDepth = Depth;
-		if (Depth > MaxDepth) MaxDepth = Depth;
-	}
-	if (MaxDepth > 5000.0f)
-	{
-		MaxDepth = 5000.0f;
-	}
+	// float MinDepth = TNumericLimits<float>::Max();
+	// float MaxDepth = TNumericLimits<float>::Min();
+	// for (float Depth : DepthData)
+	// {
+	// 	if (Depth < MinDepth) MinDepth = Depth;
+	// 	if (Depth > MaxDepth) MaxDepth = Depth;
+	// }
+	// if (MaxDepth > 5000.0f)
+	// {
+	// 	MaxDepth = 5000.0f;
+	// }
+
+	float MinDepth = 0.0f;
+	float MaxDepth = 500.0f;
 
 	float DepthRange = MaxDepth - MinDepth;
 	if (DepthRange > 0.0f)

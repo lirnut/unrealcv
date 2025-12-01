@@ -99,43 +99,77 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 	int32 Height = TextureTarget->SizeY;
 
 	FString OutputPath = Filename;
-	FString DepthPreviewPath = OutputPath.Replace(TEXT(".npy"), TEXT("_preview.png"));
 
 	ENQUEUE_RENDER_COMMAND(CaptureDepthToFileCommand)(
-		[RenderTargetResource, Width, Height, OutputPath, DepthPreviewPath](FRHICommandListImmediate& RHICmdList)
+		[RenderTargetResource, Width, Height, OutputPath](FRHICommandListImmediate& RHICmdList)
 		{
-			TArray<FFloat16Color> FloatColorData;
-			RenderTargetResource->ReadFloat16Pixels(FloatColorData);
+			// TArray<FFloat16Color> FloatColorData;
+			TArray<FColor> FloatColorData;
+			// RenderTargetResource->ReadFloat16Pixels(FloatColorData);
+            FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
+            RHICmdList.ReadSurfaceData(
+                RenderTargetResource->GetRenderTargetTexture(),
+                FIntRect(0, 0, Width, Height),
+                FloatColorData,
+                ReadFlags
+            );
 
 			TArray<float> DepthData;
 			DepthData.SetNum(Width * Height);
 
-			ParallelFor(FloatColorData.Num(), [&](int32 i)
+			// ParallelFor(FloatColorData.Num(), [&](int32 i)
+			// {
+			// 	if (i >= 0 && i < FloatColorData.Num() && i < DepthData.Num())
+			// 	{
+			// 		DepthData[i] = FloatColorData[i].R;
+			// 	}
+			// });
+			const int32 CACHE_LINE_SIZE = 64;
+			const int32 PIXELS_PER_CACHE_LINE = CACHE_LINE_SIZE / sizeof(FColor);
+			int32 NumCores = FPlatformMisc::NumberOfCores();
+			int32 TotalPixels = FloatColorData.Num();
+
+			int32 BlockSize = FMath::Max(PIXELS_PER_CACHE_LINE, (TotalPixels + NumCores - 1) / NumCores);
+			BlockSize = (BlockSize + PIXELS_PER_CACHE_LINE - 1) / PIXELS_PER_CACHE_LINE * PIXELS_PER_CACHE_LINE;
+
+			int32 NumBlocks = (TotalPixels + BlockSize - 1) / BlockSize;
+
+			ParallelFor(NumBlocks, [&](int32 BlockIndex)
 			{
-				if (i >= 0 && i < FloatColorData.Num() && i < DepthData.Num())
+				int32 StartIndex = BlockIndex * BlockSize;
+				int32 EndIndex = FMath::Min(StartIndex + BlockSize, TotalPixels);
+				
+				for (int32 i = StartIndex; i < EndIndex && i < DepthData.Num(); i++)
 				{
 					DepthData[i] = FloatColorData[i].R;
 				}
 			});
 
-			TArray<FColor> DepthPreview;
-			ConvertDepthToPreview(DepthData, DepthPreview);
 
-			AsyncTask(ENamedThreads::GameThread, [DepthData = MoveTemp(DepthData), DepthPreview = MoveTemp(DepthPreview), Width, Height, OutputPath, DepthPreviewPath]()
+
+			AsyncTask(ENamedThreads::AnyThread, [DepthData = MoveTemp(DepthData), Width, Height, OutputPath]()
 			{
-				if (SerializeData(DepthData, Width, Height, OutputPath) == FExecStatusType::OK)
-				{
-					UE_LOG(LogUnrealCV, Log, TEXT("[CaptureDepthToFile] Saved depth to %s"), *OutputPath);
-				}
-				else
-				{
-					UE_LOG(LogUnrealCV, Error, TEXT("[CaptureDepthToFile] Failed to save depth %s"), *OutputPath);
-				}
-
-				if (SerializeData(DepthPreview, Width, Height, DepthPreviewPath) == FExecStatusType::OK)
-				{
-					UE_LOG(LogUnrealCV, Verbose, TEXT("[CaptureDepthToFile] Saved depth preview to %s"), *DepthPreviewPath);
-				}
+				FString OutputPathPNG = OutputPath.Replace(TEXT(".npy"), TEXT(".png"));
+				FString OutputPathPNG10KM = OutputPathPNG.Replace(TEXT(".png"), TEXT("_10km.png"));
+				FString DepthPreviewPath = OutputPathPNG.Replace(TEXT(".png"), TEXT("_preview.png"));
+				TArray<FColor> DepthPreview;
+				TArray<FColor> DepthPNG;
+				TArray<FColor> DepthPNG10KM;
+				ConvertDepthToPNG_RGB24(DepthData, DepthPNG10KM, 0.0f, 1000000.0f);  // 10km
+				// ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 5000.0f); // 50m
+				ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 100000.0f); // 1km
+				ConvertDepthToPreview(DepthData, DepthPreview);
+				// | 你能接受的误差（cm）   | 对应的 MaxDepth（cm）                     |
+				// | ------------- | ------------------------------------ |
+				// | 100 cm（1 m）   | **3,355,443,000 cm**  ≈ 33,554 km    |
+				// | 50 cm（0.5 m）  | **1,677,721,500 cm**  ≈ 16,777 km    |
+				// | 10 cm（0.1 m）  | **335,544,300 cm**   ≈ 3,355 km      |
+				// | 1000 cm（10 m） | **33,554,430,000 cm** ≈ 335,544 km   |
+				// | 2000 cm（20 m） | **67,108,860,000 cm** ≈ 671,088 km   |
+				// | 4000 cm（40 m） | **134,217,720,000 cm**≈ 1,342,177 km |
+				SerializeData(DepthPNG, Width, Height, OutputPathPNG);
+				SerializeData(DepthPNG10KM, Width, Height, OutputPathPNG10KM);
+				SerializeData(DepthPreview, Width, Height, DepthPreviewPath);
 			});
 		}
 	);

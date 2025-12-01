@@ -49,6 +49,8 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	TargetToHide = nullptr;
 	NumFrames = 0;
 
+	// TimeDilation = 0.15f;
+	// TimeDilation = 0.1f;
 	TimeDilation = 1.0f;
 	TimeDilationBackUp = 1.0f;
 
@@ -226,6 +228,10 @@ void AFusionCamCaptureActor::RecordFrame()
 			TArray<FColor> DataRGB;
 			TargetSensor->GetLit(DataRGB, Width, Height);
 			SerializeData(DataRGB, Width, Height, FileNameRGB);
+            AsyncTask(ENamedThreads::AnyThread, [DataRGB = MoveTemp(DataRGB), Width, Height, FileNameRGB]()
+            {
+                SerializeData(DataRGB, Width, Height, FileNameRGB);
+			});
 		}
 	}
 
@@ -240,7 +246,10 @@ void AFusionCamCaptureActor::RecordFrame()
 		{
 			TArray<FColor> DataMask;
 			TargetSensor->GetSeg(DataMask, Width, Height);
-			SerializeData(DataMask, Width, Height, FileNameMask);
+            AsyncTask(ENamedThreads::AnyThread, [DataMask = MoveTemp(DataMask), Width, Height, FileNameMask]()
+            {
+                SerializeData(DataMask, Width, Height, FileNameMask);
+			});
 		}
 	}
 
@@ -255,12 +264,18 @@ void AFusionCamCaptureActor::RecordFrame()
 		{
 			TArray<float> DepthData;
 			TargetSensor->GetDepth(DepthData, Width, Height);
-			SerializeData(DepthData, Width, Height, DepthFilename);
+            AsyncTask(ENamedThreads::AnyThread, [DepthData = MoveTemp(DepthData), Width, Height, DepthFilename]()
+            {
+                SerializeData(DepthData, Width, Height, DepthFilename);
+			});
 
 			TArray<FColor> DepthPreview;
 			ConvertDepthToPreview(DepthData, DepthPreview);
 			FString DepthPreviewFilename = MakeFilenameNew("depth_preview", ".png");
-			SerializeData(DepthPreview, Width, Height, DepthPreviewFilename);
+            AsyncTask(ENamedThreads::AnyThread, [DepthPreview = MoveTemp(DepthPreview), Width, Height, DepthPreviewFilename]()
+            {
+                SerializeData(DepthPreview, Width, Height, DepthPreviewFilename);
+			});
 		}
 	}
 
@@ -275,7 +290,10 @@ void AFusionCamCaptureActor::RecordFrame()
 		{
 			TArray<FColor> NormalData;
 			TargetSensor->GetNormal(NormalData, Width, Height);
-			SerializeData(NormalData, Width, Height, NormalFilename);
+            AsyncTask(ENamedThreads::AnyThread, [NormalData = MoveTemp(NormalData), Width, Height, NormalFilename]()
+            {
+                SerializeData(NormalData, Width, Height, NormalFilename);
+			});
 		}
 	}
 
@@ -290,7 +308,10 @@ void AFusionCamCaptureActor::RecordFrame()
 		{
 			TArray<FColor> FlowData;
 			TargetSensor->GetFlow(FlowData, Width, Height);
-			SerializeData(FlowData, Width, Height, FlowFilename);
+            AsyncTask(ENamedThreads::AnyThread, [FlowData = MoveTemp(FlowData), Width, Height, FlowFilename]()
+            {
+                SerializeData(FlowData, Width, Height, FlowFilename);
+			});
 		}
 	}
 
@@ -432,8 +453,30 @@ FString AFusionCamCaptureActor::MakeFilenameNew(FString DataType, FString FileEx
 
 	// Create filename with frame number and data type
 	FString FileName = RecordFileName;
-	FString InsertStr = FString::Printf(TEXT("%d_%s.%s"), ElapsedSteps, *DataType, *FileExtension);
-	FileName = FPaths::Combine(FileName, InsertStr);
+	FString FileBaseName = FString::Printf(TEXT("%d_%s.%s"), ElapsedSteps, *DataType, *FileExtension);
+	// FString FileFolder = FString::Printf(TEXT("%d_%s.%s"), ElapsedSteps, *DataType, *FileExtension);
+	FileName = FPaths::Combine(FileName, FileBaseName);
+	// Combine with output folder
+	FileName = FPaths::ConvertRelativePathToFull(FinalDataFolder, FileName);
+
+	return FileName;
+}
+
+FString AFusionCamCaptureActor::MakeFilenameNewWithFolder(FString DataType, FString FileExtension)
+{
+	// Find the position to insert frame number
+	
+
+	if (FileExtension.StartsWith(".")) {
+		FileExtension.RemoveAt(0);
+	}
+
+	// Create filename with frame number and data type
+	FString FileName = RecordFileName;
+	FString FileBaseName = FString::Printf(TEXT("%d_%s.%s"), ElapsedSteps, *DataType, *FileExtension);
+	FString FileFolder = FString::Printf(TEXT("%s"), *DataType);
+	FileName = FPaths::Combine(FileName, FileFolder);
+	FileName = FPaths::Combine(FileName, FileBaseName);
 	// Combine with output folder
 	FileName = FPaths::ConvertRelativePathToFull(FinalDataFolder, FileName);
 
@@ -594,9 +637,12 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 
 	FJsonObjectBP JsonObject = USerializeBPLib::TMapToJson(Keys, Values);
 	FString JsonStr = USerializeBPLib::JsonToStr(JsonObject);
-	FString JsonFilename = MakeFilenameNew("metadata", ".json");
+	FString JsonFilename = MakeFilenameNewWithFolder("metadata", ".json");
 
-	UVisionBPLib::SaveData(JsonStr, JsonFilename);
+    AsyncTask(ENamedThreads::AnyThread, [JsonStr, JsonFilename]()
+	{
+		UVisionBPLib::SaveData(JsonStr, JsonFilename);
+	});
 }
 
 
@@ -628,6 +674,14 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 		StopRecord();
 	}
 
+	// Force highest LOD quality for recording
+	static auto CVarForceLOD = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ForceLOD"));
+	if (CVarForceLOD)
+	{
+		CVarForceLOD->Set(0);
+		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Set r.ForceLOD = 0 for trajectory recording"));
+	}
+
 	float DegreesPerFrame = DegreesPerSecond / FPS;
 
 	RecordFileName = FileName;
@@ -642,7 +696,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bAsyncCaptureEnabled);
 	// TargetSensor->SetUseAsyncCapture(bAsyncCaptureEnabled);
 
-	// RealWorldTimeRecordingStart = FDateTime::Now();
+	RealWorldTimeRecordingStart = FDateTime::Now();
 	// bAsyncCaptureEnabled = TargetSensor->GetUseAsyncCapture();
 	// UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bAsyncCaptureEnabled);
 
@@ -653,6 +707,8 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	};
 	const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
 
+
+	TargetSensor->GetDepthCamSensor()->bIgnoreTransparentObjects = true;
 	TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);	
 	OriginalCameraLocation = TargetSensor->GetSensorLocation();
 	OriginalCameraRotation = TargetSensor->GetSensorRotation();
@@ -974,10 +1030,11 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
+		Pose.DesiredEstTimeDilation = 0.0f;
 		Trajectory.Add(Pose);
 	}
 
-	return Trajectory;
+	return AddRotateBufferFrames(Trajectory);
 }
 
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomOut(AActor* Target, float DegreesPerFrame)
@@ -1005,10 +1062,11 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
+		Pose.DesiredEstTimeDilation = 0.0f;
 		Trajectory.Add(Pose);
 	}
 
-	return Trajectory;
+	return AddRotateBufferFrames(Trajectory);
 }
 
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRandomDirection(AActor* Target, float DegreesPerFrame, int32 RandomSeed)
@@ -1061,7 +1119,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 			NewOffset = NewOffset.GetSafeNormal() * CurrentDistance;
 		}
 
-		float NewHeight = 0.;
+		float NewHeight = 25.;
 		FVector NewLocation = TargetLocation + NewOffset;
 		if (NewLocation.Z < NewHeight) 
 		{
@@ -1072,10 +1130,11 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
+		Pose.DesiredEstTimeDilation = 0.0f;
 		Trajectory.Add(Pose);
 	}
 
-	return Trajectory;
+	return AddRotateBufferFrames(Trajectory);
 }
 
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRenderOnly()
