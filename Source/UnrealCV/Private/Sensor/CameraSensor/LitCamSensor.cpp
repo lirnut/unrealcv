@@ -52,9 +52,9 @@ void ULitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)
 		}
 	}
 
-	if (bUseAsyncCapture)
+	if (bUseFastCapture)
 	{
-		Capture(Image, Width, Height);
+		CaptureFast(Image, Width, Height);
 	}
 	else
 	{

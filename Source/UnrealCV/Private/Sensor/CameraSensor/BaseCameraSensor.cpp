@@ -36,6 +36,7 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	FilmHeight = Config.Height == 0 ? 480 : Config.Height;
 	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
 
+	bUseFastCapture = true;
 	// QueuedCaptures.Empty();
 }
 
@@ -119,16 +120,24 @@ bool UBaseCameraSensor::CheckTextureTarget()
 
 void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Height)
 {
-	SCOPE_CYCLE_COUNTER(STAT_ReadBuffer);
-
-	if (!CheckTextureTarget())
+	if (bUseFastCapture)
 	{
-		UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
+		CaptureFast(ImageData, Width, Height);
 		return;
 	}
-	this->CaptureScene();
+	else
+    {
+		SCOPE_CYCLE_COUNTER(STAT_ReadBuffer);
 
-	ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
+		if (!CheckTextureTarget())
+		{
+			UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
+			return;
+		}
+		this->CaptureScene();
+
+		ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
+	}
 }
 
 // void UBaseCameraSensor::CaptureToFile(const FString& Filename)
@@ -176,14 +185,41 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 //     );
 // }
 
-void UBaseCameraSensor::CaptureToFile(const FString& Filename)
+void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 {
+	TArray<FColor> PixelData;
+	int Width, Height;
+	CaptureFast(PixelData, Width, Height);
+	if (PixelData.Num() == Width * Height && Width > 0 && Height > 0)
+	{
+		AsyncTask(ENamedThreads::AnyThread,
+			[PixelData = MoveTemp(PixelData), OutputPath = Filename, Width = Width, Height = Height]()
+			{
+				double SerializeStartTime = FPlatformTime::Seconds();
+				SerializeData(PixelData, Width, Height, OutputPath);
+				double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
+				UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s in %.3f ms"), *OutputPath, SerializeTime * 1000.0);
+			}
+		);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFastToFile: PixelData is empty or size not match"));
+	}
+}
+
+void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height)
+{
+	double CaptureFastStartTime = FPlatformTime::Seconds();
 	if (!bCopyLaunched)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureToFile: Copy not launched, launch it"));
 		LaunchCapture();
 		CopyBackCapture();
+		SL::get().printf("CaptureFast: [X1] fallback start copy !\n");
 	}
+	SL::get().printf("CaptureFast: [X1] fallback start copy cost %.3f ms\n", (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
+
 
 
 	// busy wait
@@ -197,32 +233,29 @@ void UBaseCameraSensor::CaptureToFile(const FString& Filename)
 		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache not valid, failed"));
 		return;
 	}
+	SL::get().printf("CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
 
-	TArray<FColor> PixelData;
-	PixelData = MoveTemp(CaptureCache);
-	bCaptureCacheValid = false;	
-	CaptureCache = {};
-
-	if (PixelData.Num() == FilmWidth * FilmHeight)
+	// TArray<FColor> PixelData;
+	double CopyStartTime = FPlatformTime::Seconds();
+	if (CaptureCache.Num() == FilmWidth * FilmHeight)
 	{
-		AsyncTask(ENamedThreads::AnyThread,
-			[PixelData = MoveTemp(PixelData), OutputPath = Filename, Width = FilmWidth, Height = FilmHeight]()
-			{
-				double SerializeStartTime = FPlatformTime::Seconds();
-				SerializeData(PixelData, Width, Height, OutputPath);
-				double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
-				UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s in %.3f ms"), *OutputPath, SerializeTime * 1000.0);
-			}
-		);
+		ImageData = MoveTemp(CaptureCache);
+		Width = FilmWidth;
+		Height = FilmHeight;
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: PixelData is empty"));
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache size not match, failed"));
 	}
-	
-	
+	SL::get().printf("CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
+
+	bCaptureCacheValid = false;	
+	CaptureCache = {};
+
+	double LaunchStartTime = FPlatformTime::Seconds();
 	LaunchCapture();
 	CopyBackCapture();
+	SL::get().printf("CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
 }
 
 void UBaseCameraSensor::SetPostProcessMaterial(UMaterial* PostProcessMaterial)

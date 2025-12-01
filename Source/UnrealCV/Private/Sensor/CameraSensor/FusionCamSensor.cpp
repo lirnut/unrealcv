@@ -259,29 +259,15 @@ void UFusionCamSensor::GetLit(TArray<FColor>& LitData, int& Width, int& Height, 
 {
 	this->LitCamSensor->CaptureLit(LitData, Width, Height);
 }
-void UFusionCamSensor::CaptureLitToFile(const FString& Filename)
-{
-	this->LitCamSensor->CaptureToFile(Filename);
-}
 
 void UFusionCamSensor::GetDepth(TArray<float>& DepthData, int& Width, int& Height, EDepthMode DepthMode)
 {
 	this->DepthCamSensor->CaptureDepth(DepthData, Width, Height);
 }
-void UFusionCamSensor::CaptureDepthToFile(const FString& Filename)
-{
-	this->DepthCamSensor->CaptureDepthToFile(Filename);
-}
-
 void UFusionCamSensor::GetNormal(TArray<FColor>& NormalData, int& Width, int& Height)
 {
 	this->NormalCamSensor->Capture(NormalData, Width, Height);
 }
-void UFusionCamSensor::CaptureNormalToFile(const FString& Filename)
-{
-	this->NormalCamSensor->CaptureToFile(Filename);
-}
-
 void UFusionCamSensor::GetFlow(TArray<FColor>& FlowData, int& Width, int& Height)
 {
 	if (!FlowCamSensor)
@@ -294,25 +280,10 @@ void UFusionCamSensor::GetFlow(TArray<FColor>& FlowData, int& Width, int& Height
 	}
 	this->FlowCamSensor->Capture(FlowData, Width, Height);
 }
-void UFusionCamSensor::CaptureFlowToFile(const FString& Filename)
-{
-	if (!FlowCamSensor)
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("FlowCamSensor is not initialized. CaptureFlowToFile failed."));
-		return;
-	}
-	this->FlowCamSensor->CaptureToFile(Filename);
-}
-
 void UFusionCamSensor::GetSeg(TArray<FColor>& ObjMaskData, int& Width, int& Height, ESegMode SegMode)
 {
 	this->AnnotationCamSensor->CaptureSeg(ObjMaskData, Width, Height);
 }
-void UFusionCamSensor::CaptureSegToFile(const FString& Filename)
-{
-	this->AnnotationCamSensor->CaptureSegToFile(Filename);
-}
-
 FVector UFusionCamSensor::GetSensorLocation()
 {
 	return this->GetComponentLocation(); // World space
@@ -551,32 +522,32 @@ void UFusionCamSensor::SetFocalParams(float FocalDistance, float FocalRegion)
     this->LitCamSensor->PostProcessSettings.DepthOfFieldFocalRegion = FocalRegion;
 }
 
-void UFusionCamSensor::SetUseAsyncCapture(bool bInUseAsync)
+void UFusionCamSensor::SetUseFastCapture(bool bInUseFast)
 {
 	for (UBaseCameraSensor* Sensor : FusionSensors)
 	{
 		if (IsValid(Sensor))
 		{
-			Sensor->SetUseAsyncCapture(bInUseAsync);
+			Sensor->SetUseFastCapture(bInUseFast);
 		}
 	}
-	this->LitCamSensor->SetUseAsyncCapture(bInUseAsync);
-	this->DepthCamSensor->SetUseAsyncCapture(bInUseAsync);
-	this->AnnotationCamSensor->SetUseAsyncCapture(bInUseAsync);
-	this->NormalCamSensor->SetUseAsyncCapture(bInUseAsync);
-	this->FlowCamSensor->SetUseAsyncCapture(bInUseAsync);
+	this->LitCamSensor->SetUseFastCapture(bInUseFast);
+	this->DepthCamSensor->SetUseFastCapture(bInUseFast);
+	this->AnnotationCamSensor->SetUseFastCapture(bInUseFast);
+	this->NormalCamSensor->SetUseFastCapture(bInUseFast);
+	this->FlowCamSensor->SetUseFastCapture(bInUseFast);
 }
 
-bool UFusionCamSensor::GetUseAsyncCapture() const
+bool UFusionCamSensor::GetUseFastCapture() const
 {
-	bool bLitAsyncCapture = this->LitCamSensor->GetUseAsyncCapture();
-	bool bDepthAsyncCapture = this->DepthCamSensor->GetUseAsyncCapture();
-	bool bAnnotationAsyncCapture = this->AnnotationCamSensor->GetUseAsyncCapture();
-	bool bNormalAsyncCapture = this->NormalCamSensor->GetUseAsyncCapture();
-	bool bFlowAsyncCapture = this->FlowCamSensor->GetUseAsyncCapture();
-	if (!(bLitAsyncCapture == bDepthAsyncCapture && bLitAsyncCapture == bAnnotationAsyncCapture && bLitAsyncCapture == bNormalAsyncCapture && bLitAsyncCapture == bFlowAsyncCapture))
+	bool bLitFastCapture = this->LitCamSensor->GetUseFastCapture();
+	bool bDepthFastCapture = this->DepthCamSensor->GetUseFastCapture();
+	bool bAnnotationFastCapture = this->AnnotationCamSensor->GetUseFastCapture();
+	bool bNormalFastCapture = this->NormalCamSensor->GetUseFastCapture();
+	bool bFlowFastCapture = this->FlowCamSensor->GetUseFastCapture();
+	if (!(bLitFastCapture == bDepthFastCapture && bLitFastCapture == bAnnotationFastCapture && bLitFastCapture == bNormalFastCapture && bLitFastCapture == bFlowFastCapture))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetUseAsyncCapture: Inconsistent async settings detected!"));
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetUseFastCapture: Inconsistent fast settings detected!"));
 	}
-	return bLitAsyncCapture;
+	return bLitFastCapture;
 }

@@ -26,7 +26,10 @@ public:
 	// void CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height);
 
 	/** Save lit to an image file, send the capture command to rendering thread */
-	void CaptureToFile(const FString& Filename);
+	void CaptureFastToFile(const FString& Filename);
+
+	/** Fast async ver. **/
+	void CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height);
 
 	/** The old version to read TextureBuffer, slow but is sync operation and  correct */
 	void Capture(TArray<FColor>& ImageData, int& Width, int& Height);
@@ -79,8 +82,8 @@ public:
 	// void InitializeAsyncCapture();
 	// void ShutdownAsyncCapture();
 
-	void SetUseAsyncCapture(bool bInUseAsync) { bUseAsyncCapture = bInUseAsync; }
-	bool GetUseAsyncCapture() const { return bUseAsyncCapture; }
+	void SetUseFastCapture(bool bInUseFast) { bUseFastCapture = bInUseFast; }
+	bool GetUseFastCapture() const { return bUseFastCapture; }
 
 	// virtual void CaptureToGPUQueue(const FString& Filename);
 	// void FlushCapturesToDisk();
@@ -97,9 +100,8 @@ protected:
 
 	// TSharedPtr<class FAsyncCapturePool> AsyncCapturePool;
 	// int32 PendingCaptureRequestID;
-	bool bUseAsyncCapture;
+	bool bUseFastCapture;
 
-private:
 	struct FQueuedCapture
 	{
 		// TUniquePtr<FRHIGPUTextureReadback> Readback;
