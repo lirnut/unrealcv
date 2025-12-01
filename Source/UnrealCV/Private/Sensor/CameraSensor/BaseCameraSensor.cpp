@@ -36,7 +36,7 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	FilmHeight = Config.Height == 0 ? 480 : Config.Height;
 	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
 
-	QueuedCaptures.Empty();
+	// QueuedCaptures.Empty();
 }
 
 // Explicitly make a request to render frames
@@ -131,51 +131,85 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 	ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
 }
 
+// void UBaseCameraSensor::CaptureToFile(const FString& Filename)
+// {
+//     if (!CheckTextureTarget())
+//     {
+//         UE_LOG(LogTemp, Error, TEXT("TextureTarget not initialized, CaptureToFile failed."));
+//         return;
+//     }
+
+//     this->CaptureScene();
+
+//     FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+//     int32 Width = TextureTarget->SizeX;
+//     int32 Height = TextureTarget->SizeY;
+
+//     FString OutputPath = Filename;
+
+//     ENQUEUE_RENDER_COMMAND(CaptureToFileCommand)(
+//         [RenderTargetResource, Width, Height, OutputPath](FRHICommandListImmediate& RHICmdList)
+//         {
+//             TArray<FColor> PixelData;
+//             PixelData.AddUninitialized(Width * Height);
+
+//             FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
+//             RHICmdList.ReadSurfaceData(
+//                 RenderTargetResource->GetRenderTargetTexture(),
+//                 FIntRect(0, 0, Width, Height),
+//                 PixelData,
+//                 ReadFlags
+//             );
+
+//             AsyncTask(ENamedThreads::AnyThread, [PixelData = MoveTemp(PixelData), Width, Height, OutputPath]()
+//             {
+//                 if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
+//                 {
+//                     UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s"), *OutputPath);
+//                 }
+//                 else
+//                 {
+//                     UE_LOG(LogTemp, Error, TEXT("[CaptureToFile] Failed to save %s"), *OutputPath);
+//                 }
+//             });
+//         }
+//     );
+// }
+
 void UBaseCameraSensor::CaptureToFile(const FString& Filename)
 {
-    if (!CheckTextureTarget())
-    {
-        UE_LOG(LogTemp, Error, TEXT("TextureTarget not initialized, CaptureToFile failed."));
-        return;
-    }
+	if (!bCaptureCacheValid)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache not valid"));
+		LaunchCapture();
+		CopyBackCapture();
+		if (!bCaptureCacheValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache not valid"));
+		}	
+	}
 
-    this->CaptureScene();
+	TArray<FColor> PixelData;
+	int32 Width, Height;
+	ConvertCapture(PixelData, Width, Height);
+	AsyncTask(ENamedThreads::AnyThread,
+		[PixelData = MoveTemp(PixelData), OutputPath = Filename, Width, Height]()
+		{
+			double SerializeStartTime = FPlatformTime::Seconds();
+			SerializeData(PixelData, Width, Height, OutputPath);
+			double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
+			UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s in %.3f ms"), *OutputPath, SerializeTime * 1000.0);
+		}
+	);
+	
+	LaunchCapture();
+	CopyBackCapture();
 
-    FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
-    int32 Width = TextureTarget->SizeX;
-    int32 Height = TextureTarget->SizeY;
-
-    FString OutputPath = Filename;
-
-    ENQUEUE_RENDER_COMMAND(CaptureToFileCommand)(
-        [RenderTargetResource, Width, Height, OutputPath](FRHICommandListImmediate& RHICmdList)
-        {
-            TArray<FColor> PixelData;
-            PixelData.AddUninitialized(Width * Height);
-
-            FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
-            RHICmdList.ReadSurfaceData(
-                RenderTargetResource->GetRenderTargetTexture(),
-                FIntRect(0, 0, Width, Height),
-                PixelData,
-                ReadFlags
-            );
-
-            AsyncTask(ENamedThreads::AnyThread, [PixelData = MoveTemp(PixelData), Width, Height, OutputPath]()
-            {
-                if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
-                {
-                    UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s"), *OutputPath);
-                }
-                else
-                {
-                    UE_LOG(LogTemp, Error, TEXT("[CaptureToFile] Failed to save %s"), *OutputPath);
-                }
-            });
-        }
-    );
+	if (!bCaptureCacheValid)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache not valid"));
+	}
 }
-
 
 void UBaseCameraSensor::SetPostProcessMaterial(UMaterial* PostProcessMaterial)
 {
@@ -215,262 +249,383 @@ void UBaseCameraSensor::ReadCaptureResults(TArray<FColor>& Data)
 	}
 }
 
-void UBaseCameraSensor::CaptureToGPUQueue(const FString& Filename)
+void UBaseCameraSensor::LaunchCapture()
 {
 	if (!CheckTextureTarget())
 	{
 		UE_LOG(LogTemp, Error, TEXT("TextureTarget not initialized, CaptureToGPUQueue failed."));
 		return;
 	}
+	this->CaptureScene();
+}
 
+void UBaseCameraSensor::CopyBackCapture()
+{
 	EPixelFormat PixelFormat = TextureTarget->GetFormat();
 	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] TextureTarget Format: %d, SRGB: %d, Gamma: %f"),
 		(int32)PixelFormat,
 		TextureTarget->SRGB,
 		TextureTarget->TargetGamma);
 
-	this->CaptureScene();
-
 	FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
 	int32 Width = TextureTarget->SizeX;
 	int32 Height = TextureTarget->SizeY;
 
-	FQueuedCapture NewCapture;
-	NewCapture.Readback = MakeUnique<FRHIGPUTextureReadback>(
-		*FString::Printf(TEXT("QueuedCapture_%d"), QueuedCaptures.Num())
+	CaptureCache.Readback = MakeShared<FRHIGPUTextureReadback>(
+		// random name
+		*FString::Printf(TEXT("Capture_%d"), FMath::Rand())
 	);
-	NewCapture.OutputPath = Filename;
-	NewCapture.Width = Width;
-	NewCapture.Height = Height;
-	NewCapture.PixelFormat = PixelFormat;
+	CaptureCache.OutputPath = TEXT("");
+	CaptureCache.Width = Width;
+	CaptureCache.Height = Height;
+	CaptureCache.PixelFormat = PixelFormat;
+
+	double RenderStartTime = FPlatformTime::Seconds();
 
 	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
-		[RenderTargetResource, Capture = MoveTemp(NewCapture)](FRHICommandListImmediate& RHICmdList)
+		[RenderTargetResource, Capture = MoveTemp(CaptureCache), RenderStartTime](FRHICommandListImmediate& RHICmdList)
+		// [RenderTargetResource, &CaptureCache, RenderStartTime](FRHICommandListImmediate& RHICmdList)
 		{
+			SL::get().printf("[R0] Start time: %.3f ms", (FPlatformTime::Seconds() - RenderStartTime) * 1000.0);
+			double FlushStartTime = FPlatformTime::Seconds();
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			SL::get().printf("[R1] Flush time: %.3f ms", (FPlatformTime::Seconds() - FlushStartTime) * 1000.0);
+
+			double EnqueueStartTime = FPlatformTime::Seconds();
 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
-			int32 RowPitchInPixels;
-			const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-			// Process data immediately on render thread to avoid accessing invalid memory
-			TArray<FColor> PixelData;
-			PixelData.AddUninitialized(Capture.Width * Capture.Height);
+			SL::get().printf("[R2] EnqueueCopy time: %.3f ms", (FPlatformTime::Seconds() - EnqueueStartTime) * 1000.0);
 
-			FReadSurfaceDataFlags ReadFlags;
-			ReadFlags.SetLinearToGamma(false);
-
-			uint32 SrcPitch = RowPitchInPixels * GPixelFormats[Capture.PixelFormat].BlockBytes;
-
-			ConvertRAWSurfaceDataToFColorOpt(
-				Capture.PixelFormat,
-				Capture.Width,
-				Capture.Height,
-				(uint8*)RawData,
-				SrcPitch,
-				PixelData.GetData(),
-				ReadFlags
-			);
-
-			// Unlock the readback data
-			Capture.Readback->Unlock();
-
-			// Move to game thread for file I/O
-			AsyncTask(ENamedThreads::AnyThread,
-				[PixelData = MoveTemp(PixelData), OutputPath = Capture.OutputPath, Width = Capture.Width, Height = Capture.Height]()
-				{
-					double SerializeStartTime = FPlatformTime::Seconds();
-
-					if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
-					{
-						double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
-						SL::get().printf("[A1] Saved %s in %.3f ms",
-							TCHAR_TO_UTF8(*OutputPath), SerializeTime * 1000.0);
-					}
-					else
-					{
-						SL::get().printf("[A1] Failed to save %s", TCHAR_TO_UTF8(*OutputPath));
-					}
-				});
+			double TotalRenderTime = FPlatformTime::Seconds() - RenderStartTime;
+			SL::get().printf("[R7] Total render thread time: %.3f ms", TotalRenderTime * 1000.0);
 		}
 	);
-
-	QueuedCaptures.Add(MoveTemp(NewCapture));
-
-	UE_LOG(LogUnrealCV, Verbose, TEXT("CaptureToGPUQueue: Enqueued %s, total=%d"),
-		*Filename, QueuedCaptures.Num());
+	bCaptureCacheValid = true;
 }
 
-void UBaseCameraSensor::FlushCapturesToDisk()
+void UBaseCameraSensor::ConvertCapture(TArray<FColor>& OutPixelData, int32& OutWidth, int32& OutHeight)
 {
-	return;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	if (QueuedCaptures.Num() == 0)
+	if (!bCaptureCacheValid)
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FlushCapturesToDisk: No captures queued"));
+		UE_LOG(LogTemp, Error, TEXT("CaptureCache not valid, ConvertCapture failed."));
 		return;
 	}
+	FQueuedCapture Capture = MoveTemp(CaptureCache);
+	bCaptureCacheValid = false;
 
-	int32 NumCaptures = QueuedCaptures.Num();
-	double FlushStartTime = FPlatformTime::Seconds();
-	UE_LOG(LogUnrealCV, Log, TEXT("FlushCapturesToDisk: Processing %d captures"), NumCaptures);
+	double LockStartTime = FPlatformTime::Seconds();
+	int32 RowPitchInPixels;
+	const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+	SL::get().printf("[R3] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
 
-	TArray<FQueuedCapture> CapturesToFlush = MoveTemp(QueuedCaptures);
-	QueuedCaptures.Empty();
+	// Process data immediately on render thread to avoid accessing invalid memory
+	double AllocStartTime = FPlatformTime::Seconds();
+	OutPixelData.Empty();
+	OutPixelData.AddUninitialized(Capture.Width * Capture.Height);
+	SL::get().printf("[R4] PixelData allocation time: %.3f ms", (FPlatformTime::Seconds() - AllocStartTime) * 1000.0);
 
-	ENQUEUE_RENDER_COMMAND(FlushQueuedCaptures)(
-		[CapturesToFlush = MoveTemp(CapturesToFlush), NumCaptures, FlushStartTime](FRHICommandListImmediate& RHICmdList) mutable
-		{
-			double RenderThreadStartTime = FPlatformTime::Seconds();
-			double TotalWaitTime = 0.0;
-			double TotalLockTime = 0.0;
-			double TotalConversionTime = 0.0;
-			int32 NumBlocked = 0;
+	FReadSurfaceDataFlags ReadFlags;
+	ReadFlags.SetLinearToGamma(false);
 
-			struct FLockedCaptureData
-			{
-				const void* RawData;
-				int32 RowPitchInPixels;
-				FString OutputPath;
-				int32 Width;
-				int32 Height;
-				EPixelFormat PixelFormat;
-			};
+	uint32 SrcPitch = RowPitchInPixels * GPixelFormats[Capture.PixelFormat].BlockBytes;
 
-			TArray<FLockedCaptureData> LockedCaptures;
-			LockedCaptures.Reserve(CapturesToFlush.Num());
-
-			double LockStartTime = FPlatformTime::Seconds();
-
-			for (int32 i = 0; i < CapturesToFlush.Num(); ++i)
-			{
-				auto& Capture = CapturesToFlush[i];
-
-				if (!Capture.Readback->IsReady())
-				{
-					double WaitStartTime = FPlatformTime::Seconds();
-					RHICmdList.BlockUntilGPUIdle();
-					TotalWaitTime += FPlatformTime::Seconds() - WaitStartTime;
-					NumBlocked++;
-				}
-
-				int32 RowPitchInPixels;
-				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-
-				if (RawData)
-				{
-					FLockedCaptureData LockedData;
-					LockedData.RawData = RawData;
-					LockedData.RowPitchInPixels = RowPitchInPixels;
-					LockedData.OutputPath = Capture.OutputPath;
-					LockedData.Width = Capture.Width;
-					LockedData.Height = Capture.Height;
-					LockedData.PixelFormat = Capture.PixelFormat;
-					LockedCaptures.Add(LockedData);
-				}
-			}
-
-			TotalLockTime = FPlatformTime::Seconds() - LockStartTime;
-
-			double ConversionStartTime = FPlatformTime::Seconds();
-
-			TArray<TArray<FColor>> AllPixelData;
-			AllPixelData.SetNum(LockedCaptures.Num());
-
-			for (int32 i = 0; i < AllPixelData.Num(); ++i)
-			{
-				AllPixelData[i].SetNumUninitialized(LockedCaptures[i].Width * LockedCaptures[i].Height);
-			}
-
-			ParallelFor(LockedCaptures.Num(), [&](int32 i)
-			{
-				const FLockedCaptureData& LockedData = LockedCaptures[i];
-
-				// FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
-				FReadSurfaceDataFlags ReadFlags;
-				ReadFlags.SetLinearToGamma(false);
-
-				uint32 SrcPitch = LockedData.RowPitchInPixels * GPixelFormats[LockedData.PixelFormat].BlockBytes;
-
-				ConvertRAWSurfaceDataToFColorOpt(
-					LockedData.PixelFormat,
-					LockedData.Width,
-					LockedData.Height,
-					(uint8*)LockedData.RawData,
-					SrcPitch,
-					AllPixelData[i].GetData(),
-					ReadFlags
-				);
-				// // AllPixelData[i].GetData()
-				// for (int32 Index = 0; Index < AllPixelData[i].Num(); ++Index)
-				// {
-				// 	AllPixelData[i][Index] = AllPixelData[i][Index].ReinterpretAsLinear();
-				// }
-			});
-
-			TotalConversionTime = FPlatformTime::Seconds() - ConversionStartTime;
-
-			for (auto& Capture : CapturesToFlush)
-			{
-				Capture.Readback->Unlock();
-			}
-
-			for (int32 i = 0; i < LockedCaptures.Num(); ++i)
-			{
-				FString OutputPath = LockedCaptures[i].OutputPath;
-				int32 Width = LockedCaptures[i].Width;
-				int32 Height = LockedCaptures[i].Height;
-
-				AsyncTask(ENamedThreads::AnyThread,
-					[PixelData = MoveTemp(AllPixelData[i]), OutputPath, Width, Height]()
-				{
-					double SerializeStartTime = FPlatformTime::Seconds();
-
-					if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
-					{
-						double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
-						SL::get().printf("[PERF] Saved %s in %.3f ms",
-							TCHAR_TO_UTF8(*OutputPath), SerializeTime * 1000.0);
-					}
-					else
-					{
-						SL::get().printf("[ERROR] Failed to save %s", TCHAR_TO_UTF8(*OutputPath));
-					}
-				});
-			}
-
-			double RenderThreadTotalTime = FPlatformTime::Seconds() - RenderThreadStartTime;
-			double GameThreadTotalTime = FPlatformTime::Seconds() - FlushStartTime;
-
-			SL::get().printf("[PERF SUMMARY] FlushCapturesToDisk: %d captures", NumCaptures);
-			SL::get().printf("[PERF] Total game thread time: %.3f ms (%.3f ms/frame)",
-				GameThreadTotalTime * 1000.0, (GameThreadTotalTime * 1000.0) / NumCaptures);
-			SL::get().printf("[PERF] Total render thread time: %.3f ms (%.3f ms/frame)",
-				RenderThreadTotalTime * 1000.0, (RenderThreadTotalTime * 1000.0) / NumCaptures);
-			SL::get().printf("[PERF] GPU wait time: %.3f ms (%.3f ms/frame) - %d frames blocked",
-				TotalWaitTime * 1000.0, NumBlocked > 0 ? (TotalWaitTime * 1000.0) / NumBlocked : 0.0, NumBlocked);
-			SL::get().printf("[PERF] Lock time (GPU->CPU DMA): %.3f ms (%.3f ms/frame)",
-				TotalLockTime * 1000.0, (TotalLockTime * 1000.0) / NumCaptures);
-			SL::get().printf("[PERF] Pixel conversion time (ParallelFor): %.3f ms (%.3f ms/frame)",
-				TotalConversionTime * 1000.0, (TotalConversionTime * 1000.0) / NumCaptures);
-			SL::get().printf("[PERF] Theoretical speedup: %.2fx (serial: %.3f ms -> parallel: %.3f ms)",
-				(TotalLockTime + 7401.0) / (TotalLockTime + TotalConversionTime),
-				7401.0, TotalConversionTime * 1000.0);
-		}
+	double ConvertStartTime = FPlatformTime::Seconds();
+	ConvertRAWSurfaceDataToFColorOpt(
+		Capture.PixelFormat,
+		Capture.Width,
+		Capture.Height,
+		(uint8*)RawData,
+		SrcPitch,
+		OutPixelData.GetData(),
+		ReadFlags
 	);
+	SL::get().printf("[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
+	
+	// Unlock the readback data
+	double UnlockStartTime = FPlatformTime::Seconds();
+	Capture.Readback->Unlock();
+	SL::get().printf("[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
+
+	OutWidth = Capture.Width;
+	OutHeight = Capture.Height;
 }
+
+// void UBaseCameraSensor::CaptureToGPUQueue(const FString& Filename)
+// {
+// 	if (!CheckTextureTarget())
+// 	{
+// 		UE_LOG(LogTemp, Error, TEXT("TextureTarget not initialized, CaptureToGPUQueue failed."));
+// 		return;
+// 	}
+
+// 	EPixelFormat PixelFormat = TextureTarget->GetFormat();
+// 	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] TextureTarget Format: %d, SRGB: %d, Gamma: %f"),
+// 		(int32)PixelFormat,
+// 		TextureTarget->SRGB,
+// 		TextureTarget->TargetGamma);
+
+// 	this->CaptureScene();
+
+// 	FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+// 	int32 Width = TextureTarget->SizeX;
+// 	int32 Height = TextureTarget->SizeY;
+
+// 	FQueuedCapture NewCapture;
+// 	NewCapture.Readback = MakeUnique<FRHIGPUTextureReadback>(
+// 		*FString::Printf(TEXT("QueuedCapture_%d"), QueuedCaptures.Num())
+// 	);
+// 	NewCapture.OutputPath = Filename;
+// 	NewCapture.Width = Width;
+// 	NewCapture.Height = Height;
+// 	NewCapture.PixelFormat = PixelFormat;
+
+// 	double RenderStartTime = FPlatformTime::Seconds();
+
+// 	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
+// 		[RenderTargetResource, Capture = MoveTemp(NewCapture), RenderStartTime](FRHICommandListImmediate& RHICmdList)
+// 		{
+// 			SL::get().printf("[R0] Start time: %.3f ms", (FPlatformTime::Seconds() - RenderStartTime) * 1000.0);
+// 			double FlushStartTime = FPlatformTime::Seconds();
+// 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+// 			SL::get().printf("[R1] Flush time: %.3f ms", (FPlatformTime::Seconds() - FlushStartTime) * 1000.0);
+
+// 			double EnqueueStartTime = FPlatformTime::Seconds();
+// 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
+// 			SL::get().printf("[R2] EnqueueCopy time: %.3f ms", (FPlatformTime::Seconds() - EnqueueStartTime) * 1000.0);
+
+// 			double LockStartTime = FPlatformTime::Seconds();
+// 			int32 RowPitchInPixels;
+// 			const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+// 			SL::get().printf("[R3] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
+
+// 			// Process data immediately on render thread to avoid accessing invalid memory
+// 			double AllocStartTime = FPlatformTime::Seconds();
+// 			TArray<FColor> PixelData;
+// 			PixelData.AddUninitialized(Capture.Width * Capture.Height);
+// 			SL::get().printf("[R4] PixelData allocation time: %.3f ms", (FPlatformTime::Seconds() - AllocStartTime) * 1000.0);
+
+// 			FReadSurfaceDataFlags ReadFlags;
+// 			ReadFlags.SetLinearToGamma(false);
+
+// 			uint32 SrcPitch = RowPitchInPixels * GPixelFormats[Capture.PixelFormat].BlockBytes;
+
+// 			double ConvertStartTime = FPlatformTime::Seconds();
+// 			ConvertRAWSurfaceDataToFColorOpt(
+// 				Capture.PixelFormat,
+// 				Capture.Width,
+// 				Capture.Height,
+// 				(uint8*)RawData,
+// 				SrcPitch,
+// 				PixelData.GetData(),
+// 				ReadFlags
+// 			);
+// 			SL::get().printf("[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
+
+// 			// Unlock the readback data
+// 			double UnlockStartTime = FPlatformTime::Seconds();
+// 			Capture.Readback->Unlock();
+// 			SL::get().printf("[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
+
+// 			double TotalRenderTime = FPlatformTime::Seconds() - RenderStartTime;
+// 			SL::get().printf("[R7] Total render thread time: %.3f ms", TotalRenderTime * 1000.0);
+
+// 			// Move to game thread for file I/O
+// 			AsyncTask(ENamedThreads::AnyThread,
+// 				[PixelData = MoveTemp(PixelData), OutputPath = Capture.OutputPath, Width = Capture.Width, Height = Capture.Height]()
+// 				{
+// 					double SerializeStartTime = FPlatformTime::Seconds();
+
+// 					if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
+// 					{
+// 						double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
+// 						SL::get().printf("[A1] Saved %s in %.3f ms",
+// 							TCHAR_TO_UTF8(*OutputPath), SerializeTime * 1000.0);
+// 					}
+// 					else
+// 					{
+// 						SL::get().printf("[A1] Failed to save %s", TCHAR_TO_UTF8(*OutputPath));
+// 					}
+// 				});
+// 		}
+// 	);
+
+// 	QueuedCaptures.Add(MoveTemp(NewCapture));
+
+// 	UE_LOG(LogUnrealCV, Verbose, TEXT("CaptureToGPUQueue: Enqueued %s, total=%d"),
+// 		*Filename, QueuedCaptures.Num());
+// }
+
+// void UBaseCameraSensor::FlushCapturesToDisk()
+// {
+// 	return;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 	if (QueuedCaptures.Num() == 0)
+// 	{
+// 		UE_LOG(LogUnrealCV, Warning, TEXT("FlushCapturesToDisk: No captures queued"));
+// 		return;
+// 	}
+
+// 	int32 NumCaptures = QueuedCaptures.Num();
+// 	double FlushStartTime = FPlatformTime::Seconds();
+// 	UE_LOG(LogUnrealCV, Log, TEXT("FlushCapturesToDisk: Processing %d captures"), NumCaptures);
+
+// 	TArray<FQueuedCapture> CapturesToFlush = MoveTemp(QueuedCaptures);
+// 	QueuedCaptures.Empty();
+
+// 	ENQUEUE_RENDER_COMMAND(FlushQueuedCaptures)(
+// 		[CapturesToFlush = MoveTemp(CapturesToFlush), NumCaptures, FlushStartTime](FRHICommandListImmediate& RHICmdList) mutable
+// 		{
+// 			double RenderThreadStartTime = FPlatformTime::Seconds();
+// 			double TotalWaitTime = 0.0;
+// 			double TotalLockTime = 0.0;
+// 			double TotalConversionTime = 0.0;
+// 			int32 NumBlocked = 0;
+
+// 			struct FLockedCaptureData
+// 			{
+// 				const void* RawData;
+// 				int32 RowPitchInPixels;
+// 				FString OutputPath;
+// 				int32 Width;
+// 				int32 Height;
+// 				EPixelFormat PixelFormat;
+// 			};
+
+// 			TArray<FLockedCaptureData> LockedCaptures;
+// 			LockedCaptures.Reserve(CapturesToFlush.Num());
+
+// 			double LockStartTime = FPlatformTime::Seconds();
+
+// 			for (int32 i = 0; i < CapturesToFlush.Num(); ++i)
+// 			{
+// 				auto& Capture = CapturesToFlush[i];
+
+// 				if (!Capture.Readback->IsReady())
+// 				{
+// 					double WaitStartTime = FPlatformTime::Seconds();
+// 					RHICmdList.BlockUntilGPUIdle();
+// 					TotalWaitTime += FPlatformTime::Seconds() - WaitStartTime;
+// 					NumBlocked++;
+// 				}
+
+// 				int32 RowPitchInPixels;
+// 				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+
+// 				if (RawData)
+// 				{
+// 					FLockedCaptureData LockedData;
+// 					LockedData.RawData = RawData;
+// 					LockedData.RowPitchInPixels = RowPitchInPixels;
+// 					LockedData.OutputPath = Capture.OutputPath;
+// 					LockedData.Width = Capture.Width;
+// 					LockedData.Height = Capture.Height;
+// 					LockedData.PixelFormat = Capture.PixelFormat;
+// 					LockedCaptures.Add(LockedData);
+// 				}
+// 			}
+
+// 			TotalLockTime = FPlatformTime::Seconds() - LockStartTime;
+
+// 			double ConversionStartTime = FPlatformTime::Seconds();
+
+// 			TArray<TArray<FColor>> AllPixelData;
+// 			AllPixelData.SetNum(LockedCaptures.Num());
+
+// 			for (int32 i = 0; i < AllPixelData.Num(); ++i)
+// 			{
+// 				AllPixelData[i].SetNumUninitialized(LockedCaptures[i].Width * LockedCaptures[i].Height);
+// 			}
+
+// 			ParallelFor(LockedCaptures.Num(), [&](int32 i)
+// 			{
+// 				const FLockedCaptureData& LockedData = LockedCaptures[i];
+
+// 				// FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
+// 				FReadSurfaceDataFlags ReadFlags;
+// 				ReadFlags.SetLinearToGamma(false);
+
+// 				uint32 SrcPitch = LockedData.RowPitchInPixels * GPixelFormats[LockedData.PixelFormat].BlockBytes;
+
+// 				ConvertRAWSurfaceDataToFColorOpt(
+// 					LockedData.PixelFormat,
+// 					LockedData.Width,
+// 					LockedData.Height,
+// 					(uint8*)LockedData.RawData,
+// 					SrcPitch,
+// 					AllPixelData[i].GetData(),
+// 					ReadFlags
+// 				);
+// 				// // AllPixelData[i].GetData()
+// 				// for (int32 Index = 0; Index < AllPixelData[i].Num(); ++Index)
+// 				// {
+// 				// 	AllPixelData[i][Index] = AllPixelData[i][Index].ReinterpretAsLinear();
+// 				// }
+// 			});
+
+// 			TotalConversionTime = FPlatformTime::Seconds() - ConversionStartTime;
+
+// 			for (auto& Capture : CapturesToFlush)
+// 			{
+// 				Capture.Readback->Unlock();
+// 			}
+
+// 			for (int32 i = 0; i < LockedCaptures.Num(); ++i)
+// 			{
+// 				FString OutputPath = LockedCaptures[i].OutputPath;
+// 				int32 Width = LockedCaptures[i].Width;
+// 				int32 Height = LockedCaptures[i].Height;
+
+// 				AsyncTask(ENamedThreads::AnyThread,
+// 					[PixelData = MoveTemp(AllPixelData[i]), OutputPath, Width, Height]()
+// 				{
+// 					double SerializeStartTime = FPlatformTime::Seconds();
+
+// 					if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
+// 					{
+// 						double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
+// 						SL::get().printf("[PERF] Saved %s in %.3f ms",
+// 							TCHAR_TO_UTF8(*OutputPath), SerializeTime * 1000.0);
+// 					}
+// 					else
+// 					{
+// 						SL::get().printf("[ERROR] Failed to save %s", TCHAR_TO_UTF8(*OutputPath));
+// 					}
+// 				});
+// 			}
+
+// 			double RenderThreadTotalTime = FPlatformTime::Seconds() - RenderThreadStartTime;
+// 			double GameThreadTotalTime = FPlatformTime::Seconds() - FlushStartTime;
+
+// 			SL::get().printf("[PERF SUMMARY] FlushCapturesToDisk: %d captures", NumCaptures);
+// 			SL::get().printf("[PERF] Total game thread time: %.3f ms (%.3f ms/frame)",
+// 				GameThreadTotalTime * 1000.0, (GameThreadTotalTime * 1000.0) / NumCaptures);
+// 			SL::get().printf("[PERF] Total render thread time: %.3f ms (%.3f ms/frame)",
+// 				RenderThreadTotalTime * 1000.0, (RenderThreadTotalTime * 1000.0) / NumCaptures);
+// 			SL::get().printf("[PERF] GPU wait time: %.3f ms (%.3f ms/frame) - %d frames blocked",
+// 				TotalWaitTime * 1000.0, NumBlocked > 0 ? (TotalWaitTime * 1000.0) / NumBlocked : 0.0, NumBlocked);
+// 			SL::get().printf("[PERF] Lock time (GPU->CPU DMA): %.3f ms (%.3f ms/frame)",
+// 				TotalLockTime * 1000.0, (TotalLockTime * 1000.0) / NumCaptures);
+// 			SL::get().printf("[PERF] Pixel conversion time (ParallelFor): %.3f ms (%.3f ms/frame)",
+// 				TotalConversionTime * 1000.0, (TotalConversionTime * 1000.0) / NumCaptures);
+// 			SL::get().printf("[PERF] Theoretical speedup: %.2fx (serial: %.3f ms -> parallel: %.3f ms)",
+// 				(TotalLockTime + 7401.0) / (TotalLockTime + TotalConversionTime),
+// 				7401.0, TotalConversionTime * 1000.0);
+// 		}
+// 	);
+// }

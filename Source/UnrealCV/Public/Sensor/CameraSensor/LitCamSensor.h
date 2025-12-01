@@ -21,5 +21,5 @@ public:
 
 	void CaptureLit(TArray<FColor>& Image, int& Width, int& Height);
 
-	virtual void CaptureToGPUQueue(const FString& Filename) override;
+	// virtual void CaptureToGPUQueue(const FString& Filename) override;
 };

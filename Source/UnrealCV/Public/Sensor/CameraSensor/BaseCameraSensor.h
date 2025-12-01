@@ -82,8 +82,13 @@ public:
 	void SetUseAsyncCapture(bool bInUseAsync) { bUseAsyncCapture = bInUseAsync; }
 	bool GetUseAsyncCapture() const { return bUseAsyncCapture; }
 
-	virtual void CaptureToGPUQueue(const FString& Filename);
-	void FlushCapturesToDisk();
+	// virtual void CaptureToGPUQueue(const FString& Filename);
+	// void FlushCapturesToDisk();
+
+	virtual void LaunchCapture();
+	virtual void CopyBackCapture();
+	virtual void ConvertCapture(TArray<FColor>& OutPixelData, int32& OutWidth, int32& OutHeight);
+	
 
 protected:
 	int FilmWidth;
@@ -97,12 +102,15 @@ protected:
 private:
 	struct FQueuedCapture
 	{
-		TUniquePtr<FRHIGPUTextureReadback> Readback;
+		// TUniquePtr<FRHIGPUTextureReadback> Readback;
+		TSharedPtr<FRHIGPUTextureReadback> Readback;
 		FString OutputPath;
 		int32 Width;
 		int32 Height;
 		EPixelFormat PixelFormat;
 	};
+	bool bCaptureCacheValid = false;
+	FQueuedCapture CaptureCache;
 
-	TArray<FQueuedCapture> QueuedCaptures;
+	// TArray<FQueuedCapture> QueuedCaptures;
 };

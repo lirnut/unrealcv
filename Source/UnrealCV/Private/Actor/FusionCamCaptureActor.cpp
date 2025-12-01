@@ -101,11 +101,11 @@ void AFusionCamCaptureActor::StopRecord()
 {
 	if (bIsRecording)
 	{
-     	TargetSensor->GetLitCamSensor()->FlushCapturesToDisk();
-      	TargetSensor->GetDepthCamSensor()->FlushCapturesToDisk();
-      	TargetSensor->GetAnnotationCamSensor()->FlushCapturesToDisk();
-      	TargetSensor->GetNormalCamSensor()->FlushCapturesToDisk();
-      	TargetSensor->GetFlowCamSensor()->FlushCapturesToDisk();
+     	// TargetSensor->GetLitCamSensor()->FlushCapturesToDisk();
+      	// TargetSensor->GetDepthCamSensor()->FlushCapturesToDisk();
+      	// TargetSensor->GetAnnotationCamSensor()->FlushCapturesToDisk();
+      	// TargetSensor->GetNormalCamSensor()->FlushCapturesToDisk();
+      	// TargetSensor->GetFlowCamSensor()->FlushCapturesToDisk();
 
 		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded. Real Duration: %.2fs, Real FPS: %.2f"),
 			ElapsedSteps, RealWorldTimeDurationSeconds, RealWorldTimeFPS);
@@ -220,8 +220,8 @@ void AFusionCamCaptureActor::RecordFrame()
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
 		if (bAsyncCaptureEnabled)
 		{
-			// TargetSensor->CaptureLitToFile(FileNameRGB);
-			TargetSensor->GetLitCamSensor()->CaptureToGPUQueue(FileNameRGB);
+			TargetSensor->CaptureLitToFile(FileNameRGB);
+			// TargetSensor->GetLitCamSensor()->CaptureToGPUQueue(FileNameRGB);
 		}
 		else
 		{
