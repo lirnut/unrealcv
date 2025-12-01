@@ -87,7 +87,7 @@ public:
 
 	virtual void LaunchCapture();
 	virtual void CopyBackCapture();
-	virtual void ConvertCapture(TArray<FColor>& OutPixelData, int32& OutWidth, int32& OutHeight);
+	// virtual void ConvertCapture(TArray<FColor>& OutPixelData, int32& OutWidth, int32& OutHeight);
 	
 
 protected:
@@ -110,7 +110,9 @@ private:
 		EPixelFormat PixelFormat;
 	};
 	bool bCaptureCacheValid = false;
-	FQueuedCapture CaptureCache;
+	bool bCopyLaunched = false;
+	// FQueuedCapture CaptureCache;
+	TArray<FColor> CaptureCache;
 
 	// TArray<FQueuedCapture> QueuedCaptures;
 };
