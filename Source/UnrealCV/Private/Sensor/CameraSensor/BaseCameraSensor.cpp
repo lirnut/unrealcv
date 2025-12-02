@@ -36,7 +36,7 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	FilmHeight = Config.Height == 0 ? 480 : Config.Height;
 	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
 
-	bUseFastCapture = true;
+	bUseFastCapture = Config.UseFastCapture;
 	// QueuedCaptures.Empty();
 }
 

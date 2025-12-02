@@ -18,6 +18,7 @@ public:
 	bool EnableInput;
 	bool ExitOnFailure;
 	bool EnableRightEye;
+	bool UseFastCapture;
 
 	TArray<FString> SupportedModes;
 

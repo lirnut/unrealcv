@@ -25,6 +25,7 @@ FServerConfig::FServerConfig()
 	EnableInput = true;
 	ExitOnFailure = false;
 	EnableRightEye = false;
+	UseFastCapture = true;
 
 	SupportedModes.Add(TEXT("lit"));
 	SupportedModes.Add(TEXT("depth"));
@@ -46,6 +47,7 @@ FServerConfig::FServerConfig()
 	UE_LOG(LogUnrealCV, Warning, TEXT("FOV: %f"), this->FOV);
 	UE_LOG(LogUnrealCV, Warning, TEXT("EnableInput: %s"), *BoolToString(this->EnableInput));
 	UE_LOG(LogUnrealCV, Warning, TEXT("EnableRightEye: %s"), *BoolToString(this->EnableRightEye));
+	UE_LOG(LogUnrealCV, Warning, TEXT("UseFastCapture: %s"), *BoolToString(this->UseFastCapture));
 }
 
 void FServerConfig::ParseCmdArgs()
@@ -110,6 +112,7 @@ FString FServerConfig::ToString() {
 	Msg += FString::Printf(TEXT("FOV: %f\n"), this->FOV);
 	Msg += FString::Printf(TEXT("EnableInput: %s\n"), *BoolToString(this->EnableInput));
 	Msg += FString::Printf(TEXT("EnableRightEye: %s\n"), *BoolToString(this->EnableRightEye));
+	Msg += FString::Printf(TEXT("UseFastCapture: %s\n"), *BoolToString(this->UseFastCapture));
 	return Msg;
 }
 
@@ -125,7 +128,7 @@ bool FServerConfig::Load() {
 	GConfig->GetFloat(*CoreSection, TEXT("FOV"), this->FOV, this->ConfigFile);
 	GConfig->GetBool(*CoreSection, TEXT("EnableInput"), this->EnableInput, this->ConfigFile);
 	GConfig->GetBool(*CoreSection, TEXT("EnableRightEye"), this->EnableRightEye, this->ConfigFile);
-
+	GConfig->GetBool(*CoreSection, TEXT("UseFastCapture"), this->UseFastCapture, this->ConfigFile);
 
 	return true;
 }
@@ -141,6 +144,7 @@ bool FServerConfig::Save()
 	GConfig->SetFloat(*CoreSection, TEXT("FOV"), this->FOV, this->ConfigFile);
 	GConfig->SetBool(*CoreSection, TEXT("EnableInput"), this->EnableInput, this->ConfigFile);
 	GConfig->SetBool(*CoreSection, TEXT("EnableRightEye"), this->EnableRightEye, this->ConfigFile);
+	GConfig->SetBool(*CoreSection, TEXT("UseFastCapture"), this->UseFastCapture, this->ConfigFile);
 
 	bool Read = false;
 	GConfig->Flush(Read, this->ConfigFile);

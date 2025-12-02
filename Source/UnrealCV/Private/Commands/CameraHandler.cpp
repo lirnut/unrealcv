@@ -290,6 +290,7 @@ void FCameraHandler::SaveData(const TArray<T>& Data, int Width, int Height,
 
 FExecStatus FCameraHandler::GetCameraLit(const TArray<FString>& Args)
 {
+	double StartTime = FPlatformTime::Seconds();
 	SCOPE_CYCLE_COUNTER(STAT_GetCameraLit);
 
 	FExecStatus ExecStatus = FExecStatus::OK();
@@ -299,7 +300,9 @@ FExecStatus FCameraHandler::GetCameraLit(const TArray<FString>& Args)
 	TArray<FColor> Data;
 	int Width, Height;
 	FusionCamSensor->GetLit(Data, Width, Height);
+	double SaveDataStartTime = FPlatformTime::Seconds();
 	SaveData(Data, Width, Height, Args, ExecStatus);
+	UE_LOG(LogTemp, Log, TEXT("GetCameraLit Cmd cost time: %f, in which SaveData cost time: %f"), FPlatformTime::Seconds() - StartTime, FPlatformTime::Seconds() - SaveDataStartTime);
 	return ExecStatus;
 }
 

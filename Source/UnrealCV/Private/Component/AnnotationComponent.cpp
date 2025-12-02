@@ -18,6 +18,7 @@
 #endif
 #include "Runtime/Engine/Public/Rendering/SkeletalMeshRenderData.h"
 // #include "SkeletalMeshRenderData.h"
+#include "SkinnedMeshSceneProxyDesc.h"
 #include "UnrealcvLog.h"
 // Note: For UE4 < 19
 // Note: check https://github.com/unrealcv/unrealcv/blob/1369a72be8428547318d8a52ae2d63e1eb57a001/Source/UnrealCV/Private/Component/AnnotationComponent.cpp#L11
@@ -205,7 +206,7 @@ class FSkeletalAnnotationSceneProxy : public FSkeletalMeshSceneProxy
 {
 public:
 	FSkeletalAnnotationSceneProxy(const USkinnedMeshComponent* Component, FSkeletalMeshRenderData* InSkeletalMeshRenderData, UMaterialInterface* AnnotationMID)
-	: FSkeletalMeshSceneProxy(Component, InSkeletalMeshRenderData)
+	: FSkeletalMeshSceneProxy(FSkinnedMeshSceneProxyDesc(Component), InSkeletalMeshRenderData)
 	{
 		// TODO: Update MaterialRelevance
 		this->bVerifyUsedMaterials = false;
@@ -375,6 +376,21 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(USkeletalMeshCompon
 		//	Result = ::new FSkeletalAnnotationSceneProxy(SkeletalMeshComponent, SkelMeshResource, AnnotationMID);
 		// }
 		// TODO: The SkeletalMeshComponent might need to be recreated
+
+		// Check the MeshObject is valid
+		// if (!!!(SkeletalMeshComponent->MeshObject))
+		// {
+		// 	UE_LOG(LogUnrealCV, Warning, TEXT("SkeletalMeshComponent %s MeshObject is invalid."), *SkeletalMeshComponent->GetName());
+		// }
+		check(SkeletalMeshComponent->MeshObject)
+
+		FSkinnedMeshSceneProxyDesc Test(SkeletalMeshComponent);
+		if (!!!(Test.MeshObject))
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("FSkinnedMeshSceneProxyDesc %s MeshObject is invalid."), *SkeletalMeshComponent->GetName());
+			return nullptr;
+		}
+		check(Test.MeshObject)
 		return new FSkeletalAnnotationSceneProxy(SkeletalMeshComponent, SkelMeshRenderData, ProxyMaterial);
 	}
 	else

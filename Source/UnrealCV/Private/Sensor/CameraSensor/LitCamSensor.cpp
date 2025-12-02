@@ -5,6 +5,7 @@
 
 #include "Runtime/Engine/Classes/Engine/Engine.h"
 #include "TextureResource.h"
+#include "SL.h"
 
 DECLARE_CYCLE_STAT(TEXT("ULitCamSensor::CaptureLit"), STAT_CaptureLit, STATGROUP_UnrealCV);
 
@@ -28,15 +29,21 @@ ULitCamSensor::ULitCamSensor(const FObjectInitializer& ObjectInitializer) :
 
 void ULitCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 {
-	// //PF_FloatRGBA            =10, // RGBA16F
-	// TextureTarget = NewObject<UTextureRenderTarget2D>(this); 
-	// TextureTarget->InitAutoFormat(filmWidth, filmHeight);
-
-	EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
-	bool bUseLinearGamma = false;
-	TextureTarget = NewObject<UTextureRenderTarget2D>(this);
-	TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
-	TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
+	if (bUseFastCapture)
+	{
+		EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
+		bool bUseLinearGamma = false;
+		TextureTarget = NewObject<UTextureRenderTarget2D>(this);
+		TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
+		TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
+	}
+	else
+	{
+		//PF_FloatRGBA            =10, // RGBA16F
+		TextureTarget = NewObject<UTextureRenderTarget2D>(this); 
+		TextureTarget->InitAutoFormat(filmWidth, filmHeight);
+		TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
+	}
 }
 
 void ULitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)
@@ -58,6 +65,7 @@ void ULitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)
 	}
 	else
 	{
+		double RenderStartTime = FPlatformTime::Seconds();
 		this->CaptureScene();
 		FReadSurfaceDataFlags ReadSurfaceDataFlags;
 		ReadSurfaceDataFlags.SetLinearToGamma(false);
@@ -68,6 +76,7 @@ void ULitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)
 		}
 		Width = GetFilmWidth();
 		Height = GetFilmHeight();
+		SL::get().printf("[CaptureLit] total time: %.3f ms", (FPlatformTime::Seconds() - RenderStartTime) * 1000.0);
 	}
 }
 

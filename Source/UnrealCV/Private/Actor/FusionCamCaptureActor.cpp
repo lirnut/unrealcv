@@ -227,7 +227,6 @@ void AFusionCamCaptureActor::RecordFrame()
 		{
 			TArray<FColor> DataRGB;
 			TargetSensor->GetLit(DataRGB, Width, Height);
-			SerializeData(DataRGB, Width, Height, FileNameRGB);
             AsyncTask(ENamedThreads::AnyThread, [DataRGB = MoveTemp(DataRGB), Width, Height, FileNameRGB]()
             {
                 SerializeData(DataRGB, Width, Height, FileNameRGB);
@@ -692,7 +691,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	bPauseWorldDuringRecord = bPauseWorldTime;
 
 	// bAsyncCaptureEnabled = FMath::RandBool();
-	bAsyncCaptureEnabled = true;
+	bAsyncCaptureEnabled = false;
 	UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bAsyncCaptureEnabled);
 	// TargetSensor->SetUseAsyncCapture(bAsyncCaptureEnabled);
 

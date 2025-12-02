@@ -261,6 +261,8 @@ bool FUnrealcvServer::InitWorld()
 
 void FUnrealcvServer::ProcessRequest(FRequest& Request)
 {
+	double StartTime = FPlatformTime::Seconds();
+		
 	SCOPE_CYCLE_COUNTER(STAT_ProcessRequest);
 	FExecStatus ExecStatus = CommandDispatcher->Exec(Request.Message);
 
@@ -273,7 +275,9 @@ void FUnrealcvServer::ProcessRequest(FRequest& Request)
 	FExecStatus::BinaryArrayFromString(Header, ReplyData);
 
 	ReplyData += ExecStatus.GetData();
+	double SendStartTime = FPlatformTime::Seconds();
 	TcpServer->SendData(ReplyData);
+	UE_LOG(LogUnrealCV, Warning, TEXT("ProcessRequest %s cost time: %f, SendData cost time: %f"), *Request.Message, FPlatformTime::Seconds() - StartTime, FPlatformTime::Seconds() - SendStartTime);
 }
 
 // Each tick of GameThread.
