@@ -49,6 +49,9 @@ struct FAutomationConfig
 	FVector2D SpawnAreaMax = FVector2D(1000, 1000);
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	float GroundHeight = 0.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	FString ForegroundCategory = TEXT("Foreground_Human");
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
@@ -120,6 +123,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation", meta = (WorldContext = "WorldContextObject"))
 	static void TickAutomation(UObject* WorldContextObject, float DeltaTime);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation", meta = (WorldContext = "WorldContextObject"))
+	static bool SetMap(UObject* WorldContextObject, const FString& MapName);
 
 private:
 	static FAutomationConfig CurrentConfig;

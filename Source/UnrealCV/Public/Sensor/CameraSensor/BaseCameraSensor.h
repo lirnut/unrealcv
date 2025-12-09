@@ -113,6 +113,7 @@ protected:
 	};
 	bool bCaptureCacheValid = false;
 	bool bCopyLaunched = false;
+	bool bCaptureLaunched = false;
 	// FQueuedCapture CaptureCache;
 	TArray<FColor> CaptureCache;
 

@@ -7,6 +7,7 @@
 #include "NavAgentController.h"
 #include "UnrealcvLog.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
 
 FAutomationConfig UDatasetAutomationBPLib::CurrentConfig;
 FAutomationStatus UDatasetAutomationBPLib::CurrentStatus;
@@ -109,6 +110,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			WorldContext,
 			CurrentConfig.SpawnAreaMin,
 			CurrentConfig.SpawnAreaMax,
+			CurrentConfig.GroundHeight,
 			CurrentConfig.ForegroundCategory,
 			CurrentConfig.OccluderCategory,
 			CurrentConfig.OccluderCount,
@@ -509,6 +511,28 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		CameraID, *FileName, *TrajectoryType, FPS, DegreesPerSecond, *Target->GetName());
 
 	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, FPS, DegreesPerSecond, RandomSeed, PauseWorldTime);
+
+	return true;
+}
+
+bool UDatasetAutomationBPLib::SetMap(UObject* WorldContextObject, const FString& MapName)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SetMap: Invalid world context"));
+		return false;
+	}
+
+	if (MapName.IsEmpty())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SetMap: Map name cannot be empty"));
+		return false;
+	}
+
+	UGameplayStatics::OpenLevel(World, FName(*MapName));
+	UGameplayStatics::FlushLevelStreaming(World);
+	UE_LOG(LogUnrealCV, Log, TEXT("SetMap: Loading map '%s'"), *MapName);
 
 	return true;
 }

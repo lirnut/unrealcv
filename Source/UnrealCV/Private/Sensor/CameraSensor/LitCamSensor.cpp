@@ -29,13 +29,15 @@ ULitCamSensor::ULitCamSensor(const FObjectInitializer& ObjectInitializer) :
 
 void ULitCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 {
-	if (bUseFastCapture)
+	const static bool bUseBGRA8 = false;
+	if (bUseBGRA8)
 	{
 		EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
 		bool bUseLinearGamma = false;
 		TextureTarget = NewObject<UTextureRenderTarget2D>(this);
 		TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
 		TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
+		// TextureTarget->Gamma
 	}
 	else
 	{

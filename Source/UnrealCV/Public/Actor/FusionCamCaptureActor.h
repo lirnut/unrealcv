@@ -115,6 +115,10 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
 	float TimeDilation;
 
+	/** Number of warm-up frames before recording starts (trajectory positions applied but no data recorded) */
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Recording")
+	int32 WarmUpFrames;
+
 	/** Automatically generate video from image sequences after recording */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Video Generation")
 	bool bAutoGenerateVideo;
@@ -144,7 +148,7 @@ protected:
 	FDateTime RealWorldTimeRecordingEnd;
 	double RealWorldTimeDurationSeconds;
 	double RealWorldTimeFPS;
-	bool bAsyncCaptureEnabled;
+	bool bUseSaveToFileAPI;
 
 	struct FCameraPose
 	{
@@ -158,11 +162,12 @@ protected:
 	bool bPauseWorldDuringRecord;
 	FVector OriginalCameraLocation;
 	FRotator OriginalCameraRotation;
+	int32 WarmUpElapsedFrames;
 
 	FSceneHandle SceneHandle;
 
 	void OnTimerRecord();
-	void RecordFrame();
+	void RecordFrame(bool SaveToFile = true);
 
 	// ========== Trajectory Calculation Functions (Separated from Rendering) ==========
 	TArray<FCameraPose> CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, float DegreesPerFrame, int32 RandomSeed);

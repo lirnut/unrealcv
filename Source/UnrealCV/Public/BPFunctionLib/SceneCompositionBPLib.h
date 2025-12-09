@@ -132,6 +132,7 @@ public:
 		UObject* WorldContextObject,
 		FVector2D SpawnAreaMin,
 		FVector2D SpawnAreaMax,
+		float GroundHeight,
 		const FString& ForegroundCategory,
 		const FString& OccluderCategory,
 		int32 OccluderCount,
@@ -273,6 +274,11 @@ private:
 	static float GetBoundsRadiusFromMetadata(const TMap<FString, FString>& Metadata);
 	static class ANavAgentController* CreateNavAgentController(UObject* WorldContextObject, AActor* ControlledAgent);
 	static void AdjustActorToGroundLevel(AActor* Actor);
+
+	static float GetTerrainHeightAtLocation(UWorld* World, FVector Location, float TraceDistance = 10000.0f);
+	static void EnablePhysicsSettling(AActor* Actor, float InitialHeight = 5000.0f);
+	static void SettleActorToGround(AActor* Actor, UWorld* World, float InitialHeight = 5000.0f);
+	static void EnableCollisionOnly(AActor* Actor);
 
 	static TArray<FSceneHandle> ActiveScenes;
 };

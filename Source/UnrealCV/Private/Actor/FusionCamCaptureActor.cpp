@@ -49,9 +49,9 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	TargetToHide = nullptr;
 	NumFrames = 0;
 
-	// TimeDilation = 0.15f;
+	TimeDilation = 0.15f;
 	// TimeDilation = 0.1f;
-	TimeDilation = 1.0f;
+	// TimeDilation = 1.0f;
 	TimeDilationBackUp = 1.0f;
 
 	bAutoGenerateVideo = true;
@@ -60,6 +60,8 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 
 	CurrentTrajectoryIndex = 0;
 	bPauseWorldDuringRecord = true;
+	WarmUpFrames = 25;
+	WarmUpElapsedFrames = 0;
 
 	Billboard = CreateDefaultSubobject<UMaterialBillboardComponent>(TEXT("BillboardComponent"));
 	if (!IsRunningCommandlet() && (Billboard != nullptr))
@@ -158,6 +160,18 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		return;
 	}
 
+	if (WarmUpElapsedFrames < WarmUpFrames)
+	{
+		if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
+		{
+			TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
+			TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
+		}
+		// CurrentTrajectoryIndex++;
+		WarmUpElapsedFrames++;
+		return;
+	}
+
 	float EffectiveTimeDilation = TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation;
 
 	AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings();
@@ -177,8 +191,16 @@ void AFusionCamCaptureActor::OnTimerRecord()
 
 			RecordFrame();
 
-			CurrentTrajectoryIndex++;
-			ElapsedSteps++;
+
+			if (WarmUpElapsedFrames < WarmUpFrames)
+			{
+				WarmUpElapsedFrames++;
+			}
+			else 
+			{
+				ElapsedSteps++;
+				CurrentTrajectoryIndex++;
+			}
 		}
 	}
 	else
@@ -192,7 +214,15 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		RecordFrame();
 
 		CurrentTrajectoryIndex++;
-		ElapsedSteps++;
+		if (WarmUpElapsedFrames < WarmUpFrames)
+		{
+			WarmUpElapsedFrames++;
+		}
+		else 
+		{
+			ElapsedSteps++;
+			CurrentTrajectoryIndex++;
+		}
 	}
 
 	if (CurrentTrajectoryIndex < CurrentTrajectory.Num())
@@ -209,7 +239,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	}
 }
 
-void AFusionCamCaptureActor::RecordFrame()
+void AFusionCamCaptureActor::RecordFrame(bool SaveToFile)
 {
 	FScopeLock Lock(&RecordCriticalSection);
 
@@ -218,7 +248,7 @@ void AFusionCamCaptureActor::RecordFrame()
 	if (bRecordRGB)
 	{
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
-		if (bAsyncCaptureEnabled)
+		if (bUseSaveToFileAPI)
 		{
 			TargetSensor->GetLitCamSensor()->CaptureFastToFile(FileNameRGB);
 			// TargetSensor->GetLitCamSensor()->CaptureToGPUQueue(FileNameRGB);
@@ -227,17 +257,20 @@ void AFusionCamCaptureActor::RecordFrame()
 		{
 			TArray<FColor> DataRGB;
 			TargetSensor->GetLit(DataRGB, Width, Height);
-            AsyncTask(ENamedThreads::AnyThread, [DataRGB = MoveTemp(DataRGB), Width, Height, FileNameRGB]()
-            {
-                SerializeData(DataRGB, Width, Height, FileNameRGB);
-			});
+			if (SaveToFile)
+			{
+				AsyncTask(ENamedThreads::AnyThread, [DataRGB = MoveTemp(DataRGB), Width, Height, FileNameRGB]()
+				{
+					SerializeData(DataRGB, Width, Height, FileNameRGB);
+				});
+			}
 		}
 	}
 
 	if (bRecordMask)
 	{
 		FString FileNameMask = MakeFilenameNew("mask", ".png");
-		if (bAsyncCaptureEnabled)
+		if (bUseSaveToFileAPI)
 		{
 			TargetSensor->GetAnnotationCamSensor()->CaptureSegToFile(FileNameMask);
 		}
@@ -245,17 +278,20 @@ void AFusionCamCaptureActor::RecordFrame()
 		{
 			TArray<FColor> DataMask;
 			TargetSensor->GetSeg(DataMask, Width, Height);
-            AsyncTask(ENamedThreads::AnyThread, [DataMask = MoveTemp(DataMask), Width, Height, FileNameMask]()
-            {
-                SerializeData(DataMask, Width, Height, FileNameMask);
-			});
+			if (SaveToFile)
+			{
+				AsyncTask(ENamedThreads::AnyThread, [DataMask = MoveTemp(DataMask), Width, Height, FileNameMask]()
+				{
+						SerializeData(DataMask, Width, Height, FileNameMask);
+				});
+			}
 		}
 	}
 
 	if (bRecordDepth)
 	{
 		FString DepthFilename = MakeFilenameNew("depth", ".npy");
-		if (bAsyncCaptureEnabled)
+		if (bUseSaveToFileAPI)
 		{
 			TargetSensor->GetDepthCamSensor()->CaptureDepthToFile(DepthFilename);
 		}
@@ -263,25 +299,28 @@ void AFusionCamCaptureActor::RecordFrame()
 		{
 			TArray<float> DepthData;
 			TargetSensor->GetDepth(DepthData, Width, Height);
-            AsyncTask(ENamedThreads::AnyThread, [DepthData = MoveTemp(DepthData), Width, Height, DepthFilename]()
-            {
-                SerializeData(DepthData, Width, Height, DepthFilename);
-			});
+			if (SaveToFile)
+			{
+				AsyncTask(ENamedThreads::AnyThread, [DepthData = MoveTemp(DepthData), Width, Height, DepthFilename]()
+				{
+					SerializeData(DepthData, Width, Height, DepthFilename);
+				});
 
-			TArray<FColor> DepthPreview;
-			ConvertDepthToPreview(DepthData, DepthPreview);
-			FString DepthPreviewFilename = MakeFilenameNew("depth_preview", ".png");
-            AsyncTask(ENamedThreads::AnyThread, [DepthPreview = MoveTemp(DepthPreview), Width, Height, DepthPreviewFilename]()
-            {
-                SerializeData(DepthPreview, Width, Height, DepthPreviewFilename);
-			});
+				TArray<FColor> DepthPreview;
+				ConvertDepthToPreview(DepthData, DepthPreview);
+				FString DepthPreviewFilename = MakeFilenameNew("depth_preview", ".png");
+				AsyncTask(ENamedThreads::AnyThread, [DepthPreview = MoveTemp(DepthPreview), Width, Height, DepthPreviewFilename]()
+				{
+					SerializeData(DepthPreview, Width, Height, DepthPreviewFilename);
+				});
+			}
 		}
 	}
 
 	if (bRecordNormal)
 	{
 		FString NormalFilename = MakeFilenameNew("normal", ".png");
-		if (bAsyncCaptureEnabled)
+		if (bUseSaveToFileAPI)
 		{
 			TargetSensor->GetNormalCamSensor()->CaptureFastToFile(NormalFilename);
 		}
@@ -289,17 +328,20 @@ void AFusionCamCaptureActor::RecordFrame()
 		{
 			TArray<FColor> NormalData;
 			TargetSensor->GetNormal(NormalData, Width, Height);
-            AsyncTask(ENamedThreads::AnyThread, [NormalData = MoveTemp(NormalData), Width, Height, NormalFilename]()
-            {
-                SerializeData(NormalData, Width, Height, NormalFilename);
-			});
+			if (SaveToFile)
+			{
+				AsyncTask(ENamedThreads::AnyThread, [NormalData = MoveTemp(NormalData), Width, Height, NormalFilename]()
+				{
+						SerializeData(NormalData, Width, Height, NormalFilename);
+				});
+			}
 		}
 	}
 
 	if (bRecordFlow)
 	{
 		FString FlowFilename = MakeFilenameNew("flow", ".png");
-		if (bAsyncCaptureEnabled)
+		if (bUseSaveToFileAPI)
 		{
 			TargetSensor->GetFlowCamSensor()->CaptureFastToFile(FlowFilename);
 		}
@@ -307,16 +349,22 @@ void AFusionCamCaptureActor::RecordFrame()
 		{
 			TArray<FColor> FlowData;
 			TargetSensor->GetFlow(FlowData, Width, Height);
-            AsyncTask(ENamedThreads::AnyThread, [FlowData = MoveTemp(FlowData), Width, Height, FlowFilename]()
-            {
-                SerializeData(FlowData, Width, Height, FlowFilename);
-			});
+			if (SaveToFile)
+			{
+				AsyncTask(ENamedThreads::AnyThread, [FlowData = MoveTemp(FlowData), Width, Height, FlowFilename]()
+				{
+						SerializeData(FlowData, Width, Height, FlowFilename);
+				});
+			}
 		}
 	}
 
 	if (bRecordMetadata)
 	{
-		SaveCameraMetadata();
+		if (SaveToFile)
+		{
+			SaveCameraMetadata();
+		}
 	}
 }
 
@@ -590,7 +638,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		"RealWorldTimeRecordingEnd",
 		"RealWorldTimeDurationSeconds",
 		"RealWorldTimeFPS",
-		"AsyncCaptureEnabled",
+		"UseSaveToFileAPI",
 	};
 
 	RealWorldTimeRecordingEnd = FDateTime::Now();
@@ -631,7 +679,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		FJsonObjectBP(RealWorldTimeEndStr),
 		FJsonObjectBP(static_cast<float>(RealWorldTimeDurationSeconds)),
 		FJsonObjectBP(static_cast<float>(RealWorldTimeFPS)),
-		FJsonObjectBP(bAsyncCaptureEnabled),
+		FJsonObjectBP(bUseSaveToFileAPI),
 	};
 
 	FJsonObjectBP JsonObject = USerializeBPLib::TMapToJson(Keys, Values);
@@ -673,13 +721,45 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 		StopRecord();
 	}
 
-	// Force highest LOD quality for recording
 	static auto CVarForceLOD = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ForceLOD"));
-	if (CVarForceLOD)
-	{
-		CVarForceLOD->Set(0);
-		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Set r.ForceLOD = 0 for trajectory recording"));
-	}
+	static auto CVarViewDistanceScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ViewDistanceScale"));
+	static auto CVarShadowQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShadowQuality"));
+	static auto CVarPostProcessQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PostProcessQuality"));
+	static auto CVarTextureQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TextureQuality"));
+	static auto CVarEffectsQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EffectsQuality"));
+	static auto CVarFoliageQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.FoliageQuality"));
+	static auto CVarShadingQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShadingQuality"));
+	static auto CVarAntiAliasingQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AntiAliasingQuality"));
+	static auto CVarMotionBlurQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MotionBlurQuality"));
+	static auto CVarAmbientOcclusionLevels = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientOcclusionLevels"));
+	static auto CVarSSRQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SSR.Quality"));
+	static auto CVarBloomQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BloomQuality"));
+	static auto CVarDepthOfFieldQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DepthOfFieldQuality"));
+	static auto CVarLightShaftQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LightShaftQuality"));
+	static auto CVarRefractionQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RefractionQuality"));
+	static auto CVarTranslucencyLightingVolume = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TranslucencyLightingVolume"));
+	static auto CVarMaxAnisotropy = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MaxAnisotropy"));
+
+	if (CVarForceLOD) { CVarForceLOD->Set(0); }
+	if (CVarViewDistanceScale) { CVarViewDistanceScale->Set(1.0f); }
+	if (CVarShadowQuality) { CVarShadowQuality->Set(5); }
+	if (CVarPostProcessQuality) { CVarPostProcessQuality->Set(5); }
+	if (CVarTextureQuality) { CVarTextureQuality->Set(5); }
+	if (CVarEffectsQuality) { CVarEffectsQuality->Set(5); }
+	if (CVarFoliageQuality) { CVarFoliageQuality->Set(5); }
+	if (CVarShadingQuality) { CVarShadingQuality->Set(5); }
+	if (CVarAntiAliasingQuality) { CVarAntiAliasingQuality->Set(5); }
+	if (CVarMotionBlurQuality) { CVarMotionBlurQuality->Set(4); }
+	if (CVarAmbientOcclusionLevels) { CVarAmbientOcclusionLevels->Set(3); }
+	if (CVarSSRQuality) { CVarSSRQuality->Set(4); }
+	if (CVarBloomQuality) { CVarBloomQuality->Set(5); }
+	if (CVarDepthOfFieldQuality) { CVarDepthOfFieldQuality->Set(4); }
+	if (CVarLightShaftQuality) { CVarLightShaftQuality->Set(1); }
+	if (CVarRefractionQuality) { CVarRefractionQuality->Set(2); }
+	if (CVarTranslucencyLightingVolume) { CVarTranslucencyLightingVolume->Set(1); }
+	if (CVarMaxAnisotropy) { CVarMaxAnisotropy->Set(16); }
+
+	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Set all quality settings to maximum for recording"));
 
 	float DegreesPerFrame = DegreesPerSecond / FPS;
 
@@ -689,15 +769,16 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	bIsRecording = true;
 	TargetToHide = Target;
 	bPauseWorldDuringRecord = bPauseWorldTime;
+	WarmUpElapsedFrames = 0;
 
-	// bAsyncCaptureEnabled = FMath::RandBool();
-	bAsyncCaptureEnabled = false;
-	UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bAsyncCaptureEnabled);
-	// TargetSensor->SetUseAsyncCapture(bAsyncCaptureEnabled);
+	// bUseSaveToFileAPI = FMath::RandBool();
+	bUseSaveToFileAPI = true;
+	UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d, WarmUpFrames = %d"), bUseSaveToFileAPI, WarmUpFrames);
+	// TargetSensor->SetUseAsyncCapture(bUseSaveToFileAPI);
 
 	RealWorldTimeRecordingStart = FDateTime::Now();
-	// bAsyncCaptureEnabled = TargetSensor->GetUseAsyncCapture();
-	// UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bAsyncCaptureEnabled);
+	// bUseSaveToFileAPI = TargetSensor->GetUseAsyncCapture();
+	// UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bUseSaveToFileAPI);
 
 	static const TArray<FIntPoint> Resolutions = {
 		FIntPoint(1920, 1080),

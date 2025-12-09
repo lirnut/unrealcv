@@ -37,6 +37,8 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
 
 	bUseFastCapture = Config.UseFastCapture;
+	bUseFastCapture = true;
+	// bool bSetLinearToGamma = false;
 	// QueuedCaptures.Empty();
 }
 
@@ -57,7 +59,7 @@ void UBaseCameraSensor::InitTextureTarget(int filmWidth, int filmHeight)
 	bool bUseLinearGamma = false;
 	TextureTarget = NewObject<UTextureRenderTarget2D>(this); 
 	TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
-	TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
+	// TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
 }
 
 void UBaseCameraSensor::SetFilmSize(int Width, int Height)
@@ -185,28 +187,107 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 //     );
 // }
 
+
+
 void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 {
-	TArray<FColor> PixelData;
-	int Width, Height;
-	CaptureFast(PixelData, Width, Height);
-	if (PixelData.Num() == Width * Height && Width > 0 && Height > 0)
+	if (!bCaptureLaunched)
 	{
-		AsyncTask(ENamedThreads::AnyThread,
-			[PixelData = MoveTemp(PixelData), OutputPath = Filename, Width = Width, Height = Height]()
+		LaunchCapture();
+	}
+	bCaptureLaunched = false;
+	
+	EPixelFormat PixelFormat = TextureTarget->GetFormat();
+	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] TextureTarget Format: %d, SRGB: %d, Gamma: %f"),
+		(int32)PixelFormat,
+		TextureTarget->SRGB,
+		TextureTarget->TargetGamma);
+
+	FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
+	int32 Width = TextureTarget->SizeX;
+	int32 Height = TextureTarget->SizeY;
+
+	FQueuedCapture Capture;
+	Capture.Readback = MakeShared<FRHIGPUTextureReadback>(
+		// random name
+		*FString::Printf(TEXT("Capture_%d"), FMath::Rand())
+	);
+	Capture.OutputPath = TEXT("");
+	Capture.Width = Width;
+	Capture.Height = Height;
+	Capture.PixelFormat = PixelFormat;
+
+	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
+		[RenderTargetResource, Capture = MoveTemp(Capture), Filename](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
+
+			void* RawDataCopy = FMemory::Malloc(Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+			int32 RowPitchInPixels;
 			{
-				double SerializeStartTime = FPlatformTime::Seconds();
-				SerializeData(PixelData, Width, Height, OutputPath);
-				double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
-				UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s in %.3f ms"), *OutputPath, SerializeTime * 1000.0);
+				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+				FMemory::Memcpy(RawDataCopy, RawData, Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+				Capture.Readback->Unlock();
 			}
-		);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFastToFile: PixelData is empty or size not match"));
-	}
+
+			AsyncTask(ENamedThreads::AnyThread,
+				[RawDataCopy, OutputPath = Filename, Width = Capture.Width, Height = Capture.Height, PixelFormat = Capture.PixelFormat, RowPitchInPixels = RowPitchInPixels]()
+				{
+
+					TArray<FColor> PixelData;
+					PixelData.AddUninitialized(Width * Height);
+					FReadSurfaceDataFlags ReadFlags(RCM_MinMax); // do not norm
+					// FReadSurfaceDataFlags ReadFlags(RCM_UNorm); // norm
+					ReadFlags.SetLinearToGamma(false);  // no gamma correction
+					// ReadFlags.SetLinearToGamma(true);  // gamma correction
+
+					uint32 SrcPitch = RowPitchInPixels * GPixelFormats[PixelFormat].BlockBytes;
+					ConvertRAWSurfaceDataToFColorOpt(
+						PixelFormat,
+						Width,
+						Height,
+						(uint8*)RawDataCopy,
+						SrcPitch,
+						PixelData.GetData(),
+						ReadFlags
+					);
+					FMemory::Free(RawDataCopy);
+
+					double SerializeStartTime = FPlatformTime::Seconds();
+					SerializeData(PixelData, Width, Height, OutputPath);
+					double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
+					UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s in %.3f ms"), *OutputPath, SerializeTime * 1000.0);
+				}
+			);
+		}
+	);
+
+	LaunchCapture();
 }
+
+// void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
+// {
+// 	TArray<FColor> PixelData;
+// 	int Width, Height;
+// 	CaptureFast(PixelData, Width, Height);
+// 	if (PixelData.Num() == Width * Height && Width > 0 && Height > 0)
+// 	{
+// 		AsyncTask(ENamedThreads::AnyThread,
+// 			[PixelData = MoveTemp(PixelData), OutputPath = Filename, Width = Width, Height = Height]()
+// 			{
+// 				double SerializeStartTime = FPlatformTime::Seconds();
+// 				SerializeData(PixelData, Width, Height, OutputPath);
+// 				double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
+// 				UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s in %.3f ms"), *OutputPath, SerializeTime * 1000.0);
+// 			}
+// 		);
+// 	}
+// 	else
+// 	{
+// 		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFastToFile: PixelData is empty or size not match"));
+// 	}
+// }
 
 void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height)
 {
@@ -219,8 +300,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 		SL::get().printf("CaptureFast: [X1] fallback start copy !\n");
 	}
 	SL::get().printf("CaptureFast: [X1] fallback start copy cost %.3f ms\n", (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
-
-
+	bCaptureLaunched = false;
 
 	// busy wait
 	double WaitStartTime = FPlatformTime::Seconds();
@@ -304,6 +384,7 @@ void UBaseCameraSensor::LaunchCapture()
 		return;
 	}
 	this->CaptureScene();
+	bCaptureLaunched = true;
 }
 
 void UBaseCameraSensor::CopyBackCapture()
@@ -370,8 +451,12 @@ void UBaseCameraSensor::CopyBackCapture()
 
 			// Process data immediately on render thread to avoid accessing invalid memory
 
-			FReadSurfaceDataFlags ReadFlags;
-			ReadFlags.SetLinearToGamma(false);
+
+	// FReadSurfaceDataFlags ReadSurfaceDataFlags = bNormalize ? FReadSurfaceDataFlags() : FReadSurfaceDataFlags(RCM_MinMax);
+			FReadSurfaceDataFlags ReadFlags(RCM_MinMax); // do not norm
+			// FReadSurfaceDataFlags ReadFlags(RCM_UNorm); // norm
+			ReadFlags.SetLinearToGamma(false);  // no gamma correction
+			// ReadFlags.SetLinearToGamma(true);  // gamma correction
 
 			uint32 SrcPitch = RowPitchInPixels * GPixelFormats[Capture.PixelFormat].BlockBytes;
 

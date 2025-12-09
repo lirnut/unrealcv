@@ -21,8 +21,133 @@
 #include "WorldController.h"
 #include "ObjectAnnotator.h"
 #include "NavAgentController.h"
+#include "MetaHumanBPLib.h"
+#include "DrawDebugHelpers.h"
 
 TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
+
+// ========== Terrain Detection ==========
+
+float USceneCompositionBPLib::GetTerrainHeightAtLocation(UWorld* World, FVector Location, float TraceDistance)
+{
+	if (!IsValid(World))
+	{
+		return Location.Z;
+	}
+
+	FVector TraceStart = FVector(Location.X, Location.Y, Location.Z);
+	FVector TraceEnd = FVector(Location.X, Location.Y, Location.Z - TraceDistance);
+
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(nullptr);
+
+	bool bHit = World->LineTraceSingleByChannel(
+		HitResult,
+		TraceStart,
+		TraceEnd,
+		ECC_WorldStatic,
+		QueryParams
+	);
+
+	if (bHit && HitResult.bBlockingHit)
+	{
+		return HitResult.ImpactPoint.Z;
+	}
+
+	return Location.Z;
+}
+
+void USceneCompositionBPLib::EnablePhysicsSettling(AActor* Actor, float InitialHeight)
+{
+	if (!IsValid(Actor))
+	{
+		return;
+	}
+
+	FVector ActorLocation = Actor->GetActorLocation();
+	ActorLocation.Z = InitialHeight;
+	Actor->SetActorLocation(ActorLocation, false, nullptr, ETeleportType::TeleportPhysics);
+
+	for (UActorComponent* Component : Actor->GetComponents())
+	{
+		UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component);
+		if (PrimComp)
+		{
+			PrimComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			PrimComp->SetSimulatePhysics(true);
+			PrimComp->SetEnableGravity(true);
+
+			FVector LinearVelocity = FVector::ZeroVector;
+			PrimComp->SetPhysicsLinearVelocity(LinearVelocity);
+		}
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("EnablePhysicsSettling: Actor '%s' physics enabled, will settle to ground from height %.2f"),
+		*Actor->GetName(), InitialHeight);
+}
+
+void USceneCompositionBPLib::SettleActorToGround(AActor* Actor, UWorld* World, float InitialHeight)
+{
+	if (!IsValid(Actor) || !IsValid(World))
+	{
+		return;
+	}
+
+	FVector ActorLocation = Actor->GetActorLocation();
+	ActorLocation.X = Actor->GetActorLocation().X;
+	ActorLocation.Y = Actor->GetActorLocation().Y;
+
+	FVector TraceStart = FVector(ActorLocation.X, ActorLocation.Y, InitialHeight);
+	FVector TraceEnd = FVector(ActorLocation.X, ActorLocation.Y, InitialHeight - 10000.0f);
+
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(Actor);
+
+	bool bHit = World->LineTraceSingleByChannel(
+		HitResult,
+		TraceStart,
+		TraceEnd,
+		ECC_WorldStatic,
+		QueryParams
+	);
+
+	if (bHit && HitResult.bBlockingHit)
+	{
+		ActorLocation.Z = HitResult.ImpactPoint.Z;
+	}
+	else
+	{
+		ActorLocation.Z = InitialHeight;
+	}
+
+	Actor->SetActorLocation(ActorLocation, false, nullptr, ETeleportType::TeleportPhysics);
+
+	UE_LOG(LogUnrealCV, Log, TEXT("SettleActorToGround: Actor '%s' settled to height %.2f"),
+		*Actor->GetName(), ActorLocation.Z);
+}
+
+void USceneCompositionBPLib::EnableCollisionOnly(AActor* Actor)
+{
+	if (!IsValid(Actor))
+	{
+		return;
+	}
+
+	for (UActorComponent* Component : Actor->GetComponents())
+	{
+		UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component);
+		if (PrimComp)
+		{
+			PrimComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			PrimComp->SetGenerateOverlapEvents(false);
+		}
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("EnableCollisionOnly: Actor '%s' collision enabled (query only, no physics)"),
+		*Actor->GetName());
+}
 
 // ========== Scene Generation ==========
 
@@ -43,6 +168,7 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	UObject* WorldContextObject,
 	FVector2D SpawnAreaMin,
 	FVector2D SpawnAreaMax,
+	float GroundHeight,
 	const FString& ForegroundCategory,
 	const FString& OccluderCategory,
 	int32 OccluderCount,
@@ -51,7 +177,6 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	bool bAutoPositionCamera
 )
 {
-	float CameraHeight = FMath::RandRange(20, 140);
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (!World)
 	{
@@ -82,7 +207,8 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	FVector ForegroundPosition;
 	ForegroundPosition.X = FMath::RandRange(SpawnAreaMin.X, SpawnAreaMax.X);
 	ForegroundPosition.Y = FMath::RandRange(SpawnAreaMin.Y, SpawnAreaMax.Y);
-	ForegroundPosition.Z = 0.0f;
+	// ForegroundPosition.Z = GetTerrainHeightAtLocation(World, ForegroundPosition, 10000.0f);
+	ForegroundPosition.Z = GroundHeight;
 
 	TMap<FString, FString> ForegroundMetadata = AssetPool.GetRandomAssetMetadata(ForegroundCategory);
 	if (ForegroundMetadata.Num() == 0)
@@ -104,6 +230,8 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	OutSceneHandle.ForegroundCategory = ForegroundCategory;
 	OutSceneHandle.ForegroundObjectMetadata = ForegroundMetadata;
 	OutSceneHandle.SceneCategory = World->GetMapName();
+
+	ForegroundPosition = OutSceneHandle.ForegroundActor->GetActorLocation();
 	
 
 	// Check if foreground is Blueprint type and create NavAgent
@@ -127,6 +255,8 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 
 	if (bAutoPositionCamera)
 	{
+
+		float CameraHeight = FMath::RandRange(70, 160) + ForegroundPosition.Z;  // ForegroundHeight now is Ground Height sensed by ray detect
 		float Distance = FMath::RandRange(300.0f, 600.0f);
 		float HorizontalAngle = FMath::RandRange(0.0f, 360.0f);
 
@@ -424,6 +554,11 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 	}
 	else if (AssetType == TEXT("Blueprint"))
 	{
+		if (AssetPath.Contains("MetaHumans"))
+		{
+            // TArray<FString> MetaHumanPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
+			UMetaHumanBPLib::SetMetaHumanAnimationBlueprint(AssetPath, TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
+		}
 		UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *AssetPath);
 		if (!IsValid(Blueprint) || !Blueprint->GeneratedClass || !Blueprint->GeneratedClass->IsChildOf(AActor::StaticClass()))
 		{
@@ -489,12 +624,20 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 			}
 
 			WorldController->ObjectAnnotator.SetAnnotationColor(SpawnedActor, AnnotationColor);
+
+
+			
+			SettleActorToGround(SpawnedActor, World, Location.Z + 200.0f);
+			EnableCollisionOnly(SpawnedActor);
+			// EnablePhysicsSettling(SpawnedActor, Location.Z + 200);
 		}
 		else
 		{
 			UE_LOG(LogUnrealCV, Warning, TEXT("SpawnActorFromMetadata: WorldController not available, actor not annotated"));
 		}
 	}
+	UE_LOG(LogUnrealCV, Warning, TEXT("SpawnActorFromMetadata: Spawned actor '%s' at location %.2f, %.2f, %.2f"), 
+		*SpawnedActor->GetName(), Location.X, Location.Y, Location.Z);
 
 	return SpawnedActor;
 }
@@ -610,7 +753,8 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 			float LateralOffset = FMath::RandRange(-200.0f, 200.0f);
 			CandidatePosition += Perpendicular * LateralOffset;
 
-			CandidatePosition.Z = 0.0f;
+			// CandidatePosition.Z = GetTerrainHeightAtLocation(World, CandidatePosition, 10000.0f);
+			CandidatePosition.Z = ForegroundPosition.Z;
 
 			bool bHasOverlap = false;
 			for (const FOccupiedSpace& Occupied : OccupiedSpaces)
@@ -632,7 +776,9 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 				AActor* Occluder = SpawnActorFromMetadata(World, Metadata, CandidatePosition, Rotation);
 				if (IsValid(Occluder))
 				{
-					AdjustActorToGroundLevel(Occluder);
+					// // SettleActorToGround(Occluder, World, CandidatePosition.Z + 500.0f);
+					// // EnableCollisionOnly(Occluder);
+					// EnablePhysicsSettling(Occluder);
 					SpawnedOccluders.Add(Occluder);
 					OccupiedSpaces.Add({CandidatePosition, CurrentRadius});
 					OutSceneHandle.OccluderMetadataList.Add({Metadata});
