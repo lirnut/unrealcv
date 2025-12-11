@@ -191,6 +191,8 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 
 void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 {
+	CheckCaptureCache();
+
 	if (!bCaptureLaunched)
 	{
 		LaunchCapture();
@@ -291,6 +293,8 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 
 void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height)
 {
+	CheckCaptureCache();
+
 	double CaptureFastStartTime = FPlatformTime::Seconds();
 	if (!bCopyLaunched)
 	{
@@ -433,7 +437,7 @@ void UBaseCameraSensor::CopyBackCapture()
 	bCaptureCacheValid = false;
 
 	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
-		[RenderTargetResource, Capture = MoveTemp(Capture), RenderStartTime, PixelData = CaptureCache.GetData(), bCaptureCacheValidPtr = &bCaptureCacheValid](FRHICommandListImmediate& RHICmdList)
+		[RenderTargetResource, Capture = MoveTemp(Capture), RenderStartTime, PixelData = CaptureCache.GetData(), bCaptureCacheValidPtr = &bCaptureCacheValid, CaptureTimestampPtr = &CaptureTimestamp](FRHICommandListImmediate& RHICmdList)
 		{
 			SL::get().printf("[R0] Start time: %.3f ms", (FPlatformTime::Seconds() - RenderStartTime) * 1000.0);
 			double FlushStartTime = FPlatformTime::Seconds();
@@ -471,6 +475,7 @@ void UBaseCameraSensor::CopyBackCapture()
 				ReadFlags
 			);
 			*bCaptureCacheValidPtr = true;
+			*CaptureTimestampPtr = FPlatformTime::Seconds();
 			SL::get().printf("[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
 
 			// Unlock the readback data
@@ -486,6 +491,27 @@ void UBaseCameraSensor::CopyBackCapture()
 
 
 	bCopyLaunched = true;
+}
+
+void UBaseCameraSensor::CleanCaptureCache()
+{
+	CaptureCache.Empty();
+	bCaptureCacheValid = false;
+	bCopyLaunched = false;
+	bCaptureLaunched = false;
+}
+
+void UBaseCameraSensor::CheckCaptureCache()
+{
+	if (bCaptureCacheValid && CaptureTimestamp > 0.0)
+	{
+		double ElapsedTime = FPlatformTime::Seconds() - CaptureTimestamp;
+		if (ElapsedTime > 1.0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CheckCaptureCache: Cache expired (%.3f seconds), clearing"), ElapsedTime);
+			CleanCaptureCache();
+		}
+	}
 }
 
 // void UBaseCameraSensor::ConvertCapture(TArray<FColor>& OutPixelData, int32& OutWidth, int32& OutHeight)

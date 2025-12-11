@@ -50,6 +50,7 @@ public class UnrealcvBuildConfig
 			"Projects", // Support IPluginManager
 			"RHI", // Support low-level RHI operation
 			"Json",
+			"JsonUtilities",
 			"AVEncoder",
 			"AudioCapture",
             "AudioCaptureCore",

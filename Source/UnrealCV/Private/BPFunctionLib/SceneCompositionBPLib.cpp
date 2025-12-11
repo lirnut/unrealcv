@@ -229,10 +229,7 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 
 	OutSceneHandle.ForegroundCategory = ForegroundCategory;
 	OutSceneHandle.ForegroundObjectMetadata = ForegroundMetadata;
-	OutSceneHandle.SceneCategory = World->GetMapName();
-
-	ForegroundPosition = OutSceneHandle.ForegroundActor->GetActorLocation();
-	
+	OutSceneHandle.SceneCategory = World->GetMapName();	
 
 	// Check if foreground is Blueprint type and create NavAgent
 	if (ForegroundMetadata.Contains(TEXT("Type")) && ForegroundMetadata[TEXT("Type")] == TEXT("Blueprint"))
@@ -256,16 +253,17 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	if (bAutoPositionCamera)
 	{
 
-		float CameraHeight = FMath::RandRange(70, 160) + ForegroundPosition.Z;  // ForegroundHeight now is Ground Height sensed by ray detect
+		auto NewPosition = OutSceneHandle.ForegroundActor->GetActorLocation();
+		float CameraHeight = FMath::RandRange(70, 160) + NewPosition.Z;  // ForegroundHeight now is Ground Height sensed by ray detect
 		float Distance = FMath::RandRange(300.0f, 600.0f);
 		float HorizontalAngle = FMath::RandRange(0.0f, 360.0f);
 
 		FVector CameraPosition;
-		CameraPosition.X = ForegroundPosition.X + Distance * FMath::Cos(FMath::DegreesToRadians(HorizontalAngle));
-		CameraPosition.Y = ForegroundPosition.Y + Distance * FMath::Sin(FMath::DegreesToRadians(HorizontalAngle));
+		CameraPosition.X = NewPosition.X + Distance * FMath::Cos(FMath::DegreesToRadians(HorizontalAngle));
+		CameraPosition.Y = NewPosition.Y + Distance * FMath::Sin(FMath::DegreesToRadians(HorizontalAngle));
 		CameraPosition.Z = CameraHeight;
 
-		FRotator CameraRotation = (ForegroundPosition - CameraPosition).Rotation();
+		FRotator CameraRotation = (NewPosition - CameraPosition).Rotation();
 
 		Camera->SetSensorLocation(CameraPosition);
 		Camera->SetSensorRotation(CameraRotation);

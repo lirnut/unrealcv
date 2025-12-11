@@ -1,6 +1,5 @@
 #include "BPFunctionLib/MetaHumanBPLib.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/ARFilter.h"
+#include "Utils/MetaHumanCacheManager.h"
 #include "Engine/Blueprint.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimBlueprint.h"
@@ -11,36 +10,28 @@
 
 TArray<FString> UMetaHumanBPLib::GetAllMetaHumanBlueprintPaths()
 {
-	TArray<FString> MetaHumanPaths;
+	FMetaHumanCacheManager& CacheManager = FMetaHumanCacheManager::Get();
 
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	TArray<FString> MetaHumanPaths = CacheManager.GetAllMetaHumanPaths();
 
-	FARFilter Filter;
-	Filter.PackagePaths.Add("/Game/MetaHumans");
-	Filter.bRecursivePaths = true;
-	Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
-
-	TArray<FAssetData> AssetDataList;
-	AssetRegistry.GetAssets(Filter, AssetDataList);
-
-	for (const FAssetData& AssetData : AssetDataList)
+	if (!MetaHumanPaths.IsEmpty())
 	{
-		FString ObjectPath = AssetData.GetObjectPathString();
-		MetaHumanPaths.Add(ObjectPath);
-	}
-	// print all MetaHumanPaths
-	FString LogStr = TEXT("All MetaHuman Blueprint Paths: {");
-	for (const FString& Path : MetaHumanPaths)
-	{
-		LogStr += Path + TEXT(", ");
-	}
-	LogStr += TEXT("}");
-	UE_LOG(LogTemp, Log, TEXT("%s"), *LogStr);
+		UE_LOG(LogTemp, Log, TEXT("GetAllMetaHumanBlueprintPaths: Saving %d MetaHumans to cache"), MetaHumanPaths.Num());
+		CacheManager.SaveCacheToFile(MetaHumanPaths);
 
-	TArray<FString> SpecPaths = {
+		FString LogStr = TEXT("All MetaHuman Blueprint Paths: {");
+		for (const FString& Path : MetaHumanPaths)
+		{
+			LogStr += Path + TEXT(", ");
+		}
+		LogStr += TEXT("}");
+		UE_LOG(LogTemp, Log, TEXT("%s"), *LogStr);
 
-	};
+		return MetaHumanPaths;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("GetAllMetaHumanBlueprintPaths: AssetRegistry returned empty, loading from cache"));
+	MetaHumanPaths = CacheManager.LoadCacheFromFile();
 
 	return MetaHumanPaths;
 }

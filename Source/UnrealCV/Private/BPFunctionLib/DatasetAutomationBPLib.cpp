@@ -41,20 +41,20 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
+	// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
+	// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
+	// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
+	// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
+	// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 
-	CommandQueue.Add(FAutomationStep(TEXT("record_nav_track")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	// CommandQueue.Add(FAutomationStep(TEXT("record_nav_track")));
+	// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 
 	CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
 

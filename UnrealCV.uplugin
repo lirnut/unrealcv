@@ -26,6 +26,11 @@
             "Name": "UnrealCV",
             "Type" : "Runtime",
             "LoadingPhase" : "PreDefault"
+        },
+        {
+            "Name": "UnrealCVEditor",
+            "Type" : "Editor",
+            "LoadingPhase" : "PostEngineInit"
         }
     ]
 }

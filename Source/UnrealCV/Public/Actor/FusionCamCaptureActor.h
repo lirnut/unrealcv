@@ -184,6 +184,8 @@ protected:
 	TArray<FCameraPose> CalculateRenderOnly();
 	TArray<FCameraPose> AddRotateBufferFrames(const TArray<FCameraPose>& CoreTrajectory);
 
+	FVector GetTargetLocationWithRandomHeight(AActor* Target) const;
+
 	// Audio recording
 	void StartAudioRecord();
 	void StopAudioRecord();

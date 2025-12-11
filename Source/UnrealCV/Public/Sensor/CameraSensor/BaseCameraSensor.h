@@ -84,6 +84,8 @@ public:
 
 	void SetUseFastCapture(bool bInUseFast) { bUseFastCapture = bInUseFast; }
 	bool GetUseFastCapture() const { return bUseFastCapture; }
+	void CleanCaptureCache();
+	void CheckCaptureCache();
 
 	// virtual void CaptureToGPUQueue(const FString& Filename);
 	// void FlushCapturesToDisk();
@@ -114,6 +116,7 @@ protected:
 	bool bCaptureCacheValid = false;
 	bool bCopyLaunched = false;
 	bool bCaptureLaunched = false;
+	double CaptureTimestamp = 0.0;
 	// FQueuedCapture CaptureCache;
 	TArray<FColor> CaptureCache;
 

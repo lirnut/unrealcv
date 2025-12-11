@@ -109,6 +109,12 @@ void AFusionCamCaptureActor::StopRecord()
       	// TargetSensor->GetNormalCamSensor()->FlushCapturesToDisk();
       	// TargetSensor->GetFlowCamSensor()->FlushCapturesToDisk();
 
+     	TargetSensor->GetLitCamSensor()->CleanCaptureCache();
+      	TargetSensor->GetDepthCamSensor()->CleanCaptureCache();
+      	TargetSensor->GetAnnotationCamSensor()->CleanCaptureCache();
+      	TargetSensor->GetNormalCamSensor()->CleanCaptureCache();
+      	TargetSensor->GetFlowCamSensor()->CleanCaptureCache();
+
 		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded. Real Duration: %.2fs, Real FPS: %.2f"),
 			ElapsedSteps, RealWorldTimeDurationSeconds, RealWorldTimeFPS);
 
@@ -160,17 +166,17 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		return;
 	}
 
-	if (WarmUpElapsedFrames < WarmUpFrames)
-	{
-		if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
-		{
-			TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
-			TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
-		}
-		// CurrentTrajectoryIndex++;
-		WarmUpElapsedFrames++;
-		return;
-	}
+	// if (WarmUpElapsedFrames < WarmUpFrames)
+	// {
+	// 	if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
+	// 	{
+	// 		TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
+	// 		TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
+	// 	}
+	// 	// CurrentTrajectoryIndex++;
+	// 	WarmUpElapsedFrames++;
+	// 	return;
+	// }
 
 	float EffectiveTimeDilation = TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation;
 
@@ -213,7 +219,6 @@ void AFusionCamCaptureActor::OnTimerRecord()
 
 		RecordFrame();
 
-		CurrentTrajectoryIndex++;
 		if (WarmUpElapsedFrames < WarmUpFrames)
 		{
 			WarmUpElapsedFrames++;
@@ -775,6 +780,11 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	bUseSaveToFileAPI = true;
 	UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d, WarmUpFrames = %d"), bUseSaveToFileAPI, WarmUpFrames);
 	// TargetSensor->SetUseAsyncCapture(bUseSaveToFileAPI);
+	TargetSensor->GetLitCamSensor()->CleanCaptureCache();
+	TargetSensor->GetDepthCamSensor()->CleanCaptureCache();
+	TargetSensor->GetAnnotationCamSensor()->CleanCaptureCache();
+	TargetSensor->GetNormalCamSensor()->CleanCaptureCache();
+	TargetSensor->GetFlowCamSensor()->CleanCaptureCache();
 
 	RealWorldTimeRecordingStart = FDateTime::Now();
 	// bUseSaveToFileAPI = TargetSensor->GetUseAsyncCapture();
@@ -895,6 +905,14 @@ void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Traject
 
 // ========== Individual Trajectory Calculation Functions ==========
 
+FVector AFusionCamCaptureActor::GetTargetLocationWithRandomHeight(AActor* Target) const
+{
+	FVector TargetLocation = Target->GetActorLocation();
+	float RandomHeight = FMath::RandRange(70.0f, 160.0f);
+	TargetLocation.Z += RandomHeight;
+	return TargetLocation;
+}
+
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddRotateBufferFrames(const TArray<FCameraPose>& CoreTrajectory)
 {
 	if (CoreTrajectory.Num() == 0)
@@ -937,7 +955,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddRotateBuf
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateLeft45(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> CoreTrajectory;
-	FVector TargetLocation = Target->GetActorLocation();
+	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -974,7 +992,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateRight45(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> CoreTrajectory;
-	FVector TargetLocation = Target->GetActorLocation();
+	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -1011,7 +1029,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateUp45(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> CoreTrajectory;
-	FVector TargetLocation = Target->GetActorLocation();
+	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -1051,7 +1069,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotate360(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> CoreTrajectory;
-	FVector TargetLocation = Target->GetActorLocation();
+	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -1088,7 +1106,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomIn(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> Trajectory;
-	FVector TargetLocation = Target->GetActorLocation();
+	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -1120,7 +1138,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomOut(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> Trajectory;
-	FVector TargetLocation = Target->GetActorLocation();
+	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -1152,7 +1170,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRandomDirection(AActor* Target, float DegreesPerFrame, int32 RandomSeed)
 {
 	TArray<FCameraPose> Trajectory;
-	FVector TargetLocation = Target->GetActorLocation();
+	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
