@@ -1,5 +1,10 @@
 // Weichao Qiu @ 2017
 // Should not be used in blueprint
+
+// shc @2025
+// Performance improvement for Capture
+// Not thread safe
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,6 +16,13 @@
 
 #include "BaseCameraSensor.generated.h"
 
+enum class ECaptureFormat : uint8
+{
+	Invalid = 0,
+	F16 = 1,
+	UInt8 = 2,
+};
+
 /**
  * A base camera sensor for ground truth capture
  */
@@ -21,20 +33,6 @@ class UNREALCV_API UBaseCameraSensor : public USceneCaptureComponent2D
 
 public:
 	UBaseCameraSensor(const FObjectInitializer& ObjectInitializer);
-
-	// // 	FlushRenderingCommands() can make sure the rendering command is finished, but will slow down the game thread
-	// void CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height);
-
-	/** Save lit to an image file, send the capture command to rendering thread */
-	void CaptureFastToFile(const FString& Filename);
-
-	/** Fast async ver. **/
-	void CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height);
-
-	/** The old version to read TextureBuffer, slow but is sync operation and  correct */
-	void Capture(TArray<FColor>& ImageData, int& Width, int& Height);
-
-	// void CaptureFloat16(TArray<FFloat16Color>& ImageData, int& Width, int& Height);
 
 	/** Get/set the sensor location / rotation */
 	FVector GetSensorLocation()
@@ -85,14 +83,39 @@ public:
 	void SetUseFastCapture(bool bInUseFast) { bUseFastCapture = bInUseFast; }
 	bool GetUseFastCapture() const { return bUseFastCapture; }
 	void CleanCaptureCache();
-	void CheckCaptureCache();
+	
+public:
+	/** The old version to read TextureBuffer, slow but is sync operation */
+	void Capture(TArray<FColor>& ImageData, int& Width, int& Height);
+	void Capture(TArray<FFloat16Color>& ImageData, int& Width, int& Height);
 
+protected:
+	// // 	FlushRenderingCommands() can make sure the rendering command is finished, but will slow down the game thread
+	// void CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height);
+
+	/** Save lit to an image file, send the capture command to rendering thread */
+	void CaptureFastToFile(const FString& Filename);
+
+	/** Fast async ver. **/
+	void CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height);
+
+	void CaptureFast(TArray<FFloat16Color>& ImageData, int& Width, int& Height);
+
+	// void CaptureFloat16(TArray<FFloat16Color>& ImageData, int& Width, int& Height);
+
+
+protected:
 	// virtual void CaptureToGPUQueue(const FString& Filename);
 	// void FlushCapturesToDisk();
 
+	void CheckCaptureCache(ECaptureFormat Format);
 	virtual void LaunchCapture();
-	virtual void CopyBackCapture();
+	virtual void CopyBackCapture(ECaptureFormat Format);
 	// virtual void ConvertCapture(TArray<FColor>& OutPixelData, int32& OutWidth, int32& OutHeight);
+
+
+	void InitFloat16TextureTarget(int FilmWidth, int FilmHeight);
+	void InitUInt8TextureTarget(int FilmWidth, int FilmHeight, bool bUseLinearGamma = false);
 	
 
 protected:
@@ -113,12 +136,16 @@ protected:
 		int32 Height;
 		EPixelFormat PixelFormat;
 	};
-	bool bCaptureCacheValid = false;
-	bool bCopyLaunched = false;
+
 	bool bCaptureLaunched = false;
 	double CaptureTimestamp = 0.0;
+
+	ECaptureFormat CopyFormat = ECaptureFormat::Invalid;
+
 	// FQueuedCapture CaptureCache;
+	bool bCaptureCacheValid = false;
 	TArray<FColor> CaptureCache;
+	TArray<FFloat16Color> CaptureCacheFloat16;
 
 	// TArray<FQueuedCapture> QueuedCaptures;
 };

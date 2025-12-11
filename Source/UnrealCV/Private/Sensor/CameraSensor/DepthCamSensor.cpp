@@ -6,6 +6,7 @@
 #include "Serialization.h"
 #include "ImageUtil.h"
 #include "UnrealcvLog.h"
+#include "ConvertRAWSurfaceDataToFFloat16ColorOpt.h"
 
 UDepthCamSensor::UDepthCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
@@ -35,44 +36,18 @@ void UDepthCamSensor::CaptureDepth(TArray<float>& DepthData, int& Width, int& He
 
 	if (!CheckTextureTarget()) return;
 
-	// if (bUseAsyncCapture)
-	// {
-	// 	TArray<FFloat16Color> FloatColorDepthData;
-	// 	int TempWidth, TempHeight;
-	// 	CaptureFloat16(FloatColorDepthData, TempWidth, TempHeight);
 
-	// 	Width = TempWidth;
-	// 	Height = TempHeight;
-	// 	DepthData.SetNum(Width * Height);
+	TArray<FFloat16Color> FloatColorDepthData;
+	this->Capture(FloatColorDepthData, Width, Height);
 
-	// 	ParallelFor(FloatColorDepthData.Num(), [&](int32 i)
-	// 	{
-	// 		if (i >= 0 && i < FloatColorDepthData.Num() && i < DepthData.Num())
-	// 		{
-	// 			FFloat16Color& FloatColor = FloatColorDepthData[i];
-	// 			DepthData[i] = FloatColor.R;
-	// 		}
-	// 	});
-	// }
-	// else
-	// {
-		this->CaptureScene();
-		Width = this->TextureTarget->SizeX;
-		Height = TextureTarget->SizeY;
-		DepthData.AddZeroed(Width * Height);
-		FTextureRenderTargetResource* RenderTargetResource = this->TextureTarget->GameThread_GetRenderTargetResource();
-		TArray<FFloat16Color> FloatColorDepthData;
-		RenderTargetResource->ReadFloat16Pixels(FloatColorDepthData);
-
-		ParallelFor(FloatColorDepthData.Num(), [&](int32 i)
+	ParallelFor(FloatColorDepthData.Num(), [&](int32 i)
+	{
+		if (i >= 0 && i < FloatColorDepthData.Num() && i < DepthData.Num())
 		{
-			if (i >= 0 && i < FloatColorDepthData.Num() && i < DepthData.Num())
-			{
-				FFloat16Color& FloatColor = FloatColorDepthData[i];
-				DepthData[i] = FloatColor.R;
-			}
-		});
-	// }
+			FFloat16Color& FloatColor = FloatColorDepthData[i];
+			DepthData[i] = FloatColor.R;
+		}
+	});
 }
 
 void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
@@ -92,85 +67,118 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 		this->ShowFlags.SetMaterials(false);
 	}
 
-	this->CaptureScene();
+
+	/*
+	 ****************      Below is copied from BaseCameraSensor.cpp     ********************
+	*/
+
+	CheckCaptureCache(ECaptureFormat::Invalid);
+
+	if (!bCaptureLaunched)
+	{
+		LaunchCapture();
+	}
+	bCaptureLaunched = false;
+	
+	EPixelFormat PixelFormat = TextureTarget->GetFormat();
+	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] TextureTarget Format: %d, SRGB: %d, Gamma: %f"),
+		(int32)PixelFormat,
+		TextureTarget->SRGB,
+		TextureTarget->TargetGamma);
 
 	FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
 	int32 Width = TextureTarget->SizeX;
 	int32 Height = TextureTarget->SizeY;
 
-	FString OutputPath = Filename;
+	FQueuedCapture Capture;
+	Capture.Readback = MakeShared<FRHIGPUTextureReadback>(
+		// random name
+		*FString::Printf(TEXT("Capture_%d"), FMath::Rand())
+	);
+	Capture.OutputPath = TEXT("");
+	Capture.Width = Width;
+	Capture.Height = Height;
+	Capture.PixelFormat = PixelFormat;
 
-	ENQUEUE_RENDER_COMMAND(CaptureDepthToFileCommand)(
-		[RenderTargetResource, Width, Height, OutputPath](FRHICommandListImmediate& RHICmdList)
+	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
+		[RenderTargetResource, Capture = MoveTemp(Capture), Filename](FRHICommandListImmediate& RHICmdList)
 		{
-			// TArray<FFloat16Color> FloatColorData;
-			TArray<FColor> FloatColorData;
-			// RenderTargetResource->ReadFloat16Pixels(FloatColorData);
-            FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
-            RHICmdList.ReadSurfaceData(
-                RenderTargetResource->GetRenderTargetTexture(),
-                FIntRect(0, 0, Width, Height),
-                FloatColorData,
-                ReadFlags
-            );
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::SRVMask, ERHIAccess::CopySrc));
+			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
+			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::CopySrc, ERHIAccess::SRVMask));
 
-			TArray<float> DepthData;
-			DepthData.SetNum(Width * Height);
-
-			// ParallelFor(FloatColorData.Num(), [&](int32 i)
-			// {
-			// 	if (i >= 0 && i < FloatColorData.Num() && i < DepthData.Num())
-			// 	{
-			// 		DepthData[i] = FloatColorData[i].R;
-			// 	}
-			// });
-			const int32 CACHE_LINE_SIZE = 64;
-			const int32 PIXELS_PER_CACHE_LINE = CACHE_LINE_SIZE / sizeof(FColor);
-			int32 NumCores = FPlatformMisc::NumberOfCores();
-			int32 TotalPixels = FloatColorData.Num();
-
-			int32 BlockSize = FMath::Max(PIXELS_PER_CACHE_LINE, (TotalPixels + NumCores - 1) / NumCores);
-			BlockSize = (BlockSize + PIXELS_PER_CACHE_LINE - 1) / PIXELS_PER_CACHE_LINE * PIXELS_PER_CACHE_LINE;
-
-			int32 NumBlocks = (TotalPixels + BlockSize - 1) / BlockSize;
-
-			ParallelFor(NumBlocks, [&](int32 BlockIndex)
+			void* RawDataCopy = FMemory::Malloc(Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+			int32 RowPitchInPixels;
 			{
-				int32 StartIndex = BlockIndex * BlockSize;
-				int32 EndIndex = FMath::Min(StartIndex + BlockSize, TotalPixels);
-				
-				for (int32 i = StartIndex; i < EndIndex && i < DepthData.Num(); i++)
+				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+				FMemory::Memcpy(RawDataCopy, RawData, Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+				Capture.Readback->Unlock();
+			}
+
+			AsyncTask(ENamedThreads::AnyThread,
+				[RawDataCopy, OutputPath = Filename, Width = Capture.Width, Height = Capture.Height, PixelFormat = Capture.PixelFormat, RowPitchInPixels = RowPitchInPixels]()
 				{
-					DepthData[i] = FloatColorData[i].R;
+
+					TArray<FFloat16Color> PixelData;
+					PixelData.AddUninitialized(Width * Height);
+					FReadSurfaceDataFlags ReadFlags(RCM_MinMax); // do not norm
+					// FReadSurfaceDataFlags ReadFlags(RCM_UNorm); // norm
+					ReadFlags.SetLinearToGamma(false);  // no gamma correction
+					// ReadFlags.SetLinearToGamma(true);  // gamma correction
+
+					uint32 SrcPitch = RowPitchInPixels * GPixelFormats[PixelFormat].BlockBytes;
+					ConvertRAWSurfaceDataToFFloat16ColorOpt(
+						PixelFormat,
+						Width,
+						Height,
+						(uint8*)RawDataCopy,
+						SrcPitch,
+						PixelData.GetData(),
+						ReadFlags
+					);
+					FMemory::Free(RawDataCopy);
+
+					TArray<float> DepthData;
+					DepthData.AddZeroed(Width * Height);
+
+					ParallelFor(PixelData.Num(), [&](int32 i)
+					{
+						if (i >= 0 && i < PixelData.Num() && i < DepthData.Num())
+						{
+							FFloat16Color& FloatColor = PixelData[i];
+							DepthData[i] = FloatColor.R;
+						}
+					});
+
+					double SerializeStartTime = FPlatformTime::Seconds();
+					FString OutputPathPNG = OutputPath.Replace(TEXT(".npy"), TEXT(".png"));
+					// FString OutputPathPNG10KM = OutputPathPNG.Replace(TEXT(".png"), TEXT("_10km.png"));
+					FString DepthPreviewPath = OutputPathPNG.Replace(TEXT(".png"), TEXT("_preview.png"));
+					TArray<FColor> DepthPreview;
+					TArray<FColor> DepthPNG;
+					// TArray<FColor> DepthPNG10KM;
+					// ConvertDepthToPNG_RGB24(DepthData, DepthPNG10KM, 0.0f, 1000000.0f);  // 10km
+					// ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 5000.0f); // 50m
+					ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 100000.0f); // 1km
+					ConvertDepthToPreview(DepthData, DepthPreview);
+					// | 你能接受的误差（cm）   | 对应的 MaxDepth（cm）                     |
+					// | ------------- | ------------------------------------ |
+					// | 100 cm（1 m）   | **3,355,443,000 cm**  ≈ 33,554 km    |
+					// | 50 cm（0.5 m）  | **1,677,721,500 cm**  ≈ 16,777 km    |
+					// | 10 cm（0.1 m）  | **335,544,300 cm**   ≈ 3,355 km      |
+					// | 1000 cm（10 m） | **33,554,430,000 cm** ≈ 335,544 km   |
+					// | 2000 cm（20 m） | **67,108,860,000 cm** ≈ 671,088 km   |
+					// | 4000 cm（40 m） | **134,217,720,000 cm**≈ 1,342,177 km |
+					SerializeData(DepthPNG, Width, Height, OutputPathPNG);
+					// SerializeData(DepthPNG10KM, Width, Height, OutputPathPNG10KM);
+					SerializeData(DepthPreview, Width, Height, DepthPreviewPath);
+					double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
+					UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s in %.3f ms"), *OutputPath, SerializeTime * 1000.0);
 				}
-			});
-
-
-
-			AsyncTask(ENamedThreads::AnyThread, [DepthData = MoveTemp(DepthData), Width, Height, OutputPath]()
-			{
-				FString OutputPathPNG = OutputPath.Replace(TEXT(".npy"), TEXT(".png"));
-				FString OutputPathPNG10KM = OutputPathPNG.Replace(TEXT(".png"), TEXT("_10km.png"));
-				FString DepthPreviewPath = OutputPathPNG.Replace(TEXT(".png"), TEXT("_preview.png"));
-				TArray<FColor> DepthPreview;
-				TArray<FColor> DepthPNG;
-				TArray<FColor> DepthPNG10KM;
-				ConvertDepthToPNG_RGB24(DepthData, DepthPNG10KM, 0.0f, 1000000.0f);  // 10km
-				// ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 5000.0f); // 50m
-				ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 100000.0f); // 1km
-				ConvertDepthToPreview(DepthData, DepthPreview);
-				// | 你能接受的误差（cm）   | 对应的 MaxDepth（cm）                     |
-				// | ------------- | ------------------------------------ |
-				// | 100 cm（1 m）   | **3,355,443,000 cm**  ≈ 33,554 km    |
-				// | 50 cm（0.5 m）  | **1,677,721,500 cm**  ≈ 16,777 km    |
-				// | 10 cm（0.1 m）  | **335,544,300 cm**   ≈ 3,355 km      |
-				// | 1000 cm（10 m） | **33,554,430,000 cm** ≈ 335,544 km   |
-				// | 2000 cm（20 m） | **67,108,860,000 cm** ≈ 671,088 km   |
-				// | 4000 cm（40 m） | **134,217,720,000 cm**≈ 1,342,177 km |
-				SerializeData(DepthPNG, Width, Height, OutputPathPNG);
-				SerializeData(DepthPNG10KM, Width, Height, OutputPathPNG10KM);
-				SerializeData(DepthPreview, Width, Height, DepthPreviewPath);
-			});
+			);
 		}
 	);
+
+	LaunchCapture();
 }

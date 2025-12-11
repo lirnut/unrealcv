@@ -50,9 +50,9 @@ public:
 
 public:
 
-	/** Get rgbm data */
-	UFUNCTION(BlueprintPure, Category = "unrealcv")
-	void GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSeg, int& InOutWidth, int& InOutHeight);
+	// /** Get rgbm data */
+	// UFUNCTION(BlueprintPure, Category = "unrealcv")
+	// void GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSeg, int& InOutWidth, int& InOutHeight);
 
 	/** Get one object mask data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")

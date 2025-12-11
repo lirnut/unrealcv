@@ -280,5 +280,8 @@ private:
 	static void SettleActorToGround(AActor* Actor, UWorld* World, float InitialHeight = 5000.0f);
 	static void EnableCollisionOnly(AActor* Actor);
 
+	static bool CheckCollisionAtLocation(UWorld* World, const FVector& Location, float Radius, const TArray<AActor*>& IgnoreActors);
+	static bool FindCollisionFreeLocation(UWorld* World, FVector& OutLocation, float Radius, const TArray<AActor*>& IgnoreActors, int32 MaxAttempts = 10, float SearchRadius = 300.0f);
+
 	static TArray<FSceneHandle> ActiveScenes;
 };

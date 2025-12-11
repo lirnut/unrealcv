@@ -17,3 +17,14 @@ UNormalCamSensor::UNormalCamSensor(const FObjectInitializer& ObjectInitializer)
 // 	bool bUseLinearGamma = false;
 // 	TextureTarget->InitCustomFormat(FilmWidth, FilmHeight, EPixelFormat::PF_B8G8R8A8, bUseLinearGamma);
 // }
+
+
+void UNormalCamSensor::CaptureNormal(TArray<FColor>& ImageData, int& Width, int& Height)
+{
+	Capture(ImageData, Width, Height);
+}
+
+void UNormalCamSensor::CaptureNormalToFile(FString Filename)
+{
+	CaptureFastToFile(Filename);
+}

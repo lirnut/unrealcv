@@ -52,33 +52,17 @@ void UFlowCamSensor::SetFilmSize(int Width, int Height)
 	}
 }
 
-// void UFlowCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
-// {
-// 	TextureTarget = NewObject<UTextureRenderTarget2D>(this);
-// 	TextureTarget->InitAutoFormat(filmWidth, filmHeight);
-// 	TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
-// }
+void UFlowCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
+{
+	InitUInt8TextureTarget(filmWidth, filmHeight, true);
+}
 
-// void UFlowCamSensor::CaptureFlow(TArray<FColor>& Image, int& Width, int& Height)
-// {
-// 	SCOPE_CYCLE_COUNTER(STAT_CaptureFlow);
-// 	if (!CheckTextureTarget())
-// 	{
-// 		InitTextureTarget(this->FilmWidth, this->FilmHeight);
-// 		if (!CheckTextureTarget())
-// 		{
-// 			UE_LOG(LogUnrealCV, Error, TEXT("Failed to initialize TextureTarget."));
-// 			return;
-// 		}
-// 	}
-// 	this->CaptureScene();
-// 	FReadSurfaceDataFlags ReadSurfaceDataFlags;
-// 	ReadSurfaceDataFlags.SetLinearToGamma(false);
-// 	TextureTarget->GameThread_GetRenderTargetResource()->ReadPixels(Image, ReadSurfaceDataFlags);
-// 	if (Image.Num() == 0)
-// 	{
-// 		UE_LOG(LogUnrealCV, Warning, TEXT("Captured optical flow data is empty."));
-// 	}
-// 	Width = GetFilmWidth();
-// 	Height = GetFilmHeight();
-// }
+void UFlowCamSensor::CaptureFlow(TArray<FColor>& Image, int& Width, int& Height)
+{
+	Capture(Image, Width, Height);
+}
+
+void UFlowCamSensor::CaptureFlowToFile(FString Filename)
+{
+	CaptureFastToFile(Filename);
+}

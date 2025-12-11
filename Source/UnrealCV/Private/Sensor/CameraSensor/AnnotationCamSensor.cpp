@@ -9,6 +9,7 @@
 #include "Runtime/Core/Public/Async/ParallelFor.h"
 #include "Serialization.h"
 #include "ImageUtil.h"
+#include "RHISurfaceDataConversionOpt.h"
 
 TMap<UWorld*, TArray<TWeakObjectPtr<UPrimitiveComponent>>> UAnnotationCamSensor::CachedAnnotationComponents;
 TMap<UWorld*, int32> UAnnotationCamSensor::CachedWorldFrameNumbers;
@@ -57,9 +58,7 @@ UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectIniti
 
 void UAnnotationCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 {
-	EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
-	bool bUseLinearGamma = true;
-	TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
+	InitUInt8TextureTarget(filmWidth, filmHeight, true);
 }
 
 void UAnnotationCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * T)
@@ -214,47 +213,95 @@ void UAnnotationCamSensor::CaptureSegToFile(const FString& Filename)
 	GetAnnotationComponents(this->GetWorld(), ComponentList);
 	this->ShowOnlyComponents = ComponentList;
 
-	this->CaptureScene();
+
+	/*
+	 ****************      Below is copied from BaseCameraSensor.cpp     ********************
+	*/
+
+	CheckCaptureCache(ECaptureFormat::Invalid);
+
+	if (!bCaptureLaunched)
+	{
+		LaunchCapture();
+	}
+	bCaptureLaunched = false;
+	
+	EPixelFormat PixelFormat = TextureTarget->GetFormat();
+	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] TextureTarget Format: %d, SRGB: %d, Gamma: %f"),
+		(int32)PixelFormat,
+		TextureTarget->SRGB,
+		TextureTarget->TargetGamma);
 
 	FTextureRenderTargetResource* RenderTargetResource = TextureTarget->GameThread_GetRenderTargetResource();
 	int32 Width = TextureTarget->SizeX;
 	int32 Height = TextureTarget->SizeY;
 
-	FString OutputPath = Filename;
+	FQueuedCapture Capture;
+	Capture.Readback = MakeShared<FRHIGPUTextureReadback>(
+		// random name
+		*FString::Printf(TEXT("Capture_%d"), FMath::Rand())
+	);
+	Capture.OutputPath = TEXT("");
+	Capture.Width = Width;
+	Capture.Height = Height;
+	Capture.PixelFormat = PixelFormat;
 
-	ENQUEUE_RENDER_COMMAND(CaptureSegToFileCommand)(
-		[RenderTargetResource, Width, Height, OutputPath](FRHICommandListImmediate& RHICmdList)
+	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
+		[RenderTargetResource, Capture = MoveTemp(Capture), Filename](FRHICommandListImmediate& RHICmdList)
 		{
-			TArray<FColor> PixelData;
-			PixelData.AddUninitialized(Width * Height);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::SRVMask, ERHIAccess::CopySrc));
+			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
+			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::CopySrc, ERHIAccess::SRVMask));
 
-			FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
-			RHICmdList.ReadSurfaceData(
-				RenderTargetResource->GetRenderTargetTexture(),
-				FIntRect(0, 0, Width, Height),
-				PixelData,
-				ReadFlags
+			void* RawDataCopy = FMemory::Malloc(Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+			int32 RowPitchInPixels;
+			{
+				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+				FMemory::Memcpy(RawDataCopy, RawData, Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+				Capture.Readback->Unlock();
+			}
+
+			AsyncTask(ENamedThreads::AnyThread,
+				[RawDataCopy, OutputPath = Filename, Width = Capture.Width, Height = Capture.Height, PixelFormat = Capture.PixelFormat, RowPitchInPixels = RowPitchInPixels]()
+				{
+
+					TArray<FColor> PixelData;
+					PixelData.AddUninitialized(Width * Height);
+					FReadSurfaceDataFlags ReadFlags(RCM_MinMax); // do not norm
+					// FReadSurfaceDataFlags ReadFlags(RCM_UNorm); // norm
+					ReadFlags.SetLinearToGamma(false);  // no gamma correction
+					// ReadFlags.SetLinearToGamma(true);  // gamma correction
+
+					uint32 SrcPitch = RowPitchInPixels * GPixelFormats[PixelFormat].BlockBytes;
+					ConvertRAWSurfaceDataToFColorOpt(
+						PixelFormat,
+						Width,
+						Height,
+						(uint8*)RawDataCopy,
+						SrcPitch,
+						PixelData.GetData(),
+						ReadFlags
+					);
+					FMemory::Free(RawDataCopy);
+
+					ParallelFor(Width * Height, [&](int32 i)
+					{
+						if (i >= 0 && i < PixelData.Num())
+						{
+							PixelData[i].A = 255;
+						}
+					});
+
+					double SerializeStartTime = FPlatformTime::Seconds();
+					SerializeData(PixelData, Width, Height, OutputPath);
+					double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
+					UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s in %.3f ms"), *OutputPath, SerializeTime * 1000.0);
+				}
 			);
-
-			ParallelFor(PixelData.Num(), [&](int32 i)
-			{
-				if (i >= 0 && i < PixelData.Num())
-				{
-					PixelData[i].A = 255;
-				}
-			});
-
-			AsyncTask(ENamedThreads::AnyThread, [PixelData = MoveTemp(PixelData), Width, Height, OutputPath]()
-			{
-				if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
-				{
-					UE_LOG(LogUnrealCV, Log, TEXT("[CaptureSegToFile] Saved segmentation to %s"), *OutputPath);
-				}
-				else
-				{
-					UE_LOG(LogUnrealCV, Error, TEXT("[CaptureSegToFile] Failed to save segmentation %s"), *OutputPath);
-				}
-			});
 		}
 	);
+
+	LaunchCapture();
 }
+

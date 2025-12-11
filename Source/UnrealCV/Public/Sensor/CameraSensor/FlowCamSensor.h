@@ -35,9 +35,10 @@ public:
 
 	void SetFilmSize(int Width, int Height);
 
-	// virtual void InitTextureTarget(int FilmWidth, int FilmHeight) override;
+	virtual void InitTextureTarget(int FilmWidth, int FilmHeight) override;
 
-	// void CaptureFlow(TArray<FColor>& Image, int& Width, int& Height);
+	void CaptureFlow(TArray<FColor>& Image, int& Width, int& Height);
+	void CaptureFlowToFile(FString Filename);
 
 private:
 	/** Post process material to extract optical flow data */

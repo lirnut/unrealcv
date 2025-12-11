@@ -13,6 +13,9 @@ class UNREALCV_API UNormalCamSensor : public UBaseCameraSensor
 public:
 	UNormalCamSensor(const FObjectInitializer& ObjectInitializer);
 
+	void CaptureNormal(TArray<FColor>& ImageData, int& Width, int& Height);
+	void CaptureNormalToFile(FString Filename);
+
 private:
 	/** Post process material to extract surface normal data */
 	UPROPERTY()

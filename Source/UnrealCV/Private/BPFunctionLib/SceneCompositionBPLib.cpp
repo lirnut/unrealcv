@@ -9,6 +9,7 @@
 #include "Engine/DirectionalLight.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Animation/AnimSequence.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMesh.h"
@@ -147,6 +148,69 @@ void USceneCompositionBPLib::EnableCollisionOnly(AActor* Actor)
 
 	UE_LOG(LogUnrealCV, Log, TEXT("EnableCollisionOnly: Actor '%s' collision enabled (query only, no physics)"),
 		*Actor->GetName());
+}
+
+bool USceneCompositionBPLib::CheckCollisionAtLocation(UWorld* World, const FVector& Location, float Radius, const TArray<AActor*>& IgnoreActors)
+{
+	if (!IsValid(World))
+	{
+		return false;
+	}
+
+	FCollisionQueryParams QueryParams;
+	QueryParams.TraceTag = TEXT("ActorCollisionCheck");
+	for (AActor* IgnoreActor : IgnoreActors)
+	{
+		if (IsValid(IgnoreActor))
+		{
+			QueryParams.AddIgnoredActor(IgnoreActor);
+		}
+	}
+
+	FCollisionShape SphereShape = FCollisionShape::MakeSphere(Radius);
+
+	bool bHasCollision = World->OverlapBlockingTestByChannel(
+		Location,
+		FQuat::Identity,
+		ECC_Pawn,
+		SphereShape,
+		QueryParams
+	);
+
+	return bHasCollision;
+}
+
+bool USceneCompositionBPLib::FindCollisionFreeLocation(UWorld* World, FVector& OutLocation, float Radius, const TArray<AActor*>& IgnoreActors, int32 MaxAttempts, float SearchRadius)
+{
+	if (!IsValid(World))
+	{
+		return false;
+	}
+
+	FVector OriginalLocation = OutLocation;
+
+	for (int32 Attempt = 0; Attempt < MaxAttempts; Attempt++)
+	{
+		float RandomDistance = FMath::RandRange(0.0f, SearchRadius);
+		float RandomAngle = FMath::RandRange(0.0f, 360.0f);
+
+		FVector Offset = FVector(
+			RandomDistance * FMath::Cos(FMath::DegreesToRadians(RandomAngle)),
+			RandomDistance * FMath::Sin(FMath::DegreesToRadians(RandomAngle)),
+			0.0f
+		);
+
+		FVector CandidateLocation = OriginalLocation + Offset;
+
+		if (!CheckCollisionAtLocation(World, CandidateLocation, Radius, IgnoreActors))
+		{
+			OutLocation = CandidateLocation;
+			return true;
+		}
+	}
+
+	OutLocation = OriginalLocation;
+	return false;
 }
 
 // ========== Scene Generation ==========
@@ -623,19 +687,40 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 
 			WorldController->ObjectAnnotator.SetAnnotationColor(SpawnedActor, AnnotationColor);
 
-
-			
 			SettleActorToGround(SpawnedActor, World, Location.Z + 200.0f);
 			EnableCollisionOnly(SpawnedActor);
-			// EnablePhysicsSettling(SpawnedActor, Location.Z + 200);
 		}
 		else
 		{
 			UE_LOG(LogUnrealCV, Warning, TEXT("SpawnActorFromMetadata: WorldController not available, actor not annotated"));
 		}
 	}
-	UE_LOG(LogUnrealCV, Warning, TEXT("SpawnActorFromMetadata: Spawned actor '%s' at location %.2f, %.2f, %.2f"), 
-		*SpawnedActor->GetName(), Location.X, Location.Y, Location.Z);
+
+	FVector FinalLocation = Location;
+	if (IsValid(SpawnedActor))
+	{
+		float ActorRadius = GetBoundsRadiusFromMetadata(Metadata) + 50.0f;
+		TArray<AActor*> IgnoreList;
+		IgnoreList.Add(SpawnedActor);
+
+		if (CheckCollisionAtLocation(World, FinalLocation, ActorRadius, IgnoreList))
+		{
+			if (FindCollisionFreeLocation(World, FinalLocation, ActorRadius, IgnoreList, 15, 500.0f))
+			{
+				SpawnedActor->SetActorLocation(FinalLocation, false, nullptr, ETeleportType::TeleportPhysics);
+				UE_LOG(LogUnrealCV, Warning, TEXT("SpawnActorFromMetadata: Actor '%s' collision detected at original position, relocated to %.2f, %.2f, %.2f"),
+					*SpawnedActor->GetName(), FinalLocation.X, FinalLocation.Y, FinalLocation.Z);
+			}
+			else
+			{
+				UE_LOG(LogUnrealCV, Warning, TEXT("SpawnActorFromMetadata: Actor '%s' collision detected, could not find collision-free location after 15 attempts"),
+					*SpawnedActor->GetName());
+			}
+		}
+	}
+
+	UE_LOG(LogUnrealCV, Warning, TEXT("SpawnActorFromMetadata: Spawned actor '%s' at location %.2f, %.2f, %.2f"),
+		*SpawnedActor->GetName(), FinalLocation.X, FinalLocation.Y, FinalLocation.Z);
 
 	return SpawnedActor;
 }
@@ -719,15 +804,9 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 
 	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
 
-	struct FOccupiedSpace
-	{
-		FVector Position;
-		float Radius;
-	};
-	TArray<FOccupiedSpace> OccupiedSpaces;
-
 	const float SafetyMargin = 50.0f;
-	const int32 MaxAttempts = 10;
+	const int32 MaxLocationAttempts = 15;
+	const int32 MaxAssetAttempts = 10;
 
 	for (int32 i = 0; i < Count; i++)
 	{
@@ -738,10 +817,10 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 			continue;
 		}
 
-		float CurrentRadius = GetBoundsRadiusFromMetadata(Metadata);
+		float CurrentRadius = GetBoundsRadiusFromMetadata(Metadata) + SafetyMargin;
 
 		bool bSpawned = false;
-		for (int32 Attempt = 0; Attempt < MaxAttempts; Attempt++)
+		for (int32 Attempt = 0; Attempt < MaxLocationAttempts; Attempt++)
 		{
 			float Alpha = FMath::RandRange(0.3f, 0.7f);
 			FVector CandidatePosition = FMath::Lerp(CameraPosition, ForegroundPosition, Alpha);
@@ -751,22 +830,16 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 			float LateralOffset = FMath::RandRange(-200.0f, 200.0f);
 			CandidatePosition += Perpendicular * LateralOffset;
 
-			// CandidatePosition.Z = GetTerrainHeightAtLocation(World, CandidatePosition, 10000.0f);
 			CandidatePosition.Z = ForegroundPosition.Z;
 
-			bool bHasOverlap = false;
-			for (const FOccupiedSpace& Occupied : OccupiedSpaces)
+			TArray<AActor*> IgnoreList;
+			IgnoreList.Add(OutSceneHandle.ForegroundActor);
+			for (AActor* ExistingOccluder : SpawnedOccluders)
 			{
-				float MinDistance = Occupied.Radius + CurrentRadius + SafetyMargin;
-				float Distance = FVector::Dist2D(CandidatePosition, Occupied.Position);
-				if (Distance < MinDistance)
-				{
-					bHasOverlap = true;
-					break;
-				}
+				IgnoreList.Add(ExistingOccluder);
 			}
 
-			if (!bHasOverlap)
+			if (!CheckCollisionAtLocation(World, CandidatePosition, CurrentRadius, IgnoreList))
 			{
 				FRotator Rotation = FRotator::ZeroRotator;
 				Rotation.Yaw = FMath::RandRange(0.0f, 360.0f);
@@ -774,11 +847,7 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 				AActor* Occluder = SpawnActorFromMetadata(World, Metadata, CandidatePosition, Rotation);
 				if (IsValid(Occluder))
 				{
-					// // SettleActorToGround(Occluder, World, CandidatePosition.Z + 500.0f);
-					// // EnableCollisionOnly(Occluder);
-					// EnablePhysicsSettling(Occluder);
 					SpawnedOccluders.Add(Occluder);
-					OccupiedSpaces.Add({CandidatePosition, CurrentRadius});
 					OutSceneHandle.OccluderMetadataList.Add({Metadata});
 					OutSceneHandle.OccluderCategory = OccluderCategory;
 					bSpawned = true;
@@ -789,7 +858,7 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 
 		if (!bSpawned)
 		{
-			UE_LOG(LogUnrealCV, Warning, TEXT("USceneCompositionBPLib::SpawnRandomOccluders: Failed to find non-overlapping position after %d attempts"), MaxAttempts);
+			UE_LOG(LogUnrealCV, Warning, TEXT("USceneCompositionBPLib::SpawnRandomOccluders: Failed to find collision-free position after %d attempts"), MaxLocationAttempts);
 		}
 	}
 

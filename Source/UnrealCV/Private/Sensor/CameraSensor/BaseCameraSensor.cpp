@@ -1,4 +1,5 @@
 // Weichao Qiu @ 2017
+// Performance Optimization: shc @ 2025
 #include "BaseCameraSensor.h"
 #include "Runtime/Engine/Classes/Components/StaticMeshComponent.h"
 #include "Runtime/Engine/Classes/Engine/CollisionProfile.h"
@@ -54,10 +55,26 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 
 void UBaseCameraSensor::InitTextureTarget(int filmWidth, int filmHeight)
 {
-	// bool bUseLinearGamma = false;
-	EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
-	bool bUseLinearGamma = false;
+	// this should be the same with https://github.com/unrealcv/unrealcv/blob/5.2/Source/UnrealCV/Private/Sensor/CameraSensor/BaseCameraSensor.cpp
+	InitUInt8TextureTarget(filmWidth, filmHeight, false);
+
+	// I set bUseLinearGamma to false, just because the default value is false in UnrealCV 5.2
+	// But for RGB, It should be true to get a regular color
+	// UE may do gamma correction twice if it is false
+}
+
+void UBaseCameraSensor::InitFloat16TextureTarget(int filmWidth, int filmHeight)
+{
+	//PF_FloatRGBA            =10, // RGBA16F
 	TextureTarget = NewObject<UTextureRenderTarget2D>(this); 
+	TextureTarget->InitAutoFormat(filmWidth, filmHeight);
+	TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
+}
+
+void UBaseCameraSensor::InitUInt8TextureTarget(int filmWidth, int filmHeight, bool bUseLinearGamma)
+{
+	EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
+	TextureTarget = NewObject<UTextureRenderTarget2D>(this);
 	TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
 	// TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
 }
@@ -142,6 +159,33 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 	}
 }
 
+void UBaseCameraSensor::Capture(TArray<FFloat16Color>& ImageData, int& Width, int& Height)
+{
+	if (bUseFastCapture)
+	{
+		CaptureFast(ImageData, Width, Height);
+		return;
+	}
+	else
+    {
+		SCOPE_CYCLE_COUNTER(STAT_ReadBuffer);
+
+		if (!CheckTextureTarget())
+		{
+			UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
+			return;
+		}
+		this->CaptureScene();
+
+		Width = TextureTarget->SizeX;
+		Height = TextureTarget->SizeY;
+		ImageData.Empty();
+		ImageData.SetNumUninitialized(Width * Height);
+		FTextureRenderTargetResource* RenderTargetResource = this->TextureTarget->GameThread_GetRenderTargetResource();
+		RenderTargetResource->ReadFloat16Pixels(ImageData);
+	}
+}
+
 // void UBaseCameraSensor::CaptureToFile(const FString& Filename)
 // {
 //     if (!CheckTextureTarget())
@@ -191,7 +235,7 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 
 void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 {
-	CheckCaptureCache();
+	CheckCaptureCache(ECaptureFormat::Invalid);
 
 	if (!bCaptureLaunched)
 	{
@@ -223,7 +267,9 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 		[RenderTargetResource, Capture = MoveTemp(Capture), Filename](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::SRVMask, ERHIAccess::CopySrc));
 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
+			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::CopySrc, ERHIAccess::SRVMask));
 
 			void* RawDataCopy = FMemory::Malloc(Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
 			int32 RowPitchInPixels;
@@ -293,14 +339,14 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 
 void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height)
 {
-	CheckCaptureCache();
+	CheckCaptureCache(ECaptureFormat::UInt8);
 
 	double CaptureFastStartTime = FPlatformTime::Seconds();
-	if (!bCopyLaunched)
+	if (CopyFormat != ECaptureFormat::UInt8)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureToFile: Copy not launched, launch it"));
+		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureToFile: Copy not launched for UInt8, launch it"));
 		LaunchCapture();
-		CopyBackCapture();
+		CopyBackCapture(ECaptureFormat::UInt8);
 		SL::get().printf("CaptureFast: [X1] fallback start copy !\n");
 	}
 	SL::get().printf("CaptureFast: [X1] fallback start copy cost %.3f ms\n", (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
@@ -333,14 +379,72 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 	}
 	SL::get().printf("CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
 
-	bCaptureCacheValid = false;	
+	bCaptureCacheValid = false;
 	CaptureCache = {};
 
 	double LaunchStartTime = FPlatformTime::Seconds();
 	LaunchCapture();
-	CopyBackCapture();
+	CopyBackCapture(ECaptureFormat::UInt8);
 	SL::get().printf("CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
 }
+
+void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width, int& Height)
+{
+	CheckCaptureCache(ECaptureFormat::F16);
+
+	if (TextureTarget->GetFormat() != PF_FloatRGBA)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast: TextureTarget format not PF_FloatRGBA, Go use CaptureFast FColor ver. or set the PixelFormat to PF_FloatRGBA"));
+		return;
+	}
+
+	double CaptureFastStartTime = FPlatformTime::Seconds();
+	if (CopyFormat != ECaptureFormat::F16)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureFast F16: Copy not launched for F16, launch it"));
+		LaunchCapture();
+		CopyBackCapture(ECaptureFormat::F16);
+		SL::get().printf("CaptureFast: [X1] fallback start copy !\n");
+	}
+	SL::get().printf("CaptureFast: [X1] fallback start copy cost %.3f ms\n", (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
+	bCaptureLaunched = false;
+
+	// busy wait
+	double WaitStartTime = FPlatformTime::Seconds();
+	while (!bCaptureCacheValid && (FPlatformTime::Seconds() - WaitStartTime) < 1.0)
+	{
+		FPlatformProcess::Sleep(0.0001f); // sleep 0.1 ms
+	}
+	if (!bCaptureCacheValid)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache not valid, failed"));
+		return;
+	}
+	SL::get().printf("CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
+
+	double CopyStartTime = FPlatformTime::Seconds();
+	if (CaptureCacheFloat16.Num() == FilmWidth * FilmHeight)
+	{
+		ImageData = MoveTemp(CaptureCacheFloat16);
+		Width = FilmWidth;
+		Height = FilmHeight;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache size not match, failed"));
+	}
+	SL::get().printf("CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
+
+	bCaptureCacheValid = false;
+	CaptureCacheFloat16 = {};
+
+	double LaunchStartTime = FPlatformTime::Seconds();
+	LaunchCapture();
+	CopyBackCapture(ECaptureFormat::F16);
+	SL::get().printf("CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
+}
+
+
 
 void UBaseCameraSensor::SetPostProcessMaterial(UMaterial* PostProcessMaterial)
 {
@@ -388,10 +492,11 @@ void UBaseCameraSensor::LaunchCapture()
 		return;
 	}
 	this->CaptureScene();
+	CaptureTimestamp = FPlatformTime::Seconds();
 	bCaptureLaunched = true;
 }
 
-void UBaseCameraSensor::CopyBackCapture()
+void UBaseCameraSensor::CopyBackCapture(ECaptureFormat Format)
 {
 	EPixelFormat PixelFormat = TextureTarget->GetFormat();
 	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] TextureTarget Format: %d, SRGB: %d, Gamma: %f"),
@@ -405,7 +510,6 @@ void UBaseCameraSensor::CopyBackCapture()
 
 	FQueuedCapture Capture;
 	Capture.Readback = MakeShared<FRHIGPUTextureReadback>(
-		// random name
 		*FString::Printf(TEXT("Capture_%d"), FMath::Rand())
 	);
 	Capture.OutputPath = TEXT("");
@@ -432,12 +536,29 @@ void UBaseCameraSensor::CopyBackCapture()
 	// 	}
 	// );
 
-	CaptureCache.Empty();
-	CaptureCache.AddUninitialized(Capture.Width * Capture.Height);
+	void* PixelDataPtr;
+	if (Format == ECaptureFormat::F16)
+	{
+		PixelDataPtr = CaptureCacheFloat16.GetData();
+		CaptureCache.Empty();
+		CaptureCache.AddUninitialized(Capture.Width * Capture.Height);
+	}
+	else if (Format == ECaptureFormat::UInt8)
+	{
+		PixelDataPtr = CaptureCache.GetData();
+		CaptureCacheFloat16.Empty();
+		CaptureCacheFloat16.AddUninitialized(Capture.Width * Capture.Height);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CopyBackCapture: Invalid format, failed"));
+		return;
+	}
 	bCaptureCacheValid = false;
 
+
 	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
-		[RenderTargetResource, Capture = MoveTemp(Capture), RenderStartTime, PixelData = CaptureCache.GetData(), bCaptureCacheValidPtr = &bCaptureCacheValid, CaptureTimestampPtr = &CaptureTimestamp](FRHICommandListImmediate& RHICmdList)
+		[RenderTargetResource, Capture = MoveTemp(Capture), Format = Format, RenderStartTime, PixelData = PixelDataPtr, bCaptureCacheValidPtr = &bCaptureCacheValid](FRHICommandListImmediate& RHICmdList)
 		{
 			SL::get().printf("[R0] Start time: %.3f ms", (FPlatformTime::Seconds() - RenderStartTime) * 1000.0);
 			double FlushStartTime = FPlatformTime::Seconds();
@@ -465,17 +586,36 @@ void UBaseCameraSensor::CopyBackCapture()
 			uint32 SrcPitch = RowPitchInPixels * GPixelFormats[Capture.PixelFormat].BlockBytes;
 
 			double ConvertStartTime = FPlatformTime::Seconds();
-			ConvertRAWSurfaceDataToFColorOpt(
-				Capture.PixelFormat,
-				Capture.Width,
-				Capture.Height,
-				(uint8*)RawData,
-				SrcPitch,
-				PixelData,
-				ReadFlags
-			);
+			if (Format == ECaptureFormat::UInt8)
+			{
+				ConvertRAWSurfaceDataToFColorOpt(
+					Capture.PixelFormat,
+					Capture.Width,
+					Capture.Height,
+					(uint8*)RawData,
+					SrcPitch,
+					(FColor*)PixelData,
+					ReadFlags
+				);
+			}
+			else if (Format == ECaptureFormat::F16)
+			{
+				ConvertRAWSurfaceDataToFFloat16ColorOpt(
+					Capture.PixelFormat,
+					Capture.Width,
+					Capture.Height,
+					(uint8*)RawData,
+					SrcPitch,
+					(FFloat16Color*)PixelData,
+					ReadFlags
+				);
+			} 
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CopyBackCapture: Invalid format, failed"));
+				check(0);
+			}
 			*bCaptureCacheValidPtr = true;
-			*CaptureTimestampPtr = FPlatformTime::Seconds();
 			SL::get().printf("[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
 
 			// Unlock the readback data
@@ -490,20 +630,27 @@ void UBaseCameraSensor::CopyBackCapture()
 	);
 
 
-	bCopyLaunched = true;
+	CopyFormat = Format;
 }
 
 void UBaseCameraSensor::CleanCaptureCache()
 {
 	CaptureCache.Empty();
+	CaptureCacheFloat16.Empty();
 	bCaptureCacheValid = false;
-	bCopyLaunched = false;
+	CopyFormat = ECaptureFormat::Invalid;
 	bCaptureLaunched = false;
 }
 
-void UBaseCameraSensor::CheckCaptureCache()
+void UBaseCameraSensor::CheckCaptureCache(ECaptureFormat Format)
 {
-	if (bCaptureCacheValid && CaptureTimestamp > 0.0)
+	bool bValid = true;
+	if (Format != ECaptureFormat::Invalid)
+	{
+		bValid = CopyFormat == Format;
+	}
+	
+	if (bCaptureCacheValid && CaptureTimestamp > 0.0 && bValid)
 	{
 		double ElapsedTime = FPlatformTime::Seconds() - CaptureTimestamp;
 		if (ElapsedTime > 1.0)

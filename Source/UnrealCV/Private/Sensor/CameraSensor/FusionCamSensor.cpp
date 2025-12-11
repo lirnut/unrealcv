@@ -178,54 +178,54 @@ bool UFusionCamSensor::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& V
 }
 
 
-void UFusionCamSensor::GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSeg, int& InOutWidth, int& InOutHeight)
-{
-	if (!LitCamSensor->CheckTextureTarget()) {
-		LitCamSensor->InitTextureTarget(this->FilmWidth, this->FilmHeight);
-		if (!LitCamSensor->CheckTextureTarget()) {
-			SL::get().print("LitCamSensor InitTextureTarget failed.");
-			UE_LOG(LogUnrealCV, Error, TEXT("No TextureTarget."));
-			return;
-		}
-	}
-	if (!AnnotationCamSensor->CheckTextureTarget()) {
-		AnnotationCamSensor->InitTextureTarget(this->FilmWidth, this->FilmHeight);
-		if (!AnnotationCamSensor->CheckTextureTarget()) {
-			SL::get().print("AnnotationCamSensor InitTextureTarget failed.");
-			UE_LOG(LogUnrealCV, Error, TEXT("No TextureTarget."));
-			return;
-		}
-	}
+// void UFusionCamSensor::GetLitSeg(TArray<FColor>& DataRGB, TArray<FColor>& DataSeg, int& InOutWidth, int& InOutHeight)
+// {
+// 	if (!LitCamSensor->CheckTextureTarget()) {
+// 		LitCamSensor->InitTextureTarget(this->FilmWidth, this->FilmHeight);
+// 		if (!LitCamSensor->CheckTextureTarget()) {
+// 			SL::get().print("LitCamSensor InitTextureTarget failed.");
+// 			UE_LOG(LogUnrealCV, Error, TEXT("No TextureTarget."));
+// 			return;
+// 		}
+// 	}
+// 	if (!AnnotationCamSensor->CheckTextureTarget()) {
+// 		AnnotationCamSensor->InitTextureTarget(this->FilmWidth, this->FilmHeight);
+// 		if (!AnnotationCamSensor->CheckTextureTarget()) {
+// 			SL::get().print("AnnotationCamSensor InitTextureTarget failed.");
+// 			UE_LOG(LogUnrealCV, Error, TEXT("No TextureTarget."));
+// 			return;
+// 		}
+// 	}
 
-	LitCamSensor->CaptureScene();
+// 	LitCamSensor->CaptureScene();
 
-	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
-	AnnotationCamSensor->GetAnnotationComponents(this->GetWorld(), ComponentList);
-	AnnotationCamSensor->ShowOnlyComponents = ComponentList;
-	AnnotationCamSensor->CaptureScene();
+// 	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+// 	AnnotationCamSensor->GetAnnotationComponents(this->GetWorld(), ComponentList);
+// 	AnnotationCamSensor->ShowOnlyComponents = ComponentList;
+// 	AnnotationCamSensor->CaptureScene();
 
-	LitCamSensor->ReadCaptureResults(DataRGB);
-	AnnotationCamSensor->ReadCaptureResults(DataSeg);
+// 	LitCamSensor->ReadCaptureResults(DataRGB);
+// 	AnnotationCamSensor->ReadCaptureResults(DataSeg);
 
-	int32 LitW = LitCamSensor->GetFilmWidth();
-	int32 LitH = LitCamSensor->GetFilmHeight();
-	int32 SegW = AnnotationCamSensor->GetFilmWidth();
-	int32 SegH = AnnotationCamSensor->GetFilmHeight();
+// 	int32 LitW = LitCamSensor->GetFilmWidth();
+// 	int32 LitH = LitCamSensor->GetFilmHeight();
+// 	int32 SegW = AnnotationCamSensor->GetFilmWidth();
+// 	int32 SegH = AnnotationCamSensor->GetFilmHeight();
 
-	// SL::get().printf("UFusionCamSensor::GetLitSeg DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
-	// SL::get().printf("UFusionCamSensor::GetLitSeg DataSeg size: %d, width: %d, height: %d", DataSeg.Num(), SegW, SegH);
+// 	// SL::get().printf("UFusionCamSensor::GetLitSeg DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
+// 	// SL::get().printf("UFusionCamSensor::GetLitSeg DataSeg size: %d, width: %d, height: %d", DataSeg.Num(), SegW, SegH);
 
-	if (!((LitW == SegW) && (LitH == SegH)))
-	{
-		SL::get().print("ERROR: Rendered frame size does not match.");
-		UE_LOG(LogUnrealCV, Error, TEXT("Rendered frame size does not match."));
-		DataRGB.Empty();
-		DataSeg.Empty();
-		return;
-	}
-	InOutWidth = LitW;
-	InOutHeight = LitH;
-}
+// 	if (!((LitW == SegW) && (LitH == SegH)))
+// 	{
+// 		SL::get().print("ERROR: Rendered frame size does not match.");
+// 		UE_LOG(LogUnrealCV, Error, TEXT("Rendered frame size does not match."));
+// 		DataRGB.Empty();
+// 		DataSeg.Empty();
+// 		return;
+// 	}
+// 	InOutWidth = LitW;
+// 	InOutHeight = LitH;
+// }
 
 
 void UFusionCamSensor::GetObjMask(FString ObjId, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
@@ -266,7 +266,7 @@ void UFusionCamSensor::GetDepth(TArray<float>& DepthData, int& Width, int& Heigh
 }
 void UFusionCamSensor::GetNormal(TArray<FColor>& NormalData, int& Width, int& Height)
 {
-	this->NormalCamSensor->Capture(NormalData, Width, Height);
+	this->NormalCamSensor->CaptureNormal(NormalData, Width, Height);
 }
 void UFusionCamSensor::GetFlow(TArray<FColor>& FlowData, int& Width, int& Height)
 {
@@ -278,7 +278,7 @@ void UFusionCamSensor::GetFlow(TArray<FColor>& FlowData, int& Width, int& Height
 		Height = 0;
 		return;
 	}
-	this->FlowCamSensor->Capture(FlowData, Width, Height);
+	this->FlowCamSensor->CaptureFlow(FlowData, Width, Height);
 }
 void UFusionCamSensor::GetSeg(TArray<FColor>& ObjMaskData, int& Width, int& Height, ESegMode SegMode)
 {

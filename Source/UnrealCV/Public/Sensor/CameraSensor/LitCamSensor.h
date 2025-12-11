@@ -20,6 +20,7 @@ public:
 	virtual void InitTextureTarget(int FilmWidth, int FilmHeight) override;
 
 	void CaptureLit(TArray<FColor>& Image, int& Width, int& Height);
+	void CaptureLitToFile(FString Filename);
 
 	// virtual void CaptureToGPUQueue(const FString& Filename) override;
 };
