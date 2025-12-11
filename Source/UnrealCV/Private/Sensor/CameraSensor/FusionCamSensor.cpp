@@ -551,3 +551,10 @@ bool UFusionCamSensor::GetUseFastCapture() const
 	}
 	return bLitFastCapture;
 }
+
+
+void UFusionCamSensor::SaveLitToFile(const FString& Filename) { LitCamSensor->CaptureLitToFile(Filename); }
+void UFusionCamSensor::SaveDepthToFile(const FString& Filename) { DepthCamSensor->CaptureDepthToFile(Filename); }
+void UFusionCamSensor::SaveNormalToFile(const FString& Filename) { NormalCamSensor->CaptureNormalToFile(Filename); }		
+void UFusionCamSensor::SaveFlowToFile(const FString& Filename) { FlowCamSensor->CaptureFlowToFile(Filename); }
+void UFusionCamSensor::SaveSegToFile(const FString& Filename) { AnnotationCamSensor->CaptureSegToFile(Filename); }

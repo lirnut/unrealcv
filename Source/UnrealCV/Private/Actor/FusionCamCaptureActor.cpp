@@ -255,7 +255,7 @@ void AFusionCamCaptureActor::RecordFrame(bool SaveToFile)
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
 		if (bUseSaveToFileAPI)
 		{
-			TargetSensor->GetLitCamSensor()->CaptureFastToFile(FileNameRGB);
+			TargetSensor->SaveLitToFile(FileNameRGB);
 			// TargetSensor->GetLitCamSensor()->CaptureToGPUQueue(FileNameRGB);
 		}
 		else
@@ -277,7 +277,7 @@ void AFusionCamCaptureActor::RecordFrame(bool SaveToFile)
 		FString FileNameMask = MakeFilenameNew("mask", ".png");
 		if (bUseSaveToFileAPI)
 		{
-			TargetSensor->GetAnnotationCamSensor()->CaptureSegToFile(FileNameMask);
+			TargetSensor->SaveSegToFile(FileNameMask);
 		}
 		else
 		{
@@ -298,7 +298,7 @@ void AFusionCamCaptureActor::RecordFrame(bool SaveToFile)
 		FString DepthFilename = MakeFilenameNew("depth", ".npy");
 		if (bUseSaveToFileAPI)
 		{
-			TargetSensor->GetDepthCamSensor()->CaptureDepthToFile(DepthFilename);
+			TargetSensor->SaveDepthToFile(DepthFilename);
 		}
 		else
 		{
@@ -327,7 +327,7 @@ void AFusionCamCaptureActor::RecordFrame(bool SaveToFile)
 		FString NormalFilename = MakeFilenameNew("normal", ".png");
 		if (bUseSaveToFileAPI)
 		{
-			TargetSensor->GetNormalCamSensor()->CaptureFastToFile(NormalFilename);
+			TargetSensor->SaveNormalToFile(NormalFilename);
 		}
 		else
 		{
@@ -348,7 +348,7 @@ void AFusionCamCaptureActor::RecordFrame(bool SaveToFile)
 		FString FlowFilename = MakeFilenameNew("flow", ".png");
 		if (bUseSaveToFileAPI)
 		{
-			TargetSensor->GetFlowCamSensor()->CaptureFastToFile(FlowFilename);
+			TargetSensor->SaveFlowToFile(FlowFilename);
 		}
 		else
 		{

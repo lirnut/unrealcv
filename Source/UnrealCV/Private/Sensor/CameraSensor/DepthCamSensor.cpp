@@ -6,7 +6,7 @@
 #include "Serialization.h"
 #include "ImageUtil.h"
 #include "UnrealcvLog.h"
-#include "ConvertRAWSurfaceDataToFFloat16ColorOpt.h"
+#include "RHISurfaceDataConversionOpt.h"
 
 UDepthCamSensor::UDepthCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)

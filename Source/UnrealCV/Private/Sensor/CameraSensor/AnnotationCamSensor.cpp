@@ -10,6 +10,7 @@
 #include "Serialization.h"
 #include "ImageUtil.h"
 #include "RHISurfaceDataConversionOpt.h"
+#include "SetAlpha.h"
 
 TMap<UWorld*, TArray<TWeakObjectPtr<UPrimitiveComponent>>> UAnnotationCamSensor::CachedAnnotationComponents;
 TMap<UWorld*, int32> UAnnotationCamSensor::CachedWorldFrameNumbers;
@@ -186,13 +187,7 @@ void UAnnotationCamSensor::CaptureSeg(TArray<FColor>& ImageData, int& Width, int
     {
         if (Width > 0 && Height > 0 && static_cast<uint32>(Width * Height) == ImageData.Num())
         {
-            ParallelFor(Width * Height, [&](int32 i)
-            {
-                if (i >= 0 && i < ImageData.Num())
-                {
-                    ImageData[i].A = 255;
-                }
-            });
+            SetAlphaAVX2(ImageData);
         }
         else
         {
@@ -285,13 +280,7 @@ void UAnnotationCamSensor::CaptureSegToFile(const FString& Filename)
 					);
 					FMemory::Free(RawDataCopy);
 
-					ParallelFor(Width * Height, [&](int32 i)
-					{
-						if (i >= 0 && i < PixelData.Num())
-						{
-							PixelData[i].A = 255;
-						}
-					});
+					SetAlphaAVX2(PixelData);
 
 					double SerializeStartTime = FPlatformTime::Seconds();
 					SerializeData(PixelData, Width, Height, OutputPath);

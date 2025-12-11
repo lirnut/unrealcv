@@ -12,6 +12,7 @@
 #include "RHIGPUReadback.h"
 #include "RenderingThread.h"
 #include "RHISurfaceDataConversionOpt.h"
+#include "SetAlpha.h"
 #include "SL.h"
 
 DECLARE_CYCLE_STAT(TEXT("ReadBuffer"), STAT_ReadBuffer, STATGROUP_UnrealCV);
@@ -38,7 +39,7 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
 
 	bUseFastCapture = Config.UseFastCapture;
-	bUseFastCapture = true;
+	// bUseFastCapture = true;
 	// bool bSetLinearToGamma = false;
 	// QueuedCaptures.Empty();
 }
@@ -301,7 +302,8 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 						ReadFlags
 					);
 					FMemory::Free(RawDataCopy);
-
+					SetAlphaAVX2(PixelData);
+					
 					double SerializeStartTime = FPlatformTime::Seconds();
 					SerializeData(PixelData, Width, Height, OutputPath);
 					double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;

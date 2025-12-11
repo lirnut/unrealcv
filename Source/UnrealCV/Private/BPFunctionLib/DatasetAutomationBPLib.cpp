@@ -28,6 +28,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 
 	CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_45")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_45")));

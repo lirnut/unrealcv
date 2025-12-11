@@ -12,7 +12,7 @@ ARecordingHUD::ARecordingHUD()
 
 	// Default settings
 	bAutoSpawnWidget = true;
-	bShowWidgetOnSpawn = true;
+	bShowWidgetOnSpawn = false;
 	bEnableInputWhileVisible = true;
 
 	// Try to load the default widget class

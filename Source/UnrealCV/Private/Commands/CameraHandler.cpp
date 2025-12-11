@@ -295,7 +295,21 @@ FExecStatus FCameraHandler::GetCameraLit(const TArray<FString>& Args)
 
 	FExecStatus ExecStatus = FExecStatus::OK();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
-	if (!IsValid(FusionCamSensor)) return ExecStatus; 
+	if (!IsValid(FusionCamSensor)) return ExecStatus;
+
+	if (Args.Num() != 2)
+	{
+		return FExecStatus::Error("Filename can not be empty");
+	}
+	FString Filename = Args[1];
+
+	EFilenameType FilenameType = ParseFilenameType(Filename);
+
+	if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
+	{
+		FusionCamSensor->SaveLitToFile(Filename);
+		return FExecStatus::OK(Filename);
+	}
 
 	TArray<FColor> Data;
 	int Width, Height;
@@ -310,7 +324,21 @@ FExecStatus FCameraHandler::GetCameraDepth(const TArray<FString>& Args)
 {
 	FExecStatus ExecStatus = FExecStatus::OK();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
-	if (!IsValid(FusionCamSensor)) return ExecStatus; 
+	if (!IsValid(FusionCamSensor)) return ExecStatus;
+
+	if (Args.Num() != 2)
+	{
+		return FExecStatus::Error("Filename can not be empty");
+	}
+	FString Filename = Args[1];
+
+	EFilenameType FilenameType = ParseFilenameType(Filename);
+
+	if (FilenameType == EFilenameType::Npy && FusionCamSensor->GetUseFastCapture())
+	{
+		FusionCamSensor->SaveDepthToFile(Filename);
+		return FExecStatus::OK(Filename);
+	}
 
 	TArray<float> Data;
 	int Width, Height;
@@ -324,7 +352,21 @@ FExecStatus FCameraHandler::GetCameraNormal(const TArray<FString>& Args)
 {
 	FExecStatus ExecStatus = FExecStatus::OK();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
-	if (!IsValid(FusionCamSensor)) return ExecStatus; 
+	if (!IsValid(FusionCamSensor)) return ExecStatus;
+
+	if (Args.Num() != 2)
+	{
+		return FExecStatus::Error("Filename can not be empty");
+	}
+	FString Filename = Args[1];
+
+	EFilenameType FilenameType = ParseFilenameType(Filename);
+
+	if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
+	{
+		FusionCamSensor->SaveNormalToFile(Filename);
+		return FExecStatus::OK(Filename);
+	}
 
 	TArray<FColor> Data;
 	int Width, Height;
@@ -338,7 +380,20 @@ FExecStatus FCameraHandler::GetCameraFlow(const TArray<FString>& Args)
 	FExecStatus ExecStatus = FExecStatus::OK();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
 	if (!IsValid(FusionCamSensor)) return ExecStatus;
-	// FusionCamSensor->checkFusionSensors();
+
+	if (Args.Num() != 2)
+	{
+		return FExecStatus::Error("Filename can not be empty");
+	}
+	FString Filename = Args[1];
+
+	EFilenameType FilenameType = ParseFilenameType(Filename);
+
+	if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
+	{
+		FusionCamSensor->SaveFlowToFile(Filename);
+		return FExecStatus::OK(Filename);
+	}
 
 	TArray<FColor> Data;
 	int Width, Height;
@@ -351,11 +406,25 @@ FExecStatus FCameraHandler::GetCameraFlow(const TArray<FString>& Args)
 	return ExecStatus;
 }
 
-FExecStatus FCameraHandler::GetCameraObjMask(const TArray<FString>& Args)
+FExecStatus FCameraHandler::GetCameraSeg(const TArray<FString>& Args)
 {
 	FExecStatus ExecStatus = FExecStatus::OK();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
-	if (!IsValid(FusionCamSensor)) return ExecStatus; 
+	if (!IsValid(FusionCamSensor)) return ExecStatus;
+
+	if (Args.Num() != 2)
+	{
+		return FExecStatus::Error("Filename can not be empty");
+	}
+	FString Filename = Args[1];
+
+	EFilenameType FilenameType = ParseFilenameType(Filename);
+
+	if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
+	{
+		FusionCamSensor->SaveSegToFile(Filename);
+		return FExecStatus::OK(Filename);
+	}
 
 	TArray<FColor> Data;
 	int Width, Height;
@@ -363,6 +432,33 @@ FExecStatus FCameraHandler::GetCameraObjMask(const TArray<FString>& Args)
 
 	SaveData(Data, Width, Height, Args, ExecStatus);
 	return ExecStatus;
+}
+
+FExecStatus FCameraHandler::GetUseFastCapture(const TArray<FString>& Args)
+{
+	FExecStatus ExecStatus = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) return ExecStatus;
+
+	bool bUseFastCapture = FusionCamSensor->GetUseFastCapture();
+	FString Result = bUseFastCapture ? TEXT("1") : TEXT("0");
+	return FExecStatus::OK(Result);
+}
+
+FExecStatus FCameraHandler::SetUseFastCapture(const TArray<FString>& Args)
+{
+	FExecStatus ExecStatus = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) return ExecStatus;
+
+	if (Args.Num() != 2)
+	{
+		return FExecStatus::Error("Usage: vset /camera/[uint]/use_fast_capture [0|1]");
+	}
+
+	bool bEnable = FCString::Atoi(*Args[1]) != 0;
+	FusionCamSensor->SetUseFastCapture(bEnable);
+	return FExecStatus::OK(FString::Printf(TEXT("FastCapture set to %d"), bEnable ? 1 : 0));
 }
 
 FExecStatus FCameraHandler::MoveTo(const TArray<FString>& Args)
@@ -1017,59 +1113,59 @@ FExecStatus FCameraHandler::GetHWObsV3(const TArray<FString>& Args)
 }
 
 
-FExecStatus FCameraHandler::GetHWObsV2(const TArray<FString>& Args)
-{
-	SL::get().print("FCameraHandler::GetHWObs called");
-	FExecStatus ExecStatus = FExecStatus::OK();
-	if (Args.Num() != 3) {
-		FString Msg = TEXT("Invalid command length.");
-		SL::get().print(TCHAR_TO_UTF8(*Msg));
-		ExecStatus = FExecStatus::Error(Msg);
-		return ExecStatus;
-	}
+// FExecStatus FCameraHandler::GetHWObsV2(const TArray<FString>& Args)
+// {
+// 	SL::get().print("FCameraHandler::GetHWObs called");
+// 	FExecStatus ExecStatus = FExecStatus::OK();
+// 	if (Args.Num() != 3) {
+// 		FString Msg = TEXT("Invalid command length.");
+// 		SL::get().print(TCHAR_TO_UTF8(*Msg));
+// 		ExecStatus = FExecStatus::Error(Msg);
+// 		return ExecStatus;
+// 	}
 
-	FString TargetId = Args[2];
-	FString FileName = Args[1];
-	int32 index;
-	if (!FileName.FindLastChar(TEXT('.'), index)) {
-		FString msg = TEXT("File name is not a path, binary is not supported.");
-		SL::get().print(TCHAR_TO_UTF8(*msg));
-		ExecStatus = FExecStatus::Error(msg);
-		return ExecStatus;
-	}
+// 	FString TargetId = Args[2];
+// 	FString FileName = Args[1];
+// 	int32 index;
+// 	if (!FileName.FindLastChar(TEXT('.'), index)) {
+// 		FString msg = TEXT("File name is not a path, binary is not supported.");
+// 		SL::get().print(TCHAR_TO_UTF8(*msg));
+// 		ExecStatus = FExecStatus::Error(msg);
+// 		return ExecStatus;
+// 	}
 
 
-	AActor* Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
-	if (!Target) {
-		ExecStatus = FExecStatus::Error("Can not find target");
-		SL::get().print("Can not find target");
-		return ExecStatus;
-	}
-	FActorController TargetController(Target);
+// 	AActor* Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+// 	if (!Target) {
+// 		ExecStatus = FExecStatus::Error("Can not find target");
+// 		SL::get().print("Can not find target");
+// 		return ExecStatus;
+// 	}
+// 	FActorController TargetController(Target);
 
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
-	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+// 	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
 
-	TArray<FColor> DataRGB, DataM;
-	int Width, Height;
-	FString FileNameRGB = FileName; FileNameRGB.InsertAt(index, TEXT("_rgb"));
-	FString FileNameM = FileName; FileNameM.InsertAt(index, TEXT("_mask"));
-	FusionCamSensor->GetLitSeg(DataRGB, DataM, Width, Height);
-	SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), Width, Height);
-	SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), Width, Height);
+// 	TArray<FColor> DataRGB, DataM;
+// 	int Width, Height;
+// 	FString FileNameRGB = FileName; FileNameRGB.InsertAt(index, TEXT("_rgb"));
+// 	FString FileNameM = FileName; FileNameM.InsertAt(index, TEXT("_mask"));
+// 	FusionCamSensor->GetLitSeg(DataRGB, DataM, Width, Height);
+// 	SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), Width, Height);
+// 	SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), Width, Height);
 
-	TArray<FColor> DataRGBNoTarget;
-	FString FileNameRGBNoTarget = FileName; FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target"));
-	TargetController.Hide();
-	FusionCamSensor->GetLit(DataRGBNoTarget, Width, Height);
-	TargetController.Show();
+// 	TArray<FColor> DataRGBNoTarget;
+// 	FString FileNameRGBNoTarget = FileName; FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target"));
+// 	TargetController.Hide();
+// 	FusionCamSensor->GetLit(DataRGBNoTarget, Width, Height);
+// 	TargetController.Show();
 
-	SerializeData(DataRGB, Width, Height, FileNameRGB);
-	SerializeData(DataM, Width, Height, FileNameM);
-	SerializeData(DataRGBNoTarget, Width, Height, FileNameRGBNoTarget);
+// 	SerializeData(DataRGB, Width, Height, FileNameRGB);
+// 	SerializeData(DataM, Width, Height, FileNameM);
+// 	SerializeData(DataRGBNoTarget, Width, Height, FileNameRGBNoTarget);
 
-	return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
-}
+// 	return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
+// }
 
 FExecStatus FCameraHandler::GetHWObsV1(const TArray<FString>& Args)
 {
@@ -1734,16 +1830,24 @@ void FCameraHandler::RegisterCommands()
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetCameraAudioRecord),
 	// 	"Set sensor audio record on/off"
 	// );
-       
+
 	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/hwobs",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetCameraAudioRecord),
-		"Set sensor audio record on/off"
+		"vget /camera/[uint]/use_fast_capture",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetUseFastCapture),
+		"Get fast capture mode status (0 or 1)"
 	);
 
 	CommandDispatcher->BindCommand(
+		"vset /camera/[uint]/use_fast_capture [uint]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetUseFastCapture),
+		"Set fast capture mode (0=disabled, 1=enabled)"
+	);
+
+
+
+	CommandDispatcher->BindCommand(
 		"vget /camera/[uint]/oneobjmask [str] [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraObjMask),
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraOneObjMask),
 		"oneobjmask bmp object_id"
 	);
 
@@ -1758,11 +1862,11 @@ void FCameraHandler::RegisterCommands()
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV1),
 		"hwobs xxx.bmp target_id"
 	);
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/hwobsv2 [str] [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV2),
-		"hwobs xxx.bmp target_id"
-	);
+	// CommandDispatcher->BindCommand(
+	// 	"vget /camera/[uint]/hwobsv2 [str] [str]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV2),
+	// 	"hwobs xxx.bmp target_id"
+	// );
 	CommandDispatcher->BindCommand(
 		"vget /camera/[uint]/hwobsv3 [str] [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV3),
@@ -1866,12 +1970,12 @@ void FCameraHandler::RegisterCommands()
 
 	CommandDispatcher->BindCommand(
 		"vget /camera/[uint]/object_mask [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraObjMask),
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraSeg),
 		"Get object mask from camera sensor");
 
 	CommandDispatcher->BindCommand(
 		"vget /camera/[uint]/seg [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraObjMask),
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraSeg),
 		"Get object mask from camera sensor");
 
 	CommandDispatcher->BindCommand(
@@ -1981,7 +2085,6 @@ void FCameraHandler::RegisterCommands()
         FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetFocalParams),
         "Set camera focus distance and range"
     );
-
 	// // Camera parameter export commands
 	// CommandDispatcher->BindCommand(
 	// 	"vget /camera/[uint]/intrinsics",

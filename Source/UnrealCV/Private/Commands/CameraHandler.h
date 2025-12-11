@@ -35,7 +35,7 @@ private:
 
 	FExecStatus GetCameraFlow(const TArray<FString>& Args);
 
-	FExecStatus GetCameraObjMask(const TArray<FString>& Args);
+	FExecStatus GetCameraSeg(const TArray<FString>& Args);
 
 	FExecStatus MoveTo(const TArray<FString>& Args);
 
@@ -88,6 +88,10 @@ private:
 	FExecStatus GetHWObsV3(const TArray<FString>& Args);
 
 	FExecStatus GetCameraOneObjMask(const TArray<FString>& Args);
+
+	FExecStatus GetUseFastCapture(const TArray<FString>& Args);
+
+	FExecStatus SetUseFastCapture(const TArray<FString>& Args);
 
 	// FExecStatus StartRecord(const TArray<FString>& Args);
 	// FExecStatus StartBulletTimeRecord(const TArray<FString>& Args);
