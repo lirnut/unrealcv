@@ -19,4 +19,7 @@ public:
 	FExecStatus GetPersistentLevelId(const TArray<FString>& Args);
 
 	FExecStatus GetLevelScriptActorId(const TArray<FString>& Args);
+
+private:
+	void HandleVBPAsync(UObject* TargetObject, const FString& FuncName, const FString& Args);
 };

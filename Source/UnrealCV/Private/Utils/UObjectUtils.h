@@ -6,5 +6,8 @@
 #include "Runtime/Engine/Classes/GameFramework/Actor.h"
 
 AActor* GetActorById(UWorld* World, FString ActorId);
+UObject* GetObjectByIdNaive(UWorld* World, FString ActorId);
 
 UObject* GetObjectById(UWorld* World, FString ObjectId);
+// UObject* SearchWorldObjects(UWorld* World, FName TargetName);
+

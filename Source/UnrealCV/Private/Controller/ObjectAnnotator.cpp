@@ -305,7 +305,7 @@ void FColorGenerator::GetColors(int32 MaxVal, bool Fix1, bool Fix2, bool Fix3, T
 FColor FColorGenerator::GetColorFromColorMap(int32 ObjectIndex)
 {
 	static TArray<FColor> ColorMap;
-	int NumPerChannel = 32;
+	int NumPerChannel = 50;
 	if (ColorMap.Num() == 0)
 	{
 		// 32 ^ 3

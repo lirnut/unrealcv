@@ -49,7 +49,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	TargetToHide = nullptr;
 	NumFrames = 0;
 
-	TimeDilation = 0.15f;
+	TimeDilation = 0.25f;
 	// TimeDilation = 0.1f;
 	// TimeDilation = 1.0f;
 	TimeDilationBackUp = 1.0f;
@@ -727,44 +727,62 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	}
 
 	static auto CVarForceLOD = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ForceLOD"));
-	static auto CVarViewDistanceScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ViewDistanceScale"));
-	static auto CVarShadowQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShadowQuality"));
-	static auto CVarPostProcessQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PostProcessQuality"));
-	static auto CVarTextureQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TextureQuality"));
-	static auto CVarEffectsQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EffectsQuality"));
-	static auto CVarFoliageQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.FoliageQuality"));
-	static auto CVarShadingQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShadingQuality"));
-	static auto CVarAntiAliasingQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AntiAliasingQuality"));
-	static auto CVarMotionBlurQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MotionBlurQuality"));
-	static auto CVarAmbientOcclusionLevels = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientOcclusionLevels"));
-	static auto CVarSSRQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SSR.Quality"));
-	static auto CVarBloomQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BloomQuality"));
-	static auto CVarDepthOfFieldQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DepthOfFieldQuality"));
-	static auto CVarLightShaftQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LightShaftQuality"));
-	static auto CVarRefractionQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RefractionQuality"));
-	static auto CVarTranslucencyLightingVolume = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TranslucencyLightingVolume"));
-	static auto CVarMaxAnisotropy = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MaxAnisotropy"));
+	// static auto CVarViewDistanceScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ViewDistanceScale"));
+	// static auto CVarShadowQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShadowQuality"));
+	// static auto CVarPostProcessQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PostProcessQuality"));
+	// static auto CVarTextureQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TextureQuality"));
+	// static auto CVarEffectsQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EffectsQuality"));
+	// static auto CVarFoliageQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.FoliageQuality"));
+	// static auto CVarShadingQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShadingQuality"));
+	// static auto CVarAntiAliasingQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AntiAliasingQuality"));
+	// static auto CVarMotionBlurQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MotionBlurQuality"));
+	// static auto CVarAmbientOcclusionLevels = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientOcclusionLevels"));
+	// static auto CVarSSRQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SSR.Quality"));
+	// static auto CVarBloomQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BloomQuality"));
+	// static auto CVarDepthOfFieldQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DepthOfFieldQuality"));
+	// static auto CVarLightShaftQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LightShaftQuality"));
+	// static auto CVarRefractionQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RefractionQuality"));
+	// static auto CVarTranslucencyLightingVolume = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TranslucencyLightingVolume"));
+	// static auto CVarMaxAnisotropy = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MaxAnisotropy"));
+	// static auto CVarDynamicGlobalIlluminationMethod = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DynamicGlobalIlluminationMethod"));
+	// static auto CVarLumenReflectionsAllow = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.Reflections.Allow"));
 
 	if (CVarForceLOD) { CVarForceLOD->Set(0); }
-	if (CVarViewDistanceScale) { CVarViewDistanceScale->Set(1.0f); }
-	if (CVarShadowQuality) { CVarShadowQuality->Set(5); }
-	if (CVarPostProcessQuality) { CVarPostProcessQuality->Set(5); }
-	if (CVarTextureQuality) { CVarTextureQuality->Set(5); }
-	if (CVarEffectsQuality) { CVarEffectsQuality->Set(5); }
-	if (CVarFoliageQuality) { CVarFoliageQuality->Set(5); }
-	if (CVarShadingQuality) { CVarShadingQuality->Set(5); }
-	if (CVarAntiAliasingQuality) { CVarAntiAliasingQuality->Set(5); }
-	if (CVarMotionBlurQuality) { CVarMotionBlurQuality->Set(4); }
-	if (CVarAmbientOcclusionLevels) { CVarAmbientOcclusionLevels->Set(3); }
-	if (CVarSSRQuality) { CVarSSRQuality->Set(4); }
-	if (CVarBloomQuality) { CVarBloomQuality->Set(5); }
-	if (CVarDepthOfFieldQuality) { CVarDepthOfFieldQuality->Set(4); }
-	if (CVarLightShaftQuality) { CVarLightShaftQuality->Set(1); }
-	if (CVarRefractionQuality) { CVarRefractionQuality->Set(2); }
-	if (CVarTranslucencyLightingVolume) { CVarTranslucencyLightingVolume->Set(1); }
-	if (CVarMaxAnisotropy) { CVarMaxAnisotropy->Set(16); }
+	// if (CVarViewDistanceScale) { CVarViewDistanceScale->Set(1.0f); }
+	// if (CVarShadowQuality) { CVarShadowQuality->Set(5); }
+	// if (CVarPostProcessQuality) { CVarPostProcessQuality->Set(5); }
+	// if (CVarTextureQuality) { CVarTextureQuality->Set(5); }
+	// if (CVarEffectsQuality) { CVarEffectsQuality->Set(5); }
+	// if (CVarFoliageQuality) { CVarFoliageQuality->Set(5); }
+	// if (CVarShadingQuality) { CVarShadingQuality->Set(5); }
+	// if (CVarAntiAliasingQuality) { CVarAntiAliasingQuality->Set(5); }
+	// if (CVarMotionBlurQuality) { CVarMotionBlurQuality->Set(4); }
+	// if (CVarAmbientOcclusionLevels) { CVarAmbientOcclusionLevels->Set(3); }
+	// if (CVarSSRQuality) { CVarSSRQuality->Set(4); }
+	// if (CVarBloomQuality) { CVarBloomQuality->Set(5); }
+	// if (CVarDepthOfFieldQuality) { CVarDepthOfFieldQuality->Set(4); }
+	// if (CVarLightShaftQuality) { CVarLightShaftQuality->Set(1); }
+	// if (CVarRefractionQuality) { CVarRefractionQuality->Set(2); }
+	// if (CVarTranslucencyLightingVolume) { CVarTranslucencyLightingVolume->Set(1); }
+	// if (CVarMaxAnisotropy) { CVarMaxAnisotropy->Set(16); }
+	// if (CVarDynamicGlobalIlluminationMethod) { CVarDynamicGlobalIlluminationMethod->Set(1); }
+	// if (CVarLumenReflectionsAllow) { CVarLumenReflectionsAllow->Set(1); }
 
-	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Set all quality settings to maximum for recording"));
+
+	TargetSensor->SetReflectionMethod(EReflectionMethod::Type::Lumen);
+    TargetSensor->SetGlobalIlluminationMethod(EDynamicGlobalIlluminationMethod::Type::Lumen);
+	TargetSensor->SetProjectionType(ECameraProjectionMode::Type::Perspective);
+    TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Histogram);
+	TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, 0.0f);
+	// calculate the range from TargetSensor to Target
+	UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
+	FVector SensorLocation = TargetSensor->GetSensorLocation();
+	float Distance = (UnifiedTargetLocation - SensorLocation).Size();
+		
+	const static float FocalRegion = 10 * 100;
+	TargetSensor->SetFocalParams(FMath::Max(Distance - FocalRegion/2, 100.0f), FocalRegion);
+
+	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Set all quality settings to maximum for recording (Lumen GI and Reflections enabled)"));
 
 	float DegreesPerFrame = DegreesPerSecond / FPS;
 
@@ -799,9 +817,21 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 
 
 	TargetSensor->GetDepthCamSensor()->bIgnoreTransparentObjects = true;
-	TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);	
+	TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);
 	OriginalCameraLocation = TargetSensor->GetSensorLocation();
 	OriginalCameraRotation = TargetSensor->GetSensorRotation();
+
+	// Adjust camera to roughly aim at the target with ±15 degrees noise
+	FVector CameraToTarget = (UnifiedTargetLocation - OriginalCameraLocation).GetSafeNormal();
+	FRotator TargetRotation = CameraToTarget.Rotation();
+
+	// Add ±15 degrees noise to pitch, yaw, and roll
+	float NoisePitch = FMath::RandRange(-5.0f, 5.0f);
+	float NoiseYaw = FMath::RandRange(-15.0f, 15.0f);
+	float NoiseRoll = FMath::RandRange(-5.0f, 5.0f);
+
+	FRotator NoisyRotation = TargetRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
+	TargetSensor->SetSensorRotation(NoisyRotation);
 
 	CurrentTrajectory = CalculateTrajectory(TrajectoryType, Target, DegreesPerFrame, RandomSeed);
 
@@ -955,7 +985,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddRotateBuf
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateLeft45(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> CoreTrajectory;
-	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
+	FVector TargetLocation = UnifiedTargetLocation;
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -992,7 +1022,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateRight45(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> CoreTrajectory;
-	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
+	FVector TargetLocation = UnifiedTargetLocation;
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -1029,7 +1059,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateUp45(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> CoreTrajectory;
-	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
+	FVector TargetLocation = UnifiedTargetLocation;
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -1069,7 +1099,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotate360(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> CoreTrajectory;
-	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
+	FVector TargetLocation = UnifiedTargetLocation;
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -1106,7 +1136,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomIn(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> Trajectory;
-	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
+	FVector TargetLocation = UnifiedTargetLocation;
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -1138,7 +1168,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomOut(AActor* Target, float DegreesPerFrame)
 {
 	TArray<FCameraPose> Trajectory;
-	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
+	FVector TargetLocation = UnifiedTargetLocation;
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 
@@ -1170,7 +1200,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRandomDirection(AActor* Target, float DegreesPerFrame, int32 RandomSeed)
 {
 	TArray<FCameraPose> Trajectory;
-	FVector TargetLocation = GetTargetLocationWithRandomHeight(Target);
+	FVector TargetLocation = UnifiedTargetLocation;
 	FVector OriginalLocation = TargetSensor->GetSensorLocation();
 	FRotator OriginalRotation = TargetSensor->GetSensorRotation();
 

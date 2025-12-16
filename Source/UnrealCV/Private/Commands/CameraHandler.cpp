@@ -97,7 +97,7 @@ FExecStatus FCameraHandler::SetCameraLocation(const TArray<FString>& Args)
 	if (!IsValid(FusionCamSensor)) return Status; 
 
 	// Should I set the component loction or the actor location?
-	if (Args.Num() != 4) return FExecStatus::InvalidArgument; // ID, X, Y, Z
+	if (Args.Num() != 4) return FExecStatus::GetInvalidArgument(); // ID, X, Y, Z
 
 	float X = FCString::Atof(*Args[1]), Y = FCString::Atof(*Args[2]), Z = FCString::Atof(*Args[3]);
 	FVector Location = FVector(X, Y, Z);
@@ -113,7 +113,7 @@ FExecStatus FCameraHandler::SetCameraLocation(const TArray<FString>& Args)
 		if (!IsValid(Pawn))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("The Pawn of the scene is invalid."));
-			return FExecStatus::InvalidArgument;
+			return FExecStatus::GetInvalidArgument();
 		}
 		Pawn->SetActorLocation(Location, Sweep, NULL, ETeleportType::TeleportPhysics);
 	}
@@ -144,7 +144,7 @@ FExecStatus FCameraHandler::SetCameraRotation(const TArray<FString>& Args)
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
 	if (!IsValid(FusionCamSensor)) return Status; 
 
-	if (Args.Num() != 4) return FExecStatus::InvalidArgument; // ID, X, Y, Z
+	if (Args.Num() != 4) return FExecStatus::GetInvalidArgument(); // ID, X, Y, Z
 	float Pitch = FCString::Atof(*Args[1]), Yaw = FCString::Atof(*Args[2]), Roll = FCString::Atof(*Args[3]);
 	FRotator Rotator = FRotator(Pitch, Yaw, Roll);
 
@@ -155,13 +155,13 @@ FExecStatus FCameraHandler::SetCameraRotation(const TArray<FString>& Args)
 		if (!IsValid(Pawn))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("The Pawn of the scene is invalid."));
-			return FExecStatus::InvalidArgument;
+			return FExecStatus::GetInvalidArgument();
 		}
 		AController* Controller = Pawn->GetController();
 		if (!IsValid(Controller))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("The Controller of the Pawn is invalid."));
-			return FExecStatus::InvalidArgument;
+			return FExecStatus::GetInvalidArgument();
 		}
 		Controller->ClientSetRotation(Rotator); // Teleport action
 	}
@@ -470,7 +470,7 @@ FExecStatus FCameraHandler::MoveTo(const TArray<FString>& Args)
 	/** The API for Character, Pawn and Actor are different */
 	if (Args.Num() != 4) // ID, X, Y, Z
 	{
-		return FExecStatus::InvalidArgument;
+		return FExecStatus::GetInvalidArgument();
 	}
 	if (Args[0] != "0")
 	{
@@ -531,11 +531,11 @@ FExecStatus FCameraHandler::GetPlayerViewMode(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::GetFOV(const TArray<FString>& Args)
 {
-	FExecStatus Status = FExecStatus::InvalidArgument;
+	FExecStatus Status = FExecStatus::GetInvalidArgument();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
+	if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
 
-	if (Args.Num() != 1) return FExecStatus::InvalidArgument; // ID
+	if (Args.Num() != 1) return FExecStatus::GetInvalidArgument(); // ID
 
 	float FOV = FusionCamSensor->GetSensorFOV();
 	FString Res = FString::Printf(TEXT("%f"), FOV);
@@ -544,11 +544,11 @@ FExecStatus FCameraHandler::GetFOV(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetFOV(const TArray<FString>& Args)
 {
-	FExecStatus Status = FExecStatus::InvalidArgument;
+	FExecStatus Status = FExecStatus::GetInvalidArgument();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
+	if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
 
-	if (Args.Num() != 2) return FExecStatus::InvalidArgument; // ID, FOV
+	if (Args.Num() != 2) return FExecStatus::GetInvalidArgument(); // ID, FOV
 
 	float FOV = FCString::Atof(*Args[1]);
 	FusionCamSensor->SetSensorFOV(FOV);
@@ -571,11 +571,11 @@ FExecStatus FCameraHandler::SpawnCamera(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::GetSize(const TArray<FString>& Args)
 {
-	FExecStatus Status = FExecStatus::InvalidArgument;
+	FExecStatus Status = FExecStatus::GetInvalidArgument();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
+	if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
 
-	if (Args.Num() != 1) return FExecStatus::InvalidArgument; // ID
+	if (Args.Num() != 1) return FExecStatus::GetInvalidArgument(); // ID
 
 	int Width = FusionCamSensor->GetFilmWidth();
 	int Height = FusionCamSensor->GetFilmHeight();
@@ -585,11 +585,11 @@ FExecStatus FCameraHandler::GetSize(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetSize(const TArray<FString>& Args)
 {
-	FExecStatus Status = FExecStatus::InvalidArgument;
+	FExecStatus Status = FExecStatus::GetInvalidArgument();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
+	if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
 
-	if (Args.Num() != 3) return FExecStatus::InvalidArgument; // ID, Width, Height
+	if (Args.Num() != 3) return FExecStatus::GetInvalidArgument(); // ID, Width, Height
 
 	int Width = FCString::Atof(*Args[1]);
 	int Height = FCString::Atof(*Args[2]);
@@ -599,9 +599,9 @@ FExecStatus FCameraHandler::SetSize(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetProjectionType(const TArray<FString>& Args)
 {
-	if (Args.Num() != 2) return FExecStatus::InvalidArgument;
+	if (Args.Num() != 2) return FExecStatus::GetInvalidArgument();
 
-	FExecStatus Status = FExecStatus::InvalidArgument;
+	FExecStatus Status = FExecStatus::GetInvalidArgument();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
 	FString ProjectionType = Args[1];
 	if (ProjectionType.ToLower() == "perspective")
@@ -623,9 +623,9 @@ FExecStatus FCameraHandler::SetProjectionType(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetOrthoWidth(const TArray<FString>& Args)
 {
-	if (Args.Num() != 2) return FExecStatus::InvalidArgument;
+	if (Args.Num() != 2) return FExecStatus::GetInvalidArgument();
 
-	FExecStatus Status = FExecStatus::InvalidArgument;
+	FExecStatus Status = FExecStatus::GetInvalidArgument();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
 
 	int OrthoWidth = FCString::Atof(*Args[1]);
@@ -635,10 +635,10 @@ FExecStatus FCameraHandler::SetOrthoWidth(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetExposureMethod(const TArray<FString>& Args)
 {
-    FExecStatus Status = FExecStatus::InvalidArgument;
+    FExecStatus Status = FExecStatus::GetInvalidArgument();
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-	if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
-	if (Args.Num() != 2) return FExecStatus::InvalidArgument; // exposure value
+	if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
+	if (Args.Num() != 2) return FExecStatus::GetInvalidArgument(); // exposure value
 	FString ExposureType = Args[1];
 	if (ExposureType.ToLower() == "histogram")
     {
@@ -664,10 +664,10 @@ FExecStatus FCameraHandler::SetExposureMethod(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetLitSource(const TArray<FString>& Args)
 {
-    FExecStatus Status = FExecStatus::InvalidArgument;
+    FExecStatus Status = FExecStatus::GetInvalidArgument();
     UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-    if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
-    if (Args.Num() != 2) return FExecStatus::InvalidArgument;
+    if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
+    if (Args.Num() != 2) return FExecStatus::GetInvalidArgument();
     FString LitSource = Args[1];
     if (LitSource.ToLower() == "ftc_hdr")
     {
@@ -728,10 +728,10 @@ FExecStatus FCameraHandler::SetLitSource(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetReflectionMethod(const TArray<FString>& Args)
 {
-    FExecStatus Status = FExecStatus::InvalidArgument;
+    FExecStatus Status = FExecStatus::GetInvalidArgument();
     UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-    if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
-    if (Args.Num() != 2) return FExecStatus::InvalidArgument;
+    if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
+    if (Args.Num() != 2) return FExecStatus::GetInvalidArgument();
     FString ReflectionMethod = Args[1];
     if (ReflectionMethod.ToLower() == "none")
     {
@@ -757,10 +757,10 @@ FExecStatus FCameraHandler::SetReflectionMethod(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetGlobalIlluminationMethod(const TArray<FString>& Args)
 {
-    FExecStatus Status = FExecStatus::InvalidArgument;
+    FExecStatus Status = FExecStatus::GetInvalidArgument();
     UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-    if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
-    if (Args.Num() != 2) return FExecStatus::InvalidArgument;
+    if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
+    if (Args.Num() != 2) return FExecStatus::GetInvalidArgument();
     FString IlluminationMethod = Args[1];
     if (IlluminationMethod.ToLower() == "none")
     {
@@ -791,10 +791,10 @@ FExecStatus FCameraHandler::SetGlobalIlluminationMethod(const TArray<FString>& A
 
 FExecStatus FCameraHandler::SetExposureBias(const TArray<FString>& Args)
 {
-    FExecStatus Status = FExecStatus::InvalidArgument;
+    FExecStatus Status = FExecStatus::GetInvalidArgument();
     UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-    if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
-    if (Args.Num() != 2) return FExecStatus::InvalidArgument; // exposure value
+    if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
+    if (Args.Num() != 2) return FExecStatus::GetInvalidArgument(); // exposure value
     float ExposureBias = FCString::Atof(*Args[1]);
     FusionCamSensor->SetExposureBias(ExposureBias);
     return FExecStatus::OK();
@@ -802,10 +802,10 @@ FExecStatus FCameraHandler::SetExposureBias(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetAutoExposureSpeed(const TArray<FString>& Args)
 {
-    FExecStatus Status = FExecStatus::InvalidArgument;
+    FExecStatus Status = FExecStatus::GetInvalidArgument();
     UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-    if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
-    if (Args.Num() != 3) return FExecStatus::InvalidArgument; // exposure value
+    if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
+    if (Args.Num() != 3) return FExecStatus::GetInvalidArgument(); // exposure value
     float SpeedDown = FCString::Atof(*Args[1]);
     float SpeedUp = FCString::Atof(*Args[2]);
     FusionCamSensor->SetAutoExposureSpeed(SpeedDown, SpeedUp);
@@ -814,10 +814,10 @@ FExecStatus FCameraHandler::SetAutoExposureSpeed(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetAutoExposureBrightness(const TArray<FString>& Args)
 {
-    FExecStatus Status = FExecStatus::InvalidArgument;
+    FExecStatus Status = FExecStatus::GetInvalidArgument();
     UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-    if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
-    if (Args.Num() != 3) return FExecStatus::InvalidArgument;
+    if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
+    if (Args.Num() != 3) return FExecStatus::GetInvalidArgument();
     float MinBrightness = FCString::Atof(*Args[1]);
     float MaxBrightness = FCString::Atof(*Args[2]);
     FusionCamSensor->SetAutoExposureBrightness(MinBrightness, MaxBrightness);
@@ -827,10 +827,10 @@ FExecStatus FCameraHandler::SetAutoExposureBrightness(const TArray<FString>& Arg
 
 FExecStatus FCameraHandler::SetApplyPhysicalCameraExposure(const TArray<FString>& Args)
 {
-    FExecStatus Status = FExecStatus::InvalidArgument;
+    FExecStatus Status = FExecStatus::GetInvalidArgument();
     UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-    if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
-    if (Args.Num() != 2) return FExecStatus::InvalidArgument;
+    if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
+    if (Args.Num() != 2) return FExecStatus::GetInvalidArgument();
     int ApplyPhysicalCameraExposure = FCString::Atoi(*Args[1]);
     FusionCamSensor->SetApplyPhysicalCameraExposure(ApplyPhysicalCameraExposure);
     return FExecStatus::OK();
@@ -838,10 +838,10 @@ FExecStatus FCameraHandler::SetApplyPhysicalCameraExposure(const TArray<FString>
 
 FExecStatus FCameraHandler::SetMotionBlurParams(const TArray<FString>& Args)
 {
-    FExecStatus Status = FExecStatus::InvalidArgument;
+    FExecStatus Status = FExecStatus::GetInvalidArgument();
     UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-    if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
-    if (Args.Num() != 5) return FExecStatus::InvalidArgument; // motion blur amount, max, per object, fps
+    if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
+    if (Args.Num() != 5) return FExecStatus::GetInvalidArgument(); // motion blur amount, max, per object, fps
     float MotionBlurAmount = FCString::Atof(*Args[1]);
     float MotionBlurMax = FCString::Atof(*Args[2]);
     float MotionBlurPerObject = FCString::Atof(*Args[3]);
@@ -852,10 +852,10 @@ FExecStatus FCameraHandler::SetMotionBlurParams(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::SetFocalParams(const TArray<FString>& Args)
 {
-    FExecStatus Status = FExecStatus::InvalidArgument;
+    FExecStatus Status = FExecStatus::GetInvalidArgument();
     UFusionCamSensor* FusionCamSensor = GetCamera(Args, Status);
-    if (!IsValid(FusionCamSensor)) return FExecStatus::InvalidArgument;
-    if (Args.Num() != 3) return FExecStatus::InvalidArgument; // exposure value
+    if (!IsValid(FusionCamSensor)) return FExecStatus::GetInvalidArgument();
+    if (Args.Num() != 3) return FExecStatus::GetInvalidArgument(); // exposure value
     float FocalDistance = FCString::Atof(*Args[1]);
     float FocalRange = FCString::Atof(*Args[2]);
     FusionCamSensor->SetFocalParams(FocalDistance, FocalRange);

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "FusionCamSensor.h"
 #include "Runtime/Engine/Classes/Kismet/BlueprintFunctionLibrary.h"
 #include "SceneCompositionBPLib.generated.h"
 
@@ -126,6 +127,7 @@ public:
 	/**
 	 * Generate a complete random scene with foreground, occluders, and camera.
 	 * @param bAutoPositionCamera If true, automatically position camera at eye level facing foreground
+	 * @param ForegroundYaw Optional yaw rotation for foreground actor in degrees (default: -1 means random)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
 	static bool GenerateRandomScene(
@@ -138,7 +140,8 @@ public:
 		int32 OccluderCount,
 		int32 CameraID,
 		FSceneHandle& OutSceneHandle,
-		bool bAutoPositionCamera = true
+		bool bAutoPositionCamera = true,
+		float ForegroundYaw = -1.0f
 	);
 
 	/**
@@ -275,13 +278,15 @@ private:
 	static class ANavAgentController* CreateNavAgentController(UObject* WorldContextObject, AActor* ControlledAgent);
 	static void AdjustActorToGroundLevel(AActor* Actor);
 
-	static float GetTerrainHeightAtLocation(UWorld* World, FVector Location, float TraceDistance = 10000.0f);
+	static float GetLandHeight(UWorld* World, float X, float Y, float InitialHeight);
 	static void EnablePhysicsSettling(AActor* Actor, float InitialHeight = 5000.0f);
-	static void SettleActorToGround(AActor* Actor, UWorld* World, float InitialHeight = 5000.0f);
+	static void SettleActorToGround(AActor* Actor, UWorld* World, float InitialHeight = 5000.0f, float HeightOffset = 0.0f);
 	static void EnableCollisionOnly(AActor* Actor);
 
 	static bool CheckCollisionAtLocation(UWorld* World, const FVector& Location, float Radius, const TArray<AActor*>& IgnoreActors);
 	static bool FindCollisionFreeLocation(UWorld* World, FVector& OutLocation, float Radius, const TArray<AActor*>& IgnoreActors, int32 MaxAttempts = 10, float SearchRadius = 300.0f);
+
+	static class AUnrealcvPawn* GetUnrealcvPawn(UWorld* World);
 
 	static TArray<FSceneHandle> ActiveScenes;
 };

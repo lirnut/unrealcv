@@ -150,6 +150,9 @@ protected:
 	double RealWorldTimeFPS;
 	bool bUseSaveToFileAPI;
 
+	// Unified target location for trajectory calculations
+	FVector UnifiedTargetLocation;
+
 	struct FCameraPose
 	{
 		FVector Location;

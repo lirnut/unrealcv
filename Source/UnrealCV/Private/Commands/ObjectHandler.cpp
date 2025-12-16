@@ -434,7 +434,7 @@ FExecStatus FObjectHandler::SetName(const TArray<FString>& Args)
 {
 	if (Args.Num() != 2)
 	{
-		return FExecStatus::InvalidArgument;
+		return FExecStatus::GetInvalidArgument();
 	}
 	AActor* Actor = GetActor(Args);
 	if (!Actor) return FExecStatus::Error("Can not find object");

@@ -35,6 +35,7 @@ public:
 	bool ConvertToJpg(const TArray<FColor>& ImageData, int Width, int Height, TArray<uint8>& JpgData);
 
 	bool ConvertToBmp(const TArray<FColor>& ImageData, int Width, int Height, TArray<uint8>& BmpData);
+	bool ConvertToBmpMove(const TArray<FColor>& ImageData, int Width, int Height, TArray<uint8>& BmpData);
 
 	/** Save binary data to a file */
 	bool SaveFile(const TArray<uint8>& BinaryData, const FString& Filename);

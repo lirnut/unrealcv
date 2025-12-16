@@ -67,6 +67,15 @@ FString FExecStatus::GetMessage() const // Define how to format the reply string
 	return Message;
 }
 
+// move Constructor
+FExecStatus::FExecStatus(FExecStatus&& InExecStatus)
+{
+	ExecStatusType = InExecStatus.ExecStatusType;
+	MessageBody = MoveTemp(InExecStatus.MessageBody);
+	BinaryData = MoveTemp(InExecStatus.BinaryData);
+	Promise = MoveTemp(InExecStatus.Promise);
+}
+
 FExecStatus::FExecStatus(FExecStatusType InExecStatusType, FPromise InPromise)
 {
 	ExecStatusType = InExecStatusType;
@@ -83,15 +92,24 @@ FExecStatus::~FExecStatus()
 {
 }
 
-FExecStatus FExecStatus::Binary(TArray<uint8>& BinaryData)
+FExecStatus FExecStatus::Binary(TArray<uint8>& BinaryData, bool bMove)
 {
-	return FExecStatus(FExecStatusType::OK, BinaryData);
+	return FExecStatus(FExecStatusType::OK, BinaryData, bMove);
 }
 
-FExecStatus::FExecStatus(FExecStatusType InExecStatusType, TArray<uint8>& InBinaryData)
+FExecStatus::FExecStatus(FExecStatusType InExecStatusType, TArray<uint8>& InBinaryData, bool bMove)
 {
 	ExecStatusType = InExecStatusType;
-	BinaryData = InBinaryData;
+	if (bMove)
+	{
+		// Warning: MoveTemp will change the content of InBinaryData, make sure it is not used after this call
+		BinaryData = MoveTemp(InBinaryData);
+		InBinaryData = {};
+	}
+	else
+	{
+		BinaryData = InBinaryData;
+	}
 }
 
 TArray<uint8> FExecStatus::GetData() const // Define how to format the reply string
@@ -141,4 +159,13 @@ void FExecStatus::BinaryArrayFromString(const FString& Message, TArray<uint8>& O
 	OutBinaryArray.Append((uint8*)converter.Get(), converter.Length());
 #endif
 }
-
+/** Move Assignment Operator */
+// perf opt
+FExecStatus& FExecStatus::operator = (FExecStatus&& InExecStatus)
+{
+	ExecStatusType = InExecStatus.ExecStatusType;
+	MessageBody = MoveTemp(InExecStatus.MessageBody);
+	BinaryData = MoveTemp(InExecStatus.BinaryData);
+	Promise = MoveTemp(InExecStatus.Promise);
+	return *this;
+}

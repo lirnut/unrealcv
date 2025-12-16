@@ -66,10 +66,18 @@ void UBaseCameraSensor::InitTextureTarget(int filmWidth, int filmHeight)
 
 void UBaseCameraSensor::InitFloat16TextureTarget(int filmWidth, int filmHeight)
 {
-	//PF_FloatRGBA            =10, // RGBA16F
+
+	// //PF_FloatRGBA            =10, // RGBA16F
+	// EPixelFormat PixelFormat = EPixelFormat::PF_FloatRGBA;
+	// TextureTarget = NewObject<UTextureRenderTarget2D>(this); 
+	// TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
+	// TextureTarget->InitAutoFormat(filmWidth, filmHeight);
+
+	bool bUseLinearGamma = true;
+	EPixelFormat PixelFormat = EPixelFormat::PF_FloatRGBA;
 	TextureTarget = NewObject<UTextureRenderTarget2D>(this); 
-	TextureTarget->InitAutoFormat(filmWidth, filmHeight);
-	TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
+	TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
+	// TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
 }
 
 void UBaseCameraSensor::InitUInt8TextureTarget(int filmWidth, int filmHeight, bool bUseLinearGamma)
@@ -302,7 +310,7 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 						ReadFlags
 					);
 					FMemory::Free(RawDataCopy);
-					SetAlphaAVX2(PixelData);
+					// SetAlphaAVX2(PixelData);
 					
 					double SerializeStartTime = FPlatformTime::Seconds();
 					SerializeData(PixelData, Width, Height, OutputPath);
@@ -541,15 +549,15 @@ void UBaseCameraSensor::CopyBackCapture(ECaptureFormat Format)
 	void* PixelDataPtr;
 	if (Format == ECaptureFormat::F16)
 	{
+		CaptureCacheFloat16.Empty();
+		CaptureCacheFloat16.AddUninitialized(Capture.Width * Capture.Height);
 		PixelDataPtr = CaptureCacheFloat16.GetData();
-		CaptureCache.Empty();
-		CaptureCache.AddUninitialized(Capture.Width * Capture.Height);
 	}
 	else if (Format == ECaptureFormat::UInt8)
 	{
+		CaptureCache.Empty();
+		CaptureCache.AddUninitialized(Capture.Width * Capture.Height);
 		PixelDataPtr = CaptureCache.GetData();
-		CaptureCacheFloat16.Empty();
-		CaptureCacheFloat16.AddUninitialized(Capture.Width * Capture.Height);
 	}
 	else
 	{

@@ -3,6 +3,7 @@
 #include "AssetPoolManager.h"
 #include "SensorBPLib.h"
 #include "FusionCamSensor.h"
+#include "Sensor/CameraSensor/PawnCamSensor.h"
 #include "UnrealcvLog.h"
 #include "Engine/World.h"
 #include "Engine/StaticMeshActor.h"
@@ -24,24 +25,77 @@
 #include "NavAgentController.h"
 #include "MetaHumanBPLib.h"
 #include "DrawDebugHelpers.h"
+#include "UnrealcvGameMode.h"
+#include "EngineUtils.h"
 
 TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
 
-// ========== Terrain Detection ==========
 
-float USceneCompositionBPLib::GetTerrainHeightAtLocation(UWorld* World, FVector Location, float TraceDistance)
+static APawn* GetFirstPersonPawn()
+{
+	UFusionCamSensor* FirstPersonCamera = USensorBPLib::GetSensorById(0);
+	if (IsValid(FirstPersonCamera))
+	{
+		UPawnCamSensor* PawnSensor = Cast<UPawnCamSensor>(FirstPersonCamera->GetOuter());
+		if (IsValid(PawnSensor))
+		{
+			return Cast<APawn>(PawnSensor->GetOwner());
+		}
+	}
+
+	return nullptr;
+}
+
+AUnrealcvPawn* USceneCompositionBPLib::GetUnrealcvPawn(UWorld* World)
 {
 	if (!IsValid(World))
 	{
-		return Location.Z;
+		return nullptr;
 	}
 
-	FVector TraceStart = FVector(Location.X, Location.Y, Location.Z);
-	FVector TraceEnd = FVector(Location.X, Location.Y, Location.Z - TraceDistance);
+	for (TActorIterator<AUnrealcvPawn> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		AUnrealcvPawn* Pawn = *ActorItr;
+		if (IsValid(Pawn))
+		{
+			return Pawn;
+		}
+	}
+
+	return nullptr;
+}
+
+
+
+// ========== Terrain Detection ==========
+
+
+
+float USceneCompositionBPLib::GetLandHeight(UWorld* World, float X, float Y, float InitialHeight)
+{
+	if (!IsValid(World))
+	{
+		return InitialHeight;
+	}
+
+	FVector TraceStart = FVector(X, Y, InitialHeight);
+	FVector TraceEnd = FVector(X, Y, InitialHeight - 10000.0f);
 
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(nullptr);
+	auto DefaultPawn = GetFirstPersonPawn();
+	if (IsValid(DefaultPawn))
+	{
+		QueryParams.AddIgnoredActor(DefaultPawn);
+	}
+	auto UnrealcvPawn = GetUnrealcvPawn(World);
+	if (IsValid(UnrealcvPawn))
+	{
+		QueryParams.AddIgnoredActor(UnrealcvPawn);
+	}
+
+
+	QueryParams.TraceTag = TEXT("LandHeightTrace");
 
 	bool bHit = World->LineTraceSingleByChannel(
 		HitResult,
@@ -56,7 +110,7 @@ float USceneCompositionBPLib::GetTerrainHeightAtLocation(UWorld* World, FVector 
 		return HitResult.ImpactPoint.Z;
 	}
 
-	return Location.Z;
+	return InitialHeight;
 }
 
 void USceneCompositionBPLib::EnablePhysicsSettling(AActor* Actor, float InitialHeight)
@@ -88,7 +142,7 @@ void USceneCompositionBPLib::EnablePhysicsSettling(AActor* Actor, float InitialH
 		*Actor->GetName(), InitialHeight);
 }
 
-void USceneCompositionBPLib::SettleActorToGround(AActor* Actor, UWorld* World, float InitialHeight)
+void USceneCompositionBPLib::SettleActorToGround(AActor* Actor, UWorld* World, float InitialHeight, float HeightOffset)
 {
 	if (!IsValid(Actor) || !IsValid(World))
 	{
@@ -105,6 +159,16 @@ void USceneCompositionBPLib::SettleActorToGround(AActor* Actor, UWorld* World, f
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(Actor);
+	auto DefaultPawn = GetFirstPersonPawn();
+	if (IsValid(DefaultPawn))
+	{
+		QueryParams.AddIgnoredActor(DefaultPawn);
+	}
+	auto UnrealcvPawn = GetUnrealcvPawn(World);
+	if (IsValid(UnrealcvPawn))
+	{
+		QueryParams.AddIgnoredActor(UnrealcvPawn);
+	}
 
 	bool bHit = World->LineTraceSingleByChannel(
 		HitResult,
@@ -116,7 +180,7 @@ void USceneCompositionBPLib::SettleActorToGround(AActor* Actor, UWorld* World, f
 
 	if (bHit && HitResult.bBlockingHit)
 	{
-		ActorLocation.Z = HitResult.ImpactPoint.Z;
+		ActorLocation.Z = HitResult.ImpactPoint.Z + HeightOffset;
 	}
 	else
 	{
@@ -128,6 +192,7 @@ void USceneCompositionBPLib::SettleActorToGround(AActor* Actor, UWorld* World, f
 	UE_LOG(LogUnrealCV, Log, TEXT("SettleActorToGround: Actor '%s' settled to height %.2f"),
 		*Actor->GetName(), ActorLocation.Z);
 }
+
 
 void USceneCompositionBPLib::EnableCollisionOnly(AActor* Actor)
 {
@@ -238,7 +303,8 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	int32 OccluderCount,
 	int32 CameraID,
 	FSceneHandle& OutSceneHandle,
-	bool bAutoPositionCamera
+	bool bAutoPositionCamera,
+	float ForegroundYaw
 )
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
@@ -282,7 +348,7 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	}
 
 	FRotator ForegroundRotation = FRotator::ZeroRotator;
-	ForegroundRotation.Yaw = FMath::RandRange(0.0f, 360.0f);
+	ForegroundRotation.Yaw = (ForegroundYaw < 0.0f) ? FMath::RandRange(0.0f, 360.0f) : ForegroundYaw;
 
 	OutSceneHandle.ForegroundActor = SpawnActorFromMetadata(World, ForegroundMetadata, ForegroundPosition, ForegroundRotation);
 	if (!IsValid(OutSceneHandle.ForegroundActor))
@@ -316,16 +382,18 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 
 	if (bAutoPositionCamera)
 	{
-
 		auto NewPosition = OutSceneHandle.ForegroundActor->GetActorLocation();
-		float CameraHeight = FMath::RandRange(70, 160) + NewPosition.Z;  // ForegroundHeight now is Ground Height sensed by ray detect
+		float CameraHeight = FMath::RandRange(120.0f, 150.0f);
 		float Distance = FMath::RandRange(300.0f, 600.0f);
 		float HorizontalAngle = FMath::RandRange(0.0f, 360.0f);
 
 		FVector CameraPosition;
 		CameraPosition.X = NewPosition.X + Distance * FMath::Cos(FMath::DegreesToRadians(HorizontalAngle));
 		CameraPosition.Y = NewPosition.Y + Distance * FMath::Sin(FMath::DegreesToRadians(HorizontalAngle));
-		CameraPosition.Z = CameraHeight;
+		CameraPosition.Z = CameraHeight + NewPosition.Z + 200.0f;
+
+		float LandHeight = GetLandHeight(World, CameraPosition.X, CameraPosition.Y, CameraPosition.Z);
+		CameraPosition.Z = LandHeight + CameraHeight;
 
 		FRotator CameraRotation = (NewPosition - CameraPosition).Rotation();
 
@@ -616,11 +684,11 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 	}
 	else if (AssetType == TEXT("Blueprint"))
 	{
-		if (AssetPath.Contains("MetaHumans"))
-		{
-            // TArray<FString> MetaHumanPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
-			UMetaHumanBPLib::SetMetaHumanAnimationBlueprint(AssetPath, TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
-		}
+		// if (AssetPath.Contains("MetaHumans"))
+		// {
+        //     // TArray<FString> MetaHumanPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
+		// 	UMetaHumanBPLib::SetMetaHumanAnimationBlueprint(AssetPath, TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
+		// }
 		UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *AssetPath);
 		if (!IsValid(Blueprint) || !Blueprint->GeneratedClass || !Blueprint->GeneratedClass->IsChildOf(AActor::StaticClass()))
 		{
@@ -837,6 +905,16 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 			for (AActor* ExistingOccluder : SpawnedOccluders)
 			{
 				IgnoreList.Add(ExistingOccluder);
+			}
+			auto DefaultPawn = GetFirstPersonPawn();
+			if (IsValid(DefaultPawn))
+			{
+				IgnoreList.Add(DefaultPawn);
+			}
+			auto UnrealcvPawn = GetUnrealcvPawn(World);
+			if (IsValid(UnrealcvPawn))
+			{
+				IgnoreList.Add(UnrealcvPawn);
 			}
 
 			if (!CheckCollisionAtLocation(World, CandidatePosition, CurrentRadius, IgnoreList))

@@ -29,7 +29,7 @@ ULitCamSensor::ULitCamSensor(const FObjectInitializer& ObjectInitializer) :
 
 void ULitCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 {
-	const static bool bUseBGRA8 = true;
+	const static bool bUseBGRA8 = false;
 	if (bUseBGRA8)
 	{
 		InitUInt8TextureTarget(filmWidth, filmHeight, true);
@@ -42,6 +42,17 @@ void ULitCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 
 void ULitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)
 {
+	SCOPE_CYCLE_COUNTER(STAT_CaptureLit);
+	if (!CheckTextureTarget())
+	{
+		InitTextureTarget(this->FilmWidth, this->FilmHeight);
+		if (!CheckTextureTarget())
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Failed to initialize TextureTarget."));
+			return;
+		}
+	}
+
 	Capture(Image, Width, Height);
 }
 

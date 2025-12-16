@@ -85,7 +85,7 @@ void FUnrealcvServer::RegisterCommandHandlers()
 	CommandHandlers.Add(new FActionHandler());
 	CommandHandlers.Add(new FAliasHandler());
 	CommandHandlers.Add(new FCameraHandler());
-	// CommandHandlers.Add(new FCaptureActorHandler());
+	CommandHandlers.Add(new FCaptureActorHandler());
 	CommandHandlers.Add(new FAgentNavHandler());
 	for (FCommandHandler* Handler : CommandHandlers)
 	{
@@ -266,18 +266,42 @@ void FUnrealcvServer::ProcessRequest(FRequest& Request)
 	SCOPE_CYCLE_COUNTER(STAT_ProcessRequest);
 	FExecStatus ExecStatus = CommandDispatcher->Exec(Request.Message);
 
+	double ExecEndTime = FPlatformTime::Seconds();
+
 	// This can be removed for better performance
 	//UE_LOG(LogUnrealCV, Warning, TEXT("Response: %s"), *ExecStatus.GetMessage());
 	UE_LOG(LogUnrealCV, Warning, TEXT("Response id: %d"), Request.RequestId);
 
 	FString Header = FString::Printf(TEXT("%d:"), Request.RequestId);
-	TArray<uint8> ReplyData;
-	FExecStatus::BinaryArrayFromString(Header, ReplyData);
+	bool bDataEmpty = ExecStatus.BinaryData.Num() == 0;
 
-	ReplyData += ExecStatus.GetData();
+	// poor readability, see FExecStatus::GetData()
+	TArray<uint8> ReplyData;
+	if (!bDataEmpty)
+	{
+		ReplyData = MoveTemp(ExecStatus.BinaryData);
+		ExecStatus.BinaryData = {};
+	}
+	else
+	{
+		ReplyData = ExecStatus.GetData();
+	}
+	
+	// It is still needed to copy Data once
+	// copy a 1080*1080*3 byte array may take about 0.3-0.5ms, depending on your mem
+	#if ENGINE_MAJOR_VERSION <= 4
+		FTCHARToUTF8 Convert(*Header);
+		ReplyData.Insert((UTF8CHAR*)Convert.Get(), Convert.Length(), 0);
+	#else 
+		//https://github.com/EpicGames/UnrealEngine/blob/5.3/Engine/Source/Runtime/Core/Public/Containers/StringConv.hL#L1070
+		auto converter = StringCast<UTF8CHAR>(*Header);
+		ReplyData.Insert((uint8*)converter.Get(), converter.Length(), 0);
+	#endif
+
+	// ReplyData += ExecStatus.GetData();
 	double SendStartTime = FPlatformTime::Seconds();
 	TcpServer->SendData(ReplyData);
-	UE_LOG(LogUnrealCV, Warning, TEXT("ProcessRequest %s cost time: %f, SendData cost time: %f"), *Request.Message, FPlatformTime::Seconds() - StartTime, FPlatformTime::Seconds() - SendStartTime);
+	UE_LOG(LogUnrealCV, Warning, TEXT("ProcessRequest %s cost time: %f, Exec cost time: %f, Prepare Reply cost time: %f, SendData cost time: %f"), *Request.Message, FPlatformTime::Seconds() - StartTime, ExecEndTime - StartTime, SendStartTime - ExecEndTime, FPlatformTime::Seconds() - SendStartTime);
 }
 
 // Each tick of GameThread.

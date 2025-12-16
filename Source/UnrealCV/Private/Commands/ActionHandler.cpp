@@ -135,7 +135,7 @@ FExecStatus FActionHandler::SetStereoDistance(const TArray<FString>& Args)
 		return FExecStatus::Error("Expect argument: eye distance");
 	}
 	*/
-	return FExecStatus::NotImplemented;
+	return FExecStatus::GetNotImplemented();
 }
 
 /** Return a TFunction to Release the Keyboard */
@@ -160,7 +160,7 @@ FExecStatus FActionHandler::Keyboard(const TArray<FString>& Args)
 {
 	if (Args.Num() != 2)
 	{
-		return FExecStatus::InvalidArgument;
+		return FExecStatus::GetInvalidArgument();
 	}
 	FString KeyName = Args[0];
 

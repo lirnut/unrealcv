@@ -115,7 +115,7 @@ protected:
 
 
 	void InitFloat16TextureTarget(int FilmWidth, int FilmHeight);
-	void InitUInt8TextureTarget(int FilmWidth, int FilmHeight, bool bUseLinearGamma = false);
+	void InitUInt8TextureTarget(int FilmWidth, int FilmHeight, bool bUseLinearGamma = true);
 	
 
 protected:

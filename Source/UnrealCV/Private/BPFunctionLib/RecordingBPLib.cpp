@@ -14,6 +14,9 @@
 // This replaces the need to access CameraHandler's private map
 TMap<int32, AFusionCamCaptureActor*> URecordingBPLib::GlobalCameraRecordingActors;
 
+// Static variable for time dilation control
+float URecordingBPLib::GlobalTimeDilation = 1.0f;
+
 AFusionCamCaptureActor* URecordingBPLib::PrepareRecording(int32 CameraID)
 {
 	// Get the camera sensor
@@ -64,6 +67,7 @@ AFusionCamCaptureActor* URecordingBPLib::PrepareRecording(int32 CameraID)
 
 	// Configure CaptureActor
 	CaptureActor->TargetSensor = FusionCamSensor;
+	CaptureActor->TimeDilation = GlobalTimeDilation;
 
 	// Store the mapping
 	GlobalCameraRecordingActors.Add(CameraID, CaptureActor);
@@ -273,13 +277,14 @@ int32 URecordingBPLib::CreateFreeCamera(
 		return -1;
 	}
 
+	Actor->SetActorLocation(Location);
+	Actor->SetActorRotation(Rotation);
+
 	TArray<UFusionCamSensor*> AllCameras = USensorBPLib::GetFusionSensorList();
 	int32 CameraID = AllCameras.Num() - 1;
 
-	// UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::CreateFreeCamera: Created camera ID %d at (%.1f, %.1f, %.1f), attached to pawn '%s'"),
-	// 	CameraID, Location.X, Location.Y, Location.Z, *Pawn->GetName());
-	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::CreateFreeCamera: Created camera ID %d"),
-		CameraID);
+	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::CreateFreeCamera: Created camera ID %d at (%.1f, %.1f, %.1f)"),
+		CameraID, Location.X, Location.Y, Location.Z);
 
 	return CameraID;
 }
@@ -489,3 +494,14 @@ TArray<FString> URecordingBPLib::GetSupportedTrajectoryTypes()
 
 // 	return bSuccess;
 // }
+
+float URecordingBPLib::GetTimeDilation()
+{
+	return GlobalTimeDilation;
+}
+
+void URecordingBPLib::SetTimeDilation(float Value)
+{
+	GlobalTimeDilation = FMath::Clamp(Value, 0.1f, 10.0f);
+	UE_LOG(LogUnrealCV, Log, TEXT("URecordingBPLib::SetTimeDilation: Set to %.2f"), GlobalTimeDilation);
+}

@@ -220,8 +220,14 @@ public:
 	 * @return True if conversion successful, false if invalid string
 	 */
 	static bool ParseTrajectoryType(const FString& TrajectoryTypeStr, ECameraTrajectoryType& OutTrajectoryType);
+	static float GetTimeDilation();
+	static void SetTimeDilation(float Value);
+
 private:
 	// Static map to track recording actors (camera ID -> capture actor)
 	// This replaces the need to access CameraHandler's private map
 	static TMap<int32, AFusionCamCaptureActor*> GlobalCameraRecordingActors;
+
+	// Static variable for time dilation control
+	static float GlobalTimeDilation;
 };

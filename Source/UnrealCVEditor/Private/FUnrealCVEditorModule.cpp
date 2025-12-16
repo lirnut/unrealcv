@@ -114,7 +114,7 @@ void FUnrealCVEditorModule::OnSearchSaveAndSetAnimation()
 		return;
 	}
 
-	FString AnimBlueprintPath = TEXT("/Game/MetaHumans/ABP_RandomIdle");
+	FString AnimBlueprintPath = TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C");
 	TArray<FString> SuccessfulPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(AnimBlueprintPath);
 
 	FString Message = FString::Printf(

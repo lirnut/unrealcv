@@ -4,9 +4,18 @@
 #include "Runtime/Engine/Classes/Engine/GameViewportClient.h"
 #include "Runtime/Engine/Classes/GameFramework/PlayerController.h"
 #include "Runtime/Core/Public/UObject/PropertyPortFlags.h"
+#include "Runtime/Core/Public/Async/AsyncWork.h"
+#include "Runtime/Core/Public/Misc/OutputDeviceNull.h"
 #include "Utils/UObjectUtils.h"
 #include "SerializeBPLib.h"
 #include "UnrealcvLog.h"
+
+// const static bool bUSE_ASYNC_NAV_TO_GOAL = true;
+// const static bool bUSE_ASYNC_SET_MOVE = true;
+const static TArray<FString> AsyncCommands = {
+	TEXT("nav_to_goal"),
+	TEXT("set_move"),
+};
 
 
 void FAliasHandler::RegisterCommands()
@@ -92,6 +101,18 @@ FExecStatus FAliasHandler::VExecWithOutput(const TArray<FString>& Args)
 
 	if (Obj == nullptr) return FExecStatus::Error(FString::Printf(TEXT("Can not find actor with id '%s'"), *ActorId));
 
+
+	for (const FString& AsyncCmd : AsyncCommands)
+	{
+		if (FuncName.Equals(AsyncCmd, ESearchCase::IgnoreCase))
+		{
+			FString CmdArgs = FString::Printf(TEXT("%s %s"), *Args[2], *Args[3]);
+			HandleVBPAsync(Obj, FuncName, CmdArgs);
+			UE_LOG(LogUnrealCV, Log, TEXT("VExecWithOutput: set_move is async"));
+			return FExecStatus::OK();
+		}
+	}
+
 	FString Cmd = FuncName;
 	int ArgId = 2;
 	while (ArgId < Args.Num())
@@ -124,24 +145,24 @@ FExecStatus FAliasHandler::VExecWithOutput(const TArray<FString>& Args)
 	if(!FParse::Token(Str,MsgStr,true))
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("Can not parse token"));
-		return FExecStatus::InvalidArgument;
+		return FExecStatus::GetInvalidArgument();
 	}
 	const FName Message = FName(*MsgStr,FNAME_Find);
 	if(Message == NAME_None)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("Can not find FName from token"));
-		return FExecStatus::InvalidArgument;
+		return FExecStatus::GetInvalidArgument();
 	}
 	UFunction* Function = Obj->FindFunction(Message);
 	if(nullptr == Function)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("Can not find function"));
-		return FExecStatus::InvalidArgument;
+		return FExecStatus::GetInvalidArgument();
 	}
 	if(0 == (Function->FunctionFlags & FUNC_Exec) && !bForceCallWithNonExec)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("BP function is not executable"));
-		return FExecStatus::InvalidArgument;
+		return FExecStatus::GetInvalidArgument();
 	}
 
 	FProperty* LastParameter = nullptr;
@@ -441,4 +462,31 @@ FExecStatus FAliasHandler::GetLevelScriptActorId(const TArray<FString>& Args)
 	{
 		return FExecStatus::Error("The UWorld is invalid");
 	}
+}
+
+void FAliasHandler::HandleVBPAsync(UObject* TargetObject, const FString& FuncName, const FString& Args)
+{
+	if (!IsValid(TargetObject))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("HandleVBPAsync: Target object is invalid"));
+		return;
+	}
+
+	AsyncTask(ENamedThreads::GameThread, [TargetObject, FuncName, Args]()
+	{
+		if (!IsValid(TargetObject))
+		{
+			return;
+		}
+
+		FOutputDeviceNull NullOutput;
+		FString Command = FuncName + TEXT(" ") + Args;
+
+		bool bSuccess = TargetObject->CallFunctionByNameWithArguments(*Command, NullOutput, nullptr, true);
+
+		if (!bSuccess)
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("HandleVBPAsync: Failed to execute %s for %s"), *FuncName, *TargetObject->GetName());
+		}
+	});
 }

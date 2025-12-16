@@ -234,6 +234,7 @@ inline bool ConvertRAWSurfaceDataToFFloat16ColorOpt(EPixelFormat Format, uint32 
 	else if (Format == PF_FloatRGBA)
 	{
 		ConvertRawR16G16B16A16FDataToFFloat16ColorOpt(Width, Height, In, SrcPitch, Out);
+		// ConvertRawR16G16B16A16FDataToFFloat16ColorOptWithMinMax(Width, Height, In, SrcPitch, Out);
 		return true;
 	}
 	else

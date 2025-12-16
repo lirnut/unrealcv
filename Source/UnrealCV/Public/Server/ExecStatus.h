@@ -55,7 +55,7 @@ public:
 	/** Error : Invalid Pointer */
 	static FExecStatus InvalidPointer;
 	/** Binary : A binary array */
-	static FExecStatus Binary(TArray<uint8>& InBinaryData);
+	static FExecStatus Binary(TArray<uint8>& InBinaryData, bool bMove = false);
 
 	/** The message body of this ExecStatus, the full message will also include the ExecStatusType */
 	FString MessageBody;
@@ -78,6 +78,25 @@ public:
 
 	/** Convert string to binary array */
 	static void BinaryArrayFromString(const FString& Message, TArray<uint8>& OutBinaryArray);
+
+public:
+	/** Binary data */
+	// perf opt
+	TArray<uint8> BinaryData;
+
+	/** Move Constructor */
+	// perf opt
+	FExecStatus(FExecStatus&& InExecStatus);
+	FExecStatus& operator = (FExecStatus&& InExecStatus);
+
+	// delete Copy Constructor
+	FExecStatus(const FExecStatus& InExecStatus) = delete;
+
+public:
+	static FExecStatus GetInvalidArgument() { return FExecStatus(FExecStatusType::ErrorMsg, "Argument Invalid"); }
+	static FExecStatus GetNotImplemented() { return FExecStatus(FExecStatusType::ErrorMsg, "Not Implemented"); }
+	static FExecStatus GetInvalidPointer() { return FExecStatus(FExecStatusType::ErrorMsg, "Pointer to object invalid, check log for details"); }
+
 private:
 	/** The promise to check result, only useful for async tasks */
 	FPromise Promise;
@@ -85,10 +104,11 @@ private:
 	// For query
 	FExecStatus(FExecStatusType InExecStatusType, FPromise Promise);
 	/** Construct from binary data */
-	FExecStatus(FExecStatusType InExecStatusType, TArray<uint8>& InBinaryData);
-	/** Binary data */
-	TArray<uint8> BinaryData;
+	FExecStatus(FExecStatusType InExecStatusType, TArray<uint8>& InBinaryData, bool bMove);
 };
 
 bool operator==(const FExecStatus& ExecStatus, const FExecStatusType& ExecStatusEnum);
 bool operator!=(const FExecStatus& ExecStatus, const FExecStatusType& ExecStatusEnum);
+/** Move Assignment Operator */
+// perf opt
+

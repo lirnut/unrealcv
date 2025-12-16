@@ -7,6 +7,7 @@
 #include "UnrealcvLog.h"
 #include "ExecStatus.h"
 #include "Serialization.h"
+#include "Containers/ArrayView.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("FImageUtil::ConvertToPng"), STAT_ConvertToPng, STATGROUP_UnrealCV);
@@ -82,28 +83,45 @@ bool FImageUtil::ConvertToBmp(const TArray<FColor>& ImageData, int Width, int He
 	BitmapInfoHeader.biClrUsed = 0; // No color plate
 	BitmapInfoHeader.biClrImportant = 0; // No color plate
 
-	FBufferArchive Writer;
-	Writer << BitmapFileHeader << BitmapInfoHeader;
+	// FBufferArchive Writer;
+	// Writer << BitmapFileHeader << BitmapInfoHeader;
 
-	TArray<uint8> Bytes;
-	Bytes.AddUninitialized(Width * Height * 4);
-	{
-		SCOPE_CYCLE_COUNTER(STAT_SerializeBmp);
-		// Writer << ImageData; // Slow
-		// ImageData.BulkSerialize(Writer); // Slow
-		FMemory::Memcpy(Bytes.GetData(), ImageData.GetData(), Bytes.Num());
-		Writer << Bytes;
-	}
-	BmpData = Writer;
-	// Writer << BitmapInfoHeader;
-	// Writer << ImageData;
+	// TArray<uint8> Bytes;
+	// Bytes.AddUninitialized(Width * Height * 4);
+	// {
+	// 	SCOPE_CYCLE_COUNTER(STAT_SerializeBmp);
+	// 	// Writer << ImageData; // Slow
+	// 	// ImageData.BulkSerialize(Writer); // Slow
+	// 	FMemory::Memcpy(Bytes.GetData(), ImageData.GetData(), Bytes.Num());
+	// 	Writer << Bytes;
+	// 	// TArrayView<uint8> ByteView((uint8*)(ImageData.GetData()), 
+	// 	// 						ImageData.Num() * sizeof(FColor));
+	// 	// Writer << ByteView;
+	// }
+	// BmpData = Writer;
+	// // Writer << BitmapInfoHeader;
+	// // Writer << ImageData;
+
+	// 2025, I want make it more efficient, just copy once
+    const int32 TotalSize = sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader) + ImageData.Num() * 4;
+    BmpData.Empty(TotalSize);
+    BmpData.AddUninitialized(TotalSize);
+    
+    uint8* WritePtr = BmpData.GetData();
+    
+    FMemory::Memcpy(WritePtr, &BitmapFileHeader, sizeof(FBitmapFileHeader));
+    WritePtr += sizeof(FBitmapFileHeader);
+    
+    FMemory::Memcpy(WritePtr, &BitmapInfoHeader, sizeof(FBitmapInfoHeader));
+    WritePtr += sizeof(FBitmapInfoHeader);
+    
+    FMemory::Memcpy(WritePtr, ImageData.GetData(), ImageData.Num() * 4);
+
 
 	// JpgImageWrapper->SetRaw(ImageData.GetData(), ImageData.GetAllocatedSize(), Width, Height, ERGBFormat::BGRA, 8);
 	// JpgData = JpgImageWrapper->GetCompressed(ImageCompression::Uncompressed);
 	return true;
 }
-
-
 
 bool FImageUtil::SaveFile(const TArray<uint8>& BinaryData, const FString& Filename)
 {
@@ -164,13 +182,13 @@ FExecStatus SerializeData(const TArray<FColor>& Data, int Width, int Height, con
 	{
 	case EFilenameType::BmpBinary:
 		ImageUtil.ConvertToBmp(Data, Width, Height, BinaryData);
-		return FExecStatus::Binary(BinaryData);
+		return FExecStatus::Binary(BinaryData, true);
 	case EFilenameType::Bmp:
 		ImageUtil.SaveBmpFile(Data, Width, Height, Filename);
 		return FExecStatus::OK(Filename);
 	case EFilenameType::PngBinary:
 		ImageUtil.ConvertToPng(Data, Width, Height, BinaryData);
-		return FExecStatus::Binary(BinaryData);
+		return FExecStatus::Binary(BinaryData, true);
 	case EFilenameType::Png:
 		ImageUtil.SavePngFile(Data, Width, Height, Filename);
 		return FExecStatus::OK(Filename);
