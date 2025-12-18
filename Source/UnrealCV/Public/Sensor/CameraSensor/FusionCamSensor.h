@@ -61,32 +61,32 @@ public:
 	/** Get rgb data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void GetLit(TArray<FColor>& LitData, int& InOutWidth, int& InOutHeight, ELitMode LitMode = ELitMode::Lit);
-	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	// UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void SaveLitToFile(const FString& Filename);
 
 	/** Get depth data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void GetDepth(TArray<float>& DepthData, int& InOutWidth, int& InOutHeight, EDepthMode DepthMode = EDepthMode::PlaneDepth);
 	// void CaptureDepthToFile(const FString& Filename);
-	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	// UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void SaveDepthToFile(const FString& Filename);
 
 	/** Get surface normal data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void GetNormal(TArray<FColor>& NormalData, int& Width, int& Height);
-	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	// UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void SaveNormalToFile(const FString& Filename);
 
 	/** Get optical flow data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void GetFlow(TArray<FColor>& FlowData, int& Width, int& Height);
-	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	// UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void SaveFlowToFile(const FString& Filename);
 
 	/** Get object mask data, the annotation color can be extracted from FObjectAnnotator */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void GetSeg(TArray<FColor>& ObjMaskData, int& Width, int& Height, ESegMode SegMode = ESegMode::AnnotationComponent);
-	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	// UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void SaveSegToFile(const FString& Filename);
 
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
