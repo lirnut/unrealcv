@@ -241,6 +241,7 @@ void FAssetPoolManager::LoadStableAssetsPack()
 	{
 		UE_LOG(LogUnrealCV, Log, TEXT("  Category '%s': %d assets"), *Pair.Key, Pair.Value.Num());
 	}
+	PrintAssetPoolSummary();
 }
 
 FString FAssetPoolManager::GetRandomAsset(const FString& Category)
@@ -316,6 +317,36 @@ int32 FAssetPoolManager::GetAssetCount(const FString& Category) const
 		return 0;
 	}
 	return AssetPools[Category].Num();
+}
+
+TMap<FString, FString> FAssetPoolManager::GetAssetMetadataByPath(const FString& AssetPath) const
+{
+	for (const auto& CategoryPair : AssetPools)
+	{
+		for (const TMap<FString, FString>& Metadata : CategoryPair.Value)
+		{
+			if (Metadata.Contains(TEXT("Path")) && Metadata[TEXT("Path")] == AssetPath)
+			{
+				return Metadata;
+			}
+		}
+	}
+	return TMap<FString, FString>();
+}
+
+FString FAssetPoolManager::GetCategoryByAssetPath(const FString& AssetPath) const
+{
+	for (const auto& CategoryPair : AssetPools)
+	{
+		for (const TMap<FString, FString>& Metadata : CategoryPair.Value)
+		{
+			if (Metadata.Contains(TEXT("Path")) && Metadata[TEXT("Path")] == AssetPath)
+			{
+				return CategoryPair.Key;
+			}
+		}
+	}
+	return FString();
 }
 
 void FAssetPoolManager::RegisterAsset(const FString& Category, const FString& AssetPath)
@@ -428,4 +459,23 @@ void FAssetPoolManager::PrintAllAssets() const
 	}
 
 	UE_LOG(LogUnrealCV, Log, TEXT("======================================"));
+}
+
+void FAssetPoolManager::PrintAssetPoolSummary() const
+{
+	UE_LOG(LogUnrealCV, Log, TEXT("========== Asset Pool Summary =========="));
+	UE_LOG(LogUnrealCV, Log, TEXT("Total categories: %d"), AssetPools.Num());
+
+	for (const auto& CategoryPair : AssetPools)
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("Category '%s' (%d assets):"), *CategoryPair.Key, CategoryPair.Value.Num());
+
+		for (const TMap<FString, FString>& Metadata : CategoryPair.Value)
+		{
+			FString AssetPath = Metadata.Contains(TEXT("Path")) ? Metadata[TEXT("Path")] : TEXT("(no path)");
+			UE_LOG(LogUnrealCV, Log, TEXT("  - %s => %s"), *CategoryPair.Key, *AssetPath);
+		}
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("======================================="));
 }

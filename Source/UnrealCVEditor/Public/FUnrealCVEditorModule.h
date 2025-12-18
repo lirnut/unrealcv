@@ -16,6 +16,7 @@ private:
 	void RegisterMenus();
 	static void OnSearchAndSaveCache();
 	static void OnSearchSaveAndSetAnimation();
+	static void OnSearchSaveSetAnimationAndSpawn();
 
 	TSharedPtr<class FMetaHumanEditorCommands> Commands;
 	TSharedPtr<FUICommandList> PluginCommands;

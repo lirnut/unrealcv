@@ -64,6 +64,14 @@ void FUnrealCVEditorModule::RegisterMenus()
 					FSlateIcon(),
 					FUIAction(FExecuteAction::CreateStatic(&FUnrealCVEditorModule::OnSearchSaveAndSetAnimation))
 				);
+
+				CacheSection.AddMenuEntry(
+					"SearchSaveSetAnimationAndSpawn",
+					LOCTEXT("SearchSaveSetAnimationAndSpawnLabel", "Search, Save, Set Animation & Spawn to Map"),
+					LOCTEXT("SearchSaveSetAnimationAndSpawnTooltip", "Search for all MetaHumans, save to cache, set animation, and spawn to map"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateStatic(&FUnrealCVEditorModule::OnSearchSaveSetAnimationAndSpawn))
+				);
 			}),
 			false,
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Settings")
@@ -121,6 +129,21 @@ void FUnrealCVEditorModule::OnSearchSaveAndSetAnimation()
 		TEXT("Successfully configured %d/%d MetaHumans with animation"),
 		SuccessfulPaths.Num(),
 		AllMetaHumans.Num());
+	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
+
+	FNotificationInfo SuccessInfo(FText::FromString(Message));
+	SuccessInfo.ExpireDuration = 5.0f;
+	FSlateNotificationManager::Get().AddNotification(SuccessInfo);
+}
+
+void FUnrealCVEditorModule::OnSearchSaveSetAnimationAndSpawn()
+{
+	UE_LOG(LogTemp, Log, TEXT("=== MetaHuman Cache Manager: Search, Save, Set Animation & Spawn to Map ==="));
+
+	FString AnimBlueprintPath = TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C");
+	TArray<AActor*> SpawnedActors = UMetaHumanBPLib::SpawnAllMetaHumansToMap(AnimBlueprintPath);
+
+	FString Message = FString::Printf(TEXT("Spawned %d MetaHumans to map at positions 0+N*200, 0, -2000"), SpawnedActors.Num());
 	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
 
 	FNotificationInfo SuccessInfo(FText::FromString(Message));

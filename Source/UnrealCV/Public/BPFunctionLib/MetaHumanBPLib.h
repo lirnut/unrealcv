@@ -21,4 +21,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|MetaHuman")
 	static TArray<FString> SetupAllMetaHumansWithAnimation(const FString& AnimBlueprintPath = TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|MetaHuman")
+	static TArray<AActor*> SpawnAllMetaHumansToMap(const FString& AnimBlueprintPath = TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
 };

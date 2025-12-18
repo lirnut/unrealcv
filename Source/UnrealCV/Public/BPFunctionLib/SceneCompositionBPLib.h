@@ -126,6 +126,9 @@ public:
 
 	/**
 	 * Generate a complete random scene with foreground, occluders, and camera.
+	 * @param ForegroundPathSpec Optional specific path to use for foreground. If not empty, will look up category from asset pool and use specified actor instead of random selection
+	 * @param ForegroundCategory Category for random foreground selection (ignored if ForegroundPathSpec provided)
+	 * @param OccluderPathSpec Optional specific path to use for occluders. If not empty, will spawn this asset for each occluder instead of random selection
 	 * @param bAutoPositionCamera If true, automatically position camera at eye level facing foreground
 	 * @param ForegroundYaw Optional yaw rotation for foreground actor in degrees (default: -1 means random)
 	 */
@@ -135,7 +138,9 @@ public:
 		FVector2D SpawnAreaMin,
 		FVector2D SpawnAreaMax,
 		float GroundHeight,
+		const FString& ForegroundPathSpec,
 		const FString& ForegroundCategory,
+		const FString& OccluderPathSpec,
 		const FString& OccluderCategory,
 		int32 OccluderCount,
 		int32 CameraID,
@@ -195,7 +200,8 @@ public:
 	 * @param Count Number of occluders to spawn
 	 * @param CameraPosition Camera world position
 	 * @param ForegroundPosition Foreground actor world position
-	 * @param OccluderCategory Category (e.g., "Occluder_Tree", "Occluder_Pillar")
+	 * @param OccluderPathSpec Optional specific path to use for all occluders. If not empty, will spawn this asset instead of random selection
+	 * @param OccluderCategory Category for random occluder selection (ignored if OccluderPathSpec provided)
 	 * @return Array of spawned occluder actors
 	 */
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
@@ -204,6 +210,7 @@ public:
 		int32 Count,
 		FVector CameraPosition,
 		FVector ForegroundPosition,
+		const FString& OccluderPathSpec,
 		const FString& OccluderCategory,
 		FSceneHandle& OutSceneHandle
 	);

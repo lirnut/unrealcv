@@ -24,6 +24,12 @@ void FMetaHumanEditorCommands::RegisterCommands()
 		"Search for all MetaHumans, save to cache, and set animation blueprint",
 		EUserInterfaceActionType::Button,
 		FInputChord());
+
+	UI_COMMAND(SearchSaveSetAnimationAndSpawn,
+		"Search, Save, Set Animation & Spawn to Map",
+		"Search for all MetaHumans, save to cache, set animation, and spawn to map with positions 0 + N*200, 0, -2000",
+		EUserInterfaceActionType::Button,
+		FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

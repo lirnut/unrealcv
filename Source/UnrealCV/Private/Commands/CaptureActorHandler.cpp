@@ -2,6 +2,7 @@
 #include "RecordingBPLib.h"
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
+#include "AssetPoolManager.h"
 
 void FCaptureActorHandler::RegisterCommands()
 {
@@ -15,6 +16,10 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetTimeDilation);
 	Help = "Set time dilation for recording (0.1 to 10.0, default 1.0)";
 	CommandDispatcher->BindCommand("vset /captureactor/time_dilation [float]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::PrintAssetPool);
+	Help = "Print all available assets in the asset pool (Category => Path pairs)";
+	CommandDispatcher->BindCommand("vget /captureactor/asset_pool", Cmd, Help);
 }
 
 FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
@@ -51,4 +56,11 @@ FExecStatus FCaptureActorHandler::SetTimeDilation(const TArray<FString>& Args)
 
 	URecordingBPLib::SetTimeDilation(TimeDilation);
 	return FExecStatus::OK(FString::Printf(TEXT("Time dilation set to %.2f"), URecordingBPLib::GetTimeDilation()));
+}
+
+FExecStatus FCaptureActorHandler::PrintAssetPool(const TArray<FString>& Args)
+{
+	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
+	AssetPool.PrintAssetPoolSummary();
+	return FExecStatus::OK("Asset pool printed to debug log");
 }

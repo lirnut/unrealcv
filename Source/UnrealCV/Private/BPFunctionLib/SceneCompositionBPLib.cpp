@@ -69,7 +69,105 @@ AUnrealcvPawn* USceneCompositionBPLib::GetUnrealcvPawn(UWorld* World)
 
 // ========== Terrain Detection ==========
 
+static bool PerformHeightTrace(
+	UWorld* World,
+	float X,
+	float Y,
+	float InitialHeight,
+	float TraceLength,
+	FCollisionQueryParams& QueryParams,
+	FHitResult& OutHitResult)
+{
+	if (!IsValid(World))
+	{
+		return false;
+	}
 
+	QueryParams.TraceTag = TEXT("LandHeightTrace");
+
+	const int32 NumRays = 9;
+	const float SearchRadius = 20.0f;
+	TArray<float> HitHeights;
+
+	for (int32 i = 0; i < NumRays; ++i)
+	{
+		float OffsetX = 0.0f;
+		float OffsetY = 0.0f;
+
+		if (i == 0)
+		{
+			OffsetX = 0.0f;
+			OffsetY = 0.0f;
+		}
+		else if (i == 1)
+		{
+			OffsetX = SearchRadius;
+			OffsetY = 0.0f;
+		}
+		else if (i == 2)
+		{
+			OffsetX = -SearchRadius;
+			OffsetY = 0.0f;
+		}
+		else if (i == 3)
+		{
+			OffsetX = 0.0f;
+			OffsetY = SearchRadius;
+		}
+		else if (i == 4)
+		{
+			OffsetX = 0.0f;
+			OffsetY = -SearchRadius;
+		}
+		else if (i == 5)
+		{
+			OffsetX = SearchRadius;
+			OffsetY = SearchRadius;
+		}
+		else if (i == 6)
+		{
+			OffsetX = SearchRadius;
+			OffsetY = -SearchRadius;
+		}
+		else if (i == 7)
+		{
+			OffsetX = -SearchRadius;
+			OffsetY = SearchRadius;
+		}
+		else if (i == 8)
+		{
+			OffsetX = -SearchRadius;
+			OffsetY = -SearchRadius;
+		}
+
+		FVector TraceStart = FVector(X + OffsetX, Y + OffsetY, InitialHeight);
+		FVector TraceEnd = FVector(X + OffsetX, Y + OffsetY, InitialHeight - TraceLength);
+
+		FHitResult HitResult;
+		if (World->LineTraceSingleByChannel(
+			HitResult,
+			TraceStart,
+			TraceEnd,
+			ECC_WorldStatic,
+			QueryParams))
+		{
+			HitHeights.Add(HitResult.ImpactPoint.Z);
+		}
+	}
+
+	if (HitHeights.Num() == 0)
+	{
+		return false;
+	}
+
+	HitHeights.Sort();
+	float MedianHeight = HitHeights[HitHeights.Num() / 2];
+
+	OutHitResult.ImpactPoint.Z = MedianHeight;
+	OutHitResult.bBlockingHit = true;
+
+	return true;
+}
 
 float USceneCompositionBPLib::GetLandHeight(UWorld* World, float X, float Y, float InitialHeight)
 {
@@ -78,10 +176,6 @@ float USceneCompositionBPLib::GetLandHeight(UWorld* World, float X, float Y, flo
 		return InitialHeight;
 	}
 
-	FVector TraceStart = FVector(X, Y, InitialHeight);
-	FVector TraceEnd = FVector(X, Y, InitialHeight - 10000.0f);
-
-	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
 	auto DefaultPawn = GetFirstPersonPawn();
 	if (IsValid(DefaultPawn))
@@ -94,16 +188,8 @@ float USceneCompositionBPLib::GetLandHeight(UWorld* World, float X, float Y, flo
 		QueryParams.AddIgnoredActor(UnrealcvPawn);
 	}
 
-
-	QueryParams.TraceTag = TEXT("LandHeightTrace");
-
-	bool bHit = World->LineTraceSingleByChannel(
-		HitResult,
-		TraceStart,
-		TraceEnd,
-		ECC_WorldStatic,
-		QueryParams
-	);
+	FHitResult HitResult;
+	bool bHit = PerformHeightTrace(World, X, Y, InitialHeight, 10000.0f, QueryParams, HitResult);
 
 	if (bHit && HitResult.bBlockingHit)
 	{
@@ -150,13 +236,7 @@ void USceneCompositionBPLib::SettleActorToGround(AActor* Actor, UWorld* World, f
 	}
 
 	FVector ActorLocation = Actor->GetActorLocation();
-	ActorLocation.X = Actor->GetActorLocation().X;
-	ActorLocation.Y = Actor->GetActorLocation().Y;
 
-	FVector TraceStart = FVector(ActorLocation.X, ActorLocation.Y, InitialHeight);
-	FVector TraceEnd = FVector(ActorLocation.X, ActorLocation.Y, InitialHeight - 10000.0f);
-
-	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(Actor);
 	auto DefaultPawn = GetFirstPersonPawn();
@@ -170,13 +250,8 @@ void USceneCompositionBPLib::SettleActorToGround(AActor* Actor, UWorld* World, f
 		QueryParams.AddIgnoredActor(UnrealcvPawn);
 	}
 
-	bool bHit = World->LineTraceSingleByChannel(
-		HitResult,
-		TraceStart,
-		TraceEnd,
-		ECC_WorldStatic,
-		QueryParams
-	);
+	FHitResult HitResult;
+	bool bHit = PerformHeightTrace(World, ActorLocation.X, ActorLocation.Y, InitialHeight, 10000.0f, QueryParams, HitResult);
 
 	if (bHit && HitResult.bBlockingHit)
 	{
@@ -298,7 +373,9 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	FVector2D SpawnAreaMin,
 	FVector2D SpawnAreaMax,
 	float GroundHeight,
+	const FString& ForegroundPathSpec,
 	const FString& ForegroundCategory,
+	const FString& OccluderPathSpec,
 	const FString& OccluderCategory,
 	int32 OccluderCount,
 	int32 CameraID,
@@ -316,14 +393,44 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 
 	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
 
-	if (!AssetPool.HasCategory(ForegroundCategory))
+	FString ResolvedForegroundCategory = ForegroundCategory;
+
+	// If ForegroundPathSpec is provided, try to resolve category from asset pool
+	if (!ForegroundPathSpec.IsEmpty())
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Invalid foreground category '%s'"), *ForegroundCategory);
+		FString ResolvedCategory = AssetPool.GetCategoryByAssetPath(ForegroundPathSpec);
+		if (ResolvedCategory.IsEmpty())
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Asset path '%s' not found in asset pool"), *ForegroundPathSpec);
+			return false;
+		}
+		ResolvedForegroundCategory = ResolvedCategory;
+		UE_LOG(LogUnrealCV, Log, TEXT("GenerateRandomScene: Resolved foreground path '%s' to category '%s'"), *ForegroundPathSpec, *ResolvedForegroundCategory);
+	}
+
+	FString ResolvedOccluderCategory = OccluderCategory;
+
+	// If OccluderPathSpec is provided, try to resolve category from asset pool
+	if (!OccluderPathSpec.IsEmpty())
+	{
+		FString ResolvedCategory = AssetPool.GetCategoryByAssetPath(OccluderPathSpec);
+		if (ResolvedCategory.IsEmpty())
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Occluder asset path '%s' not found in asset pool"), *OccluderPathSpec);
+			return false;
+		}
+		ResolvedOccluderCategory = ResolvedCategory;
+		UE_LOG(LogUnrealCV, Log, TEXT("GenerateRandomScene: Resolved occluder path '%s' to category '%s'"), *OccluderPathSpec, *ResolvedOccluderCategory);
+	}
+
+	if (!AssetPool.HasCategory(ResolvedForegroundCategory))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Invalid foreground category '%s'"), *ResolvedForegroundCategory);
 		return false;
 	}
-	if (!AssetPool.HasCategory(OccluderCategory))
+	if (!AssetPool.HasCategory(ResolvedOccluderCategory))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Invalid occluder category '%s'"), *OccluderCategory);
+		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Invalid occluder category '%s'"), *ResolvedOccluderCategory);
 		return false;
 	}
 
@@ -331,7 +438,7 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	OutSceneHandle = FSceneHandle();
 	OutSceneHandle.SceneID = GenerateSceneID();
 	OutSceneHandle.CameraID = CameraID;
-	OutSceneHandle.ForegroundCategory = ForegroundCategory;
+	OutSceneHandle.ForegroundCategory = ResolvedForegroundCategory;
 
 	// 1. Spawn foreground actor - get metadata to check type
 	FVector ForegroundPosition;
@@ -340,15 +447,26 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	// ForegroundPosition.Z = GetTerrainHeightAtLocation(World, ForegroundPosition, 10000.0f);
 	ForegroundPosition.Z = GroundHeight;
 
-	TMap<FString, FString> ForegroundMetadata = AssetPool.GetRandomAssetMetadata(ForegroundCategory);
+	TMap<FString, FString> ForegroundMetadata;
+
+	if (!ForegroundPathSpec.IsEmpty())
+	{
+		ForegroundMetadata = AssetPool.GetAssetMetadataByPath(ForegroundPathSpec);
+	}
+	else
+	{
+		ForegroundMetadata = AssetPool.GetRandomAssetMetadata(ResolvedForegroundCategory);
+	}
+
 	if (ForegroundMetadata.Num() == 0)
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: No assets in foreground category '%s'"), *ForegroundCategory);
+		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: No assets in foreground category '%s'"), *ResolvedForegroundCategory);
 		return false;
 	}
 
 	FRotator ForegroundRotation = FRotator::ZeroRotator;
-	ForegroundRotation.Yaw = (ForegroundYaw < 0.0f) ? FMath::RandRange(0.0f, 360.0f) : ForegroundYaw;
+	float Yaw = (ForegroundYaw == -1.0f) ? FMath::RandRange(0.0f, 360.0f) : ForegroundYaw;
+	ForegroundRotation.Yaw += Yaw -90.0f; // metahuman facing local y axis
 
 	OutSceneHandle.ForegroundActor = SpawnActorFromMetadata(World, ForegroundMetadata, ForegroundPosition, ForegroundRotation);
 	if (!IsValid(OutSceneHandle.ForegroundActor))
@@ -357,9 +475,9 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		return false;
 	}
 
-	OutSceneHandle.ForegroundCategory = ForegroundCategory;
+	OutSceneHandle.ForegroundCategory = ResolvedForegroundCategory;
 	OutSceneHandle.ForegroundObjectMetadata = ForegroundMetadata;
-	OutSceneHandle.SceneCategory = World->GetMapName();	
+	OutSceneHandle.SceneCategory = World->GetMapName();
 
 	// Check if foreground is Blueprint type and create NavAgent
 	if (ForegroundMetadata.Contains(TEXT("Type")) && ForegroundMetadata[TEXT("Type")] == TEXT("Blueprint"))
@@ -385,7 +503,9 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		auto NewPosition = OutSceneHandle.ForegroundActor->GetActorLocation();
 		float CameraHeight = FMath::RandRange(120.0f, 150.0f);
 		float Distance = FMath::RandRange(300.0f, 600.0f);
-		float HorizontalAngle = FMath::RandRange(0.0f, 360.0f);
+
+		float CameraAngleOffset = FMath::RandRange(-15.0f, 15.0f);
+		float HorizontalAngle = Yaw + CameraAngleOffset;
 
 		FVector CameraPosition;
 		CameraPosition.X = NewPosition.X + Distance * FMath::Cos(FMath::DegreesToRadians(HorizontalAngle));
@@ -409,7 +529,8 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		OccluderCount,
 		CameraPosition,
 		ForegroundPosition,
-		OccluderCategory,
+		OccluderPathSpec,
+		ResolvedOccluderCategory,
 		OutSceneHandle
 	);
 
@@ -858,6 +979,7 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 	int32 Count,
 	FVector CameraPosition,
 	FVector ForegroundPosition,
+	const FString& OccluderPathSpec,
 	const FString& OccluderCategory,
 	FSceneHandle& OutSceneHandle)
 {
@@ -878,11 +1000,25 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 
 	for (int32 i = 0; i < Count; i++)
 	{
-		TMap<FString, FString> Metadata = AssetPool.GetRandomAssetMetadata(OccluderCategory);
-		if (Metadata.Num() == 0)
+		TMap<FString, FString> Metadata;
+
+		if (!OccluderPathSpec.IsEmpty())
 		{
-			UE_LOG(LogUnrealCV, Warning, TEXT("USceneCompositionBPLib::SpawnRandomOccluders: Failed to get asset from category '%s'"), *OccluderCategory);
-			continue;
+			Metadata = AssetPool.GetAssetMetadataByPath(OccluderPathSpec);
+			if (Metadata.Num() == 0)
+			{
+				UE_LOG(LogUnrealCV, Warning, TEXT("USceneCompositionBPLib::SpawnRandomOccluders: Specified occluder path '%s' not found in asset pool"), *OccluderPathSpec);
+				continue;
+			}
+		}
+		else
+		{
+			Metadata = AssetPool.GetRandomAssetMetadata(OccluderCategory);
+			if (Metadata.Num() == 0)
+			{
+				UE_LOG(LogUnrealCV, Warning, TEXT("USceneCompositionBPLib::SpawnRandomOccluders: Failed to get asset from category '%s'"), *OccluderCategory);
+				continue;
+			}
 		}
 
 		float CurrentRadius = GetBoundsRadiusFromMetadata(Metadata) + SafetyMargin;
@@ -898,7 +1034,8 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 			float LateralOffset = FMath::RandRange(-200.0f, 200.0f);
 			CandidatePosition += Perpendicular * LateralOffset;
 
-			CandidatePosition.Z = ForegroundPosition.Z;
+			// CandidatePosition.Z = ForegroundPosition.Z + FMath::RandRange(0.0f, 120.0f);
+			CandidatePosition.Z = GetLandHeight(World, CandidatePosition.X, CandidatePosition.Y, CandidatePosition.Z + 200.0f) + FMath::RandRange(0.0f, 50.0f);
 
 			TArray<AActor*> IgnoreList;
 			IgnoreList.Add(OutSceneHandle.ForegroundActor);
@@ -917,14 +1054,22 @@ TArray<AActor*> USceneCompositionBPLib::SpawnRandomOccluders(
 				IgnoreList.Add(UnrealcvPawn);
 			}
 
-			if (!CheckCollisionAtLocation(World, CandidatePosition, CurrentRadius, IgnoreList))
+			if (!CheckCollisionAtLocation(World, CandidatePosition, CurrentRadius, IgnoreList) || Attempt == MaxLocationAttempts - 1)
 			{
-				FRotator Rotation = FRotator::ZeroRotator;
-				Rotation.Yaw = FMath::RandRange(0.0f, 360.0f);
+				FVector DirectionToForeground = (ForegroundPosition - CandidatePosition).GetSafeNormal();
+				FRotator OccluderRotation = DirectionToForeground.Rotation();
+				OccluderRotation.Roll = 0.0f;
+				OccluderRotation.Pitch = 0.0f;
+				// OccluderRotation.Yaw += -90.0f;
 
-				AActor* Occluder = SpawnActorFromMetadata(World, Metadata, CandidatePosition, Rotation);
+				// random +-5 degrees
+				float CameraAngleOffset = FMath::RandRange(-5.0f, 5.0f);
+				OccluderRotation.Yaw += CameraAngleOffset;
+
+				AActor* Occluder = SpawnActorFromMetadata(World, Metadata, CandidatePosition, OccluderRotation);
 				if (IsValid(Occluder))
 				{
+					// EnablePhysicsSettling(Occluder);
 					SpawnedOccluders.Add(Occluder);
 					OutSceneHandle.OccluderMetadataList.Add({Metadata});
 					OutSceneHandle.OccluderCategory = OccluderCategory;

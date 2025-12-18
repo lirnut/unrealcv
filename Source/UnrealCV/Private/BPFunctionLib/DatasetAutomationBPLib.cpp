@@ -113,12 +113,15 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			CurrentConfig.SpawnAreaMin,
 			CurrentConfig.SpawnAreaMax,
 			CurrentConfig.GroundHeight,
+			CurrentConfig.ForegroundPathSpec,
 			CurrentConfig.ForegroundCategory,
+			CurrentConfig.OccluderPathSpec,
 			CurrentConfig.OccluderCategory,
 			CurrentConfig.OccluderCount,
 			CurrentConfig.CameraID,
 			CurrentScene,
-			true
+			CurrentConfig.bAutoPositionCamera,
+			CurrentConfig.ForegroundYaw
 		);
 
 		if (Success)

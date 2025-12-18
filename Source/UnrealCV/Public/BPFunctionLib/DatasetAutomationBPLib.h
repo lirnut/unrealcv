@@ -55,13 +55,25 @@ struct FAutomationConfig
 	FString ForegroundCategory = TEXT("Foreground_Human");
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	FString ForegroundPathSpec = TEXT("");
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	float ForegroundYaw = -1.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	FString OccluderCategory = TEXT("Occluder_Tree");
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	FString OccluderPathSpec = TEXT("");
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	int32 OccluderCount = 3;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	int32 CameraID = 0;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	bool bAutoPositionCamera = true;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	FString OutputDirectory = TEXT("C:/Dataset");

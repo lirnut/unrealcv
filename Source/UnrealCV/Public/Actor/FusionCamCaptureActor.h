@@ -172,6 +172,8 @@ protected:
 	void OnTimerRecord();
 	void RecordFrame(bool SaveToFile = true);
 
+	void PrepareTargetCamera();
+
 	// ========== Trajectory Calculation Functions (Separated from Rendering) ==========
 	TArray<FCameraPose> CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, float DegreesPerFrame, int32 RandomSeed);
 	void RenderTrajectory(const TArray<FCameraPose>& Trajectory, bool bPauseWorldTime);

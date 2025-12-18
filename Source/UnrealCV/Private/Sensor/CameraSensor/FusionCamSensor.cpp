@@ -522,6 +522,46 @@ void UFusionCamSensor::SetFocalParams(float FocalDistance, float FocalRegion)
     this->LitCamSensor->PostProcessSettings.DepthOfFieldFocalRegion = FocalRegion;
 }
 
+void UFusionCamSensor::SetChromaticAberration(float Intensity)
+{
+    // Unreal refers to Chromatic Aberration as "SceneFringe"
+    this->LitCamSensor->PostProcessSettings.bOverride_SceneFringeIntensity = true;
+    this->LitCamSensor->PostProcessSettings.SceneFringeIntensity = Intensity; // Realistic: 0.1 - 0.4
+}
+
+void UFusionCamSensor::SetVignetteIntensity(float Intensity)
+{
+    this->LitCamSensor->PostProcessSettings.bOverride_VignetteIntensity = true;
+    this->LitCamSensor->PostProcessSettings.VignetteIntensity = Intensity; // Realistic: 0.4
+}
+
+void UFusionCamSensor::SetFilmGrain(float Intensity, float TexelSize)
+{
+    this->LitCamSensor->PostProcessSettings.bOverride_FilmGrainIntensity = true;
+    this->LitCamSensor->PostProcessSettings.FilmGrainIntensity = Intensity; // Realistic: 0.1
+    this->LitCamSensor->PostProcessSettings.bOverride_FilmGrainTexelSize = true;
+    this->LitCamSensor->PostProcessSettings.FilmGrainTexelSize = TexelSize;
+}
+
+void UFusionCamSensor::SetConvolutionBloom(EBloomMethod Method, UTexture2D* KernelTexture, float Intensity)
+{
+    // Switch method to Convolution for realistic light scattering
+    this->LitCamSensor->PostProcessSettings.bOverride_BloomMethod = true;
+    this->LitCamSensor->PostProcessSettings.BloomMethod = Method;
+    // this->LitCamSensor->PostProcessSettings.BloomMethod = BM_FFT;
+    // this->LitCamSensor->PostProcessSettings.BloomMethod = BM_SOG;
+
+    // Apply the kernel (a texture representing the physical shape of the lens flare)
+    if (KernelTexture)
+    {
+        this->LitCamSensor->PostProcessSettings.bOverride_BloomConvolutionTexture = true;
+        this->LitCamSensor->PostProcessSettings.BloomConvolutionTexture = KernelTexture;
+    }
+
+    this->LitCamSensor->PostProcessSettings.bOverride_BloomIntensity = true;
+    this->LitCamSensor->PostProcessSettings.BloomIntensity = Intensity;
+}
+
 void UFusionCamSensor::SetUseFastCapture(bool bInUseFast)
 {
 	for (UBaseCameraSensor* Sensor : FusionSensors)

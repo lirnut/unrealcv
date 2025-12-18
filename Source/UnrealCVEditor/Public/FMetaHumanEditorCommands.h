@@ -13,4 +13,5 @@ public:
 public:
 	TSharedPtr<FUICommandInfo> SearchAndSaveCache;
 	TSharedPtr<FUICommandInfo> SearchSaveAndSetAnimation;
+	TSharedPtr<FUICommandInfo> SearchSaveSetAnimationAndSpawn;
 };

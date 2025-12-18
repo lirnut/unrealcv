@@ -11,4 +11,6 @@ private:
 	FExecStatus SpawnFreeCamera(const TArray<FString>& Args);
 
 	FExecStatus SetTimeDilation(const TArray<FString>& Args);
+
+	FExecStatus PrintAssetPool(const TArray<FString>& Args);
 };

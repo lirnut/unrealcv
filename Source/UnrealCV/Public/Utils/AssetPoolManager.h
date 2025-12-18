@@ -31,12 +31,16 @@ public:
 	TArray<FString> GetAllCategories() const;
 	int32 GetAssetCount(const FString& Category) const;
 
+	TMap<FString, FString> GetAssetMetadataByPath(const FString& AssetPath) const;
+	FString GetCategoryByAssetPath(const FString& AssetPath) const;
+
 	void RegisterAsset(const FString& Category, const FString& AssetPath);
 	void RegisterAssetWithMetadata(const FString& Category, const TMap<FString, FString>& Metadata);
 
 	static bool ValidateMetadata(const TMap<FString, FString>& Metadata, FString& OutErrorMessage);
 
 	void PrintAllAssets() const;
+	void PrintAssetPoolSummary() const;
 
 private:
 	FAssetPoolManager();

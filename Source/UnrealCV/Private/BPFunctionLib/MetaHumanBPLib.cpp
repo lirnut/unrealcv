@@ -128,3 +128,65 @@ TArray<FString> UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(const FString& 
 	UE_LOG(LogTemp, Log, TEXT("SetupAllMetaHumansWithAnimation: %d/%d MetaHumans configured"), SuccessfulPaths.Num(), AllMetaHumans.Num());
 	return SuccessfulPaths;
 }
+
+TArray<AActor*> UMetaHumanBPLib::SpawnAllMetaHumansToMap(const FString& AnimBlueprintPath)
+{
+	TArray<AActor*> SpawnedActors;
+
+	TArray<FString> AllMetaHumans = GetAllMetaHumanBlueprintPaths();
+
+	if (AllMetaHumans.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SpawnAllMetaHumansToMap: No MetaHumans found"));
+		return SpawnedActors;
+	}
+
+	UWorld* World = nullptr;
+	if (GEditor)
+	{
+		World = GEditor->GetEditorWorldContext().World();
+	}
+
+	if (!World)
+	{
+		UE_LOG(LogTemp, Error, TEXT("SpawnAllMetaHumansToMap: No valid world found"));
+		return SpawnedActors;
+	}
+
+	SetupAllMetaHumansWithAnimation(AnimBlueprintPath);
+
+	for (int32 i = 0; i < AllMetaHumans.Num(); ++i)
+	{
+		const FString& MetaHumanPath = AllMetaHumans[i];
+		UClass* MetaHumanClass = LoadObject<UClass>(nullptr, *(MetaHumanPath + TEXT("_C")));
+
+		if (!MetaHumanClass)
+		{
+			UE_LOG(LogTemp, Error, TEXT("SpawnAllMetaHumansToMap: Failed to load class %s"), *(MetaHumanPath + TEXT("_C")));
+			continue;
+		}
+
+		FVector SpawnLocation(0.0f + i * 200.0f, 0.0f, -2000.0f);
+		FRotator SpawnRotation(0.0f, 0.0f, 0.0f);
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = nullptr;
+		SpawnParams.Instigator = nullptr;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		AActor* SpawnedActor = World->SpawnActor<AActor>(MetaHumanClass, SpawnLocation, SpawnRotation, SpawnParams);
+
+		if (SpawnedActor)
+		{
+			SpawnedActors.Add(SpawnedActor);
+			UE_LOG(LogTemp, Log, TEXT("Spawned MetaHuman at position (%.0f, 0, -2000): %s"), SpawnLocation.X, *MetaHumanPath);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("SpawnAllMetaHumansToMap: Failed to spawn MetaHuman: %s"), *MetaHumanPath);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("SpawnAllMetaHumansToMap: Spawned %d/%d MetaHumans"), SpawnedActors.Num(), AllMetaHumans.Num());
+	return SpawnedActors;
+}
