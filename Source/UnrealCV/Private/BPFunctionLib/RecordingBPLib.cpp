@@ -392,9 +392,25 @@ TArray<FString> URecordingBPLib::GetSupportedTrajectoryTypes()
 	};
 }
 
+bool URecordingBPLib::StartSimpleRecording(int32 CameraID, const FString& FileName, int32 FPS, float DurationSeconds)
+{
+	AFusionCamCaptureActor* CaptureActor = PrepareRecording(CameraID);
+	if (!IsValid(CaptureActor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("StartSimpleRecording: Failed to prepare recording for camera %d"), CameraID);
+		return false;
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("StartSimpleRecording: Camera %d, File: %s, FPS: %d, Duration: %.2fs"),
+		CameraID, *FileName, FPS, DurationSeconds);
+
+	CaptureActor->StartSimpleRecording(FileName, FPS, DurationSeconds);
+	return true;
+}
+
 
 // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////////////////////// Video Generation Configuration /////////////////////////////////////////// 
+// ///////////////////////////////////////////// Video Generation Configuration ///////////////////////////////////////////
 // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // bool URecordingBPLib::SetAutoGenerateVideo(int32 CameraID, bool bEnabled)

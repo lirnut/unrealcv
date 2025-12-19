@@ -172,6 +172,26 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Recording|Trajectory")
 	static TArray<FString> GetSupportedTrajectoryTypes();
 
+	// ========== Simple Recording (No Camera Movement) ==========
+
+	/**
+	 * Start simple recording without camera movement.
+	 * Camera remains in its current position and rotation throughout recording.
+	 *
+	 * @param CameraID The ID of the camera sensor
+	 * @param FileName Output file path prefix (e.g., "C:/Output/simple_record")
+	 * @param FPS Frames per second for recording
+	 * @param DurationSeconds Recording duration in seconds
+	 * @return True if recording started successfully, false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording|Simple")
+	static bool StartSimpleRecording(
+		int32 CameraID,
+		const FString& FileName,
+		int32 FPS,
+		float DurationSeconds
+	);
+
 	// // ========== Video Generation Configuration ==========
 
 	// /**

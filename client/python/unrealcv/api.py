@@ -1176,6 +1176,104 @@ class UnrealCv_API(object):
             return cmd
         self.client.request(cmd, -1)
 
+    def spawn_free_camera(self, return_cmd=False):
+        """
+        Spawn a new free camera at the world origin (0, 0, 0).
+
+        Args:
+            return_cmd (bool): Whether to return the command string instead of executing it. Default is False.
+
+        Returns:
+            int: The camera ID of the newly spawned camera, or command string if return_cmd is True.
+        """
+        cmd = 'vset /captureactor/spawn_free_cam'
+        if return_cmd:
+            return cmd
+        res = self.client.request(cmd)
+        return int(res) if res.isdigit() else res
+
+    def set_recording_time_dilation(self, dilation, return_cmd=False):
+        cmd = f'vset /captureactor/time_dilation {dilation}'
+        if return_cmd:
+            return cmd
+        res = self.client.request(cmd)
+        return float(res) if res else None
+
+    def get_asset_pool(self, return_cmd=False):
+        """
+        Get the asset pool information (all available assets by category).
+
+        Args:
+            return_cmd (bool): Whether to return the command string instead of executing it. Default is False.
+
+        Returns:
+            str: Asset pool information summary, or command string if return_cmd is True.
+        """
+        cmd = 'vget /captureactor/asset_pool'
+        if return_cmd:
+            return cmd
+        res = self.client.request(cmd)
+        return res
+
+    def get_camera_fast_capture(self, cam_id, return_cmd=False):
+        """
+        Get the fast capture mode status of a camera.
+
+        Args:
+            cam_id (int): The camera ID.
+            return_cmd (bool): Whether to return the command string instead of executing it. Default is False.
+
+        Returns:
+            int: Fast capture mode status (0=disabled, 1=enabled), or command string if return_cmd is True.
+        """
+        cmd = f'vget /camera/{cam_id}/use_fast_capture'
+        if return_cmd:
+            return cmd
+        res = self.client.request(cmd)
+        return int(res) if res.isdigit() else res
+
+    def set_camera_fast_capture(self, cam_id, enabled, return_cmd=False):
+        """
+        Set the fast capture mode of a camera.
+
+        Args:
+            cam_id (int): The camera ID.
+            enabled (int): Fast capture mode (0=disabled, 1=enabled).
+            return_cmd (bool): Whether to return the command string instead of executing it. Default is False.
+
+        Returns:
+            str: The response from the server, or command string if return_cmd is True.
+        """
+        cmd = f'vset /camera/{cam_id}/use_fast_capture {enabled}'
+        if return_cmd:
+            return cmd
+        res = self.client.request(cmd, -1)
+        return res
+
+    def start_simple_recording(self, cam_id, output_folder, fps, duration_seconds, return_cmd=False):
+        """
+        Start simple recording without camera movement.
+
+        Args:
+            cam_id (int): The camera ID.
+            output_folder (str): Output directory path.
+            fps (int): Frames per second.
+            duration_seconds (float): Recording duration in seconds.
+            return_cmd (bool): Whether to return the command string instead of executing it. Default is False.
+
+        Returns:
+            str: Server response message, or command string if return_cmd is True.
+
+        Example:
+            >>> api.start_simple_recording(0, "output_video", 30, 5.0)
+            >>> # Records 150 frames (30 fps * 5 seconds) from camera 0
+        """
+        cmd = f'vset /captureactor/{cam_id}/record {output_folder} {fps} {duration_seconds}'
+        if return_cmd:
+            return cmd
+        res = self.client.request(cmd)
+        return res
+
 
 class MsgDecoder(object):
     """

@@ -48,6 +48,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	void StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS = 30, float DegreesPerSecond = 36.0f, int32 RandomSeed = -1, bool bPauseWorldTime = false);
 
+	// ========== Simple Recording (No Camera Movement) ==========
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void StartSimpleRecording(const FString& FileName, int32 FPS, float DurationSeconds);
+
 	/** Stop current recording */
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	void StopRecord();

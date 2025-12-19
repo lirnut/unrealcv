@@ -13,4 +13,6 @@ private:
 	FExecStatus SetTimeDilation(const TArray<FString>& Args);
 
 	FExecStatus PrintAssetPool(const TArray<FString>& Args);
+
+	FExecStatus StartSimpleRecording(const TArray<FString>& Args);
 };

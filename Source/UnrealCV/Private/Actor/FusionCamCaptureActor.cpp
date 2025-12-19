@@ -30,6 +30,7 @@
 
 static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
 static const int32 ROTATE_NUM_FRAMES_OVERRIDE = 121;
+static const int32 WARM_UP_FRAMES = 5;
 
 AFusionCamCaptureActor::AFusionCamCaptureActor()
 {
@@ -60,7 +61,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 
 	CurrentTrajectoryIndex = 0;
 	bPauseWorldDuringRecord = true;
-	WarmUpFrames = 25;
+	WarmUpFrames = WARM_UP_FRAMES;
 	WarmUpElapsedFrames = 0;
 
 	Billboard = CreateDefaultSubobject<UMaterialBillboardComponent>(TEXT("BillboardComponent"));
@@ -746,6 +747,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	TargetToHide = Target;
 	bPauseWorldDuringRecord = bPauseWorldTime;
 	WarmUpElapsedFrames = 0;
+	WarmUpFrames = WARM_UP_FRAMES;
 
 	// bUseSaveToFileAPI = FMath::RandBool();
 	bUseSaveToFileAPI = true;
@@ -788,6 +790,65 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 		StartAudioRecord();
 	}
 
+	RenderTrajectory(CurrentTrajectory, bPauseWorldTime);
+}
+
+void AFusionCamCaptureActor::StartSimpleRecording(const FString& FileName, int32 FPS, float DurationSeconds)
+{
+	if (!IsValid(TargetSensor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("StartSimpleRecording: TargetSensor is not set!"));
+		return;
+	}
+
+	if (FPS <= 0 || DurationSeconds <= 0.0f)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("StartSimpleRecording: Invalid FPS or Duration (FPS=%d, Duration=%.2f)"), FPS, DurationSeconds);
+		return;
+	}
+
+	if (bIsRecording)
+	{
+		StopRecord();
+	}
+
+	int32 TotalFrames = FMath::CeilToInt(FPS * DurationSeconds);
+
+	TArray<FCameraPose> SimpleTrajectory;
+	SimpleTrajectory.Reserve(TotalFrames);
+
+	FVector CurrentLocation = TargetSensor->GetSensorLocation();
+	FRotator CurrentRotation = TargetSensor->GetSensorRotation();
+
+	for (int32 i = 0; i < TotalFrames; i++)
+	{
+		FCameraPose Pose;
+		Pose.Location = CurrentLocation;
+		Pose.Rotation = CurrentRotation;
+		Pose.bManageTransform = false;
+		Pose.DesiredEstTimeDilation = 1.0f;
+		SimpleTrajectory.Add(Pose);
+	}
+
+	RecordFileName = FileName;
+	RecordFPS = FPS;
+	ElapsedSteps = 0;
+	bIsRecording = true;
+	TargetToHide = nullptr;
+	bPauseWorldDuringRecord = false;
+	WarmUpElapsedFrames = 0;
+	WarmUpFrames = 0;
+	NumFrames = TotalFrames;
+
+	bUseSaveToFileAPI = true;
+	RealWorldTimeRecordingStart = FDateTime::Now();
+
+	CurrentTrajectory = SimpleTrajectory;
+
+	UE_LOG(LogUnrealCV, Log, TEXT("StartSimpleRecording: FileName=%s, FPS=%d, Duration=%.2fs, TotalFrames=%d"),
+		*FileName, FPS, DurationSeconds, TotalFrames);
+
+	bool bPauseWorldTime = false;
 	RenderTrajectory(CurrentTrajectory, bPauseWorldTime);
 }
 

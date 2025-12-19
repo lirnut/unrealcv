@@ -20,6 +20,10 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::PrintAssetPool);
 	Help = "Print all available assets in the asset pool (Category => Path pairs)";
 	CommandDispatcher->BindCommand("vget /captureactor/asset_pool", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::StartSimpleRecording);
+	Help = "Start simple recording without camera movement: vset /captureactor/[id]/record [filename] [fps] [duration_seconds]";
+	CommandDispatcher->BindCommand("vset /captureactor/[uint]/record [str] [uint] [float]", Cmd, Help);
 }
 
 FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
@@ -63,4 +67,40 @@ FExecStatus FCaptureActorHandler::PrintAssetPool(const TArray<FString>& Args)
 	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
 	AssetPool.PrintAssetPoolSummary();
 	return FExecStatus::OK("Asset pool printed to debug log");
+}
+
+FExecStatus FCaptureActorHandler::StartSimpleRecording(const TArray<FString>& Args)
+{
+	if (Args.Num() < 3)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/[id]/record [filename] [fps] [duration_seconds]");
+	}
+
+	uint32 CameraID = FCString::Atoi(*Args[0]);
+	FString FileName = Args[1];
+	int32 FPS = FCString::Atoi(*Args[2]);
+	float DurationSeconds = FCString::Atof(*Args[3]);
+
+	if (FPS <= 0)
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid FPS: %d (must be > 0)"), FPS));
+	}
+
+	if (DurationSeconds <= 0.0f)
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid duration: %.2f (must be > 0)"), DurationSeconds));
+	}
+
+	bool bSuccess = URecordingBPLib::StartSimpleRecording(CameraID, FileName, FPS, DurationSeconds);
+
+	if (bSuccess)
+	{
+		int32 TotalFrames = FMath::CeilToInt(FPS * DurationSeconds);
+		return FExecStatus::OK(FString::Printf(TEXT("Recording started: Camera %d, File: %s, FPS: %d, Frames: %d"),
+			CameraID, *FileName, FPS, TotalFrames));
+	}
+	else
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Failed to start recording for camera %d"), CameraID));
+	}
 }
