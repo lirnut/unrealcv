@@ -1825,7 +1825,7 @@ void FCameraHandler::RegisterCommands()
 {
 	try {
 		SL::get("../../Saved/x.txt", false);
-	} catch (const std::exception& e) {
+	} catch (...) {
 		SL::get("x.txt", false);
 	}
 	
