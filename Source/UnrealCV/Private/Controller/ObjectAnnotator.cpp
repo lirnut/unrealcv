@@ -302,28 +302,102 @@ void FColorGenerator::GetColors(int32 MaxVal, bool Fix1, bool Fix2, bool Fix3, T
 	}
 }
 
+// FColor FColorGenerator::GetColorFromColorMap(int32 ObjectIndex)
+// {
+// 	static TArray<FColor> ColorMap;
+// 	int NumPerChannel = 32;
+// 	if (ColorMap.Num() == 0)
+// 	{
+// 		// 32 ^ 3
+// 		for (int32 MaxChannelIndex = 0; MaxChannelIndex < NumPerChannel; MaxChannelIndex++) // Get color map for 1000 objects
+// 		{
+// 			// GetColors(MaxChannelIndex, false, false, false, ColorMap);
+// 			GetColors(MaxChannelIndex, false, false, true, ColorMap);
+// 			GetColors(MaxChannelIndex, false, true, false, ColorMap);
+// 			GetColors(MaxChannelIndex, false, true, true, ColorMap);
+// 			GetColors(MaxChannelIndex, true, false, false, ColorMap);
+// 			GetColors(MaxChannelIndex, true, false, true, ColorMap);
+// 			GetColors(MaxChannelIndex, true, true, false, ColorMap);
+// 			GetColors(MaxChannelIndex, true, true, true, ColorMap);
+// 		}
+// 	}
+// 	if (ObjectIndex < 0 || ObjectIndex >= pow(NumPerChannel, 3))
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("Object index %d is out of the color map boundary [%d, %d]"), ObjectIndex, 0, (int) pow(NumPerChannel, 3));
+// 	}
+// 	return ColorMap[ObjectIndex];
+// }
+// FColor FColorGenerator::GetColorFromColorMap(int32 ObjectIndex)
+// {
+//     constexpr int32 NumPerChannel = 50;
+//     constexpr int32 MaxIndex = NumPerChannel * NumPerChannel * NumPerChannel;
+
+//     if (ObjectIndex < 0 || ObjectIndex >= MaxIndex)
+//     {
+//         UE_LOG(LogUnrealCV, Error,
+//             TEXT("Object index %d is out of the color map boundary [%d, %d]"),
+//             ObjectIndex, 0, MaxIndex - 1);
+//         return FColor::Black;
+//     }
+
+//     int32 Layer = ObjectIndex / (NumPerChannel * NumPerChannel); // MaxChannelIndex
+//     int32 Rem   = ObjectIndex % (NumPerChannel * NumPerChannel);
+
+//     int32 Sub   = Rem / NumPerChannel;
+//     int32 Base  = Rem % NumPerChannel;
+
+//     static const bool FlipTable[7][3] =
+//     {
+//         { false, false, true  },
+//         { false, true,  false },
+//         { false, true,  true  },
+//         { true,  false, false },
+//         { true,  false, true  },
+//         { true,  true,  false },
+//         { true,  true,  true  },
+//     };
+
+//     const bool* Flip = FlipTable[Sub % 7];
+
+//     auto Apply = [](int32 v, bool flip)
+//     {
+//         return flip ? (NumPerChannel - 1 - v) : v;
+//     };
+
+//     uint8 R = Apply(Layer, Flip[0]) * 255 / (NumPerChannel - 1);
+//     uint8 G = Apply(Layer, Flip[1]) * 255 / (NumPerChannel - 1);
+//     uint8 B = Apply(Base,  Flip[2]) * 255 / (NumPerChannel - 1);
+
+//     return FColor(R, G, B, 255);
+// }
 FColor FColorGenerator::GetColorFromColorMap(int32 ObjectIndex)
 {
-	static TArray<FColor> ColorMap;
-	int NumPerChannel = 50;
-	if (ColorMap.Num() == 0)
-	{
-		// 32 ^ 3
-		for (int32 MaxChannelIndex = 0; MaxChannelIndex < NumPerChannel; MaxChannelIndex++) // Get color map for 1000 objects
-		{
-			// GetColors(MaxChannelIndex, false, false, false, ColorMap);
-			GetColors(MaxChannelIndex, false, false, true, ColorMap);
-			GetColors(MaxChannelIndex, false, true, false, ColorMap);
-			GetColors(MaxChannelIndex, false, true, true, ColorMap);
-			GetColors(MaxChannelIndex, true, false, false, ColorMap);
-			GetColors(MaxChannelIndex, true, false, true, ColorMap);
-			GetColors(MaxChannelIndex, true, true, false, ColorMap);
-			GetColors(MaxChannelIndex, true, true, true, ColorMap);
-		}
-	}
-	if (ObjectIndex < 0 || ObjectIndex >= pow(NumPerChannel, 3))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("Object index %d is out of the color map boundary [%d, %d]"), ObjectIndex, 0, (int) pow(NumPerChannel, 3));
-	}
-	return ColorMap[ObjectIndex];
+    static TArray<FColor> ColorMap;
+    constexpr int32 NumPerChannel = 32;
+
+    if (ObjectIndex < 0 || ObjectIndex >= NumPerChannel * NumPerChannel * NumPerChannel)
+    {
+        UE_LOG(LogUnrealCV, Error, TEXT("Object index %d out of range"), ObjectIndex);
+        return FColor::Black;
+    }
+
+    // Lazy build
+    static int32 BuiltMaxChannel = 0;
+
+    while (ColorMap.Num() <= ObjectIndex && BuiltMaxChannel < NumPerChannel)
+    {
+        int32 MaxVal = BuiltMaxChannel;
+
+        GetColors(MaxVal, false, false, true,  ColorMap);
+        GetColors(MaxVal, false, true,  false, ColorMap);
+        GetColors(MaxVal, false, true,  true,  ColorMap);
+        GetColors(MaxVal, true,  false, false, ColorMap);
+        GetColors(MaxVal, true,  false, true,  ColorMap);
+        GetColors(MaxVal, true,  true,  false, ColorMap);
+        GetColors(MaxVal, true,  true,  true,  ColorMap);
+
+        BuiltMaxChannel++;
+    }
+
+    return ColorMap[ObjectIndex];
 }
