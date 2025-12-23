@@ -1,5 +1,6 @@
 #include "CaptureActorHandler.h"
 #include "RecordingBPLib.h"
+#include "SensorBPLib.h"
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
 #include "AssetPoolManager.h"
@@ -24,6 +25,10 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::StartSimpleRecording);
 	Help = "Start simple recording without camera movement: vset /captureactor/[id]/record [filename] [fps] [duration_seconds]";
 	CommandDispatcher->BindCommand("vset /captureactor/[uint]/record [str] [uint] [float]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::IsRecording);
+	Help = "Check if a camera is currently recording: vget /captureactor/[id]/is_recording";
+	CommandDispatcher->BindCommand("vget /captureactor/[uint]/is_recording", Cmd, Help);
 }
 
 FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
@@ -102,5 +107,32 @@ FExecStatus FCaptureActorHandler::StartSimpleRecording(const TArray<FString>& Ar
 	else
 	{
 		return FExecStatus::Error(FString::Printf(TEXT("Failed to start recording for camera %d"), CameraID));
+	}
+}
+
+FExecStatus FCaptureActorHandler::IsRecording(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vget /captureactor/[id]/is_recording");
+	}
+
+	uint32 CameraID = FCString::Atoi(*Args[0]);
+
+	UFusionCamSensor* FusionCamSensor = USensorBPLib::GetSensorById(CameraID);
+	if (!IsValid(FusionCamSensor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Camera %d not found"), CameraID));
+	}
+
+	bool bIsRecording = URecordingBPLib::IsRecording(CameraID);
+
+	if (bIsRecording)
+	{
+		return FExecStatus::OK("true");
+	}
+	else
+	{
+		return FExecStatus::OK("false");
 	}
 }

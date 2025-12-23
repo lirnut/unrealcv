@@ -15,4 +15,6 @@ private:
 	FExecStatus PrintAssetPool(const TArray<FString>& Args);
 
 	FExecStatus StartSimpleRecording(const TArray<FString>& Args);
+
+	FExecStatus IsRecording(const TArray<FString>& Args);
 };
