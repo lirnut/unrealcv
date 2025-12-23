@@ -1176,6 +1176,10 @@ class UnrealCv_API(object):
             return cmd
         self.client.request(cmd, -1)
 
+#########################################################################################################################
+# Recording APIs
+#########################################################################################################################
+
     def spawn_free_camera(self, return_cmd=False):
         """
         Spawn a new free camera at the world origin (0, 0, 0).
@@ -1190,30 +1194,37 @@ class UnrealCv_API(object):
         if return_cmd:
             return cmd
         res = self.client.request(cmd)
-        return int(res) if res.isdigit() else res
+        if res.isdigit():
+            return int(res)
+        else:
+            raise ValueError(f"Error: {res}")
 
     def set_recording_time_dilation(self, dilation, return_cmd=False):
         cmd = f'vset /captureactor/time_dilation {dilation}'
         if return_cmd:
             return cmd
         res = self.client.request(cmd)
-        return float(res) if res else None
-
-    def get_asset_pool(self, return_cmd=False):
-        """
-        Get the asset pool information (all available assets by category).
-
-        Args:
-            return_cmd (bool): Whether to return the command string instead of executing it. Default is False.
-
-        Returns:
-            str: Asset pool information summary, or command string if return_cmd is True.
-        """
-        cmd = 'vget /captureactor/asset_pool'
-        if return_cmd:
-            return cmd
-        res = self.client.request(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
         return res
+
+    # def get_asset_pool(self, return_cmd=False):
+    #     """
+    #     Get the asset pool information (all available assets by category).
+
+    #     Args:
+    #         return_cmd (bool): Whether to return the command string instead of executing it. Default is False.
+
+    #     Returns:
+    #         str: Asset pool information summary, or command string if return_cmd is True.
+    #     """
+    #     cmd = 'vget /captureactor/asset_pool'
+    #     if return_cmd:
+    #         return cmd
+    #     res = self.client.request(cmd)
+    #     if res.startswith("error"):
+    #         raise ValueError(res)
+    #     return res
 
     def get_camera_fast_capture(self, cam_id, return_cmd=False):
         """
@@ -1230,7 +1241,12 @@ class UnrealCv_API(object):
         if return_cmd:
             return cmd
         res = self.client.request(cmd)
-        return int(res) if res.isdigit() else res
+        if res.isdigit():
+            res = int(res)
+            assert res in [0, 1], f"Invalid fast capture mode value: {res}"
+            return True if res == 1 else False
+        else:
+            raise ValueError(f"Error: {res}")
 
     def set_camera_fast_capture(self, cam_id, enabled, return_cmd=False):
         """
@@ -1244,10 +1260,15 @@ class UnrealCv_API(object):
         Returns:
             str: The response from the server, or command string if return_cmd is True.
         """
+        if isinstance(enabled, bool):
+            enabled = 1 if enabled else 0
+        assert enabled in [0, 1], f"Invalid fast capture mode value: {enabled}"
         cmd = f'vset /camera/{cam_id}/use_fast_capture {enabled}'
         if return_cmd:
             return cmd
         res = self.client.request(cmd, -1)
+        if res.startswith("error"):
+            raise ValueError(res)
         return res
 
     def start_simple_recording(self, cam_id, output_folder, fps, duration_seconds, return_cmd=False):
@@ -1272,8 +1293,30 @@ class UnrealCv_API(object):
         if return_cmd:
             return cmd
         res = self.client.request(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+    
+    def is_recording(self, cam_id, return_cmd=False):
+        """
+        Check if a camera is currently recording.
+
+        Args:
+            cam_id (int): The camera ID.
+            return_cmd (bool): Whether to return the command string instead of executing it. Default is False.
+
+        Returns:
+            bool: True if the camera is recording, False otherwise, or command string if return_cmd is True.
+        """
+        cmd = f'vget /captureactor/{cam_id}/is_recording'
+        if return_cmd:
+            return cmd
+        res = self.client.request(cmd)
+        res = self.decoder.string2bool(res)
         return res
 
+#########################################################################################################################
+#########################################################################################################################
 
 class MsgDecoder(object):
     """
@@ -1349,6 +1392,18 @@ class MsgDecoder(object):
         key = self.cmd2key(cmd)
         decode_func = self.decode_map.get(key)
         return decode_func(res)
+    
+    def string2bool(self, res):
+        bool_map = {
+            "True": True,
+            "False": False,
+            "true": True,
+            "false": False,
+        }
+        res = bool_map.get(res)
+        if res is None:
+            raise ValueError(f"Invalid boolean value: {res}")
+        return res
 
     def string2list(self, res):
         """
