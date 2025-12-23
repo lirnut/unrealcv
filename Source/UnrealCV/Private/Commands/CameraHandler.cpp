@@ -1823,7 +1823,12 @@ FExecStatus FCameraHandler::GetCameraOneObjMask(const TArray<FString>& Args)
 
 void FCameraHandler::RegisterCommands()
 {
-	SL::get("C:\\Users\\hulc\\Desktop\\x.txt", false);
+	try {
+		SL::get("../../Saved/x.txt", false);
+	} catch (const std::exception& e) {
+		SL::get("x.txt", false);
+	}
+	
 
 	// CommandDispatcher->BindCommand(
 	// 	"vset /camera/[uint]/audiorecord [str]",
