@@ -68,6 +68,7 @@ void AUnrealcvWorldController::InitWorld()
 		{
 			if (!IsValid(this) || !IsValid(World))
 			{
+				UE_LOG(LogUnrealCV, Error, TEXT("WorldController is not valid"));
 				return;
 			}
 			UE_LOG(LogUnrealCV, Display, TEXT("Delayed world annotation starting..."));
