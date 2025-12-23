@@ -7,6 +7,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
+#include "Editor.h"
 
 TArray<FString> UMetaHumanBPLib::GetAllMetaHumanBlueprintPaths()
 {
