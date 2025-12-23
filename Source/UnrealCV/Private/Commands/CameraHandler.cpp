@@ -6,7 +6,7 @@
 #include "Runtime/Engine/Classes/Engine/GameViewportClient.h"
 #include "Runtime/Engine/Classes/GameFramework/Controller.h"
 #include "Misc/Paths.h"
-#include <stdexcept>
+// #include <stdexcept>
 
 // #include "AudioDevice.h"
 // #include "AudioMixerDevice.h"
@@ -1824,12 +1824,13 @@ FExecStatus FCameraHandler::GetCameraOneObjMask(const TArray<FString>& Args)
 
 void FCameraHandler::RegisterCommands()
 {
-	try {
-		SL::get("../../Saved/x.txt", false);
-	} catch (const std::runtime_error& e) {
-		UE_LOG(LogTemp, Warning, TEXT("Failed to open saved log file, falling back to default: %s"), ANSI_TO_TCHAR(e.what()));
-		SL::get("x.txt", false);
-	}
+	// try {
+	// 	SL::get("../../Saved/x.txt", false);
+	// } catch (const std::runtime_error& e) {
+	// 	UE_LOG(LogTemp, Warning, TEXT("Failed to open saved log file, falling back to default: %s"), ANSI_TO_TCHAR(e.what()));
+	// 	SL::get("x.txt", false);
+	// }
+	SL::get("x.txt", false);
 
 
 	// CommandDispatcher->BindCommand(

@@ -7,7 +7,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
-#include "Editor.h"
+#include "UnrealcvServer.h"
 
 TArray<FString> UMetaHumanBPLib::GetAllMetaHumanBlueprintPaths()
 {
@@ -142,11 +142,12 @@ TArray<AActor*> UMetaHumanBPLib::SpawnAllMetaHumansToMap(const FString& AnimBlue
 		return SpawnedActors;
 	}
 
-	UWorld* World = nullptr;
-	if (GEditor)
-	{
-		World = GEditor->GetEditorWorldContext().World();
-	}
+	// UWorld* World = nullptr;
+	// if (GEditor)
+	// {
+	// 	World = GEditor->GetEditorWorldContext().World();
+	// }
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
 
 	if (!World)
 	{
