@@ -33,7 +33,7 @@ public:
 	// void AnnotateMeshComponents(UWorld* World);
 
 	// Annotate actor
-	void SetAnnotationColor(AActor* Actor, const FColor& AnnotationColor);
+	int32 SetAnnotationColor(AActor* Actor, const FColor& AnnotationColor);
 
 	// Get annotation color for an actor
 	void GetAnnotationColor(AActor* Actor, FColor& AnnotationColor);

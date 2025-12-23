@@ -24,8 +24,14 @@ void FObjectAnnotator::AnnotateWorld(UWorld* World)
 	TArray<AActor*> ActorArray;
 	GetAnnotableActors(World, ActorArray);
 
-	for (AActor* Actor : ActorArray)
+	// Batch annotation with GPU sync to prevent crashes in complex scenes
+	// Process actors in chunks to avoid massive GPU resource allocation spike
+	const int32 BatchSize = 32;  // Number of actors to annotate before GPU sync
+	int32 ProcessedCount = 0;
+
+	for (int32 i = 0; i < ActorArray.Num(); ++i)
 	{
+		AActor* Actor = ActorArray[i];
 		FColor AnnotationColor = GetDefaultColor(Actor);
 
 		if (!IsValid(Actor))
@@ -33,18 +39,32 @@ void FObjectAnnotator::AnnotateWorld(UWorld* World)
 			UE_LOG(LogUnrealCV, Warning, TEXT("Found invalid actor in AnnotateWorld"));
 			continue;
 		}
+
 		// Use VertexColor as annotation
 		this->SetAnnotationColor(Actor, AnnotationColor);
+		++ProcessedCount;
+
+		// Insert GPU sync after every batch to prevent accumulation of GPU commands
+		if (ProcessedCount >= BatchSize && i < ActorArray.Num() - 1)
+		{
+			FlushRenderingCommands();
+			ProcessedCount = 0;
+		}
 	}
-	UE_LOG(LogUnrealCV, Log, TEXT("Annotate mesh of the scene (%d)"), AnnotationColors.Num());
+
+	// Final sync to ensure all annotations complete
+	FlushRenderingCommands();
+
+	UE_LOG(LogUnrealCV, Log, TEXT("Annotate mesh of the scene (%d actors processed, %d colors generated)"),
+		ActorArray.Num(), AnnotationColors.Num());
 }
 
 
-void FObjectAnnotator::SetAnnotationColor(AActor* Actor, const FColor& AnnotationColor)
+int32 FObjectAnnotator::SetAnnotationColor(AActor* Actor, const FColor& AnnotationColor)
 {
 	if (!IsValid(Actor))
 	{
-		return;
+		return 0;
 	}
 	// CHECK: Add the annotation color regardless successful or not
 	TArray<UActorComponent*> AnnotationComponents = Actor->K2_GetComponentsByClass(UAnnotationComponent::StaticClass());
@@ -58,6 +78,7 @@ void FObjectAnnotator::SetAnnotationColor(AActor* Actor, const FColor& Annotatio
 	}
 	this->AnnotationColors.Emplace(Actor->GetName(), AnnotationColor);
 	// TODO: Remote AnnotationColor Map!
+	return AnnotationComponents.Num();
 }
 
 void FObjectAnnotator::GetAnnotationColor(AActor* Actor, FColor& AnnotationColor)
@@ -141,14 +162,25 @@ void FObjectAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& An
 
 		for (UActorComponent* Component : MeshComponents)
 		{
+			// Skip SkeletalMeshComponent - they have special GPU behavior (skinning, animation)
+			// that can conflict with Lumen TLAS building, especially in complex scenes
+			if (Component->IsA<USkeletalMeshComponent>())
+			{
+				UE_LOG(LogUnrealCV, Verbose, TEXT("Skipping SkeletalMeshComponent annotation for %s (use Depth/Annotation cameras for skeletal meshes)"),
+					*Actor->GetName());
+				continue;
+			}
+
 			UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component);
 
 			UAnnotationComponent* AnnotationComponent = NewObject<UAnnotationComponent>(MeshComponent);
-			// UE_LOG(LogTemp, Log, TEXT("Annotate %s with color %s"), *MeshComponent->GetName(), *AnnotationColor.ToString());
 			AnnotationComponent->SetupAttachment(MeshComponent);
 			AnnotationComponent->RegisterComponent();
+
 			// Set annotation color after the component is registered
 			AnnotationComponent->SetAnnotationColor(AnnotationColor);
+
+			// Mark dirty to update GPU resources
 			AnnotationComponent->MarkRenderStateDirty();
 		}
 	}
