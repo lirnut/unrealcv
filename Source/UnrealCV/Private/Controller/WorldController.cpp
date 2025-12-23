@@ -55,13 +55,28 @@ void AUnrealcvWorldController::InitWorld()
 		UE_LOG(LogUnrealCV, Warning, TEXT("The tcp server is not running"));
 	}
 
-
-	ObjectAnnotator.AnnotateWorld(GetWorld());
-
 	FEngineShowFlags ShowFlags = GetWorld()->GetGameViewport()->EngineShowFlags;
 	this->PlayerViewMode->SaveGameDefault(ShowFlags);
 
 	this->AttachPawnSensor();
+
+	// Delay annotation to next tick to avoid GPU crashes when Lumen is initializing
+	// This prevents simultaneous GPU proxy creation for AnnotationComponent and SkeletalMesh TLAS building
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick([this, World]()
+		{
+			if (!IsValid(this) || !IsValid(World))
+			{
+				return;
+			}
+			UE_LOG(LogUnrealCV, Display, TEXT("Delayed world annotation starting..."));
+			FlushRenderingCommands();
+			this->ObjectAnnotator.AnnotateWorld(World);
+			FlushRenderingCommands();
+			UE_LOG(LogUnrealCV, Display, TEXT("Delayed world annotation completed"));
+		});
+	}
 
 	// TODO: remove legacy code
 	// Update camera FOV
