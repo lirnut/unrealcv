@@ -71,6 +71,7 @@ DebugGame 控制台中支持的完整命令列表
   - vget /captureactor/asset_pool - 查询资产池中的资产
   - vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] - 开始录像（不干涉相机移动）, id为相机id
   - vget /captureactor/[id]/is_recording - 查询是否正在录制
+  - vset /captureactor/[id]/stop_record - 停止录制指定摄像机
 
   插件命令 (/unrealcv/*)
 
