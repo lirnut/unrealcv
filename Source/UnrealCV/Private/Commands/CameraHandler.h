@@ -13,6 +13,8 @@ private:
 
 	FExecStatus GetCameraList(const TArray<FString>& Args);
 
+	FExecStatus GetCameraListNewFormat(const TArray<FString>& Args);
+
 	FExecStatus SpawnCamera(const TArray<FString>& Args);
 
 	FExecStatus GetCameraLocation(const TArray<FString>& Args);

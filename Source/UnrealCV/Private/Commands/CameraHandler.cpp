@@ -51,11 +51,11 @@ UFusionCamSensor* FCameraHandler::GetCamera(const TArray<FString>& Args, FExecSt
 		Status = FExecStatus::Error(Msg);
 		return nullptr;
 	}
-	int SensorId = FCString::Atoi(*Args[0]);
-	UFusionCamSensor* FusionSensor = USensorBPLib::GetSensorById(SensorId);
-	if (!IsValid(FusionSensor)) 
+	FString IDString = Args[0];
+	UFusionCamSensor* FusionSensor = USensorBPLib::GetSensorByAnyID(IDString);
+	if (!IsValid(FusionSensor))
 	{
-		FString Msg = TEXT("Invalid sensor id");
+		FString Msg = FString::Printf(TEXT("Invalid sensor id: %s"), *IDString);
 		UE_LOG(LogTemp, Warning, TEXT("%s"), *Msg);
 		Status = FExecStatus::Error(Msg);
 		return nullptr;
@@ -75,6 +75,19 @@ FExecStatus FCameraHandler::GetCameraList(const TArray<FString>& Args)
 		StrSensorList += FString::Printf(TEXT("%s "), *Sensor->GetName());
 	}
 	return FExecStatus::OK(StrSensorList);
+}
+
+FExecStatus FCameraHandler::GetCameraListNewFormat(const TArray<FString>& Args)
+{
+	TArray<FString> NewFormatIDs = USensorBPLib::GetFusionSensorListWithNewIDs();
+
+	FString Result;
+	for (const FString& ID : NewFormatIDs)
+	{
+		Result += ID + TEXT(" ");
+	}
+
+	return FExecStatus::OK(Result);
 }
 
 
@@ -1912,6 +1925,11 @@ void FCameraHandler::RegisterCommands()
 		"vget /cameras",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraList),
 		"List all sensors in the scene");
+
+	CommandDispatcher->BindCommand(
+		"vget /cameras/new",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraListNewFormat),
+		"List all cameras with new format IDs (ActorName_UUID)");
 
 	CommandDispatcher->BindCommand(
 		"vset /cameras/spawn",

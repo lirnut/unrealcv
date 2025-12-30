@@ -2,6 +2,10 @@ DebugGame 控制台中支持的完整命令列表
 
   UnrealCV 支持以下主要命令类别（通过 TCP 服务器或在 DebugGame 控制台中访问）：
 
+  说明: 相机 [id] 既支持旧格式（整数索引: 0, 1, 2...）也支持新格式稳定ID（CID_xxxxxxxx）
+       - 旧ID: 0, 1, 2... （基于创建顺序，Sensor销毁会导致ID变化）
+       - 新ID: CID_a1b2c3d4 （和SensorList强同步，至少不会出现Sensor销毁导致ID错位的问题）
+
   游戏控制命令 (/action/*)
 
   - vset /action/game/pause - 暂停游戏
@@ -15,7 +19,8 @@ DebugGame 控制台中支持的完整命令列表
 
   摄像机命令 (/camera/*)
 
-  - vget /cameras - 列出所有摄像机
+  - vget /cameras - 列出所有摄像机（旧格式ID）
+  - vget /cameras/new - 列出所有摄像机（新格式稳定ID，推荐长期使用）
   - vset /cameras/spawn - 生成新摄像机
   - vget /camera/[id]/location - 获取摄像机位置
   - vset /camera/[id]/location [x] [y] [z] - 设置摄像机位置
@@ -65,11 +70,10 @@ DebugGame 控制台中支持的完整命令列表
   - vget /object/[name]/uclass_name - 获取 UClass 名称
 
   记录命令 (/captureactor/*)
-
   - vset /captureactor/spawn_free_cam - 生成自由摄像机
   - vset /captureactor/time_dilation [float] - 设置录制时间膨胀 (0.1-10.0)
   - vget /captureactor/asset_pool - 查询资产池中的资产
-  - vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] - 开始录像（不干涉相机移动）, id为相机id
+  - vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] - 开始录像（不干涉相机移动）
   - vget /captureactor/[id]/is_recording - 查询是否正在录制
   - vset /captureactor/[id]/stop_record - 停止录制指定摄像机
 

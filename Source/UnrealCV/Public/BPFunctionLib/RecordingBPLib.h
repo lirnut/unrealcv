@@ -78,12 +78,26 @@ public:
 	static bool StopRecording(int32 CameraID);
 
 	/**
+	 * Stop recording for a specific camera (supports new format ID like ActorName_UUID).
+	 * @param IDString Camera ID in old format (integer) or new format (ActorName_UUID)
+	 * @return True if recording stopped successfully, false if camera wasn't recording
+	 */
+	static bool StopRecording(const FString& IDString);
+
+	/**
 	 * Check if a specific camera is currently recording.
 	 * @param CameraID The ID of the camera sensor
 	 * @return True if camera is recording, false otherwise
 	 */
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Recording")
 	static bool IsRecording(int32 CameraID);
+
+	/**
+	 * Check if a specific camera is currently recording (supports new format ID).
+	 * @param IDString Camera ID in old format (integer) or new format (ActorName_UUID)
+	 * @return True if camera is recording, false otherwise
+	 */
+	static bool IsRecording(const FString& IDString);
 
 	// /**
 	//  * Get recording progress for a specific camera.
@@ -192,6 +206,22 @@ public:
 		float DurationSeconds
 	);
 
+	/**
+	 * Start recording a simple video from a camera without camera motion (supports new format ID).
+	 *
+	 * @param IDString Camera ID in old format (integer) or new format (ActorName_UUID)
+	 * @param FileName Output file path prefix (e.g., "C:/Output/simple_record")
+	 * @param FPS Frames per second for recording
+	 * @param DurationSeconds Recording duration in seconds
+	 * @return True if recording started successfully, false otherwise
+	 */
+	static bool StartSimpleRecording(
+		const FString& IDString,
+		const FString& FileName,
+		int32 FPS,
+		float DurationSeconds
+	);
+
 	// // ========== Video Generation Configuration ==========
 
 	// /**
@@ -246,7 +276,7 @@ public:
 private:
 	// Static map to track recording actors (camera ID -> capture actor)
 	// This replaces the need to access CameraHandler's private map
-	static TMap<int32, AFusionCamCaptureActor*> GlobalCameraRecordingActors;
+	static TMap<FString, AFusionCamCaptureActor*> GlobalCameraRecordingActors;
 
 	// Static variable for time dilation control
 	static float GlobalTimeDilation;

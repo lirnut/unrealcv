@@ -85,7 +85,7 @@ FExecStatus FCaptureActorHandler::StartSimpleRecording(const TArray<FString>& Ar
 		return FExecStatus::Error("Usage: vset /captureactor/[id]/record [filename] [fps] [duration_seconds]");
 	}
 
-	uint32 CameraID = FCString::Atoi(*Args[0]);
+	FString IDString = Args[0];
 	FString FileName = Args[1];
 	int32 FPS = FCString::Atoi(*Args[2]);
 	float DurationSeconds = FCString::Atof(*Args[3]);
@@ -100,17 +100,23 @@ FExecStatus FCaptureActorHandler::StartSimpleRecording(const TArray<FString>& Ar
 		return FExecStatus::Error(FString::Printf(TEXT("Invalid duration: %.2f (must be > 0)"), DurationSeconds));
 	}
 
-	bool bSuccess = URecordingBPLib::StartSimpleRecording(CameraID, FileName, FPS, DurationSeconds);
+	UFusionCamSensor* FusionCamSensor = USensorBPLib::GetSensorByAnyID(IDString);
+	if (!IsValid(FusionCamSensor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID: %s"), *IDString));
+	}
+
+	bool bSuccess = URecordingBPLib::StartSimpleRecording(IDString, FileName, FPS, DurationSeconds);
 
 	if (bSuccess)
 	{
 		int32 TotalFrames = FMath::CeilToInt(FPS * DurationSeconds);
-		return FExecStatus::OK(FString::Printf(TEXT("Recording started: Camera %d, File: %s, FPS: %d, Frames: %d"),
-			CameraID, *FileName, FPS, TotalFrames));
+		return FExecStatus::OK(FString::Printf(TEXT("Recording started: Camera %s, File: %s, FPS: %d, Frames: %d"),
+			*IDString, *FileName, FPS, TotalFrames));
 	}
 	else
 	{
-		return FExecStatus::Error(FString::Printf(TEXT("Failed to start recording for camera %d"), CameraID));
+		return FExecStatus::Error(FString::Printf(TEXT("Failed to start recording for camera %s"), *IDString));
 	}
 }
 
@@ -121,15 +127,15 @@ FExecStatus FCaptureActorHandler::IsRecording(const TArray<FString>& Args)
 		return FExecStatus::Error("Usage: vget /captureactor/[id]/is_recording");
 	}
 
-	uint32 CameraID = FCString::Atoi(*Args[0]);
+	FString IDString = Args[0];
 
-	UFusionCamSensor* FusionCamSensor = USensorBPLib::GetSensorById(CameraID);
+	UFusionCamSensor* FusionCamSensor = USensorBPLib::GetSensorByAnyID(IDString);
 	if (!IsValid(FusionCamSensor))
 	{
-		return FExecStatus::Error(FString::Printf(TEXT("Camera %d not found"), CameraID));
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID: %s"), *IDString));
 	}
 
-	bool bIsRecording = URecordingBPLib::IsRecording(CameraID);
+	bool bIsRecording = URecordingBPLib::IsRecording(IDString);
 
 	if (bIsRecording)
 	{
@@ -148,16 +154,16 @@ FExecStatus FCaptureActorHandler::StopRecording(const TArray<FString>& Args)
 		return FExecStatus::Error("Usage: vset /captureactor/[id]/stop_record");
 	}
 
-	uint32 CameraID = FCString::Atoi(*Args[0]);
+	FString IDString = Args[0];
 
-	bool bSuccess = URecordingBPLib::StopRecording(CameraID);
+	bool bSuccess = URecordingBPLib::StopRecording(IDString);
 
 	if (bSuccess)
 	{
-		return FExecStatus::OK(FString::Printf(TEXT("Recording stopped for camera %d"), CameraID));
+		return FExecStatus::OK(FString::Printf(TEXT("Recording stopped for camera %s"), *IDString));
 	}
 	else
 	{
-		return FExecStatus::Error(FString::Printf(TEXT("Camera %d is not recording"), CameraID));
+		return FExecStatus::Error(FString::Printf(TEXT("Camera %s is not recording"), *IDString));
 	}
 }
