@@ -16,8 +16,11 @@ UENUM(BlueprintType)
 enum class ECameraTrajectoryType : uint8
 {
 	RotateLeft45 UMETA(DisplayName = "Rotate Left 45°"),
+	RotateLeft30 UMETA(DisplayName = "Rotate Left 30°"),
 	RotateRight45 UMETA(DisplayName = "Rotate Right 45°"),
+	RotateRight30 UMETA(DisplayName = "Rotate Right 30°"),
 	RotateUp45 UMETA(DisplayName = "Rotate Up 45°"),
+	RotateUp30 UMETA(DisplayName = "Rotate Up 30°"),
 	Rotate360 UMETA(DisplayName = "Rotate 360°"),
 	ZoomIn UMETA(DisplayName = "Zoom In"),
 	ZoomOut UMETA(DisplayName = "Zoom Out"),
@@ -183,9 +186,15 @@ protected:
 	void RenderTrajectory(const TArray<FCameraPose>& Trajectory, bool bPauseWorldTime);
 
 	// Individual trajectory calculation functions
-	TArray<FCameraPose> CalculateRotateLeft45(AActor* Target, float DegreesPerFrame);
-	TArray<FCameraPose> CalculateRotateRight45(AActor* Target, float DegreesPerFrame);
-	TArray<FCameraPose> CalculateRotateUp45(AActor* Target, float DegreesPerFrame);
+	TArray<FCameraPose> CalculateRotateLeft(AActor* Target, float DegreesPerFrame, float RotationDegs);
+	// TArray<FCameraPose> CalculateRotateLeft45(AActor* Target, float DegreesPerFrame);
+	// TArray<FCameraPose> CalculateRotateLeft30(AActor* Target, float DegreesPerFrame);
+	TArray<FCameraPose> CalculateRotateRight(AActor* Target, float DegreesPerFrame, float RotationDegs);
+	// TArray<FCameraPose> CalculateRotateRight45(AActor* Target, float DegreesPerFrame);
+	// TArray<FCameraPose> CalculateRotateRight30(AActor* Target, float DegreesPerFrame);
+	TArray<FCameraPose> CalculateRotateUp(AActor* Target, float DegreesPerFrame, float RotationDegs);
+	// TArray<FCameraPose> CalculateRotateUp45(AActor* Target, float DegreesPerFrame);
+	// TArray<FCameraPose> CalculateRotateUp30(AActor* Target, float DegreesPerFrame);
 	TArray<FCameraPose> CalculateRotate360(AActor* Target, float DegreesPerFrame);
 	TArray<FCameraPose> CalculateZoomIn(AActor* Target, float DegreesPerFrame);
 	TArray<FCameraPose> CalculateZoomOut(AActor* Target, float DegreesPerFrame);

@@ -28,7 +28,8 @@
 #include "Misc/FileHelper.h"
 #include "Serialization/BufferArchive.h"
 
-static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
+// static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
+static const float ROTATE_BUFFER_DURATION_SECONDS = 0.0f;
 static const int32 ROTATE_NUM_FRAMES_OVERRIDE = 121;
 static const int32 WARM_UP_FRAMES = 5;
 
@@ -940,11 +941,17 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTra
 	switch (TrajectoryType)
 	{
 	case ECameraTrajectoryType::RotateLeft45:
-		return CalculateRotateLeft45(Target, DegreesPerFrame);
+		return CalculateRotateLeft(Target, DegreesPerFrame, 45.0f);
+	case ECameraTrajectoryType::RotateLeft30:
+		return CalculateRotateLeft(Target, DegreesPerFrame, 30.0f);
 	case ECameraTrajectoryType::RotateRight45:
-		return CalculateRotateRight45(Target, DegreesPerFrame);
+		return CalculateRotateRight(Target, DegreesPerFrame, 45.0f);
+	case ECameraTrajectoryType::RotateRight30:
+		return CalculateRotateRight(Target, DegreesPerFrame, 30.0f);
 	case ECameraTrajectoryType::RotateUp45:
-		return CalculateRotateUp45(Target, DegreesPerFrame);
+		return CalculateRotateUp(Target, DegreesPerFrame, 45.0f);
+	case ECameraTrajectoryType::RotateUp30:
+		return CalculateRotateUp(Target, DegreesPerFrame, 30.0f);
 	case ECameraTrajectoryType::Rotate360:
 		return CalculateRotate360(Target, DegreesPerFrame);
 	case ECameraTrajectoryType::ZoomIn:
@@ -1043,6 +1050,11 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddRotateBuf
 	}
 
 	int32 BufferFrames = FMath::RoundToInt(ROTATE_BUFFER_DURATION_SECONDS * RecordFPS);
+	if (BufferFrames <= 0)
+	{
+		return CoreTrajectory;
+	}
+
 	TArray<FCameraPose> FullTrajectory;
 	FullTrajectory.Reserve(BufferFrames * 2 + CoreTrajectory.Num());
 
@@ -1074,7 +1086,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddRotateBuf
 	return FullTrajectory;
 }
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateLeft45(AActor* Target, float DegreesPerFrame)
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateLeft(AActor* Target, float DegreesPerFrame, float TotalRotationDeg)
 {
 	TArray<FCameraPose> CoreTrajectory;
 	FVector TargetLocation = UnifiedTargetLocation;
@@ -1084,7 +1096,6 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 	FVector Offset = OriginalLocation - TargetLocation;
 	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
 
-	float TotalRotationDeg = 45.0f;
 	NumFrames = FMath::CeilToInt(TotalRotationDeg / DegreesPerFrame) + 1;
 	if (ROTATE_NUM_FRAMES_OVERRIDE > 0)
 	{
@@ -1111,7 +1122,8 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 	return AddRotateBufferFrames(CoreTrajectory);
 }
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateRight45(AActor* Target, float DegreesPerFrame)
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateRight(AActor* Target, float DegreesPerFrame, float TotalRotationDeg)
 {
 	TArray<FCameraPose> CoreTrajectory;
 	FVector TargetLocation = UnifiedTargetLocation;
@@ -1121,7 +1133,6 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 	FVector Offset = OriginalLocation - TargetLocation;
 	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
 
-	float TotalRotationDeg = -45.0f;
 	NumFrames = FMath::CeilToInt(FMath::Abs(TotalRotationDeg) / DegreesPerFrame) + 1;
 	if (ROTATE_NUM_FRAMES_OVERRIDE > 0)
 	{
@@ -1148,7 +1159,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 	return AddRotateBufferFrames(CoreTrajectory);
 }
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateUp45(AActor* Target, float DegreesPerFrame)
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateUp(AActor* Target, float DegreesPerFrame, float TotalRotationDeg)
 {
 	TArray<FCameraPose> CoreTrajectory;
 	FVector TargetLocation = UnifiedTargetLocation;
@@ -1161,7 +1172,6 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 	FVector ToCamera = Offset.GetSafeNormal();
 	FVector RightVector = FVector::CrossProduct(ToCamera, FVector::UpVector).GetSafeNormal();
 
-	float TotalRotationDeg = 45.0f;
 	NumFrames = FMath::CeilToInt(TotalRotationDeg / DegreesPerFrame) + 1;
 	if (ROTATE_NUM_FRAMES_OVERRIDE > 0)
 	{

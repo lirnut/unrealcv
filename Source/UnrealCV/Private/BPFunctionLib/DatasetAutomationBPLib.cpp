@@ -28,18 +28,19 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 
 	CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 4.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_45")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_45")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_45")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_30")));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_30")));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_360")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 
@@ -60,7 +61,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 
 	CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
 
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
 
 	CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
 
