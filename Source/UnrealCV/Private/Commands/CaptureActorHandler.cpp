@@ -29,6 +29,10 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::IsRecording);
 	Help = "Check if a camera is currently recording: vget /captureactor/[id]/is_recording";
 	CommandDispatcher->BindCommand("vget /captureactor/[uint]/is_recording", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::StopRecording);
+	Help = "Stop recording for a camera: vset /captureactor/[id]/stop_record";
+	CommandDispatcher->BindCommand("vset /captureactor/[uint]/stop_record", Cmd, Help);
 }
 
 FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
@@ -134,5 +138,26 @@ FExecStatus FCaptureActorHandler::IsRecording(const TArray<FString>& Args)
 	else
 	{
 		return FExecStatus::OK("false");
+	}
+}
+
+FExecStatus FCaptureActorHandler::StopRecording(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/[id]/stop_record");
+	}
+
+	uint32 CameraID = FCString::Atoi(*Args[0]);
+
+	bool bSuccess = URecordingBPLib::StopRecording(CameraID);
+
+	if (bSuccess)
+	{
+		return FExecStatus::OK(FString::Printf(TEXT("Recording stopped for camera %d"), CameraID));
+	}
+	else
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Camera %d is not recording"), CameraID));
 	}
 }

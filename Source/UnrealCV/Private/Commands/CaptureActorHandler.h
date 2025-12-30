@@ -17,4 +17,6 @@ private:
 	FExecStatus StartSimpleRecording(const TArray<FString>& Args);
 
 	FExecStatus IsRecording(const TArray<FString>& Args);
+
+	FExecStatus StopRecording(const TArray<FString>& Args);
 };
