@@ -251,4 +251,32 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	bool GetUseFastCapture() const;
+
+	// Getters for camera parameters set in PrepareTargetCamera()
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	EReflectionMethod::Type GetReflectionMethod() const;
+
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	EDynamicGlobalIlluminationMethod::Type GetGlobalIlluminationMethod() const;
+
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	EAutoExposureMethod GetExposureMethod() const;
+
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetAutoExposureSpeed(float& OutExposureSpeedDown, float& OutExposureSpeedUp) const;
+
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetMotionBlurParams(float& OutMotionBlurAmount, float& OutMotionBlurMax, float& OutMotionBlurPerObjectSize, int& OutMotionBlurTargetFPS) const;
+
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetFocalParams(float& OutFocalDistance, float& OutFocalRegion) const;
+
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	float GetChromaticAberration() const;
+
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	float GetVignetteIntensity() const;
+
+	// UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetBloomParams(EBloomMethod& OutBloomMethod, float& OutBloomIntensity) const;
 };

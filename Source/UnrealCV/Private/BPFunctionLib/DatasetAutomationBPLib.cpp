@@ -3,6 +3,7 @@
 #include "SceneCompositionBPLib.h"
 #include "RecordingBPLib.h"
 #include "SensorBPLib.h"
+#include "AnnotationBPLib.h"
 #include "FusionCameraActor.h"
 #include "NavAgentController.h"
 #include "UnrealcvLog.h"
@@ -28,7 +29,11 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 
 	CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 4.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 15.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only_5s")));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
@@ -248,6 +253,12 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			ExecuteNextCommand();
 		}
 	}
+	else if (Step.Command == TEXT("annotate_world"))
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Annotating world: %s"), *CurrentSceneID);
+		UAnnotationBPLib::AnnotateWorld();
+		ExecuteNextCommand();
+	}
 	else
 	{
 		CurrentStatus.ErrorMessage = FString::Printf(TEXT("Unknown command: %s"), *Step.Command);
@@ -433,6 +444,8 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 	{
 		bool RecordingComplete = !URecordingBPLib::IsRecording(CurrentConfig.CameraID);
 		bool DelayComplete = (DelayTimer >= DelayDuration);
+
+		UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Waiting (%.2fs), DelayDuration: %.2fs, RecordingComplete: %d"), DelayTimer, DelayDuration, RecordingComplete);
 
 		if (RecordingComplete && DelayComplete)
 		{

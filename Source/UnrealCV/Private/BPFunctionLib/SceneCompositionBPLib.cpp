@@ -24,6 +24,7 @@
 #include "ObjectAnnotator.h"
 #include "NavAgentController.h"
 #include "MetaHumanBPLib.h"
+#include "AnnotationBPLib.h"
 #include "DrawDebugHelpers.h"
 #include "UnrealcvGameMode.h"
 #include "EngineUtils.h"
@@ -553,6 +554,7 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 
 	ActiveScenes.Add(OutSceneHandle);
 
+	UAnnotationBPLib::AnnotateWorld();
 	return true;
 }
 
@@ -690,69 +692,69 @@ void USceneCompositionBPLib::ClearAllScenes(UObject* WorldContextObject)
 
 // ========== Actor Spawning ==========
 
-AActor* USceneCompositionBPLib::LoadAndSpawnActor(UWorld* World, const FString& AssetPath, const FVector& Location, const FRotator& Rotation)
-{
-	if (!IsValid(World))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("LoadAndSpawnActor: Invalid World"));
-		return nullptr;
-	}
+// AActor* USceneCompositionBPLib::LoadAndSpawnActor(UWorld* World, const FString& AssetPath, const FVector& Location, const FRotator& Rotation)
+// {
+// 	if (!IsValid(World))
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("LoadAndSpawnActor: Invalid World"));
+// 		return nullptr;
+// 	}
 
-	UObject* LoadedAsset = LoadObject<UObject>(nullptr, *AssetPath);
-	if (!LoadedAsset)
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("LoadAndSpawnActor: Asset not found '%s'"), *AssetPath);
-		return nullptr;
-	}
+// 	UObject* LoadedAsset = LoadObject<UObject>(nullptr, *AssetPath);
+// 	if (!LoadedAsset)
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("LoadAndSpawnActor: Asset not found '%s'"), *AssetPath);
+// 		return nullptr;
+// 	}
 
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	AActor* SpawnedActor = nullptr;
+// 	FActorSpawnParameters SpawnParams;
+// 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+// 	AActor* SpawnedActor = nullptr;
 
-	if (UBlueprint* Blueprint = Cast<UBlueprint>(LoadedAsset))
-	{
-		if (Blueprint->GeneratedClass && Blueprint->GeneratedClass->IsChildOf(AActor::StaticClass()))
-		{
-			SpawnedActor = World->SpawnActor<AActor>(Blueprint->GeneratedClass, Location, Rotation, SpawnParams);
-		}
-	}
-	else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(LoadedAsset))
-	{
-		AStaticMeshActor* MeshActor = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location, Rotation, SpawnParams);
-		if (MeshActor)
-		{
-			UStaticMeshComponent* MeshComponent = MeshActor->GetStaticMeshComponent();
-			if (MeshComponent)
-			{
-				MeshComponent->SetMobility(EComponentMobility::Movable);
-				MeshComponent->SetStaticMesh(StaticMesh);
-			}
-			SpawnedActor = MeshActor;
-		}
-	}
-	else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(LoadedAsset))
-	{
-		AActor* SkeletalActor = World->SpawnActor<AActor>(AActor::StaticClass(), Location, Rotation, SpawnParams);
-		if (SkeletalActor)
-		{
-			USkeletalMeshComponent* SkeletalComponent = NewObject<USkeletalMeshComponent>(SkeletalActor);
-			if (SkeletalComponent)
-			{
-				SkeletalComponent->SetMobility(EComponentMobility::Movable);
-				SkeletalComponent->SetSkeletalMesh(SkeletalMesh);
-				SkeletalComponent->RegisterComponent();
-				SkeletalComponent->AttachToComponent(SkeletalActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-			}
-			SpawnedActor = SkeletalActor;
-		}
-	}
-	else if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(LoadedAsset))
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("LoadAndSpawnActor: AnimSequence not supported, need SkeletalMesh or Blueprint"));
-	}
+// 	if (UBlueprint* Blueprint = Cast<UBlueprint>(LoadedAsset))
+// 	{
+// 		if (Blueprint->GeneratedClass && Blueprint->GeneratedClass->IsChildOf(AActor::StaticClass()))
+// 		{
+// 			SpawnedActor = World->SpawnActor<AActor>(Blueprint->GeneratedClass, Location, Rotation, SpawnParams);
+// 		}
+// 	}
+// 	else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(LoadedAsset))
+// 	{
+// 		AStaticMeshActor* MeshActor = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location, Rotation, SpawnParams);
+// 		if (MeshActor)
+// 		{
+// 			UStaticMeshComponent* MeshComponent = MeshActor->GetStaticMeshComponent();
+// 			if (MeshComponent)
+// 			{
+// 				MeshComponent->SetMobility(EComponentMobility::Movable);
+// 				MeshComponent->SetStaticMesh(StaticMesh);
+// 			}
+// 			SpawnedActor = MeshActor;
+// 		}
+// 	}
+// 	else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(LoadedAsset))
+// 	{
+// 		AActor* SkeletalActor = World->SpawnActor<AActor>(AActor::StaticClass(), Location, Rotation, SpawnParams);
+// 		if (SkeletalActor)
+// 		{
+// 			USkeletalMeshComponent* SkeletalComponent = NewObject<USkeletalMeshComponent>(SkeletalActor);
+// 			if (SkeletalComponent)
+// 			{
+// 				SkeletalComponent->SetMobility(EComponentMobility::Movable);
+// 				SkeletalComponent->SetSkeletalMesh(SkeletalMesh);
+// 				SkeletalComponent->RegisterComponent();
+// 				SkeletalComponent->AttachToComponent(SkeletalActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+// 			}
+// 			SpawnedActor = SkeletalActor;
+// 		}
+// 	}
+// 	else if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(LoadedAsset))
+// 	{
+// 		UE_LOG(LogUnrealCV, Warning, TEXT("LoadAndSpawnActor: AnimSequence not supported, need SkeletalMesh or Blueprint"));
+// 	}
 
-	return SpawnedActor;
-}
+// 	return SpawnedActor;
+// }
 
 AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap<FString, FString>& Metadata, const FVector& Location, const FRotator& Rotation)
 {
@@ -859,23 +861,16 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 		UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Unknown asset type '%s'"), *AssetType);
 		return nullptr;
 	}
+	if (!IsValid(SpawnedActor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Failed to spawn actor '%s'"), *AssetPath);
+		return nullptr;
+	}
 
-	if (IsValid(SpawnedActor))
 	{
 		AUnrealcvWorldController* WorldController = FUnrealcvServer::Get().WorldController.Get();
 		if (IsValid(WorldController))
 		{
-			int32 ColorIndex = WorldController->ObjectAnnotator.GetAnnotationColors().Num();
-			FColor AnnotationColor = FColor::MakeRandomColor();
-
-			if (ColorIndex < 32768)
-			{
-				FColorGenerator ColorGen;
-				AnnotationColor = ColorGen.GetColorFromColorMap(ColorIndex);
-			}
-
-			WorldController->ObjectAnnotator.SetAnnotationColor(SpawnedActor, AnnotationColor);
-
 			SettleActorToGround(SpawnedActor, World, Location.Z + 200.0f);
 			EnableCollisionOnly(SpawnedActor);
 		}
@@ -886,7 +881,6 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 	}
 
 	FVector FinalLocation = Location;
-	if (IsValid(SpawnedActor))
 	{
 		float ActorRadius = GetBoundsRadiusFromMetadata(Metadata) + 50.0f;
 		TArray<AActor*> IgnoreList;
@@ -911,6 +905,12 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 	UE_LOG(LogUnrealCV, Warning, TEXT("SpawnActorFromMetadata: Spawned actor '%s' at location %.2f, %.2f, %.2f"),
 		*SpawnedActor->GetName(), FinalLocation.X, FinalLocation.Y, FinalLocation.Z);
 
+
+	
+	SpawnedActor->RegisterAllComponents();
+	World->GetTimerManager().SetTimerForNextTick([SpawnedActor]() {
+		UAnnotationBPLib::AnnotateActor(SpawnedActor);
+	});
 	return SpawnedActor;
 }
 

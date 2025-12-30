@@ -32,17 +32,20 @@ void FObjectAnnotator::AnnotateWorld(UWorld* World)
 	for (int32 i = 0; i < ActorArray.Num(); ++i)
 	{
 		AActor* Actor = ActorArray[i];
-		FColor AnnotationColor = GetDefaultColor(Actor);
-
 		if (!IsValid(Actor))
 		{
 			UE_LOG(LogUnrealCV, Warning, TEXT("Found invalid actor in AnnotateWorld"));
 			continue;
 		}
 
-		// Use VertexColor as annotation
-		this->SetAnnotationColor(Actor, AnnotationColor);
-		++ProcessedCount;
+		TArray<UActorComponent*> AnnotationComponents = Actor->K2_GetComponentsByClass(UAnnotationComponent::StaticClass());
+		if (AnnotationComponents.Num() == 0)
+		{
+			FColor AnnotationColor = GetDefaultColor(Actor);
+			// Use VertexColor as annotation
+			this->SetAnnotationColor(Actor, AnnotationColor);
+			++ProcessedCount;
+		}
 
 		// Insert GPU sync after every batch to prevent accumulation of GPU commands
 		if (ProcessedCount >= BatchSize && i < ActorArray.Num() - 1)
@@ -162,14 +165,14 @@ void FObjectAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& An
 
 		for (UActorComponent* Component : MeshComponents)
 		{
-			// Skip SkeletalMeshComponent - they have special GPU behavior (skinning, animation)
-			// that can conflict with Lumen TLAS building, especially in complex scenes
-			if (Component->IsA<USkeletalMeshComponent>())
-			{
-				UE_LOG(LogUnrealCV, Verbose, TEXT("Skipping SkeletalMeshComponent annotation for %s (use Depth/Annotation cameras for skeletal meshes)"),
-					*Actor->GetName());
-				continue;
-			}
+			// // Skip SkeletalMeshComponent - they have special GPU behavior (skinning, animation)
+			// // that can conflict with Lumen TLAS building, especially in complex scenes
+			// if (Component->IsA<USkeletalMeshComponent>())
+			// {
+			// 	UE_LOG(LogUnrealCV, Verbose, TEXT("Skipping SkeletalMeshComponent annotation for %s (use Depth/Annotation cameras for skeletal meshes)"),
+			// 		*Actor->GetName());
+			// 	continue;
+			// }
 
 			UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component);
 

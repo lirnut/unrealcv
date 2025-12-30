@@ -242,6 +242,7 @@ bool URecordingBPLib::ParseTrajectoryType(const FString& TrajectoryTypeStr, ECam
 		{TEXT("random_4"),       ECameraTrajectoryType::RandomDirection4},
 
 		{TEXT("render_only"),       ECameraTrajectoryType::RenderOnly},
+		{TEXT("render_only_5s"),       ECameraTrajectoryType::RenderOnly5S},
 	};
 
 	const ECameraTrajectoryType* Found = TrajectoryMap.Find(Normalized);

@@ -14,7 +14,7 @@
 
 TMap<UWorld*, TArray<TWeakObjectPtr<UPrimitiveComponent>>> UAnnotationCamSensor::CachedAnnotationComponents;
 TMap<UWorld*, int32> UAnnotationCamSensor::CachedWorldFrameNumbers;
-bool UAnnotationCamSensor::bCacheEnabled = true;
+bool UAnnotationCamSensor::bCacheEnabled = false;
 
 UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)

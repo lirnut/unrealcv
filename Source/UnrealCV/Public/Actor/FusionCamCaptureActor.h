@@ -28,7 +28,8 @@ enum class ECameraTrajectoryType : uint8
 	RandomDirection2 UMETA(DisplayName = "Random Direction 2"),
 	RandomDirection3 UMETA(DisplayName = "Random Direction 3"),
 	RandomDirection4 UMETA(DisplayName = "Random Direction 4"),
-	RenderOnly UMETA(DisplayName = "Render Only (No Camera Movement)")
+	RenderOnly UMETA(DisplayName = "Render Only (No Camera Movement)"),
+	RenderOnly5S UMETA(DisplayName = "Render Only 5S (No Camera Movement)")
 };
 
 /**
@@ -199,7 +200,7 @@ protected:
 	TArray<FCameraPose> CalculateZoomIn(AActor* Target, float DegreesPerFrame);
 	TArray<FCameraPose> CalculateZoomOut(AActor* Target, float DegreesPerFrame);
 	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, float DegreesPerFrame, int32 RandomSeed);
-	TArray<FCameraPose> CalculateRenderOnly();
+	TArray<FCameraPose> CalculateRenderOnly(float Time);
 	TArray<FCameraPose> AddRotateBufferFrames(const TArray<FCameraPose>& CoreTrajectory);
 
 	FVector GetTargetLocationWithRandomHeight(AActor* Target) const;

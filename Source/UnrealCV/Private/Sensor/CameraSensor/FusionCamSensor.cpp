@@ -595,6 +595,57 @@ bool UFusionCamSensor::GetUseFastCapture() const
 
 void UFusionCamSensor::SaveLitToFile(const FString& Filename) { LitCamSensor->CaptureLitToFile(Filename); }
 void UFusionCamSensor::SaveDepthToFile(const FString& Filename) { DepthCamSensor->CaptureDepthToFile(Filename); }
-void UFusionCamSensor::SaveNormalToFile(const FString& Filename) { NormalCamSensor->CaptureNormalToFile(Filename); }		
+void UFusionCamSensor::SaveNormalToFile(const FString& Filename) { NormalCamSensor->CaptureNormalToFile(Filename); }
 void UFusionCamSensor::SaveFlowToFile(const FString& Filename) { FlowCamSensor->CaptureFlowToFile(Filename); }
 void UFusionCamSensor::SaveSegToFile(const FString& Filename) { AnnotationCamSensor->CaptureSegToFile(Filename); }
+
+EReflectionMethod::Type UFusionCamSensor::GetReflectionMethod() const
+{
+	return LitCamSensor->PostProcessSettings.ReflectionMethod;
+}
+
+EDynamicGlobalIlluminationMethod::Type UFusionCamSensor::GetGlobalIlluminationMethod() const
+{
+	return LitCamSensor->PostProcessSettings.DynamicGlobalIlluminationMethod;
+}
+
+EAutoExposureMethod UFusionCamSensor::GetExposureMethod() const
+{
+	return LitCamSensor->PostProcessSettings.AutoExposureMethod;
+}
+
+void UFusionCamSensor::GetAutoExposureSpeed(float& OutExposureSpeedDown, float& OutExposureSpeedUp) const
+{
+	OutExposureSpeedDown = LitCamSensor->PostProcessSettings.AutoExposureSpeedDown;
+	OutExposureSpeedUp = LitCamSensor->PostProcessSettings.AutoExposureSpeedUp;
+}
+
+void UFusionCamSensor::GetMotionBlurParams(float& OutMotionBlurAmount, float& OutMotionBlurMax, float& OutMotionBlurPerObjectSize, int& OutMotionBlurTargetFPS) const
+{
+	OutMotionBlurAmount = LitCamSensor->PostProcessSettings.MotionBlurAmount;
+	OutMotionBlurMax = LitCamSensor->PostProcessSettings.MotionBlurMax;
+	OutMotionBlurPerObjectSize = LitCamSensor->PostProcessSettings.MotionBlurPerObjectSize;
+	OutMotionBlurTargetFPS = LitCamSensor->PostProcessSettings.MotionBlurTargetFPS;
+}
+
+void UFusionCamSensor::GetFocalParams(float& OutFocalDistance, float& OutFocalRegion) const
+{
+	OutFocalDistance = LitCamSensor->PostProcessSettings.DepthOfFieldFocalDistance;
+	OutFocalRegion = LitCamSensor->PostProcessSettings.DepthOfFieldFocalRegion;
+}
+
+float UFusionCamSensor::GetChromaticAberration() const
+{
+	return LitCamSensor->PostProcessSettings.SceneFringeIntensity;
+}
+
+float UFusionCamSensor::GetVignetteIntensity() const
+{
+	return LitCamSensor->PostProcessSettings.VignetteIntensity;
+}
+
+void UFusionCamSensor::GetBloomParams(EBloomMethod& OutBloomMethod, float& OutBloomIntensity) const
+{
+	OutBloomMethod = LitCamSensor->PostProcessSettings.BloomMethod;
+	OutBloomIntensity = LitCamSensor->PostProcessSettings.BloomIntensity;
+}

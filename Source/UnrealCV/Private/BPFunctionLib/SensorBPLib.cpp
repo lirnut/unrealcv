@@ -36,7 +36,7 @@ TArray<UFusionCamSensor*> FCameraIDManager::Sync()
 	{
 		if (!SensorToCameraIDMap.Contains(Sensor))
 		{
-			SensorToCameraIDMap_.Add(Sensor, GetNewFormatID(Sensor));
+			SensorToCameraIDMap_.Add(Sensor, GenerateUUID());
 		}
 		else
 		{
@@ -64,7 +64,7 @@ UFusionCamSensor* FCameraIDManager::GetSensorByAnyID(const FString& IDString)
 		{
 			if (!SensorToCameraIDMap.Contains(Sensor))
 			{
-				SensorToCameraIDMap_.Add(Sensor, GetNewFormatID(Sensor));
+				SensorToCameraIDMap_.Add(Sensor, GenerateUUID());
 			}
 			else
 			{
@@ -117,7 +117,7 @@ int32 FCameraIDManager::GetIndexByAnyID(const FString& IDString) {
 			UFusionCamSensor* Sensor = SensorList[Index];
 			if (!SensorToCameraIDMap.Contains(Sensor))
 			{
-				SensorToCameraIDMap_.Add(Sensor, GetNewFormatID(Sensor));
+				SensorToCameraIDMap_.Add(Sensor, GenerateUUID());
 			}
 			else
 			{

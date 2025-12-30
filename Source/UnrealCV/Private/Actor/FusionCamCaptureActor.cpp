@@ -40,7 +40,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	bIsRecording = false;
 	bAddTimestamp = true;
 	bRecordRGB = true;
-	bRecordMask = false;
+	bRecordMask = true;
 	bRecordDepth = false;
 	bRecordNormal = false;
 	bRecordFlow = false;
@@ -136,11 +136,11 @@ void AFusionCamCaptureActor::StopRecord()
 			GetWorld()->GetFirstPlayerController()->SetPause(false);
 		}
 
-		// if (TimeDilationBackUp > 0.0f)
-		// {
-		// 	GetWorld()->GetWorldSettings()->SetTimeDilation(TimeDilationBackUp);
-		// }
-		GetWorld()->GetWorldSettings()->SetTimeDilation(1.0f);
+		if (TimeDilationBackUp > 0.0f)
+		{
+			GetWorld()->GetWorldSettings()->SetTimeDilation(TimeDilationBackUp);
+		}
+		// GetWorld()->GetWorldSettings()->SetTimeDilation(1.0f);
 
 		if (IsValid(TargetSensor))
 		{
@@ -243,6 +243,14 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		{
 			WorldSettings->SetTimeDilation(0.2f * EffectiveTimeDilation + 0.8f * WorldSettings->TimeDilation);
 		}
+	}
+
+
+	if (CurrentTrajectoryIndex >= CurrentTrajectory.Num())
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Stop recording normally. CurrentTrajectoryIndex = %d, NumFrames = %d"), CurrentTrajectoryIndex, NumFrames);
+		StopRecord();
+		return;
 	}
 }
 
@@ -551,21 +559,80 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	int32 Height = TargetSensor->GetFilmHeight();
 
 	float FOVRadians = FMath::DegreesToRadians(FOV);
-	float FocalLengthX = Width / (2.0f * FMath::Tan(FOVRadians / 2.0f));
-	float FocalLengthY = FocalLengthX;
-	float PrincipalPointX = Width / 2.0f;
-	float PrincipalPointY = Height / 2.0f;
-
 	FMatrix RotationMatrix = FRotationMatrix::Make(Rotation);
 
+	float ExposureSpeedDown = 0.0f, ExposureSpeedUp = 0.0f;
+	TargetSensor->GetAutoExposureSpeed(ExposureSpeedDown, ExposureSpeedUp);
+
+	float MotionBlurAmount = 0.0f, MotionBlurMax = 0.0f, MotionBlurPerObjectSize = 0.0f;
+	int MotionBlurTargetFPS = 0;
+	TargetSensor->GetMotionBlurParams(MotionBlurAmount, MotionBlurMax, MotionBlurPerObjectSize, MotionBlurTargetFPS);
+
+	float FocalDistance = 0.0f, FocalRegion = 0.0f;
+	TargetSensor->GetFocalParams(FocalDistance, FocalRegion);
+
+	float ChromaticAberration = TargetSensor->GetChromaticAberration();
+	float Vignette = TargetSensor->GetVignetteIntensity();
+
+	EBloomMethod BloomMethod = EBloomMethod::BM_FFT;
+	float BloomIntensity = 0.0f;
+	TargetSensor->GetBloomParams(BloomMethod, BloomIntensity);
+
+	auto ReflectionMethodToString = [](EReflectionMethod::Type Method) -> FString {
+		switch (Method) {
+			case EReflectionMethod::None: return TEXT("None");
+			case EReflectionMethod::Lumen: return TEXT("Lumen");
+			case EReflectionMethod::ScreenSpace: return TEXT("ScreenSpace");
+			default: return TEXT("Unknown");
+		}
+	};
+
+	auto GIMethodToString = [](EDynamicGlobalIlluminationMethod::Type Method) -> FString {
+		switch (Method) {
+			case EDynamicGlobalIlluminationMethod::None: return TEXT("None");
+			case EDynamicGlobalIlluminationMethod::Lumen: return TEXT("Lumen");
+			case EDynamicGlobalIlluminationMethod::ScreenSpace: return TEXT("ScreenSpace");
+			default: return TEXT("Unknown");
+		}
+	};
+
+	auto ExposureMethodToString = [](EAutoExposureMethod Method) -> FString {
+		switch (Method) {
+			case EAutoExposureMethod::AEM_Manual: return TEXT("Manual");
+			case EAutoExposureMethod::AEM_Histogram: return TEXT("Histogram");
+			default: return TEXT("Unknown");
+		}
+	};
+
+	auto BloomMethodToString = [](EBloomMethod Method) -> FString {
+		switch (Method) {
+			case EBloomMethod::BM_FFT: return TEXT("FFT");
+			case EBloomMethod::BM_SOG: return TEXT("SOG");
+			default: return TEXT("Unknown");
+		}
+	};
+
+	TMap<FString, FString> IntrinsicsStringMap;
+	IntrinsicsStringMap.Add("ReflectionMethod", ReflectionMethodToString(TargetSensor->GetReflectionMethod()));
+	IntrinsicsStringMap.Add("GlobalIlluminationMethod", GIMethodToString(TargetSensor->GetGlobalIlluminationMethod()));
+	IntrinsicsStringMap.Add("ExposureMethod", ExposureMethodToString(TargetSensor->GetExposureMethod()));
+	IntrinsicsStringMap.Add("BloomMethod", BloomMethodToString(BloomMethod));
+
 	TMap<FString, float> IntrinsicsMap;
-	IntrinsicsMap.Add("fx", FocalLengthX);
-	IntrinsicsMap.Add("fy", FocalLengthY);
-	IntrinsicsMap.Add("cx", PrincipalPointX);
-	IntrinsicsMap.Add("cy", PrincipalPointY);
-	IntrinsicsMap.Add("fov", FOV);
-	IntrinsicsMap.Add("width", static_cast<float>(Width));
-	IntrinsicsMap.Add("height", static_cast<float>(Height));
+	IntrinsicsMap.Add("FieldOfView", FOV);
+	IntrinsicsMap.Add("ImageWidth", static_cast<float>(Width));
+	IntrinsicsMap.Add("ImageHeight", static_cast<float>(Height));
+	IntrinsicsMap.Add("AutoExposureSpeedDown", ExposureSpeedDown);
+	IntrinsicsMap.Add("AutoExposureSpeedUp", ExposureSpeedUp);
+	IntrinsicsMap.Add("MotionBlurAmount", MotionBlurAmount);
+	IntrinsicsMap.Add("MotionBlurMax", MotionBlurMax);
+	IntrinsicsMap.Add("MotionBlurPerObjectSize", MotionBlurPerObjectSize);
+	IntrinsicsMap.Add("MotionBlurTargetFPS", static_cast<float>(MotionBlurTargetFPS));
+	IntrinsicsMap.Add("DepthOfFieldFocalDistance", FocalDistance);
+	IntrinsicsMap.Add("DepthOfFieldFocalRegion", FocalRegion);
+	IntrinsicsMap.Add("ChromaticAberrationIntensity", ChromaticAberration);
+	IntrinsicsMap.Add("VignetteIntensity", Vignette);
+	IntrinsicsMap.Add("BloomIntensity", BloomIntensity);
 
 	TArray<float> RotationArray;
 	for (int i = 0; i < 3; i++)
@@ -628,16 +695,20 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		"Width",
 		"Height",
 		"FrameCount",
+		"RecordedFPS",
+		"FOV",
 		"SceneCategory",
 		"ForegroundCategory",
 		"ForegroundSubcategory",
 		"ForegroundObjectMetadata",
+		"ForegroundLocation",
+		"ForegroundRotation",
 		"OccluderMetaDataList",
 		"OcclusionRatio",
-		"Location",
-		"Rotation",
-		"FOV",
+		"CameraLocation",
+		"CameraRotation",
 		"Intrinsics",
+		"IntrinsicsString",
 		"Extrinsics",
 		"ForegroundColor",
 		"AnnotationColors",
@@ -662,6 +733,14 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	FString RealWorldTimeStartStr = RealWorldTimeRecordingStart.ToString(TEXT("%Y-%m-%d %H:%M:%S"));
 	FString RealWorldTimeEndStr = RealWorldTimeRecordingEnd.ToString(TEXT("%Y-%m-%d %H:%M:%S"));
 
+	FVector ForegroundLocation = FVector::Zero();
+	FRotator ForegroundRotation = FRotator::ZeroRotator;
+	if (IsValid(SceneHandle.ForegroundActor))
+	{
+		ForegroundLocation = SceneHandle.ForegroundActor->GetActorLocation();
+		ForegroundRotation = SceneHandle.ForegroundActor->GetActorRotation();
+	}
+
 	TArray<FJsonObjectBP> Values = {
 		FJsonObjectBP(NumFrames),
 		FJsonObjectBP(RecordFileName),
@@ -669,16 +748,20 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		FJsonObjectBP(Width),
 		FJsonObjectBP(Height),
 		FJsonObjectBP(ElapsedSteps),
+		FJsonObjectBP(RecordFPS),
+		FJsonObjectBP(FOV),
 		FJsonObjectBP(SceneHandle.SceneCategory),
 		FJsonObjectBP(SceneHandle.ForegroundCategory),
 		FJsonObjectBP(SceneHandle.ForegroundSubcategory),
 		FJsonObjectBP(SceneHandle.ForegroundObjectMetadata),
+		FJsonObjectBP(ForegroundLocation),
+		FJsonObjectBP(ForegroundRotation),
 		FJsonObjectBP(OccluderArray),
 		FJsonObjectBP(SceneHandle.OcclusionRatio),
 		FJsonObjectBP(Location),
 		FJsonObjectBP(Rotation),
-		FJsonObjectBP(FOV),
 		FJsonObjectBP(IntrinsicsMap),
+		FJsonObjectBP(IntrinsicsStringMap),
 		FJsonObjectBP(ExtrinsicsKeys, ExtrinsicsValues),
 		FJsonObjectBP(ForegroundColor),
 		FJsonObjectBP(ColorMap),
@@ -945,9 +1028,9 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTra
 	case ECameraTrajectoryType::RotateLeft30:
 		return CalculateRotateLeft(Target, DegreesPerFrame, 30.0f);
 	case ECameraTrajectoryType::RotateRight45:
-		return CalculateRotateRight(Target, DegreesPerFrame, 45.0f);
+		return CalculateRotateRight(Target, DegreesPerFrame, -45.0f);
 	case ECameraTrajectoryType::RotateRight30:
-		return CalculateRotateRight(Target, DegreesPerFrame, 30.0f);
+		return CalculateRotateRight(Target, DegreesPerFrame, -30.0f);
 	case ECameraTrajectoryType::RotateUp45:
 		return CalculateRotateUp(Target, DegreesPerFrame, 45.0f);
 	case ECameraTrajectoryType::RotateUp30:
@@ -964,7 +1047,9 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTra
 	case ECameraTrajectoryType::RandomDirection4:
 		return CalculateRandomDirection(Target, DegreesPerFrame, RandomSeed);
 	case ECameraTrajectoryType::RenderOnly:
-		return CalculateRenderOnly();
+		return CalculateRenderOnly(10.0);
+	case ECameraTrajectoryType::RenderOnly5S:
+		return CalculateRenderOnly(5.0);
 	default:
 		UE_LOG(LogUnrealCV, Error, TEXT("Unknown trajectory type"));
 		return TArray<FCameraPose>();
@@ -1367,10 +1452,10 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 	return AddRotateBufferFrames(Trajectory);
 }
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRenderOnly()
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRenderOnly(float Time)
 {
 	TArray<FCameraPose> Trajectory;
-	NumFrames = RecordFPS * 10;
+	NumFrames = RecordFPS * Time;
 
 	for (int i = 0; i < NumFrames; i++)
 	{
