@@ -1927,9 +1927,9 @@ void FCameraHandler::RegisterCommands()
 		"List all sensors in the scene");
 
 	CommandDispatcher->BindCommand(
-		"vget /cameras/new",
+		"vget /cameras_CID",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraListNewFormat),
-		"List all cameras with new format IDs (ActorName_UUID)");
+		"List all cameras with new format IDs (UUID)");
 
 	CommandDispatcher->BindCommand(
 		"vset /cameras/spawn",

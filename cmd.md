@@ -20,7 +20,7 @@ DebugGame 控制台中支持的完整命令列表
   摄像机命令 (/camera/*)
 
   - vget /cameras - 列出所有摄像机（旧格式ID）
-  - vget /cameras/new - 列出所有摄像机（新格式稳定ID，推荐长期使用）
+  - vget /cameras_CID - 列出所有摄像机（新格式稳定ID，推荐长期使用）
   - vset /cameras/spawn - 生成新摄像机
   - vget /camera/[id]/location - 获取摄像机位置
   - vset /camera/[id]/location [x] [y] [z] - 设置摄像机位置
