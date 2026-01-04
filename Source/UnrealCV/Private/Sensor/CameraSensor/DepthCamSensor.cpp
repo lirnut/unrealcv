@@ -39,6 +39,14 @@ void UDepthCamSensor::CaptureDepth(TArray<float>& DepthData, int& Width, int& He
 
 	TArray<FFloat16Color> FloatColorDepthData;
 	this->Capture(FloatColorDepthData, Width, Height);
+	if (FloatColorDepthData.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("FloatColorDepthData is empty, CaptureDepth failed."));
+		return;
+	}
+	DepthData.Empty();
+	DepthData.AddUninitialized(FloatColorDepthData.Num());
+	check(DepthData.Num() == FloatColorDepthData.Num());
 
 	ParallelFor(FloatColorDepthData.Num(), [&](int32 i)
 	{
@@ -152,14 +160,12 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 					});
 
 					double SerializeStartTime = FPlatformTime::Seconds();
-					FString OutputPathPNG = OutputPath.Replace(TEXT(".npy"), TEXT(".png"));
-					// FString OutputPathPNG10KM = OutputPathPNG.Replace(TEXT(".png"), TEXT("_10km.png"));
-					FString DepthPreviewPath = OutputPathPNG.Replace(TEXT(".png"), TEXT("_preview.png"));
+					FString OutputPathBase = OutputPath.Replace(TEXT(".npy"), TEXT(""));
+					FString OutputPathPNG = OutputPathBase.Append(TEXT(".png"));
+					FString DepthPreviewPath = OutputPathBase.Append(TEXT("_preview.png"));
+					FString DepthNpyPath = OutputPathBase.Append(TEXT(".npy"));
 					TArray<FColor> DepthPreview;
 					TArray<FColor> DepthPNG;
-					// TArray<FColor> DepthPNG10KM;
-					// ConvertDepthToPNG_RGB24(DepthData, DepthPNG10KM, 0.0f, 1000000.0f);  // 10km
-					// ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 5000.0f); // 50m
 					ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 100000.0f); // 1km
 					ConvertDepthToPreview(DepthData, DepthPreview);
 					// | 你能接受的误差（cm）   | 对应的 MaxDepth（cm）                     |
@@ -171,8 +177,8 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 					// | 2000 cm（20 m） | **67,108,860,000 cm** ≈ 671,088 km   |
 					// | 4000 cm（40 m） | **134,217,720,000 cm**≈ 1,342,177 km |
 					SerializeData(DepthPNG, Width, Height, OutputPathPNG);
-					// SerializeData(DepthPNG10KM, Width, Height, OutputPathPNG10KM);
 					SerializeData(DepthPreview, Width, Height, DepthPreviewPath);
+					SerializeData(DepthData, Width, Height, DepthNpyPath);
 					double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
 					UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s in %.3f ms"), *OutputPath, SerializeTime * 1000.0);
 				}

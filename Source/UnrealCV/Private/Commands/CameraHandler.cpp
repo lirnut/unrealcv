@@ -348,7 +348,8 @@ FExecStatus FCameraHandler::GetCameraDepth(const TArray<FString>& Args)
 
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	if (FilenameType == EFilenameType::Npy && FusionCamSensor->GetUseFastCapture())
+	bool SaveToFile = FilenameType == EFilenameType::Npy || FilenameType == EFilenameType::Png || FilenameType == EFilenameType::Bmp;
+	if (SaveToFile && FusionCamSensor->GetUseFastCapture())
 	{
 		FusionCamSensor->SaveDepthToFile(Filename);
 		return FExecStatus::OK(Filename);

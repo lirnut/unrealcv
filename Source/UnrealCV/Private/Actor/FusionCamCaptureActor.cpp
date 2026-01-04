@@ -578,6 +578,18 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	float BloomIntensity = 0.0f;
 	TargetSensor->GetBloomParams(BloomMethod, BloomIntensity);
 
+	// Calculate focal length in pixels from FOV
+	float Focal = FMath::Max(Width, Height) / 2.0f / FMath::Tan(FOVRadians / 2.0f);		
+	float fx = Focal;
+	float fy = Focal;
+	float cx = Width / 2.0f;
+	float cy = Height / 2.0f;
+	TArray K{
+		USerializeBPLib::VectorToJson({fx, 0 , Width / 2}), 
+		USerializeBPLib::VectorToJson({0 , fy, Height/ 2}), 
+		USerializeBPLib::VectorToJson({0 , 0 , 1        })
+	};
+
 	auto ReflectionMethodToString = [](EReflectionMethod::Type Method) -> FString {
 		switch (Method) {
 			case EReflectionMethod::None: return TEXT("None");
@@ -612,58 +624,40 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		}
 	};
 
-	TMap<FString, FString> IntrinsicsStringMap;
-	IntrinsicsStringMap.Add("ReflectionMethod", ReflectionMethodToString(TargetSensor->GetReflectionMethod()));
-	IntrinsicsStringMap.Add("GlobalIlluminationMethod", GIMethodToString(TargetSensor->GetGlobalIlluminationMethod()));
-	IntrinsicsStringMap.Add("ExposureMethod", ExposureMethodToString(TargetSensor->GetExposureMethod()));
-	IntrinsicsStringMap.Add("BloomMethod", BloomMethodToString(BloomMethod));
+	TMap<FString, FString> CameraSettingsStringMap;
+	CameraSettingsStringMap.Add("ReflectionMethod", ReflectionMethodToString(TargetSensor->GetReflectionMethod()));
+	CameraSettingsStringMap.Add("GlobalIlluminationMethod", GIMethodToString(TargetSensor->GetGlobalIlluminationMethod()));
+	CameraSettingsStringMap.Add("ExposureMethod", ExposureMethodToString(TargetSensor->GetExposureMethod()));
+	CameraSettingsStringMap.Add("BloomMethod", BloomMethodToString(BloomMethod));
 
-	TMap<FString, float> IntrinsicsMap;
-	IntrinsicsMap.Add("FieldOfView", FOV);
-	IntrinsicsMap.Add("ImageWidth", static_cast<float>(Width));
-	IntrinsicsMap.Add("ImageHeight", static_cast<float>(Height));
-	IntrinsicsMap.Add("AutoExposureSpeedDown", ExposureSpeedDown);
-	IntrinsicsMap.Add("AutoExposureSpeedUp", ExposureSpeedUp);
-	IntrinsicsMap.Add("MotionBlurAmount", MotionBlurAmount);
-	IntrinsicsMap.Add("MotionBlurMax", MotionBlurMax);
-	IntrinsicsMap.Add("MotionBlurPerObjectSize", MotionBlurPerObjectSize);
-	IntrinsicsMap.Add("MotionBlurTargetFPS", static_cast<float>(MotionBlurTargetFPS));
-	IntrinsicsMap.Add("DepthOfFieldFocalDistance", FocalDistance);
-	IntrinsicsMap.Add("DepthOfFieldFocalRegion", FocalRegion);
-	IntrinsicsMap.Add("ChromaticAberrationIntensity", ChromaticAberration);
-	IntrinsicsMap.Add("VignetteIntensity", Vignette);
-	IntrinsicsMap.Add("BloomIntensity", BloomIntensity);
+	TMap<FString, float> CameraSettingsMap;
+	CameraSettingsMap.Add("FieldOfView", FOV);
+	CameraSettingsMap.Add("ImageWidth", static_cast<float>(Width));
+	CameraSettingsMap.Add("ImageHeight", static_cast<float>(Height));
+	CameraSettingsMap.Add("AutoExposureSpeedDown", ExposureSpeedDown);
+	CameraSettingsMap.Add("AutoExposureSpeedUp", ExposureSpeedUp);
+	CameraSettingsMap.Add("MotionBlurAmount", MotionBlurAmount);
+	CameraSettingsMap.Add("MotionBlurMax", MotionBlurMax);
+	CameraSettingsMap.Add("MotionBlurPerObjectSize", MotionBlurPerObjectSize);
+	CameraSettingsMap.Add("MotionBlurTargetFPS", static_cast<float>(MotionBlurTargetFPS));
+	CameraSettingsMap.Add("DepthOfFieldFocalDistance", FocalDistance);
+	CameraSettingsMap.Add("DepthOfFieldFocalRegion", FocalRegion);
+	CameraSettingsMap.Add("ChromaticAberrationIntensity", ChromaticAberration);
+	CameraSettingsMap.Add("VignetteIntensity", Vignette);
+	CameraSettingsMap.Add("BloomIntensity", BloomIntensity);
 
-	TArray<float> RotationArray;
-	for (int i = 0; i < 3; i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			RotationArray.Add(RotationMatrix.M[i][j]);
-		}
-	}
+	TArray RotationArray = {
+		USerializeBPLib::VectorToJson({RotationMatrix.M[0][0], RotationMatrix.M[0][1], RotationMatrix.M[0][2]}),
+		USerializeBPLib::VectorToJson({RotationMatrix.M[1][0], RotationMatrix.M[1][1], RotationMatrix.M[1][2]}),
+		USerializeBPLib::VectorToJson({RotationMatrix.M[2][0], RotationMatrix.M[2][1], RotationMatrix.M[2][2]})
+	};
 
-	TArray<float> TranslationArray;
-	TranslationArray.Add(Location.X);
-	TranslationArray.Add(Location.Y);
-	TranslationArray.Add(Location.Z);
+	auto TranslationArray = USerializeBPLib::VectorToJson({Location.X, Location.Y, Location.Z});
 
-	TArray<FString> ExtrinsicsKeys = {"rotation_matrix", "translation"};
+	TArray<FString> ExtrinsicsKeys = {"RotationMatrix", "Translation"};
 	TArray<FJsonObjectBP> ExtrinsicsValues;
-
-	TArray<FJsonObjectBP> RotMatrixArray;
-	for (float Val : RotationArray)
-	{
-		RotMatrixArray.Add(FJsonObjectBP(Val));
-	}
-	ExtrinsicsValues.Add(FJsonObjectBP(RotMatrixArray));
-
-	TArray<FJsonObjectBP> TransArray;
-	for (float Val : TranslationArray)
-	{
-		TransArray.Add(FJsonObjectBP(Val));
-	}
-	ExtrinsicsValues.Add(FJsonObjectBP(TransArray));
+	ExtrinsicsValues.Add(FJsonObjectBP(RotationArray));
+	ExtrinsicsValues.Add(TranslationArray);
 
 	TArray<FJsonObjectBP> OccluderArray;
 	for (const FOccluderMetadata& Occluder : SceneHandle.OccluderMetadataList)
@@ -707,8 +701,9 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		"OcclusionRatio",
 		"CameraLocation",
 		"CameraRotation",
-		"Intrinsics",
-		"IntrinsicsString",
+		"CameraSettings",
+		"CameraSettingsString",
+		"IntrinsicsMatrix",
 		"Extrinsics",
 		"ForegroundColor",
 		"AnnotationColors",
@@ -760,8 +755,9 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		FJsonObjectBP(SceneHandle.OcclusionRatio),
 		FJsonObjectBP(Location),
 		FJsonObjectBP(Rotation),
-		FJsonObjectBP(IntrinsicsMap),
-		FJsonObjectBP(IntrinsicsStringMap),
+		FJsonObjectBP(CameraSettingsMap),
+		FJsonObjectBP(CameraSettingsStringMap),
+		K,
 		FJsonObjectBP(ExtrinsicsKeys, ExtrinsicsValues),
 		FJsonObjectBP(ForegroundColor),
 		FJsonObjectBP(ColorMap),
