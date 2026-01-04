@@ -654,10 +654,47 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 
 	auto TranslationArray = USerializeBPLib::VectorToJson({Location.X, Location.Y, Location.Z});
 
-	TArray<FString> ExtrinsicsKeys = {"RotationMatrix", "Translation"};
+	// Calculate w2c_colmap matrix: COLMAP world-to-camera transformation
+	// Step 1: Build 4x4 c2w_unreal (camera-to-world in Unreal coordinates)
+	FMatrix c2w_unreal = FMatrix::Identity;
+	c2w_unreal.M[0][0] = RotationMatrix.M[0][0]; c2w_unreal.M[0][1] = RotationMatrix.M[0][1]; c2w_unreal.M[0][2] = RotationMatrix.M[0][2]; c2w_unreal.M[0][3] = Location.X;
+	c2w_unreal.M[1][0] = RotationMatrix.M[1][0]; c2w_unreal.M[1][1] = RotationMatrix.M[1][1]; c2w_unreal.M[1][2] = RotationMatrix.M[1][2]; c2w_unreal.M[1][3] = Location.Y;
+	c2w_unreal.M[2][0] = RotationMatrix.M[2][0]; c2w_unreal.M[2][1] = RotationMatrix.M[2][1]; c2w_unreal.M[2][2] = RotationMatrix.M[2][2]; c2w_unreal.M[2][3] = Location.Z;
+	// M[3][0-3] already [0, 0, 0, 1] from Identity
+
+	// Step 2: Invert to get w2c_unreal (world-to-camera in Unreal coordinates)
+	FMatrix w2c_unreal = c2w_unreal.Inverse();
+
+	// Step 3: Create coordinate system transformation matrices
+	// T_cam_unreal_to_colmap: Y↔X swap, Z→-Z flip (camera frame conversion)
+	FMatrix T_cam_unreal_to_colmap = FMatrix::Identity;
+	T_cam_unreal_to_colmap.M[0][0] = 0; T_cam_unreal_to_colmap.M[0][1] = 1;  // X ← Y
+	T_cam_unreal_to_colmap.M[1][0] = 1; T_cam_unreal_to_colmap.M[1][1] = 0;  // Y ← X
+	T_cam_unreal_to_colmap.M[2][2] = -1;  // Z ← -Z
+
+	// T_world_colmap_to_unreal: Y→-Y flip (world frame conversion)
+	FMatrix T_world_colmap_to_unreal = FMatrix::Identity;
+	T_world_colmap_to_unreal.M[1][1] = -1;  // Y ← -Y
+
+	// Step 4: Compute final COLMAP w2c matrix
+	FMatrix w2c_colmap = T_cam_unreal_to_colmap * w2c_unreal * T_world_colmap_to_unreal;
+
+	// Step 5: Convert 4x4 matrix to JSON array (array of 4 rows, each as 3-element vector)
+	TArray<FJsonObjectBP> W2CColmapArray;
+	for (int32 i = 0; i < 4; ++i) {
+		FJsonObjectBP RowJson = USerializeBPLib::VectorToJson({
+			w2c_colmap.M[i][0],
+			w2c_colmap.M[i][1],
+			w2c_colmap.M[i][2]
+		});
+		W2CColmapArray.Add(RowJson);
+	}
+
+	TArray<FString> ExtrinsicsKeys = {"RotationMatrix", "Translation", "w2c_colmap"};
 	TArray<FJsonObjectBP> ExtrinsicsValues;
 	ExtrinsicsValues.Add(FJsonObjectBP(RotationArray));
 	ExtrinsicsValues.Add(TranslationArray);
+	ExtrinsicsValues.Add(USerializeBPLib::ArrayToJson(W2CColmapArray));
 
 	TArray<FJsonObjectBP> OccluderArray;
 	for (const FOccluderMetadata& Occluder : SceneHandle.OccluderMetadataList)
