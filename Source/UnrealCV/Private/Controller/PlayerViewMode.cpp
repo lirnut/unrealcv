@@ -39,12 +39,21 @@ UPlayerViewMode::UPlayerViewMode() : CurrentViewMode("lit")
 		{
 			PPMaterialMap.Add(ModeName, Cast<UMaterial>(Material.Object));
 		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Failed to load material for mode: %s from path: %s"), *ModeName, *MaterialPath);
+		}
 	}
 
 }
 
 UMaterial* UPlayerViewMode::GetMaterial(FString InModeName)
 {
+	if (!PPMaterialMap.Contains(InModeName))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Can not recognize visualization mode %s"), *InModeName);
+		return nullptr;
+	}
 	UMaterial* Material = PPMaterialMap.FindRef(InModeName);
 	if (Material == nullptr)
 	{

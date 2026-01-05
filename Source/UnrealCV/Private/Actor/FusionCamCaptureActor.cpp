@@ -585,9 +585,9 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	float cx = Width / 2.0f;
 	float cy = Height / 2.0f;
 	TArray K{
-		USerializeBPLib::VectorToJson({fx, 0 , Width / 2}), 
-		USerializeBPLib::VectorToJson({0 , fy, Height/ 2}), 
-		USerializeBPLib::VectorToJson({0 , 0 , 1        })
+		USerializeBPLib::VectorToJson({fx   , 0.0f , cx}), 
+		USerializeBPLib::VectorToJson({0.0f , fy   , cy}), 
+		USerializeBPLib::VectorToJson({0.0f , 0.0f , 1.0f})
 	};
 
 	auto ReflectionMethodToString = [](EReflectionMethod::Type Method) -> FString {

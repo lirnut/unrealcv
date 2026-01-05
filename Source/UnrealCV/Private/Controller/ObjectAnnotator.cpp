@@ -165,14 +165,14 @@ void FObjectAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& An
 
 		for (UActorComponent* Component : MeshComponents)
 		{
-			// // Skip SkeletalMeshComponent - they have special GPU behavior (skinning, animation)
-			// // that can conflict with Lumen TLAS building, especially in complex scenes
-			// if (Component->IsA<USkeletalMeshComponent>())
-			// {
-			// 	UE_LOG(LogUnrealCV, Verbose, TEXT("Skipping SkeletalMeshComponent annotation for %s (use Depth/Annotation cameras for skeletal meshes)"),
-			// 		*Actor->GetName());
-			// 	continue;
-			// }
+			// Skip SkeletalMeshComponent - they have special GPU behavior (skinning, animation)
+			// that can conflict with Lumen TLAS building, especially in complex scenes
+			if (Component->IsA<USkeletalMeshComponent>())
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("Skipping SkeletalMeshComponent annotation for %s (use Depth/Annotation cameras for skeletal meshes)"),
+					*Actor->GetName());
+				continue;
+			}
 
 			UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component);
 
