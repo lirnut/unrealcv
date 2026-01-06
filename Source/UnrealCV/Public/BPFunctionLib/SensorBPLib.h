@@ -3,6 +3,7 @@
 
 #include "Runtime/Engine/Classes/Kismet/BlueprintFunctionLibrary.h"
 #include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "SensorBPLib.generated.h"
 
 class UFusionCamSensor;
@@ -27,9 +28,10 @@ public:
 private:
 	FCameraIDManager();
 
-	FString GenerateUUID() const;
+	FString GenerateUUID(UFusionCamSensor* Sensor) const;
 
 	TMap<UFusionCamSensor*, FString> SensorToCameraIDMap;
+	TSet<FString> UsedCameraIDs;
 };
 
 /** Sensor related function library */

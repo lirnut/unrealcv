@@ -1923,14 +1923,19 @@ void FCameraHandler::RegisterCommands()
 		"Get screenshot");
 
 	CommandDispatcher->BindCommand(
-		"vget /cameras",
+		"vget /cameras_legacy",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraList),
-		"List all sensors in the scene");
+		"List all sensors in the scene (old format)");
+
+	CommandDispatcher->BindCommand(
+		"vget /cameras",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraListNewFormat),
+		"List all cameras with new format CIDs (Camera UUID)");
 
 	CommandDispatcher->BindCommand(
 		"vget /cameras_CID",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraListNewFormat),
-		"List all cameras with new format IDs (UUID)");
+		"List all cameras with new format CIDs (Camera UUID)");
 
 	CommandDispatcher->BindCommand(
 		"vset /cameras/spawn",
@@ -1970,6 +1975,11 @@ void FCameraHandler::RegisterCommands()
 
 	CommandDispatcher->BindCommand(
 		"vget /camera/[uint]/lit [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraLit),
+		"Get png binary data from lit sensor"
+	);
+	CommandDispatcher->BindCommand(
+		"vget /camera/[str]/lit [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraLit),
 		"Get png binary data from lit sensor"
 	);

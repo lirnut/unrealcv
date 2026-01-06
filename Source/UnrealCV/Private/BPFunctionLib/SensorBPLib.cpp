@@ -7,6 +7,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 
 static FCameraIDManager* GCameraIDManager = nullptr;
+static const int32 MAX_RETRY = 50;
 
 FCameraIDManager& FCameraIDManager::Get()
 {
@@ -21,10 +22,40 @@ FCameraIDManager::FCameraIDManager()
 {
 }
 
-FString FCameraIDManager::GenerateUUID() const
+FString FCameraIDManager::GenerateUUID(UFusionCamSensor* Sensor) const
 {
-	uint32 RandomValue = FMath::Rand() ^ (FMath::Rand() << 16);
-	return FString::Printf(TEXT("CID_%08x"), RandomValue);
+	FString ParentActorName = TEXT("Unknown");
+
+	if (IsValid(Sensor))
+	{
+		AActor* Owner = Sensor->GetOwner();
+		if (IsValid(Owner))
+		{
+			ParentActorName = Owner->GetName();
+		}
+	}
+
+	FString GeneratedID;
+	uint32 RandomValue;
+	int32 RetryCount = 0;
+
+	do
+	{
+		RandomValue = FMath::Rand() & 0xff;
+		// GeneratedID = FString::Printf(TEXT("CID_%02x_%s"), RandomValue, *ParentActorName);
+		// GeneratedID = FString::Printf(TEXT("CID/%s/%02x"), *ParentActorName, RandomValue);
+		GeneratedID = FString::Printf(TEXT("CID-%s-%02x"), *ParentActorName, RandomValue);
+		RetryCount++;
+	} while (UsedCameraIDs.Contains(GeneratedID) && RetryCount < MAX_RETRY);
+
+	if (RetryCount >= MAX_RETRY)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to generate unique camera ID after %d retries for sensor: %s"), MAX_RETRY, *ParentActorName);
+		return GeneratedID;
+	}
+
+	const_cast<FCameraIDManager*>(this)->UsedCameraIDs.Add(GeneratedID);
+	return GeneratedID;
 }
 
 
@@ -36,7 +67,7 @@ TArray<UFusionCamSensor*> FCameraIDManager::Sync()
 	{
 		if (!SensorToCameraIDMap.Contains(Sensor))
 		{
-			SensorToCameraIDMap_.Add(Sensor, GenerateUUID());
+			SensorToCameraIDMap_.Add(Sensor, GenerateUUID(Sensor));
 		}
 		else
 		{
@@ -55,7 +86,7 @@ UFusionCamSensor* FCameraIDManager::GetSensorByAnyID(const FString& IDString)
 		return nullptr;
 	}
 
-	if (IDString.StartsWith(TEXT("CID_")))
+	if (IDString.StartsWith(TEXT("CID")))
 	{
 		UFusionCamSensor* Ret = nullptr;
 		TArray<UFusionCamSensor*> SensorList = USensorBPLib::GetFusionSensorList();
@@ -64,7 +95,7 @@ UFusionCamSensor* FCameraIDManager::GetSensorByAnyID(const FString& IDString)
 		{
 			if (!SensorToCameraIDMap.Contains(Sensor))
 			{
-				SensorToCameraIDMap_.Add(Sensor, GenerateUUID());
+				SensorToCameraIDMap_.Add(Sensor, GenerateUUID(Sensor));
 			}
 			else
 			{
@@ -107,7 +138,7 @@ int32 FCameraIDManager::GetIndexByAnyID(const FString& IDString) {
 		return INVALID_RET;
 	}
 
-	if (IDString.StartsWith(TEXT("CID_")))
+	if (IDString.StartsWith(TEXT("CID")))
 	{
 		int32 Ret = INVALID_RET;
 		TArray<UFusionCamSensor*> SensorList = USensorBPLib::GetFusionSensorList();
@@ -117,7 +148,7 @@ int32 FCameraIDManager::GetIndexByAnyID(const FString& IDString) {
 			UFusionCamSensor* Sensor = SensorList[Index];
 			if (!SensorToCameraIDMap.Contains(Sensor))
 			{
-				SensorToCameraIDMap_.Add(Sensor, GenerateUUID());
+				SensorToCameraIDMap_.Add(Sensor, GenerateUUID(Sensor));
 			}
 			else
 			{

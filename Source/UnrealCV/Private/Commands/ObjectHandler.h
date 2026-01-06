@@ -18,6 +18,8 @@ private:
 	// See RegisterCommands in ObjectHandler.cpp for what each function is doing.
 	FExecStatus GetObjectList(const TArray<FString>& Args);
 
+	FExecStatus GetObjectListByName(const TArray<FString>& Args);
+
 	FExecStatus SpawnBox(const TArray<FString>& Args);
 
 	FExecStatus Spawn(const TArray<FString>& Args);

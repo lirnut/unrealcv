@@ -24,7 +24,7 @@ void FAliasHandler::RegisterCommands()
 	FString Help;
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FAliasHandler::VRun);
-	Help = "Run UE4 built-in commands";
+	Help = "Run UE built-in commands";
 	CommandDispatcher->BindCommand("vrun [str]", Cmd, Help);
 	CommandDispatcher->BindCommand("vrun [str] [str]", Cmd, Help);
 	CommandDispatcher->BindCommand("vrun [str] [str] [str]", Cmd, Help);
@@ -33,7 +33,7 @@ void FAliasHandler::RegisterCommands()
 	CommandDispatcher->BindCommand("vrun [str] [str] [str] [str] [str] [str]", Cmd, Help);
 
 	// vexec ActorId FuncName Params
-	Help = "Run UE4 blueprint function";
+	Help = "Run UE blueprint function";
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FAliasHandler::VExec);
 	CommandDispatcher->BindCommand("vexec [str] [str]", Cmd, Help);
 	CommandDispatcher->BindCommand("vexec [str] [str] [str]", Cmd, Help);
@@ -106,9 +106,13 @@ FExecStatus FAliasHandler::VExecWithOutput(const TArray<FString>& Args)
 	{
 		if (FuncName.Equals(AsyncCmd, ESearchCase::IgnoreCase))
 		{
-			FString CmdArgs = FString::Printf(TEXT("%s %s"), *Args[2], *Args[3]);
+			FString CmdArgs = Args.Num() > 2 ? Args[2] : TEXT(""); 
+			for (int32 ArgId = 3; ArgId < Args.Num(); ArgId++)
+			{
+				CmdArgs += FString::Printf(TEXT(" %s"), *Args[ArgId]);
+			}
 			HandleVBPAsync(Obj, FuncName, CmdArgs);
-			UE_LOG(LogUnrealCV, Log, TEXT("VExecWithOutput: set_move is async"));
+			UE_LOG(LogUnrealCV, Log, TEXT("VExecWithOutput: %s is async"), *FuncName);
 			return FExecStatus::OK();
 		}
 	}
@@ -468,25 +472,32 @@ void FAliasHandler::HandleVBPAsync(UObject* TargetObject, const FString& FuncNam
 {
 	if (!IsValid(TargetObject))
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("HandleVBPAsync: Target object is invalid"));
+		UE_LOG(LogUnrealCV, Error, TEXT("HandleVBPAsync: Target object is invalid"));
 		return;
 	}
 
+	UE_LOG(LogUnrealCV, Log, TEXT("HandleVBPAsync: Launch AsyncTask %s for %s with args %s"), *FuncName, *TargetObject->GetName(), *Args);
 	AsyncTask(ENamedThreads::GameThread, [TargetObject, FuncName, Args]()
 	{
 		if (!IsValid(TargetObject))
 		{
+			UE_LOG(LogUnrealCV, Error, TEXT("HandleVBPAsync: Failed to execute %s for %s, reason: Target object is invalid, probably nullptr."), *FuncName, *TargetObject->GetName());
 			return;
 		}
+		UE_LOG(LogUnrealCV, Log, TEXT("HandleVBPAsync: Start to execute %s for %s with args %s"), *FuncName, *TargetObject->GetName(), *Args);
 
-		FOutputDeviceNull NullOutput;
+		FConsoleOutputDevice OutputDevice(FUnrealcvServer::Get().GetWorld()->GetGameViewport()->ViewportConsole);
 		FString Command = FuncName + TEXT(" ") + Args;
 
-		bool bSuccess = TargetObject->CallFunctionByNameWithArguments(*Command, NullOutput, nullptr, true);
+		bool bSuccess = TargetObject->CallFunctionByNameWithArguments(*Command, OutputDevice, nullptr, true);
 
 		if (!bSuccess)
 		{
-			UE_LOG(LogUnrealCV, Warning, TEXT("HandleVBPAsync: Failed to execute %s for %s"), *FuncName, *TargetObject->GetName());
+			UE_LOG(LogUnrealCV, Error, TEXT("HandleVBPAsync: Failed to execute %s for %s"), *FuncName, *TargetObject->GetName());
+		}
+		else 
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("HandleVBPAsync: Successfully executed %s for %s"), *FuncName, *TargetObject->GetName());
 		}
 	});
 }

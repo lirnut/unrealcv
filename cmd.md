@@ -2,9 +2,7 @@ DebugGame 控制台中支持的完整命令列表
 
   UnrealCV 支持以下主要命令类别（通过 TCP 服务器或在 DebugGame 控制台中访问）：
 
-  说明: 相机 [id] 既支持旧格式（整数索引: 0, 1, 2...）也支持新格式稳定ID（CID_xxxxxxxx）
-       - 旧ID: 0, 1, 2... （基于创建顺序，Sensor销毁会导致ID变化）
-       - 新ID: CID_a1b2c3d4 （和SensorList强同步，至少不会出现Sensor销毁导致ID错位的问题）
+  
 
   游戏控制命令 (/action/*)
 
@@ -19,8 +17,22 @@ DebugGame 控制台中支持的完整命令列表
 
   摄像机命令 (/camera/*)
 
-  - vget /cameras - 列出所有摄像机（旧格式ID）
+  - vget /cameras     - 列出所有摄像机（新格式稳定ID，推荐长期使用）
   - vget /cameras_CID - 列出所有摄像机（新格式稳定ID，推荐长期使用）
+     ```
+     >>> vget /cameras <<<
+     CID-UnrealcvPawn_0-fd CID-BP_BaseBike_C_1-49 CID-BP_Drone01_C_1-1d
+     ```
+  - vget /cameras_legacy - 列出所有摄像机, 旧格式 （类名...）
+     ```
+     >>> vget /cameras <<<
+     PawnSensor FusionCamSensor FusionCamSensor FusionCamSensor FusionCamSensor FusionCamSensor
+     ```
+     说明: 相机 [id] 既支持旧格式（整数索引: 0, 1, 2...）也支持新格式稳定CID（CID-[所有者object_name]-[两位uuid]）
+          - 旧ID: 0, 1, 2... （基于创建顺序，Sensor销毁会导致ID变化）
+          - 新ID: CID-[所有者object_name]-[两位uuid] （和Sensor绑定，不会出现Sensor销毁导致ID错位的问题）
+
+
   - vset /cameras/spawn - 生成新摄像机
   - vget /camera/[id]/location - 获取摄像机位置
   - vset /camera/[id]/location [x] [y] [z] - 设置摄像机位置
@@ -53,6 +65,11 @@ DebugGame 控制台中支持的完整命令列表
   物体命令 (/object/*)
 
   - vget /objects - 获取所有物体列表
+  - vget /objects [search_spec] - 搜索物体，不分大小写，返回列表
+     ```
+     >>> vget /objects bp_character <<<
+     BP_Character_C_1
+     ```
   - vset /objects/spawn_cube - 生成测试立方体
   - vset /objects/spawn [classname] - 生成物体
   - vget /object/[name]/location - 获取物体位置

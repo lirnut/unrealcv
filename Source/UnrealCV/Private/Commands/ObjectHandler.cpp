@@ -51,6 +51,12 @@ void FObjectHandler::RegisterCommands()
 	);
 
 	CommandDispatcher->BindCommand(
+		"vget /objects [str]",
+		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::GetObjectListByName),
+		"Get objects by name (case-insensitive search)"
+	);
+
+	CommandDispatcher->BindCommand(
 		"vset /objects/spawn_cube",
 		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::SpawnBox),
 		"Spawn a box in the scene for debugging purpose."
@@ -202,6 +208,40 @@ FExecStatus FObjectHandler::GetObjectList(const TArray<FString>& Args)
 	{
 		StrActorList += FString::Printf(TEXT("%s "), *Actor->GetName());
 	}
+	return FExecStatus::OK(StrActorList);
+}
+
+FExecStatus FObjectHandler::GetObjectListByName(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		UE_LOG(LogTemp, Error, TEXT("GetObjectListByName: Invalid argument count. Expected 1, got %d"), Args.Num());
+		return FExecStatus::GetInvalidArgument();
+	}
+
+	FString SearchSpec = Args[0];
+	FString SearchSpecLower = SearchSpec.ToLower();
+
+	TArray<AActor*> ActorList;
+	UVisionBPLib::GetActorList(ActorList);
+
+	FString StrActorList;
+	for (AActor* Actor : ActorList)
+	{
+		FString ActorName = Actor->GetName();
+		FString ActorNameLower = ActorName.ToLower();
+
+		if (ActorNameLower.Contains(*SearchSpecLower))
+		{
+			StrActorList += FString::Printf(TEXT("%s "), *ActorName);
+		}
+	}
+
+	if (StrActorList.IsEmpty())
+	{
+		return FExecStatus::OK("(no matches)");
+	}
+
 	return FExecStatus::OK(StrActorList);
 }
 
