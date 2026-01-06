@@ -53,5 +53,6 @@ private:
 	FString CurrentViewMode;
 	void ClearPostProcess();
 
-	TMap<FString, UMaterial*> PPMaterialMap;
+	void LoadMaterial();
+	static TMap<FString, UMaterial*> PPMaterialMap;
 };

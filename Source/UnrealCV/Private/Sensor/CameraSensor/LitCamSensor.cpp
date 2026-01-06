@@ -58,6 +58,17 @@ void ULitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)
 
 void ULitCamSensor::CaptureLitToFile(FString Filename)
 {
+	SCOPE_CYCLE_COUNTER(STAT_CaptureLit);
+	if (!CheckTextureTarget())
+	{
+		InitTextureTarget(this->FilmWidth, this->FilmHeight);
+		if (!CheckTextureTarget())
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Failed to initialize TextureTarget."));
+			return;
+		}
+	}
+
 	CaptureFastToFile(Filename);
 }
 

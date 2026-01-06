@@ -14,7 +14,14 @@
 
 DECLARE_DELEGATE(ViewModeFunc)
 
+TMap<FString, UMaterial*> UPlayerViewMode::PPMaterialMap;
+
 UPlayerViewMode::UPlayerViewMode() : CurrentViewMode("lit")
+{
+	LoadMaterial();
+}
+
+void UPlayerViewMode::LoadMaterial()
 {
 	// Load material for visualization
 	TMap<FString, FString> MaterialPathMap;
@@ -22,22 +29,29 @@ UPlayerViewMode::UPlayerViewMode() : CurrentViewMode("lit")
 	MaterialPathMap.Add(TEXT("plane_depth"), TEXT("Material'/UnrealCV/ScenePlaneDepthWorldUnits.ScenePlaneDepthWorldUnits'"));
 	MaterialPathMap.Add(TEXT("vis_depth"), TEXT("Material'/UnrealCV/SceneDepth.SceneDepth'"));
 	MaterialPathMap.Add(TEXT("debug"), TEXT("Material'/UnrealCV/debug.debug'"));
-	// MaterialPathMap->Add(TEXT("object_mask"), TEXT("Material'/UnrealCV/VertexColorMaterial.VertexColorMaterial'"));
+	MaterialPathMap.Add(TEXT("object_mask"), TEXT("Material'/UnrealCV/VertexColorMaterial.VertexColorMaterial'"));
 	MaterialPathMap.Add(TEXT("normal"), TEXT("Material'/UnrealCV/WorldNormal.WorldNormal'"));
 	MaterialPathMap.Add(TEXT("optical_flow"), TEXT("Material'/UnrealCV/OpticalFlowMaterial.OpticalFlowMaterial'"));
 	FString OpaqueMaterialName = "Material'/UnrealCV/OpaqueMaterial.OpaqueMaterial'";
 	MaterialPathMap.Add(TEXT("opaque"), OpaqueMaterialName);
 
+	PPMaterialMap = {};
 	for (auto& Elem : MaterialPathMap)
 	{
 		FString ModeName = Elem.Key;
 		FString MaterialPath = Elem.Value;
-		ConstructorHelpers::FObjectFinder<UMaterial> Material(*MaterialPath); 
-		// ConsturctorHelpers is only available in the CTOR of UObject.
+		// ConstructorHelpers::FObjectFinder<UMaterial> Material(*MaterialPath); 
+		// // ConsturctorHelpers is only available in the CTOR of UObject.
+		// UMaterial* MaterialObject = Cast<UMaterial>(Material.Object);
+		UMaterial* MaterialObject = Cast<UMaterial>(StaticLoadObject(
+			UMaterial::StaticClass(),
+			nullptr,
+			*MaterialPath
+		));
 
-		if (Material.Object != NULL)
+		if (MaterialObject != nullptr)
 		{
-			PPMaterialMap.Add(ModeName, Cast<UMaterial>(Material.Object));
+			PPMaterialMap.Add(ModeName, MaterialObject);
 		}
 		else
 		{
@@ -163,6 +177,9 @@ void UPlayerViewMode::ClearPostProcess()
 
 void UPlayerViewMode::ApplyPostProcess(FString ModeName)
 {
+	// // debug for PIE
+	// LoadMaterial();
+
 	UWorld* World = FUnrealcvServer::Get().GetWorld();
 	UGameViewportClient* GameViewportClient = World->GetGameViewport();
 	FSceneViewport* SceneViewport = GameViewportClient->GetGameViewport();
@@ -170,6 +187,11 @@ void UPlayerViewMode::ApplyPostProcess(FString ModeName)
 	FViewMode::PostProcess(GameViewportClient->EngineShowFlags);
 
 	UMaterial* Material = GetMaterial(ModeName);
+	if (!IsValid(Material))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Can not find material for mode %s"), *ModeName);
+		return;
+	}
 	APostProcessVolume* PostProcessVolume = GetPostProcessVolume();
 	PostProcessVolume->Settings.WeightedBlendables.Array.Empty();
 

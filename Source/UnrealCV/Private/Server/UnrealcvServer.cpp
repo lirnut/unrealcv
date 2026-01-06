@@ -35,20 +35,43 @@ void FUnrealcvServer::Tick(float DeltaTime)
 void FUnrealcvServer::InitWorldController()
 {
 	UWorld* GameWorld = GetGameWorld();
-	if (IsValid(GameWorld) && !WorldController.IsValid())
+	if (!IsValid(GameWorld))
 	{
-		UE_LOG(LogTemp, Display, TEXT("FUnrealcvServer::Tick Create WorldController"));
-		this->WorldController = Cast<AUnrealcvWorldController>(GameWorld->SpawnActor(AUnrealcvWorldController::StaticClass()));
-		// if (IsValid(this->WorldController))
-		if (this->WorldController != nullptr)
-		{
-			this->WorldController->InitWorld();
-		}
-		else
-		{
-			UE_LOG(LogUnrealCV, Error, TEXT("Failed to spawn WorldController"));
-		}
-		// Its BeginPlay event will extend the GameWorld
+		UE_LOG(LogUnrealCV, Log, TEXT("GameWorld is not valid"));
+		// // Destroy WorldController if world is invalid
+		// if (WorldController.IsValid())
+		// {
+		// 	WorldController->Destroy();
+		// 	WorldController.Reset();
+		// }
+		return;
+	}
+
+	// Check if WorldController is still valid and belongs to the current world
+	if (WorldController.IsValid() && WorldController->GetWorld() == GameWorld)
+	{
+		// WorldController is valid and in correct world
+		return;
+	}
+
+	// Destroy old WorldController if it exists but is from a different world
+	if (WorldController.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Display, TEXT("Destroying old WorldController from previous world"));
+		WorldController->Destroy();
+		WorldController.Reset();
+	}
+
+	// Create new WorldController
+	UE_LOG(LogTemp, Display, TEXT("FUnrealcvServer::Tick Create WorldController"));
+	this->WorldController = Cast<AUnrealcvWorldController>(GameWorld->SpawnActor(AUnrealcvWorldController::StaticClass()));
+	if (this->WorldController != nullptr)
+	{
+		this->WorldController->InitWorld();
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Failed to spawn WorldController"));
 	}
 }
 

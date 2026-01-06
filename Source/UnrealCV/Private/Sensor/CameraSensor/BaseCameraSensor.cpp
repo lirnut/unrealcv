@@ -148,6 +148,12 @@ bool UBaseCameraSensor::CheckTextureTarget()
 
 void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Height)
 {
+	if (!CheckTextureTarget())
+	{
+		UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
+		return;
+	}
+
 	if (bUseFastCapture)
 	{
 		CaptureFast(ImageData, Width, Height);
@@ -156,12 +162,6 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 	else
     {
 		SCOPE_CYCLE_COUNTER(STAT_ReadBuffer);
-
-		if (!CheckTextureTarget())
-		{
-			UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
-			return;
-		}
 		this->CaptureScene();
 
 		ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
@@ -170,6 +170,12 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 
 void UBaseCameraSensor::Capture(TArray<FFloat16Color>& ImageData, int& Width, int& Height)
 {
+	if (!CheckTextureTarget())
+	{
+		UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
+		return;
+	}
+
 	if (bUseFastCapture)
 	{
 		CaptureFast(ImageData, Width, Height);
@@ -178,12 +184,6 @@ void UBaseCameraSensor::Capture(TArray<FFloat16Color>& ImageData, int& Width, in
 	else
     {
 		SCOPE_CYCLE_COUNTER(STAT_ReadBuffer);
-
-		if (!CheckTextureTarget())
-		{
-			UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
-			return;
-		}
 		this->CaptureScene();
 
 		Width = TextureTarget->SizeX;
@@ -244,6 +244,12 @@ void UBaseCameraSensor::Capture(TArray<FFloat16Color>& ImageData, int& Width, in
 
 void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 {
+	if (!CheckTextureTarget())
+	{
+		UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
+		return;
+	}
+
 	CheckCaptureCache(ECaptureFormat::Invalid);
 
 	if (!bCaptureLaunched)
@@ -349,6 +355,12 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 
 void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height)
 {
+	if (!CheckTextureTarget())
+	{
+		UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
+		return;
+	}
+
 	CheckCaptureCache(ECaptureFormat::UInt8);
 
 	double CaptureFastStartTime = FPlatformTime::Seconds();
@@ -400,6 +412,12 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 
 void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width, int& Height)
 {
+	if (!CheckTextureTarget())
+	{
+		UE_LOG(LogTemp, Error, TEXT("The TextureTarget was not initialized. Capture failed."));
+		return;
+	}
+
 	CheckCaptureCache(ECaptureFormat::F16);
 
 	if (TextureTarget->GetFormat() != PF_FloatRGBA)
