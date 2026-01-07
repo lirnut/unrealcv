@@ -38,12 +38,12 @@ void FUnrealcvServer::InitWorldController()
 	if (!IsValid(GameWorld))
 	{
 		UE_LOG(LogUnrealCV, Log, TEXT("GameWorld is not valid"));
-		// // Destroy WorldController if world is invalid
-		// if (WorldController.IsValid())
-		// {
-		// 	WorldController->Destroy();
-		// 	WorldController.Reset();
-		// }
+		// Destroy WorldController if world is invalid
+		if (WorldController.IsValid())
+		{
+			WorldController->Destroy();
+			WorldController.Reset();
+		}
 		return;
 	}
 

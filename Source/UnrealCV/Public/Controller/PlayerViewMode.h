@@ -47,13 +47,12 @@ public:
 
 	UMaterial* GetMaterial(FString InModeName);
 private:
-	long long _Space1_[1024];  // To deal with some memory override issue
-	FEngineShowFlags* GameShowFlags;
-	void SetCurrentBufferVisualizationMode(FString ViewMode);
 	UPlayerViewMode();
-	FString CurrentViewMode;
+	void SetCurrentBufferVisualizationMode(FString ViewMode);
 	void ClearPostProcess();
-
 	void LoadMaterial();
+
+	FString CurrentViewMode;
+	static FEngineShowFlags* GameShowFlags;
 	static TMap<FString, UMaterial*> PPMaterialMap;
 };

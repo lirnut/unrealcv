@@ -16,6 +16,7 @@
 DECLARE_DELEGATE(ViewModeFunc)
 
 TMap<FString, UMaterial*> UPlayerViewMode::PPMaterialMap;
+FEngineShowFlags* UPlayerViewMode::GameShowFlags = nullptr;
 
 UPlayerViewMode::UPlayerViewMode() : CurrentViewMode("lit")
 {
@@ -289,10 +290,10 @@ FExecStatus UPlayerViewMode::GetMode(const TArray<FString>& Args) // Check input
 
 void UPlayerViewMode::SaveGameDefault(FEngineShowFlags ShowFlags)
 {
-	if (this->GameShowFlags != nullptr)
+	if (GameShowFlags != nullptr)
 	{
-		delete this->GameShowFlags;
-		this->GameShowFlags = nullptr;
+		delete GameShowFlags;
+		GameShowFlags = nullptr;
 	}
 	GameShowFlags = new FEngineShowFlags(ShowFlags);
 }
