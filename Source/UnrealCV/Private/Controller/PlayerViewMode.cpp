@@ -11,6 +11,7 @@
 #include "ViewMode.h"
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
+#include "BPFunctionLib/AnnotationBPLib.h"
 
 DECLARE_DELEGATE(ViewModeFunc)
 
@@ -124,27 +125,32 @@ void UPlayerViewMode::DepthWorldUnits()
 {
 	UWorld* World = FUnrealcvServer::Get().GetWorld();
 	UGameViewportClient* Viewport = World->GetGameViewport();
+	Viewport->SetViewMode(VMI_Lit);
 	FViewMode::BufferVisualization(Viewport->EngineShowFlags);
 	SetCurrentBufferVisualizationMode(TEXT("SceneDepthWorldUnits"));
 }
 
 void UPlayerViewMode::Depth()
 {
+	FUnrealcvServer::Get().GetWorld()->GetGameViewport()->SetViewMode(VMI_Lit);
 	this->ApplyPostProcess("vis_depth");
 }
 
 void UPlayerViewMode::Normal()
 {
+	FUnrealcvServer::Get().GetWorld()->GetGameViewport()->SetViewMode(VMI_Lit);
 	this->ApplyPostProcess("normal");
 }
 
 void UPlayerViewMode::OpticalFlow()
 {
+	FUnrealcvServer::Get().GetWorld()->GetGameViewport()->SetViewMode(VMI_Lit);
 	this->ApplyPostProcess("optical_flow");
 }
 
 void UPlayerViewMode::BaseColor()
 {
+	FUnrealcvServer::Get().GetWorld()->GetGameViewport()->SetViewMode(VMI_Lit);
 	SetCurrentBufferVisualizationMode(TEXT("BaseColor"));
 }
 
@@ -154,50 +160,27 @@ void UPlayerViewMode::Lit()
 	this->ClearPostProcess();
 	if (GameShowFlags == nullptr)
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("The lit mode is not correctly configured."));
+		UE_LOG(LogUnrealCV, Error, TEXT("The default show flags is not correctly configured."));
 		return;
 	}
-	World->GetGameViewport()->EngineShowFlags = *GameShowFlags;
+	auto Viewport = World->GetGameViewport();
+	Viewport->SetViewMode(VMI_Lit);
+	Viewport->EngineShowFlags = *GameShowFlags;
 	// FViewMode::Lit(Viewport->EngineShowFlags);
 }
 
 void UPlayerViewMode::Unlit()
 {
 	UWorld* World = FUnrealcvServer::Get().GetWorld();
-	auto Viewport = World->GetGameViewport();
-	FViewMode::Unlit(Viewport->EngineShowFlags);
-}
-
-void UPlayerViewMode::ClearPostProcess()
-{
-	GetPostProcessVolume()->BlendWeight = 0;
-}
-
-
-
-void UPlayerViewMode::ApplyPostProcess(FString ModeName)
-{
-	// // debug for PIE
-	// LoadMaterial();
-
-	UWorld* World = FUnrealcvServer::Get().GetWorld();
-	UGameViewportClient* GameViewportClient = World->GetGameViewport();
-	FSceneViewport* SceneViewport = GameViewportClient->GetGameViewport();
-
-	FViewMode::PostProcess(GameViewportClient->EngineShowFlags);
-
-	UMaterial* Material = GetMaterial(ModeName);
-	if (!IsValid(Material))
+	this->ClearPostProcess();
+	if (GameShowFlags == nullptr)
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("Can not find material for mode %s"), *ModeName);
+		UE_LOG(LogUnrealCV, Error, TEXT("The default show flags is not correctly configured."));
 		return;
 	}
-	APostProcessVolume* PostProcessVolume = GetPostProcessVolume();
-	PostProcessVolume->Settings.WeightedBlendables.Array.Empty();
-
-	// PostProcessVolume->AddOrUpdateBlendable(Material);
-	PostProcessVolume->Settings.AddBlendable(Material, 1);
-	PostProcessVolume->BlendWeight = 1;
+	auto Viewport = World->GetGameViewport();
+	Viewport->SetViewMode(VMI_Unlit);
+	Viewport->EngineShowFlags = *GameShowFlags;
 }
 
 void UPlayerViewMode::DebugMode()
@@ -209,9 +192,44 @@ void UPlayerViewMode::Object()
 {
 	UWorld* World = FUnrealcvServer::Get().GetWorld();
 	auto Viewport = World->GetGameViewport();
+	Viewport->SetViewMode(VMI_Lit);
 	FViewMode::VertexColor(Viewport->EngineShowFlags);
+	this->ClearPostProcess();
 	// ApplyPostProcess("object_mask");
 }
+
+void UPlayerViewMode::ClearPostProcess()
+{
+	GetPostProcessVolume()->BlendWeight = 0;
+}
+
+void UPlayerViewMode::ApplyPostProcess(FString ModeName)
+{
+	// // debug for PIE
+	// LoadMaterial();
+
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
+	UGameViewportClient* GameViewportClient = World->GetGameViewport();
+	// FSceneViewport* SceneViewport = GameViewportClient->GetGameViewport();
+
+	FViewMode::PostProcess(GameViewportClient->EngineShowFlags);
+
+	UMaterial* Material = GetMaterial(ModeName);
+	if (!IsValid(Material))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Can not find material for mode %s"), *ModeName);
+		return;
+	}
+
+	APostProcessVolume* PostProcessVolume = GetPostProcessVolume();
+	// PostProcessVolume->bEnabled = true;
+	PostProcessVolume->Settings.WeightedBlendables.Array.Empty();
+	// PostProcessVolume->AddOrUpdateBlendable(Material);
+	PostProcessVolume->Settings.AddBlendable(Material, 1);
+	PostProcessVolume->BlendWeight = 1;
+}
+
+
 
 FExecStatus UPlayerViewMode::SetMode(const TArray<FString>& Args) // Check input arguments
 {
@@ -282,6 +300,7 @@ void UPlayerViewMode::SaveGameDefault(FEngineShowFlags ShowFlags)
 void UPlayerViewMode::VertexColor()
 {
 	auto Viewport = FUnrealcvServer::Get().GetWorld()->GetGameViewport();
+	Viewport->SetViewMode(VMI_Lit);
 	FViewMode::VertexColor(Viewport->EngineShowFlags);
 }
 

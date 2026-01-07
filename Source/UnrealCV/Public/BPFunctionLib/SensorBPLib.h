@@ -28,10 +28,13 @@ public:
 private:
 	FCameraIDManager();
 
-	FString GenerateUUID(UFusionCamSensor* Sensor) const;
+	void DetectWorldChange();
+
+	FString GenerateUUID(UFusionCamSensor* Sensor);
 
 	TMap<UFusionCamSensor*, FString> SensorToCameraIDMap;
 	TSet<FString> UsedCameraIDs;
+	UWorld* WorldMem;
 };
 
 /** Sensor related function library */

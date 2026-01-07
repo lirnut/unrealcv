@@ -7,7 +7,6 @@
 #include "Runtime/Launch/Resources/Version.h"
 
 static FCameraIDManager* GCameraIDManager = nullptr;
-static const int32 MAX_RETRY = 50;
 
 FCameraIDManager& FCameraIDManager::Get()
 {
@@ -18,11 +17,44 @@ FCameraIDManager& FCameraIDManager::Get()
 	return *GCameraIDManager;
 }
 
-FCameraIDManager::FCameraIDManager()
+FCameraIDManager::FCameraIDManager() : WorldMem(nullptr)
 {
 }
 
-FString FCameraIDManager::GenerateUUID(UFusionCamSensor* Sensor) const
+
+
+void FCameraIDManager::DetectWorldChange()
+{
+	if (WorldMem == nullptr)
+	{
+		WorldMem = FUnrealcvServer::Get().GetWorld();
+		if (!IsValid(WorldMem))
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to get world from UnrealCV server."));
+		}
+	}
+	else
+	{
+		UWorld* ThisWorld = FUnrealcvServer::Get().GetWorld();
+		if (IsValid(ThisWorld))
+		{
+			if (ThisWorld != WorldMem)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("FCameraIDManager::GenerateUUID: World change detected"));
+				WorldMem = ThisWorld;
+				UsedCameraIDs.Empty();
+				SensorToCameraIDMap.Empty();
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to get world from UnrealCV server."));
+		}
+	}
+
+}
+
+FString FCameraIDManager::GenerateUUID(UFusionCamSensor* Sensor)
 {
 	FString ParentActorName = TEXT("Unknown");
 
@@ -36,15 +68,23 @@ FString FCameraIDManager::GenerateUUID(UFusionCamSensor* Sensor) const
 	}
 
 	FString GeneratedID;
-	uint32 RandomValue;
+	
 	int32 RetryCount = 0;
+	const int32 MAX_RETRY = 50;
 
 	do
 	{
-		RandomValue = FMath::Rand() & 0xff;
-		// GeneratedID = FString::Printf(TEXT("CID_%02x_%s"), RandomValue, *ParentActorName);
-		// GeneratedID = FString::Printf(TEXT("CID/%s/%02x"), *ParentActorName, RandomValue);
-		GeneratedID = FString::Printf(TEXT("CID-%s-%02x"), *ParentActorName, RandomValue);
+		if (RetryCount < 16)
+		{
+			GeneratedID = FString::Printf(TEXT("CID-%s-%02x"), *ParentActorName, RetryCount);
+		}
+		else
+		{
+			uint32 RandomValue = FMath::Rand() & 0xff;
+			// GeneratedID = FString::Printf(TEXT("CID_%02x_%s"), RandomValue, *ParentActorName);
+			// GeneratedID = FString::Printf(TEXT("CID/%s/%02x"), *ParentActorName, RandomValue);
+			GeneratedID = FString::Printf(TEXT("CID-%s-%02x"), *ParentActorName, RandomValue);
+		}
 		RetryCount++;
 	} while (UsedCameraIDs.Contains(GeneratedID) && RetryCount < MAX_RETRY);
 
@@ -54,13 +94,14 @@ FString FCameraIDManager::GenerateUUID(UFusionCamSensor* Sensor) const
 		return GeneratedID;
 	}
 
-	const_cast<FCameraIDManager*>(this)->UsedCameraIDs.Add(GeneratedID);
+	UsedCameraIDs.Add(GeneratedID);
 	return GeneratedID;
 }
 
 
 TArray<UFusionCamSensor*> FCameraIDManager::Sync()
 {
+	DetectWorldChange();
 	TArray<UFusionCamSensor*> SensorList = USensorBPLib::GetFusionSensorList();
 	TMap<UFusionCamSensor*, FString> SensorToCameraIDMap_;
 	for (UFusionCamSensor* Sensor : SensorList)
@@ -81,6 +122,7 @@ TArray<UFusionCamSensor*> FCameraIDManager::Sync()
 
 UFusionCamSensor* FCameraIDManager::GetSensorByAnyID(const FString& IDString)
 {
+	DetectWorldChange();
 	if (IDString.IsEmpty())
 	{
 		return nullptr;
@@ -93,28 +135,32 @@ UFusionCamSensor* FCameraIDManager::GetSensorByAnyID(const FString& IDString)
 		TMap<UFusionCamSensor*, FString> SensorToCameraIDMap_;
 		for (UFusionCamSensor* Sensor : SensorList)
 		{
+			FString ThisID;
 			if (!SensorToCameraIDMap.Contains(Sensor))
 			{
-				SensorToCameraIDMap_.Add(Sensor, GenerateUUID(Sensor));
+				ThisID = GenerateUUID(Sensor);
+				SensorToCameraIDMap_.Add(Sensor, ThisID);
 			}
 			else
 			{
-				FString ExistingID = SensorToCameraIDMap[Sensor];
-				SensorToCameraIDMap_.Add(Sensor, ExistingID);
-				if (ExistingID == IDString)
+				ThisID = SensorToCameraIDMap[Sensor];
+				SensorToCameraIDMap_.Add(Sensor, ThisID);
+			}
+
+			if (ThisID == IDString)
+			{
+				if (Ret == nullptr)
 				{
-					if (Ret == nullptr)
-					{
-						Ret = Sensor;
-					}
-					else
-					{
-						UE_LOG(LogTemp, Error, TEXT("Multiple sensors have the same ID: %s"), *IDString);
-						check(false);
-					}
+					Ret = Sensor;
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("Multiple sensors have the same ID: %s"), *IDString);
+					check(false);
 				}
 			}
 		}
+
 		Swap(SensorToCameraIDMap, SensorToCameraIDMap_);
 		return Ret;
 	}
@@ -131,7 +177,9 @@ UFusionCamSensor* FCameraIDManager::GetSensorByAnyID(const FString& IDString)
 }
 
 
-int32 FCameraIDManager::GetIndexByAnyID(const FString& IDString) {
+int32 FCameraIDManager::GetIndexByAnyID(const FString& IDString)
+{
+	DetectWorldChange();
 	const int32 INVALID_RET = -1;
 	if (IDString.IsEmpty())
 	{
@@ -146,25 +194,28 @@ int32 FCameraIDManager::GetIndexByAnyID(const FString& IDString) {
 		for (int32 Index = 0; Index < SensorList.Num(); Index++)
 		{
 			UFusionCamSensor* Sensor = SensorList[Index];
+			FString ThisID;
 			if (!SensorToCameraIDMap.Contains(Sensor))
 			{
-				SensorToCameraIDMap_.Add(Sensor, GenerateUUID(Sensor));
+				ThisID = GenerateUUID(Sensor);
+				SensorToCameraIDMap_.Add(Sensor, ThisID);
 			}
 			else
 			{
-				FString ExistingID = SensorToCameraIDMap[Sensor];
-				SensorToCameraIDMap_.Add(Sensor, ExistingID);
-				if (ExistingID == IDString)
+				ThisID = SensorToCameraIDMap[Sensor];
+				SensorToCameraIDMap_.Add(Sensor, ThisID);
+			}
+
+			if (ThisID == IDString)
+			{
+				if (Ret == INVALID_RET)
 				{
-					if (Ret == INVALID_RET)
-					{
-						Ret = Index;
-					}
-					else
-					{
-						UE_LOG(LogTemp, Error, TEXT("Multiple sensors have the same ID: %s"), *IDString);
-						check(false);
-					}
+					Ret = Index;
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("Multiple sensors have the same ID: %s"), *IDString);
+					check(false);
 				}
 			}
 		}
@@ -185,6 +236,7 @@ int32 FCameraIDManager::GetIndexByAnyID(const FString& IDString) {
 
 FString FCameraIDManager::GetNewFormatID(UFusionCamSensor* Sensor)
 {
+	DetectWorldChange();
 	if (!IsValid(Sensor))
 	{
 		return FString();

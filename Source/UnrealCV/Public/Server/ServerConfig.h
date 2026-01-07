@@ -19,6 +19,8 @@ public:
 	bool ExitOnFailure;
 	bool EnableRightEye;
 	bool UseFastCapture;
+	bool bLitUseBGRA8;
+	float OpticalFlowScale;
 
 	TArray<FString> SupportedModes;
 

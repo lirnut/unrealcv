@@ -67,7 +67,7 @@ public:
 
 	virtual void InitTextureTarget(int FilmWidth, int FilmHeight);
 
-	void SetPostProcessMaterial(UMaterial* PostProcessMaterial);
+	void SetPostProcessMaterial(TScriptInterface<IBlendableInterface> PostProcessMaterial);
 
 	/** Similar function to GetCameraView in UCameraComponent, without lockToHMD feature */
 	void GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView);

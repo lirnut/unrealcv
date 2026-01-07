@@ -7,11 +7,11 @@
 #include "ImageUtil.h"
 #include "UnrealcvLog.h"
 #include "RHISurfaceDataConversionOpt.h"
+#include "BPFunctionLib/AnnotationBPLib.h"
 
 UDepthCamSensor::UDepthCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
-	// this->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 	this->CaptureSource = ESceneCaptureSource::SCS_SceneDepth;
 	bIgnoreTransparentObjects = false;
 }
@@ -28,10 +28,10 @@ void UDepthCamSensor::CaptureDepth(TArray<float>& DepthData, int& Width, int& He
 	if (!bIgnoreTransparentObjects)
 	{
 		TArray<TWeakObjectPtr<UPrimitiveComponent> > ComponentList;
-		UAnnotationCamSensor::GetAnnotationComponents(this->GetWorld(), ComponentList);
+		UAnnotationBPLib::GetAnnotationComponents(this->GetWorld(), ComponentList);
 		this->ShowOnlyComponents = ComponentList;
 		this->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-		this->ShowFlags.SetMaterials(false); // This will make annotation component visible
+		this->ShowFlags.SetMaterials(false);
 	}
 
 	if (!CheckTextureTarget()) return;
@@ -69,7 +69,7 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 	if (!bIgnoreTransparentObjects)
 	{
 		TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
-		UAnnotationCamSensor::GetAnnotationComponents(this->GetWorld(), ComponentList);
+		UAnnotationBPLib::GetAnnotationComponents(this->GetWorld(), ComponentList);
 		this->ShowOnlyComponents = ComponentList;
 		this->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 		this->ShowFlags.SetMaterials(false);
@@ -87,7 +87,7 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 		LaunchCapture();
 	}
 	bCaptureLaunched = false;
-	
+
 	EPixelFormat PixelFormat = TextureTarget->GetFormat();
 	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] TextureTarget Format: %d, SRGB: %d, Gamma: %f"),
 		(int32)PixelFormat,
@@ -100,7 +100,6 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 
 	FQueuedCapture Capture;
 	Capture.Readback = MakeShared<FRHIGPUTextureReadback>(
-		// random name
 		*FString::Printf(TEXT("Capture_%d"), FMath::Rand())
 	);
 	Capture.OutputPath = TEXT("");
@@ -112,9 +111,7 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 		[RenderTargetResource, Capture = MoveTemp(Capture), Filename](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::SRVMask, ERHIAccess::CopySrc));
 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
-			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::CopySrc, ERHIAccess::SRVMask));
 
 			void* RawDataCopy = FMemory::Malloc(Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
 			int32 RowPitchInPixels;
@@ -130,10 +127,8 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 
 					TArray<FFloat16Color> PixelData;
 					PixelData.AddUninitialized(Width * Height);
-					FReadSurfaceDataFlags ReadFlags(RCM_MinMax); // do not norm
-					// FReadSurfaceDataFlags ReadFlags(RCM_UNorm); // norm
-					ReadFlags.SetLinearToGamma(false);  // no gamma correction
-					// ReadFlags.SetLinearToGamma(true);  // gamma correction
+					FReadSurfaceDataFlags ReadFlags(RCM_MinMax);
+					ReadFlags.SetLinearToGamma(false);
 
 					uint32 SrcPitch = RowPitchInPixels * GPixelFormats[PixelFormat].BlockBytes;
 					ConvertRAWSurfaceDataToFFloat16ColorOpt(
@@ -161,12 +156,12 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 
 					double SerializeStartTime = FPlatformTime::Seconds();
 					FString OutputPathBase = OutputPath.Replace(TEXT(".npy"), TEXT(""));
-					FString OutputPathPNG = OutputPathBase.Append(TEXT(".png"));
-					FString DepthPreviewPath = OutputPathBase.Append(TEXT("_preview.png"));
-					FString DepthNpyPath = OutputPathBase.Append(TEXT(".npy"));
+					FString OutputPathPNG = OutputPathBase + TEXT(".png");
+					FString DepthPreviewPath = OutputPathBase + TEXT("_preview.png");
+					FString DepthNpyPath = OutputPathBase + TEXT(".npy");
 					TArray<FColor> DepthPreview;
 					TArray<FColor> DepthPNG;
-					ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 100000.0f); // 1km
+					ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 100000.0f);
 					ConvertDepthToPreview(DepthData, DepthPreview);
 					// | 你能接受的误差（cm）   | 对应的 MaxDepth（cm）                     |
 					// | ------------- | ------------------------------------ |

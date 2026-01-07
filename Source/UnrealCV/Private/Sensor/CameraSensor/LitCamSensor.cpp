@@ -2,6 +2,8 @@
 #include "LitCamSensor.h"
 #include "UnrealcvLog.h"
 #include "UnrealcvStats.h"
+#include "Server/ServerConfig.h"
+#include "Server/UnrealcvServer.h"
 
 #include "Runtime/Engine/Classes/Engine/Engine.h"
 #include "TextureResource.h"
@@ -29,7 +31,8 @@ ULitCamSensor::ULitCamSensor(const FObjectInitializer& ObjectInitializer) :
 
 void ULitCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 {
-	const static bool bUseBGRA8 = false;
+	FServerConfig& Config = FUnrealcvServer::Get().Config;
+	bool bUseBGRA8 = Config.bLitUseBGRA8;
 	if (bUseBGRA8)
 	{
 		InitUInt8TextureTarget(filmWidth, filmHeight, true);

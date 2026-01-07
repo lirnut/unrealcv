@@ -21,7 +21,7 @@ public:
 	/** ViewMode for ground truth types implemented with PostProcess material */
 	static void PostProcess(FEngineShowFlags& ShowFlags);
 
-	static void Unlit(FEngineShowFlags& ShowFlags);
+	// static void Unlit(FEngineShowFlags& ShowFlags);
 
 	/** Wireframe viewmode for debug */
 	static void Wireframe(FEngineShowFlags& ShowFlags);

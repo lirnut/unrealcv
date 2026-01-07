@@ -1,5 +1,7 @@
 #include "ViewMode.h"
 #include "BufferVisualizationData.h"
+#include "UnrealcvServer.h"
+// #include "EditorViewportClient.h"
 
 /**
 FViewMode is a helper class to tweak render options. Important options are
@@ -99,31 +101,74 @@ void FViewMode::Wireframe(FEngineShowFlags& ShowFlags)
 void FViewMode::VertexColor(FEngineShowFlags& ShowFlags)
 {
 	FEngineShowFlags PreviousShowFlags(ShowFlags); // Store previous ShowFlags
-	ApplyViewMode(VMI_Lit, true, ShowFlags);
+	BasicSetting(ShowFlags);
+	// ApplyViewMode(VMI_Unlit, true, ShowFlags);
+
+	// ShowFlags.SetPostProcessing(false);
+	// ShowFlags.SetLightFunctions(false);
+	// ShowFlags.SetDynamicShadows(false);       // Disable dynamic shadows
+	// ShowFlags.SetLighting(false);
+	// ShowFlags.SetAtmosphere(false);
+	// ShowFlags.SetFog(false);
 
 	// From MeshPaintEdMode.cpp:2942
 	ShowFlags.SetMaterials(false);
-	ShowFlags.SetLighting(false);
-	ShowFlags.SetBSPTriangles(true);
+	// ShowFlags.SetLighting(false);
+	// ShowFlags.SetBSPTriangles(true);
 	ShowFlags.SetVertexColors(true);
-	ShowFlags.SetPostProcessing(false);
-	ShowFlags.SetHMDDistortion(false);
-	ShowFlags.SetTonemapper(false); // This won't take effect here
+	// ShowFlags.SetPostProcessing(false);
+	// ShowFlags.SetHMDDistortion(false);
+	// ShowFlags.SetTonemapper(false); // This won't take effect here
+
+//   ShowFlags.SetMaterials(false);
+//   ShowFlags.SetLighting(false);
+//   ShowFlags.SetPostProcessing(false);
+//   ShowFlags.SetLightFunctions(false);      // Disable light functions
+//   ShowFlags.SetSkyLighting(false);          // Disable sky lighting
+//   ShowFlags.SetDynamicShadows(false);       // Disable dynamic shadows
+//   ShowFlags.SetLumenReflections(false);          // Disable reflections
+//   ShowFlags.SetScreenSpaceReflections(false);          // Disable screen space reflections
+//   ShowFlags.SetReflectionEnvironment(false);          // Disable reflection environment
+//   ShowFlags.SetAmbientOcclusion(false);     // Disable AO
+//   ShowFlags.SetBloom(false);
+//   ShowFlags.SetDirectLighting(false);
+//   ShowFlags.SetPointLights(false);
+//   ShowFlags.SetSpotLights(false);
+
+// 	// // from AnnotationCamSensor.cpp
+// 	ShowFlags.SetMaterials(false);
+// 	ShowFlags.SetLighting(false);
+// 	ShowFlags.SetPostProcessing(false);
+// 	ShowFlags.SetColorGrading(false);
+// 	ShowFlags.SetTonemapper(false); // This won't take effect here
+// 	ShowFlags.SetAtmosphere(false);
+// 	ShowFlags.SetFog(false);
+
+// 	ShowFlags.SetBSPTriangles(true);
+// 	ShowFlags.SetVertexColors(true);
+// 	ShowFlags.SetHMDDistortion(false);
+
+	// ShowFlags.SetStaticMeshes(true);
+	// ShowFlags.SetLandscape(true);
+	// ShowFlags.SetInstancedFoliage(true);
+	// ShowFlags.SetInstancedGrass(true);
+	// ShowFlags.SetInstancedStaticMeshes(true);
+	// ShowFlags.SetSkeletalMeshes(true);
 
 	// GVertexColorViewMode = EVertexColorViewMode::Color;
 	SetVisibility(ShowFlags, PreviousShowFlags); // Store the visibility of the scene, such as folliage and landscape.
 }
 
-void FViewMode::Unlit(FEngineShowFlags& ShowFlags)
-{
-	ApplyViewMode(VMI_Unlit, true, ShowFlags);
-	ShowFlags.SetMaterials(false);
-	ShowFlags.SetVertexColors(false);
-	ShowFlags.SetLightFunctions(false);
-	ShowFlags.SetLighting(false);
-	ShowFlags.SetAtmosphere(false);
-	ShowFlags.SetFog(false);
-}
+// void FViewMode::Unlit(FEngineShowFlags& ShowFlags)
+// {
+// 	ApplyViewMode(VMI_Unlit, true, ShowFlags);
+// 	ShowFlags.SetMaterials(false);
+// 	ShowFlags.SetVertexColors(false);
+// 	ShowFlags.SetLightFunctions(false);
+// 	ShowFlags.SetLighting(false);
+// 	ShowFlags.SetAtmosphere(false);
+// 	ShowFlags.SetFog(false);
+// }
 
 void FViewMode::SetVisibility(FEngineShowFlags& Target, FEngineShowFlags& Source)
 {

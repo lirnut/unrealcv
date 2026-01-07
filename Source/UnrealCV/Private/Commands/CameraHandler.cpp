@@ -348,7 +348,8 @@ FExecStatus FCameraHandler::GetCameraDepth(const TArray<FString>& Args)
 
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	bool SaveToFile = FilenameType == EFilenameType::Npy || FilenameType == EFilenameType::Png || FilenameType == EFilenameType::Bmp;
+	// bool SaveToFile = FilenameType == EFilenameType::Npy || FilenameType == EFilenameType::Png || FilenameType == EFilenameType::Bmp;
+	bool SaveToFile = FilenameType == EFilenameType::Npy;
 	if (SaveToFile && FusionCamSensor->GetUseFastCapture())
 	{
 		FusionCamSensor->SaveDepthToFile(Filename);
@@ -377,11 +378,11 @@ FExecStatus FCameraHandler::GetCameraNormal(const TArray<FString>& Args)
 
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
-	{
-		FusionCamSensor->SaveNormalToFile(Filename);
-		return FExecStatus::OK(Filename);
-	}
+	// if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
+	// {
+	// 	FusionCamSensor->SaveNormalToFile(Filename);
+	// 	return FExecStatus::OK(Filename);
+	// }
 
 	TArray<FColor> Data;
 	int Width, Height;
@@ -404,11 +405,11 @@ FExecStatus FCameraHandler::GetCameraFlow(const TArray<FString>& Args)
 
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
-	{
-		FusionCamSensor->SaveFlowToFile(Filename);
-		return FExecStatus::OK(Filename);
-	}
+	// if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
+	// {
+	// 	FusionCamSensor->SaveFlowToFile(Filename);
+	// 	return FExecStatus::OK(Filename);
+	// }
 
 	TArray<FColor> Data;
 	int Width, Height;
@@ -468,7 +469,7 @@ FExecStatus FCameraHandler::SetUseFastCapture(const TArray<FString>& Args)
 
 	if (Args.Num() != 2)
 	{
-		return FExecStatus::Error("Usage: vset /camera/[uint]/use_fast_capture [0|1]");
+		return FExecStatus::Error("Usage: vset /camera/[camera_id]/use_fast_capture [0|1]");
 	}
 
 	bool bEnable = FCString::Atoi(*Args[1]) != 0;
@@ -948,184 +949,184 @@ FExecStatus FCameraHandler::SetCameraAudioRecord(const TArray<FString>& Args)
 }
 
 
-FExecStatus FCameraHandler::GetHWObs(const TArray<FString>& Args) {
-	return GetHWObsV3(Args);
-}
+// FExecStatus FCameraHandler::GetHWObs(const TArray<FString>& Args) {
+// 	return GetHWObsV3(Args);
+// }
 
-FExecStatus FCameraHandler::GetHWObsV3(const TArray<FString>& Args)
-{
-    auto t_func_start = std::chrono::steady_clock::now();
-    SL::get().print("FCameraHandler::GetHWObsV3 called");
+// FExecStatus FCameraHandler::GetHWObsV3(const TArray<FString>& Args)
+// {
+//     auto t_func_start = std::chrono::steady_clock::now();
+//     SL::get().print("FCameraHandler::GetHWObsV3 called");
 
-    {
-        ScopedStepTimer _t("Arg validation");
-        // ԭ�߼�������У��
-    }
+//     {
+//         ScopedStepTimer _t("Arg validation");
+//         // ԭ�߼�������У��
+//     }
 
-    FExecStatus ExecStatus = FExecStatus::OK();
-    if (Args.Num() != 3) {
-        FString Msg = TEXT("Invalid command length.");
-        SL::get().print(TCHAR_TO_UTF8(*Msg));
-        ExecStatus = FExecStatus::Error(Msg);
-        return ExecStatus;
-    }
+//     FExecStatus ExecStatus = FExecStatus::OK();
+//     if (Args.Num() != 3) {
+//         FString Msg = TEXT("Invalid command length.");
+//         SL::get().print(TCHAR_TO_UTF8(*Msg));
+//         ExecStatus = FExecStatus::Error(Msg);
+//         return ExecStatus;
+//     }
 
-    FString TargetId = Args[2];
-    FString FileName = Args[1];
+//     FString TargetId = Args[2];
+//     FString FileName = Args[1];
 
-    int32 index;
-    {
-        ScopedStepTimer _t("Check file name has extension");
-        if (!FileName.FindLastChar(TEXT('.'), index)) {
-            FString msg = TEXT("File name is not a path, binary is not supported.");
-            SL::get().print(TCHAR_TO_UTF8(*msg));
-            ExecStatus = FExecStatus::Error(msg);
-            return ExecStatus;
-        }
-    }
+//     int32 index;
+//     {
+//         ScopedStepTimer _t("Check file name has extension");
+//         if (!FileName.FindLastChar(TEXT('.'), index)) {
+//             FString msg = TEXT("File name is not a path, binary is not supported.");
+//             SL::get().print(TCHAR_TO_UTF8(*msg));
+//             ExecStatus = FExecStatus::Error(msg);
+//             return ExecStatus;
+//         }
+//     }
 
-    UFusionCamSensor* FusionCamSensor = nullptr;
-    {
-        ScopedStepTimer _t("GetCamera()");
-        FusionCamSensor = GetCamera(Args, ExecStatus);
-    }
-    if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+//     UFusionCamSensor* FusionCamSensor = nullptr;
+//     {
+//         ScopedStepTimer _t("GetCamera()");
+//         FusionCamSensor = GetCamera(Args, ExecStatus);
+//     }
+//     if (!IsValid(FusionCamSensor)) { return ExecStatus; }
 
-    UAnnotationCamSensor* AnnotationCamSensor = nullptr;
-    ULitCamSensor*       LitCamSensor = nullptr;
-    {
-        ScopedStepTimer _t("Get sub-sensors from FusionCamSensor");
-        AnnotationCamSensor = FusionCamSensor->GetAnnotationCamSensor();
-        LitCamSensor        = FusionCamSensor->GetLitCamSensor();
-    }
+//     UAnnotationCamSensor* AnnotationCamSensor = nullptr;
+//     ULitCamSensor*       LitCamSensor = nullptr;
+//     {
+//         ScopedStepTimer _t("Get sub-sensors from FusionCamSensor");
+//         AnnotationCamSensor = FusionCamSensor->GetAnnotationCamSensor();
+//         LitCamSensor        = FusionCamSensor->GetLitCamSensor();
+//     }
 
-    // Lit target check + init
-    {
-        ScopedStepTimer _t("LitCamSensor::CheckTextureTarget()");
-        // ����ʱ��һ�μ��
-        (void)LitCamSensor->CheckTextureTarget();
-    }
-    {
-        ScopedStepTimer _t("LitCamSensor::InitTextureTarget (if needed)");
-        if (LitCamSensor->CheckTextureTarget()) {
-            LitCamSensor->InitTextureTarget(FusionCamSensor->GetFilmWidth(), FusionCamSensor->GetFilmHeight());
-            if (!LitCamSensor->CheckTextureTarget()) {
-                SL::get().print("LitCamSensor InitTextureTarget failed.");
-                ExecStatus = FExecStatus::Error("LitCamSensor InitTextureTarget failed.");
-                SL::get().printf("[TIMER] total elapsed before failure: %.3f ms", ms_since(t_func_start));
-                return ExecStatus;
-            }
-        }
-    }
+//     // Lit target check + init
+//     {
+//         ScopedStepTimer _t("LitCamSensor::CheckTextureTarget()");
+//         // ����ʱ��һ�μ��
+//         (void)LitCamSensor->CheckTextureTarget();
+//     }
+//     {
+//         ScopedStepTimer _t("LitCamSensor::InitTextureTarget (if needed)");
+//         if (LitCamSensor->CheckTextureTarget()) {
+//             LitCamSensor->InitTextureTarget(FusionCamSensor->GetFilmWidth(), FusionCamSensor->GetFilmHeight());
+//             if (!LitCamSensor->CheckTextureTarget()) {
+//                 SL::get().print("LitCamSensor InitTextureTarget failed.");
+//                 ExecStatus = FExecStatus::Error("LitCamSensor InitTextureTarget failed.");
+//                 SL::get().printf("[TIMER] total elapsed before failure: %.3f ms", ms_since(t_func_start));
+//                 return ExecStatus;
+//             }
+//         }
+//     }
 
-    // Annotation target check + init
-    {
-        ScopedStepTimer _t("AnnotationCamSensor::CheckTextureTarget()");
-        (void)AnnotationCamSensor->CheckTextureTarget();
-    }
-    {
-        ScopedStepTimer _t("AnnotationCamSensor::InitTextureTarget (if needed)");
-        if (!AnnotationCamSensor->CheckTextureTarget()) {
-            AnnotationCamSensor->InitTextureTarget(FusionCamSensor->GetFilmWidth(), FusionCamSensor->GetFilmHeight());
-            if (!AnnotationCamSensor->CheckTextureTarget()) {
-                SL::get().print("AnnotationCamSensor InitTextureTarget failed.");
-                ExecStatus = FExecStatus::Error("AnnotationCamSensor InitTextureTarget failed.");
-                SL::get().printf("[TIMER] total elapsed before failure: %.3f ms", ms_since(t_func_start));
-                return ExecStatus;
-            }
-        }
-    }
+//     // Annotation target check + init
+//     {
+//         ScopedStepTimer _t("AnnotationCamSensor::CheckTextureTarget()");
+//         (void)AnnotationCamSensor->CheckTextureTarget();
+//     }
+//     {
+//         ScopedStepTimer _t("AnnotationCamSensor::InitTextureTarget (if needed)");
+//         if (!AnnotationCamSensor->CheckTextureTarget()) {
+//             AnnotationCamSensor->InitTextureTarget(FusionCamSensor->GetFilmWidth(), FusionCamSensor->GetFilmHeight());
+//             if (!AnnotationCamSensor->CheckTextureTarget()) {
+//                 SL::get().print("AnnotationCamSensor InitTextureTarget failed.");
+//                 ExecStatus = FExecStatus::Error("AnnotationCamSensor InitTextureTarget failed.");
+//                 SL::get().printf("[TIMER] total elapsed before failure: %.3f ms", ms_since(t_func_start));
+//                 return ExecStatus;
+//             }
+//         }
+//     }
 
-    TArray<FColor> DataRGB, DataM, DataRGBNoTarget;
+//     TArray<FColor> DataRGB, DataM, DataRGBNoTarget;
 
-    FString FileNameRGB = FileName;       { ScopedStepTimer _t("Build FileNameRGB");       FileNameRGB.InsertAt(index, TEXT("_rgb")); }
-    FString FileNameM = FileName;         { ScopedStepTimer _t("Build FileNameM");         FileNameM.InsertAt(index, TEXT("_mask")); }
-    FString FileNameRGBNoTarget = FileName; { ScopedStepTimer _t("Build FileNameRGBNoTarget"); FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target")); }
+//     FString FileNameRGB = FileName;       { ScopedStepTimer _t("Build FileNameRGB");       FileNameRGB.InsertAt(index, TEXT("_rgb")); }
+//     FString FileNameM = FileName;         { ScopedStepTimer _t("Build FileNameM");         FileNameM.InsertAt(index, TEXT("_mask")); }
+//     FString FileNameRGBNoTarget = FileName; { ScopedStepTimer _t("Build FileNameRGBNoTarget"); FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target")); }
 
-    { ScopedStepTimer _t("LitCamSensor::CaptureScene() #1"); LitCamSensor->CaptureScene(); }
+//     { ScopedStepTimer _t("LitCamSensor::CaptureScene() #1"); LitCamSensor->CaptureScene(); }
 
-    TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
-    {
-        ScopedStepTimer _t("AnnotationCamSensor::GetAnnotationComponents()");
-        AnnotationCamSensor->GetAnnotationComponents(this->GetWorld(), ComponentList);
-    }
+//     TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+//     {
+//         ScopedStepTimer _t("AnnotationCamSensor::GetAnnotationComponents()");
+//         AnnotationCamSensor->GetAnnotationComponents(this->GetWorld(), ComponentList);
+//     }
 
-    {
-        ScopedStepTimer _t("Assign ShowOnlyComponents");
-        AnnotationCamSensor->ShowOnlyComponents = ComponentList;
-    }
+//     {
+//         ScopedStepTimer _t("Assign ShowOnlyComponents");
+//         AnnotationCamSensor->ShowOnlyComponents = ComponentList;
+//     }
 
-    { ScopedStepTimer _t("AnnotationCamSensor::CaptureScene()"); AnnotationCamSensor->CaptureScene(); }
+//     { ScopedStepTimer _t("AnnotationCamSensor::CaptureScene()"); AnnotationCamSensor->CaptureScene(); }
 
-    AActor* Target = nullptr;
-    {
-        ScopedStepTimer _t("GetActorById()");
-        Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
-    }
-    if (!Target) {
-        ExecStatus = FExecStatus::Error("Can not find target");
-        SL::get().print("Can not find target");
-        SL::get().printf("[TIMER] total elapsed before failure: %.3f ms", ms_since(t_func_start));
-        return ExecStatus;
-    }
+//     AActor* Target = nullptr;
+//     {
+//         ScopedStepTimer _t("GetActorById()");
+//         Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+//     }
+//     if (!Target) {
+//         ExecStatus = FExecStatus::Error("Can not find target");
+//         SL::get().print("Can not find target");
+//         SL::get().printf("[TIMER] total elapsed before failure: %.3f ms", ms_since(t_func_start));
+//         return ExecStatus;
+//     }
 
-    FActorController TargetController(Target);
+//     FActorController TargetController(Target);
 
-    {
-        ScopedStepTimer _t("LitCamSensor::ReadCaptureResults(DataRGB)");
-        LitCamSensor->ReadCaptureResults(DataRGB);
-    }
+//     {
+//         ScopedStepTimer _t("LitCamSensor::ReadCaptureResults(DataRGB)");
+//         LitCamSensor->ReadCaptureResults(DataRGB);
+//     }
 
-    int32 LitW = LitCamSensor->GetFilmWidth();
-    int32 LitH = LitCamSensor->GetFilmHeight();
+//     int32 LitW = LitCamSensor->GetFilmWidth();
+//     int32 LitH = LitCamSensor->GetFilmHeight();
 
-    if (DataRGB.Num() == LitW * LitH) {
-        ScopedStepTimer _t("SerializeData RGB");
-        SerializeData(DataRGB, LitW, LitH, FileNameRGB);
-    } else {
-        SL::get().print("DataRGB size is not equal to LitW * LitH");
-    }
-    SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
+//     if (DataRGB.Num() == LitW * LitH) {
+//         ScopedStepTimer _t("SerializeData RGB");
+//         SerializeData(DataRGB, LitW, LitH, FileNameRGB);
+//     } else {
+//         SL::get().print("DataRGB size is not equal to LitW * LitH");
+//     }
+//     SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
 
-    { ScopedStepTimer _t("TargetController.Hide()"); TargetController.Hide(); }
+//     { ScopedStepTimer _t("TargetController.Hide()"); TargetController.Hide(); }
 
-    { ScopedStepTimer _t("LitCamSensor::CaptureScene() #2 (no target)"); LitCamSensor->CaptureScene(); }
+//     { ScopedStepTimer _t("LitCamSensor::CaptureScene() #2 (no target)"); LitCamSensor->CaptureScene(); }
 
-    {
-        ScopedStepTimer _t("AnnotationCamSensor::ReadCaptureResults(DataM)");
-        AnnotationCamSensor->ReadCaptureResults(DataM);
-    }
+//     {
+//         ScopedStepTimer _t("AnnotationCamSensor::ReadCaptureResults(DataM)");
+//         AnnotationCamSensor->ReadCaptureResults(DataM);
+//     }
 
-    int32 SegW = AnnotationCamSensor->GetFilmWidth();
-    int32 SegH = AnnotationCamSensor->GetFilmHeight();
-    SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), SegW, SegH);
+//     int32 SegW = AnnotationCamSensor->GetFilmWidth();
+//     int32 SegH = AnnotationCamSensor->GetFilmHeight();
+//     SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), SegW, SegH);
 
 
-    if (DataM.Num() == SegW * SegH) {
-        ScopedStepTimer _t("SerializeData MASK");
-        SerializeData(DataM, SegW, SegH, FileNameM);
-    } else {
-        SL::get().print("DataM size is not equal to SegW * SegH");
-    }
+//     if (DataM.Num() == SegW * SegH) {
+//         ScopedStepTimer _t("SerializeData MASK");
+//         SerializeData(DataM, SegW, SegH, FileNameM);
+//     } else {
+//         SL::get().print("DataM size is not equal to SegW * SegH");
+//     }
 
-    {
-        ScopedStepTimer _t("LitCamSensor::ReadCaptureResults(DataRGBNoTarget)");
-        LitCamSensor->ReadCaptureResults(DataRGBNoTarget);
-    }
-    SL::get().printf("FCameraHandler::GetHWObs DataRGBNoTarget size: %d, width: %d, height: %d", DataRGBNoTarget.Num(), LitW, LitH);
+//     {
+//         ScopedStepTimer _t("LitCamSensor::ReadCaptureResults(DataRGBNoTarget)");
+//         LitCamSensor->ReadCaptureResults(DataRGBNoTarget);
+//     }
+//     SL::get().printf("FCameraHandler::GetHWObs DataRGBNoTarget size: %d, width: %d, height: %d", DataRGBNoTarget.Num(), LitW, LitH);
 
-    { ScopedStepTimer _t("TargetController.Show()"); TargetController.Show(); }
+//     { ScopedStepTimer _t("TargetController.Show()"); TargetController.Show(); }
 
-    if (DataRGBNoTarget.Num() == LitW * LitH) {
-        ScopedStepTimer _t("SerializeData RGB_NO_TARGET");
-        SerializeData(DataRGBNoTarget, LitW, LitH, FileNameRGBNoTarget);
-    } else {
-        SL::get().print("DataRGBNoTarget size is not equal to LitW * LitH");
-    }
+//     if (DataRGBNoTarget.Num() == LitW * LitH) {
+//         ScopedStepTimer _t("SerializeData RGB_NO_TARGET");
+//         SerializeData(DataRGBNoTarget, LitW, LitH, FileNameRGBNoTarget);
+//     } else {
+//         SL::get().print("DataRGBNoTarget size is not equal to LitW * LitH");
+//     }
 
-    SL::get().printf("[TIMER] GetHWObsV3 total elapsed: %.3f ms", ms_since(t_func_start));
-    return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
-}
+//     SL::get().printf("[TIMER] GetHWObsV3 total elapsed: %.3f ms", ms_since(t_func_start));
+//     return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
+// }
 
 
 // FExecStatus FCameraHandler::GetHWObsV2(const TArray<FString>& Args)
@@ -1182,63 +1183,63 @@ FExecStatus FCameraHandler::GetHWObsV3(const TArray<FString>& Args)
 // 	return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
 // }
 
-FExecStatus FCameraHandler::GetHWObsV1(const TArray<FString>& Args)
-{
-	SL::get().print("FCameraHandler::GetHWObs called");
-	FExecStatus ExecStatus = FExecStatus::OK();
-	if (Args.Num() != 3) {
-		FString Msg = TEXT("Invalid command length.");
-		SL::get().print(TCHAR_TO_UTF8(*Msg));
-		ExecStatus = FExecStatus::Error(Msg);
-		return ExecStatus;
-	}
+// FExecStatus FCameraHandler::GetHWObsV1(const TArray<FString>& Args)
+// {
+// 	SL::get().print("FCameraHandler::GetHWObs called");
+// 	FExecStatus ExecStatus = FExecStatus::OK();
+// 	if (Args.Num() != 3) {
+// 		FString Msg = TEXT("Invalid command length.");
+// 		SL::get().print(TCHAR_TO_UTF8(*Msg));
+// 		ExecStatus = FExecStatus::Error(Msg);
+// 		return ExecStatus;
+// 	}
 
-	FString TargetId = Args[2];
-	FString FileName = Args[1];
-	int32 index;
-	if (!FileName.FindLastChar(TEXT('.'), index)) {
-		FString msg = TEXT("File name is not a path, binary is not supported.");
-		SL::get().print(TCHAR_TO_UTF8(*msg));
-		ExecStatus = FExecStatus::Error(msg);
-		return ExecStatus;
-	}
+// 	FString TargetId = Args[2];
+// 	FString FileName = Args[1];
+// 	int32 index;
+// 	if (!FileName.FindLastChar(TEXT('.'), index)) {
+// 		FString msg = TEXT("File name is not a path, binary is not supported.");
+// 		SL::get().print(TCHAR_TO_UTF8(*msg));
+// 		ExecStatus = FExecStatus::Error(msg);
+// 		return ExecStatus;
+// 	}
 
 
-	AActor* Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
-	if (!Target) {
-		ExecStatus = FExecStatus::Error("Can not find target");
-		SL::get().print("Can not find target");
-		return ExecStatus;
-	}
-	FActorController TargetController(Target);
+// 	AActor* Target = GetActorById(FUnrealcvServer::Get().GetWorld(), TargetId);
+// 	if (!Target) {
+// 		ExecStatus = FExecStatus::Error("Can not find target");
+// 		SL::get().print("Can not find target");
+// 		return ExecStatus;
+// 	}
+// 	FActorController TargetController(Target);
 
-	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
-	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
+// 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+// 	if (!IsValid(FusionCamSensor)) { return ExecStatus; }
 
-	TArray<FColor> DataRGB;
-	FString FileNameRGB = FileName; FileNameRGB.InsertAt(index, TEXT("_rgb"));
-	int Width, Height;
-	FusionCamSensor->GetLit(DataRGB, Width, Height);
-	SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), Width, Height);
+// 	TArray<FColor> DataRGB;
+// 	FString FileNameRGB = FileName; FileNameRGB.InsertAt(index, TEXT("_rgb"));
+// 	int Width, Height;
+// 	FusionCamSensor->GetLit(DataRGB, Width, Height);
+// 	SL::get().printf("FCameraHandler::GetHWObs DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), Width, Height);
 
 	
-	TArray<FColor> DataM;
-	FString FileNameM = FileName; FileNameM.InsertAt(index, TEXT("_mask"));
-	FusionCamSensor->GetSeg(DataM, Width, Height);
-	SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), Width, Height);
+// 	TArray<FColor> DataM;
+// 	FString FileNameM = FileName; FileNameM.InsertAt(index, TEXT("_mask"));
+// 	FusionCamSensor->GetSeg(DataM, Width, Height);
+// 	SL::get().printf("FCameraHandler::GetHWObs DataM size: %d, width: %d, height: %d", DataM.Num(), Width, Height);
 
-	TArray<FColor> DataRGBNoTarget;
-	FString FileNameRGBNoTarget = FileName; FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target"));
-	TargetController.Hide();
-	FusionCamSensor->GetLit(DataRGBNoTarget, Width, Height);
-	TargetController.Show();
+// 	TArray<FColor> DataRGBNoTarget;
+// 	FString FileNameRGBNoTarget = FileName; FileNameRGBNoTarget.InsertAt(index, TEXT("_rgb_no_target"));
+// 	TargetController.Hide();
+// 	FusionCamSensor->GetLit(DataRGBNoTarget, Width, Height);
+// 	TargetController.Show();
 
-	SerializeData(DataRGB, Width, Height, FileNameRGB);
-	SerializeData(DataM, Width, Height, FileNameM);
-	SerializeData(DataRGBNoTarget, Width, Height, FileNameRGBNoTarget);
+// 	SerializeData(DataRGB, Width, Height, FileNameRGB);
+// 	SerializeData(DataM, Width, Height, FileNameM);
+// 	SerializeData(DataRGBNoTarget, Width, Height, FileNameRGBNoTarget);
 
-	return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
-}
+// 	return FExecStatus::OK(FileNameRGB + TEXT(",") + FileNameM + TEXT(",") + FileNameRGBNoTarget);
+// }
 
 
 FExecStatus FCameraHandler::GetCameraOneObjMask(const TArray<FString>& Args)
@@ -1629,7 +1630,7 @@ FExecStatus FCameraHandler::GetCameraOneObjMask(const TArray<FString>& Args)
 // 	// Args: [camera_id, motion_type, ...params]
 // 	if (Args.Num() < 2)
 // 	{
-// 		return FExecStatus::Error("Usage: vset /camera/[uint]/motion/start [motion_type] [params...]");
+// 		return FExecStatus::Error("Usage: vset /camera/[camera_id]/motion/start [motion_type] [params...]");
 // 	}
 
 // 	FExecStatus Status = FExecStatus::OK();
@@ -1847,72 +1848,91 @@ void FCameraHandler::RegisterCommands()
 	SL::get("x.txt", false);
 
 
-	// CommandDispatcher->BindCommand(
-	// 	"vset /camera/[uint]/audiorecord [str]",
+	auto BindCommandDualCameraID = [this](
+		const FString& FormatStr,
+		FDispatcherDelegate Delegate,
+		const FString& HelpStr)
+	{
+		if (!FormatStr.Contains(TEXT("[camera_id]")))
+		{
+			UE_LOG(LogTemp, Error, TEXT("FormatStr must contain [camera_id] placeholder: %s"), *FormatStr);
+			check(false);
+		}
+
+		FString UintFormatStr = FormatStr.Replace(TEXT("[camera_id]"), TEXT("[uint]"));
+		CommandDispatcher->BindCommand(UintFormatStr, Delegate, HelpStr);
+
+		FString StrFormatStr = FormatStr.Replace(TEXT("[camera_id]"), TEXT("[str]"));
+		CommandDispatcher->BindCommand(StrFormatStr, Delegate, HelpStr);
+	};
+
+
+	// BindCommandDualCameraID(
+	// 	"vset /camera/[camera_id]/audiorecord [str]",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetCameraAudioRecord),
 	// 	"Set sensor audio record on/off"
 	// );
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/use_fast_capture",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/use_fast_capture",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetUseFastCapture),
 		"Get fast capture mode status (0 or 1)"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/use_fast_capture [uint]",
+	BindCommandDualCameraID(
+		"vset /camera/[camera_id]/use_fast_capture [uint]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetUseFastCapture),
 		"Set fast capture mode (0=disabled, 1=enabled)"
 	);
 
 
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/oneobjmask [str] [str]",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/oneobjmask [str] [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraOneObjMask),
 		"oneobjmask bmp object_id"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/hwobs [str] [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObs),
-		"hwobs xxx.bmp target_id"
-	);
+	// BindCommandDualCameraID(
+	// 	"vget /camera/[camera_id]/hwobs [str] [str]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObs),
+	// 	"hwobs xxx.bmp target_id"
+	// );
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/hwobsv1 [str] [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV1),
-		"hwobs xxx.bmp target_id"
-	);
-	// CommandDispatcher->BindCommand(
-	// 	"vget /camera/[uint]/hwobsv2 [str] [str]",
+	// BindCommandDualCameraID(
+	// 	"vget /camera/[camera_id]/hwobsv1 [str] [str]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV1),
+	// 	"hwobs xxx.bmp target_id"
+	// );
+	// BindCommandDualCameraID(
+	// 	"vget /camera/[camera_id]/hwobsv2 [str] [str]",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV2),
 	// 	"hwobs xxx.bmp target_id"
 	// );
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/hwobsv3 [str] [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV3),
-		"hwobs xxx.bmp target_id"
-	);
+	// BindCommandDualCameraID(
+	// 	"vget /camera/[camera_id]/hwobsv3 [str] [str]",
+	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetHWObsV3),
+	// 	"hwobs xxx.bmp target_id"
+	// );
 
-	// CommandDispatcher->BindCommand(
-    //     "vset /camera/[uint]/record [str] [float] [float]",
+	// BindCommandDualCameraID(
+    //     "vset /camera/[camera_id]/record [str] [float] [float]",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartRecord),
     //     "vset /camera/{cam_id}/record {mode} {time_s} {fps}"
 	// );
-	// CommandDispatcher->BindCommand(
-    //     "vset /camera/[uint]/record [str] [float] [float] [str]",
+	// BindCommandDualCameraID(
+    //     "vset /camera/[camera_id]/record [str] [float] [float] [str]",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartRecord),
     //     "vset /camera/{cam_id}/record {mode} {time_s} {fps} {target_id}"
 	// );
-	// CommandDispatcher->BindCommand(
-    //     "vset /camera/[uint]/bullet_time_record [str] [float] [float] [str]",
+	// BindCommandDualCameraID(
+    //     "vset /camera/[camera_id]/bullet_time_record [str] [float] [float] [str]",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartBulletTimeRecord),
     //     "vset /camera/{cam_id}/bullet_time_record {mode} {time_s} {fps} {target_id}"
 	// );
 
-	// CommandDispatcher->BindCommand(
-    //     "vget /camera/[uint]/record",
+	// BindCommandDualCameraID(
+    //     "vget /camera/[camera_id]/record",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::CheckRecordStatus),
     // 	"vget /camera/{cam_id}/record"
 	// );
@@ -1942,76 +1962,71 @@ void FCameraHandler::RegisterCommands()
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SpawnCamera),
 		"Spawn a new camera actor in the scene");
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/location",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/location",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraLocation),
 		"Get sensor location in world space"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/location [float] [float] [float]",
+	BindCommandDualCameraID(
+		"vset /camera/[camera_id]/location [float] [float] [float]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetCameraLocation),
 		"Set sensor to location [x, y, z]"
 	);
 
 	/** This is different from SetLocation (which is teleport) */
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/moveto [float] [float] [float]",
+	BindCommandDualCameraID(
+		"vset /camera/[camera_id]/moveto [float] [float] [float]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::MoveTo),
 		"Move camera to location [x, y, z], will be blocked by objects"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/rotation",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/rotation",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraRotation),
 		"Get sensor rotation in world space"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/rotation [float] [float] [float]",
+	BindCommandDualCameraID(
+		"vset /camera/[camera_id]/rotation [float] [float] [float]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetCameraRotation),
 		"Set rotation [pitch, yaw, roll] of camera [id]"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/lit [str]",
-		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraLit),
-		"Get png binary data from lit sensor"
-	);
-	CommandDispatcher->BindCommand(
-		"vget /camera/[str]/lit [str]",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/lit [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraLit),
 		"Get png binary data from lit sensor"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/depth [str]",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/depth [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraDepth),
 		"Get npy binary data from depth sensor");
 
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/normal [str]",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/normal [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraNormal),
 		"Get npy binary data from surface normal sensor");
 
-	// CommandDispatcher->BindCommand(
-	// 	"vget /camera/[uint]/flow [str]",
+	// BindCommandDualCameraID(
+	// 	"vget /camera/[camera_id]/flow [str]",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraFlow),
 	// 	"Get npy binary data from optical flow sensor");
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/optical_flow [str]",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/optical_flow [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraFlow),
 		"Get npy binary data from optical flow sensor");
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/object_mask [str]",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/object_mask [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraSeg),
 		"Get object mask from camera sensor");
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/seg [str]",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/seg [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraSeg),
 		"Get object mask from camera sensor");
 
@@ -2027,159 +2042,159 @@ void FCameraHandler::RegisterCommands()
 		"Get current ViewMode"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/fov",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/fov",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetFOV),
 		"Get FOV"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/fov [float]",
+	BindCommandDualCameraID(
+		"vset /camera/[camera_id]/fov [float]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetFOV),
 		"Set FOV"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/size [uint] [uint]",
+	BindCommandDualCameraID(
+		"vset /camera/[camera_id]/size [uint] [uint]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetSize),
 		"Set Camera Film Size"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vget /camera/[uint]/size",
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/size",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetSize),
 		"Get Camera Film Size"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/ortho_width [float]",
+	BindCommandDualCameraID(
+		"vset /camera/[camera_id]/ortho_width [float]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetOrthoWidth),
 		"Set ortho width of the camera"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/projection_type [str]",
+	BindCommandDualCameraID(
+		"vset /camera/[camera_id]/projection_type [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetProjectionType),
 		"Set camera projection type"
 	);
 
-	CommandDispatcher->BindCommand(
-        "vset /camera/[uint]/lit_source [str]",
+	BindCommandDualCameraID(
+        "vset /camera/[camera_id]/lit_source [str]",
         FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetLitSource),
         "Set the capture source of the lit camera"
     );
 
-    CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/reflection [str]",
+    BindCommandDualCameraID(
+		"vset /camera/[camera_id]/reflection [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetReflectionMethod),
 		"Set camera reflection method: None, Lumen, ScreenSpace"
 	);
 
-	CommandDispatcher->BindCommand(
-		"vset /camera/[uint]/illumination [str]",
+	BindCommandDualCameraID(
+		"vset /camera/[camera_id]/illumination [str]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetGlobalIlluminationMethod),
 		"Set camera global illumination method: None, Lumen, ScreenSpace, Plugin,"
 	);
 
-	CommandDispatcher->BindCommand(
-	    "vset /camera/[uint]/exposure_method [str]",
+	BindCommandDualCameraID(
+	    "vset /camera/[camera_id]/exposure_method [str]",
 	    FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetExposureMethod),
 	    "Set camera exposure method"
 	);
 
-	CommandDispatcher->BindCommand(
-        "vset /camera/[uint]/exposure_bias [float]",
+	BindCommandDualCameraID(
+        "vset /camera/[camera_id]/exposure_bias [float]",
         FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetExposureBias),
         "Set camera exposure bias"
     );
 
-    CommandDispatcher->BindCommand(
-        "vset /camera/[uint]/auto_speed [float] [float]",
+    BindCommandDualCameraID(
+        "vset /camera/[camera_id]/auto_speed [float] [float]",
         FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetAutoExposureSpeed),
         "Set camera auto-exposure speed down and speed up"
     );
 
-    CommandDispatcher->BindCommand(
-        "vset /camera/[uint]/auto_brightness [float] [float]",
+    BindCommandDualCameraID(
+        "vset /camera/[camera_id]/auto_brightness [float] [float]",
         FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetAutoExposureBrightness),
         "Set camera auto-exposure min max brightness"
     );
 
-    CommandDispatcher->BindCommand(
-        "vset /camera/[uint]/physical_exposure [uint]",
+    BindCommandDualCameraID(
+        "vset /camera/[camera_id]/physical_exposure [uint]",
         FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetApplyPhysicalCameraExposure),
         "Set camera apply physical camera exposure"
     );
 
-    CommandDispatcher->BindCommand(
-        "vset /camera/[uint]/motion_blur [float] [float] [float] [uint]",
+    BindCommandDualCameraID(
+        "vset /camera/[camera_id]/motion_blur [float] [float] [float] [uint]",
         FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetMotionBlurParams),
         "Set camera motion blur amount, max, per object, fps"
     );
 
-    CommandDispatcher->BindCommand(
-        "vset /camera/[uint]/focal [float] [float]",
+    BindCommandDualCameraID(
+        "vset /camera/[camera_id]/focal [float] [float]",
         FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetFocalParams),
         "Set camera focus distance and range"
     );
 	// // Camera parameter export commands
-	// CommandDispatcher->BindCommand(
-	// 	"vget /camera/[uint]/intrinsics",
+	// BindCommandDualCameraID(
+	// 	"vget /camera/[camera_id]/intrinsics",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetIntrinsics),
 	// 	"Get camera intrinsic parameters: fx fy cx cy fov width height"
 	// );
 
-	// CommandDispatcher->BindCommand(
-	// 	"vget /camera/[uint]/extrinsics",
+	// BindCommandDualCameraID(
+	// 	"vget /camera/[camera_id]/extrinsics",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetExtrinsics),
 	// 	"Get camera extrinsic parameters: rotation matrix (3x3) and translation vector (xyz)"
 	// );
 
-	// CommandDispatcher->BindCommand(
-	// 	"vget /camera/[uint]/projection_matrix",
+	// BindCommandDualCameraID(
+	// 	"vget /camera/[camera_id]/projection_matrix",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetProjectionMatrix),
 	// 	"Get camera projection matrix (4x4)"
 	// );
 
 	// // Camera motion control commands
-	// CommandDispatcher->BindCommand(
-	// 	"vset /camera/[uint]/motion/start [str]",
+	// BindCommandDualCameraID(
+	// 	"vset /camera/[camera_id]/motion/start [str]",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
 	// 	"Start camera motion: rotate_left_45, rotate_right_45, rotate_up_45, rotate_down_45, rotate_360, rotate_360_slow, zoom_in, zoom_out, random_rotation"
 	// );
 
-	// CommandDispatcher->BindCommand(
-	// 	"vset /camera/[uint]/motion/start [str] [float]",
+	// BindCommandDualCameraID(
+	// 	"vset /camera/[camera_id]/motion/start [str] [float]",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
 	// 	"Start camera motion with duration parameter"
 	// );
 
-	// CommandDispatcher->BindCommand(
-	// 	"vset /camera/[uint]/motion/start [str] [str] [float]",
+	// BindCommandDualCameraID(
+	// 	"vset /camera/[camera_id]/motion/start [str] [str] [float]",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
 	// 	"Start camera motion with target and duration (for orbit motions)"
 	// );
 
-	// CommandDispatcher->BindCommand(
-	// 	"vset /camera/[uint]/motion/start [str] [str] [float] [float]",
+	// BindCommandDualCameraID(
+	// 	"vset /camera/[camera_id]/motion/start [str] [str] [float] [float]",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StartCameraMotion),
 	// 	"Start camera motion with target, duration, and extra params (for rotate_360_slow)"
 	// );
 
-	// CommandDispatcher->BindCommand(
-	// 	"vset /camera/[uint]/motion/stop",
+	// BindCommandDualCameraID(
+	// 	"vset /camera/[camera_id]/motion/stop",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::StopCameraMotion),
 	// 	"Stop current camera motion"
 	// );
 
-	// CommandDispatcher->BindCommand(
-	// 	"vget /camera/[uint]/motion/status",
+	// BindCommandDualCameraID(
+	// 	"vget /camera/[camera_id]/motion/status",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraMotionStatus),
 	// 	"Get camera motion status: idle or moving"
 	// );
 
-	// CommandDispatcher->BindCommand(
-	// 	"vget /camera/[uint]/motion/progress",
+	// BindCommandDualCameraID(
+	// 	"vget /camera/[camera_id]/motion/progress",
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraMotionProgress),
 	// 	"Get camera motion progress (0.0 to 1.0)"
 	// );

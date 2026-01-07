@@ -13,6 +13,7 @@ class UNREALCV_API UNormalCamSensor : public UBaseCameraSensor
 public:
 	UNormalCamSensor(const FObjectInitializer& ObjectInitializer);
 
+	virtual void InitTextureTarget(int filmWidth, int filmHeight) override;
 	void CaptureNormal(TArray<FColor>& ImageData, int& Width, int& Height);
 	void CaptureNormalToFile(FString Filename);
 

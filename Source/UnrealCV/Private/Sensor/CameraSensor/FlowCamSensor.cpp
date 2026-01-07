@@ -1,11 +1,12 @@
 // shc @ 2025
 #include "FlowCamSensor.h"
+#include "UnrealcvServer.h"
+#include "UnrealcvLog.h"
 
 UFlowCamSensor::UFlowCamSensor(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
 	FString OpticalFlowPPMaterialPath = TEXT("Material'/UnrealCV/OpticalFlowMaterial.OpticalFlowMaterial'");
-	// FString OpticalFlowPPMaterialPath = TEXT("Material'/UnrealCV/WorldNormal.WorldNormal'");
 
 	// Assertion failed: IsInGameThread() [File:D:\build\++UE5\Sync\Engine\Source\Runtime\CoreUObject\Private\Serialization\AsyncLoading.cpp] [Line: 7453] 
 	// LoadPackageAsync is only thread-safe when using the zenloader (i.e. AsyncLoading2).
@@ -24,9 +25,9 @@ UFlowCamSensor::UFlowCamSensor(const FObjectInitializer& ObjectInitializer)
 		{
 			UE_LOG(LogTemp, Error, TEXT("%s: Could not create the material instance dynamic"), *FString(__FUNCTION__))
 		} else {
-			PostProcessMaterialInstance->SetScalarParameterValue(TEXT("OpticalFlowScale"), 30.0);
-			PostProcessSettings.WeightedBlendables.Array.Empty();
-			PostProcessSettings.WeightedBlendables.Array.Add(FWeightedBlendable(1.0f, PostProcessMaterialInstance));
+			FServerConfig& Config = FUnrealcvServer::Get().Config;
+			PostProcessMaterialInstance->SetScalarParameterValue(TEXT("OpticalFlowScale"), Config.OpticalFlowScale);
+			SetPostProcessMaterial(PostProcessMaterialInstance);
 		}
 	}
 	else
@@ -38,6 +39,23 @@ UFlowCamSensor::UFlowCamSensor(const FObjectInitializer& ObjectInitializer)
 void UFlowCamSensor::SetFilmSize(int Width, int Height)
 {
 	Super::SetFilmSize(Width, Height);
+	// if (OpticalFlowPPMaterial)
+	// {
+	// 	UMaterialInstanceDynamic* PostProcessMaterialInstance = UMaterialInstanceDynamic::Create(OpticalFlowPPMaterial, nullptr);
+	// 	if (!PostProcessMaterialInstance)
+	// 	{
+	// 		UE_LOG(LogTemp, Error, TEXT("%s: Could not create the material instance dynamic"), *FString(__FUNCTION__))
+	// 	} else {
+	// 		FServerConfig& Config = FUnrealcvServer::Get().Config;
+	// 		PostProcessMaterialInstance->SetScalarParameterValue(TEXT("OpticalFlowScale"), Config.OpticalFlowScale);
+	// 		SetPostProcessMaterial(PostProcessMaterialInstance);
+	// 	}
+	// }
+}
+
+void UFlowCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
+{
+	InitUInt8TextureTarget(filmWidth, filmHeight, true);
 	if (OpticalFlowPPMaterial)
 	{
 		UMaterialInstanceDynamic* PostProcessMaterialInstance = UMaterialInstanceDynamic::Create(OpticalFlowPPMaterial, nullptr);
@@ -45,24 +63,37 @@ void UFlowCamSensor::SetFilmSize(int Width, int Height)
 		{
 			UE_LOG(LogTemp, Error, TEXT("%s: Could not create the material instance dynamic"), *FString(__FUNCTION__))
 		} else {
-			PostProcessMaterialInstance->SetScalarParameterValue(TEXT("OpticalFlowScale"), 30.0);
-			PostProcessSettings.WeightedBlendables.Array.Empty();
-			PostProcessSettings.WeightedBlendables.Array.Add(FWeightedBlendable(1.0f, PostProcessMaterialInstance));
+			FServerConfig& Config = FUnrealcvServer::Get().Config;
+			PostProcessMaterialInstance->SetScalarParameterValue(TEXT("OpticalFlowScale"), Config.OpticalFlowScale);
+			SetPostProcessMaterial(PostProcessMaterialInstance);
 		}
 	}
 }
 
-void UFlowCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
-{
-	InitUInt8TextureTarget(filmWidth, filmHeight, true);
-}
-
 void UFlowCamSensor::CaptureFlow(TArray<FColor>& Image, int& Width, int& Height)
 {
+	if (!CheckTextureTarget())
+	{
+		InitTextureTarget(this->FilmWidth, this->FilmHeight);
+		if (!CheckTextureTarget())
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Failed to initialize TextureTarget."));
+			return;
+		}
+	}
 	Capture(Image, Width, Height);
 }
 
 void UFlowCamSensor::CaptureFlowToFile(FString Filename)
 {
+	if (!CheckTextureTarget())
+	{
+		InitTextureTarget(this->FilmWidth, this->FilmHeight);
+		if (!CheckTextureTarget())
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Failed to initialize TextureTarget."));
+			return;
+		}
+	}
 	CaptureFastToFile(Filename);
 }

@@ -26,6 +26,7 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	// static ConstructorHelpers::FObjectFinder<UStaticMesh> EditorCameraMesh(TEXT("/Engine/EditorMeshes/MatineeCam_SM"));
 	// Another choice is "StaticMesh'/Engine/EditorMeshes/Camera/SM_CineCam.SM_CineCam'"
 	this->ShowFlags.SetPostProcessing(true);
+	// this->ShowFlags.SetPostProcessMaterial(true);
 	bCaptureEveryFrame = false;
 	bCaptureOnMovement = false;
 	PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
@@ -317,6 +318,11 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 					);
 					FMemory::Free(RawDataCopy);
 					// SetAlphaAVX2(PixelData);
+
+					if (PixelFormat == EPixelFormat::PF_B8G8R8A8 && PixelData[0].A == 0)
+					{
+						SetAlphaAVX2(PixelData);
+					}
 					
 					double SerializeStartTime = FPlatformTime::Seconds();
 					SerializeData(PixelData, Width, Height, OutputPath);
@@ -366,7 +372,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 	double CaptureFastStartTime = FPlatformTime::Seconds();
 	if (CopyFormat != ECaptureFormat::UInt8)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureToFile: Copy not launched for UInt8, launch it"));
+		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureFast: Copy not launched for UInt8, launch it"));
 		LaunchCapture();
 		CopyBackCapture(ECaptureFormat::UInt8);
 		SL::get().printf("CaptureFast: [X1] fallback start copy !\n");
@@ -378,11 +384,11 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 	double WaitStartTime = FPlatformTime::Seconds();
 	while (!bCaptureCacheValid && (FPlatformTime::Seconds() - WaitStartTime) < 1.0)
 	{
-		FPlatformProcess::Sleep(0.0001f); // sleep 0.1 ms
+		FPlatformProcess::Sleep(0.00001f); // sleep 0.01 ms
 	}
 	if (!bCaptureCacheValid)
 	{
-		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache not valid, failed"));
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast: CaptureCache not valid, failed"));
 		return;
 	}
 	SL::get().printf("CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
@@ -397,7 +403,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache size not match, failed"));
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast: CaptureCache size not match, failed"));
 	}
 	SL::get().printf("CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
 
@@ -441,11 +447,11 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 	double WaitStartTime = FPlatformTime::Seconds();
 	while (!bCaptureCacheValid && (FPlatformTime::Seconds() - WaitStartTime) < 1.0)
 	{
-		FPlatformProcess::Sleep(0.0001f); // sleep 0.1 ms
+		FPlatformProcess::Sleep(0.00001f); // sleep 0.01 ms
 	}
 	if (!bCaptureCacheValid)
 	{
-		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache not valid, failed"));
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast F16: CaptureCache not valid, failed"));
 		return;
 	}
 	SL::get().printf("CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
@@ -459,7 +465,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureToFile: CaptureCache size not match, failed"));
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast F16: CaptureCache size not match, failed"));
 	}
 	SL::get().printf("CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
 
@@ -474,9 +480,11 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 
 
 
-void UBaseCameraSensor::SetPostProcessMaterial(UMaterial* PostProcessMaterial)
+void UBaseCameraSensor::SetPostProcessMaterial(TScriptInterface<IBlendableInterface> PostProcessMaterial)
 {
+	PostProcessSettings.WeightedBlendables.Array.Empty();
 	PostProcessSettings.AddBlendable(PostProcessMaterial, 1);
+	this->PostProcessBlendWeight = 1.0f;
 }
 
 void UBaseCameraSensor::GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView)
