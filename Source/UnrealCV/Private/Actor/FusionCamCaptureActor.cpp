@@ -254,132 +254,80 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	}
 }
 
-void AFusionCamCaptureActor::RecordFrame(bool SaveToFile)
+void AFusionCamCaptureActor::RecordFrame()
 {
 	FScopeLock Lock(&RecordCriticalSection);
-
-	int32 Width, Height;
 
 	if (bRecordRGB)
 	{
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
-		if (bUseSaveToFileAPI)
-		{
-			TargetSensor->SaveLitToFile(FileNameRGB);
-			// TargetSensor->GetLitCamSensor()->CaptureToGPUQueue(FileNameRGB);
-		}
-		else
-		{
-			TArray<FColor> DataRGB;
-			TargetSensor->GetLit(DataRGB, Width, Height);
-			if (SaveToFile)
-			{
-				AsyncTask(ENamedThreads::AnyThread, [DataRGB = MoveTemp(DataRGB), Width, Height, FileNameRGB]()
-				{
-					SerializeData(DataRGB, Width, Height, FileNameRGB);
-				});
-			}
-		}
+		TargetSensor->SaveLitToFile(FileNameRGB);
 	}
 
 	if (bRecordMask)
 	{
 		FString FileNameMask = MakeFilenameNew("mask", ".png");
-		if (bUseSaveToFileAPI)
-		{
-			TargetSensor->SaveSegToFile(FileNameMask);
-		}
-		else
-		{
-			TArray<FColor> DataMask;
-			TargetSensor->GetSeg(DataMask, Width, Height);
-			if (SaveToFile)
-			{
-				AsyncTask(ENamedThreads::AnyThread, [DataMask = MoveTemp(DataMask), Width, Height, FileNameMask]()
-				{
-						SerializeData(DataMask, Width, Height, FileNameMask);
-				});
-			}
-		}
+		TargetSensor->SaveSegToFile(FileNameMask);
 	}
 
 	if (bRecordDepth)
 	{
 		FString DepthFilename = MakeFilenameNew("depth", ".npy");
-		if (bUseSaveToFileAPI)
-		{
-			TargetSensor->SaveDepthToFile(DepthFilename);
-		}
-		else
-		{
-			TArray<float> DepthData;
-			TargetSensor->GetDepth(DepthData, Width, Height);
-			if (SaveToFile)
-			{
-				AsyncTask(ENamedThreads::AnyThread, [DepthData = MoveTemp(DepthData), Width, Height, DepthFilename]()
-				{
-					SerializeData(DepthData, Width, Height, DepthFilename);
-				});
-
-				TArray<FColor> DepthPreview;
-				ConvertDepthToPreview(DepthData, DepthPreview);
-				FString DepthPreviewFilename = MakeFilenameNew("depth_preview", ".png");
-				AsyncTask(ENamedThreads::AnyThread, [DepthPreview = MoveTemp(DepthPreview), Width, Height, DepthPreviewFilename]()
-				{
-					SerializeData(DepthPreview, Width, Height, DepthPreviewFilename);
-				});
-			}
-		}
+		TargetSensor->SaveDepthToFile(DepthFilename);
 	}
 
 	if (bRecordNormal)
 	{
 		FString NormalFilename = MakeFilenameNew("normal", ".png");
-		if (bUseSaveToFileAPI)
-		{
-			TargetSensor->SaveNormalToFile(NormalFilename);
-		}
-		else
-		{
-			TArray<FColor> NormalData;
-			TargetSensor->GetNormal(NormalData, Width, Height);
-			if (SaveToFile)
-			{
-				AsyncTask(ENamedThreads::AnyThread, [NormalData = MoveTemp(NormalData), Width, Height, NormalFilename]()
-				{
-						SerializeData(NormalData, Width, Height, NormalFilename);
-				});
-			}
-		}
+		TargetSensor->SaveNormalToFile(NormalFilename);
 	}
 
 	if (bRecordFlow)
 	{
 		FString FlowFilename = MakeFilenameNew("flow", ".png");
-		if (bUseSaveToFileAPI)
+		TargetSensor->SaveFlowToFile(FlowFilename);
+	}
+
+	if (TargetToHide)
+	{
+		TargetToHide->SetActorHiddenInGame(true);
+
+		if (bRecordRGB)
 		{
+			FString FileNameRGB = MakeFilenameNew("rgb_woTarget", ".png");
+			TargetSensor->SaveLitToFile(FileNameRGB);
+		}
+
+		if (bRecordMask)
+		{
+			FString FileNameMask = MakeFilenameNew("mask_woTarget", ".png");
+			TargetSensor->SaveSegToFile(FileNameMask);
+		}
+
+		if (bRecordDepth)
+		{
+			FString DepthFilename = MakeFilenameNew("depth_woTarget", ".npy");
+			TargetSensor->SaveDepthToFile(DepthFilename);
+		}
+
+		if (bRecordNormal)
+		{
+			FString NormalFilename = MakeFilenameNew("normal_woTarget", ".png");
+			TargetSensor->SaveNormalToFile(NormalFilename);
+		}
+
+		if (bRecordFlow)
+		{
+			FString FlowFilename = MakeFilenameNew("flow_woTarget", ".png");
 			TargetSensor->SaveFlowToFile(FlowFilename);
 		}
-		else
-		{
-			TArray<FColor> FlowData;
-			TargetSensor->GetFlow(FlowData, Width, Height);
-			if (SaveToFile)
-			{
-				AsyncTask(ENamedThreads::AnyThread, [FlowData = MoveTemp(FlowData), Width, Height, FlowFilename]()
-				{
-						SerializeData(FlowData, Width, Height, FlowFilename);
-				});
-			}
-		}
+
+		TargetToHide->SetActorHiddenInGame(false);
 	}
 
 	if (bRecordMetadata)
 	{
-		if (SaveToFile)
-		{
-			SaveCameraMetadata();
-		}
+		SaveCameraMetadata();
 	}
 }
 
@@ -747,8 +695,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		"RealWorldTimeRecordingStart",
 		"RealWorldTimeRecordingEnd",
 		"RealWorldTimeDurationSeconds",
-		"RealWorldTimeFPS",
-		"UseSaveToFileAPI",
+		"RealWorldTimeFPS"
 	};
 
 	RealWorldTimeRecordingEnd = FDateTime::Now();
@@ -801,8 +748,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		FJsonObjectBP(RealWorldTimeStartStr),
 		FJsonObjectBP(RealWorldTimeEndStr),
 		FJsonObjectBP(static_cast<float>(RealWorldTimeDurationSeconds)),
-		FJsonObjectBP(static_cast<float>(RealWorldTimeFPS)),
-		FJsonObjectBP(bUseSaveToFileAPI),
+		FJsonObjectBP(static_cast<float>(RealWorldTimeFPS))
 	};
 
 	FJsonObjectBP JsonObject = USerializeBPLib::TMapToJson(Keys, Values);
@@ -866,14 +812,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	WarmUpElapsedFrames = 0;
 	WarmUpFrames = WARM_UP_FRAMES;
 
-	// bUseSaveToFileAPI = FMath::RandBool();
-	bUseSaveToFileAPI = true;
-	UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d, WarmUpFrames = %d"), bUseSaveToFileAPI, WarmUpFrames);
-	// TargetSensor->SetUseAsyncCapture(bUseSaveToFileAPI);
-
 	RealWorldTimeRecordingStart = FDateTime::Now();
-	// bUseSaveToFileAPI = TargetSensor->GetUseAsyncCapture();
-	// UE_LOG(LogUnrealCV, Log, TEXT("AFusionCamCaptureActor::StartTrajectoryRecord: AsyncCaptureEnabled = %d"), bUseSaveToFileAPI);
 
 	static const TArray<FIntPoint> Resolutions = {
 		FIntPoint(1920, 1080),
@@ -957,7 +896,6 @@ void AFusionCamCaptureActor::StartSimpleRecording(const FString& FileName, int32
 	WarmUpFrames = 0;
 	NumFrames = TotalFrames;
 
-	bUseSaveToFileAPI = true;
 	RealWorldTimeRecordingStart = FDateTime::Now();
 
 	CurrentTrajectory = SimpleTrajectory;

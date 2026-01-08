@@ -39,6 +39,7 @@ inline void ConvertRawB8G8R8A8DataToFColorOpt(uint32 Width, uint32 Height, uint8
 	{
 		check(SrcPitch > DstPitch);
 		UE_LOG(LogTemp, Warning, TEXT("ConvertRawB8G8R8A8DataToFColorOpt: SrcPitch != DstPitch"));
+		UE_LOG(LogTemp, Warning, TEXT("ConvertRawB8G8R8A8DataToFColorOpt: SrcPitch = %d, DstPitch = %d"), SrcPitch, DstPitch);
 
 		// Need to copy row wise since the Pitch does not match the Width.
 		for (uint32 Y = 0; Y < Height; Y++)

@@ -287,13 +287,11 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
 			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::CopySrc, ERHIAccess::SRVMask));
 
-			void* RawDataCopy = FMemory::Malloc(Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
 			int32 RowPitchInPixels;
-			{
-				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-				FMemory::Memcpy(RawDataCopy, RawData, Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
-				Capture.Readback->Unlock();
-			}
+			const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+			void* RawDataCopy = FMemory::Malloc(  RowPitchInPixels * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+			FMemory::Memcpy(RawDataCopy, RawData, RowPitchInPixels * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+			Capture.Readback->Unlock();
 
 			AsyncTask(ENamedThreads::AnyThread,
 				[RawDataCopy, OutputPath = Filename, Width = Capture.Width, Height = Capture.Height, PixelFormat = Capture.PixelFormat, RowPitchInPixels = RowPitchInPixels]()
@@ -307,6 +305,7 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 					// ReadFlags.SetLinearToGamma(true);  // gamma correction
 
 					uint32 SrcPitch = RowPitchInPixels * GPixelFormats[PixelFormat].BlockBytes;
+					UE_LOG(LogTemp, Warning, TEXT("CaptureFastToFile: SrcPitch = %d, RowPitchInPixels = %d, BlockBytes = %d"), SrcPitch, RowPitchInPixels, GPixelFormats[PixelFormat].BlockBytes);
 					ConvertRAWSurfaceDataToFColorOpt(
 						PixelFormat,
 						Width,
@@ -620,6 +619,7 @@ void UBaseCameraSensor::CopyBackCapture(ECaptureFormat Format)
 			// ReadFlags.SetLinearToGamma(true);  // gamma correction
 
 			uint32 SrcPitch = RowPitchInPixels * GPixelFormats[Capture.PixelFormat].BlockBytes;
+			UE_LOG(LogTemp, Warning, TEXT("CopyBackCapture: SrcPitch = %d, RowPitchInPixels = %d, BlockBytes = %d"), SrcPitch, RowPitchInPixels, GPixelFormats[Capture.PixelFormat].BlockBytes);
 
 			double ConvertStartTime = FPlatformTime::Seconds();
 			if (Format == ECaptureFormat::UInt8)

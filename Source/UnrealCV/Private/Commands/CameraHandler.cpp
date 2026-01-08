@@ -319,7 +319,8 @@ FExecStatus FCameraHandler::GetCameraLit(const TArray<FString>& Args)
 
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
+	bool SaveToFile = FilenameType == EFilenameType::Png || FilenameType == EFilenameType::Bmp;
+	if (SaveToFile && FusionCamSensor->GetUseFastCapture())
 	{
 		FusionCamSensor->SaveLitToFile(Filename);
 		return FExecStatus::OK(Filename);
@@ -378,11 +379,12 @@ FExecStatus FCameraHandler::GetCameraNormal(const TArray<FString>& Args)
 
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	// if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
-	// {
-	// 	FusionCamSensor->SaveNormalToFile(Filename);
-	// 	return FExecStatus::OK(Filename);
-	// }
+	bool SaveToFile = FilenameType == EFilenameType::Png || FilenameType == EFilenameType::Bmp;
+	if (SaveToFile && FusionCamSensor->GetUseFastCapture())
+	{
+		FusionCamSensor->SaveNormalToFile(Filename);
+		return FExecStatus::OK(Filename);
+	}
 
 	TArray<FColor> Data;
 	int Width, Height;
@@ -405,11 +407,12 @@ FExecStatus FCameraHandler::GetCameraFlow(const TArray<FString>& Args)
 
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	// if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
-	// {
-	// 	FusionCamSensor->SaveFlowToFile(Filename);
-	// 	return FExecStatus::OK(Filename);
-	// }
+	bool SaveToFile = FilenameType == EFilenameType::Png || FilenameType == EFilenameType::Bmp;
+	if (SaveToFile && FusionCamSensor->GetUseFastCapture())
+	{
+		FusionCamSensor->SaveFlowToFile(Filename);
+		return FExecStatus::OK(Filename);
+	}
 
 	TArray<FColor> Data;
 	int Width, Height;
@@ -436,7 +439,8 @@ FExecStatus FCameraHandler::GetCameraSeg(const TArray<FString>& Args)
 
 	EFilenameType FilenameType = ParseFilenameType(Filename);
 
-	if (FilenameType == EFilenameType::Png && FusionCamSensor->GetUseFastCapture())
+	bool SaveToFile = FilenameType == EFilenameType::Png || FilenameType == EFilenameType::Bmp;
+	if (SaveToFile && FusionCamSensor->GetUseFastCapture())
 	{
 		FusionCamSensor->SaveSegToFile(Filename);
 		return FExecStatus::OK(Filename);

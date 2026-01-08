@@ -113,13 +113,11 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
 
-			void* RawDataCopy = FMemory::Malloc(Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
 			int32 RowPitchInPixels;
-			{
-				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-				FMemory::Memcpy(RawDataCopy, RawData, Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
-				Capture.Readback->Unlock();
-			}
+			const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+			void* RawDataCopy = FMemory::Malloc(  RowPitchInPixels * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+			FMemory::Memcpy(RawDataCopy, RawData, RowPitchInPixels * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+			Capture.Readback->Unlock();
 
 			AsyncTask(ENamedThreads::AnyThread,
 				[RawDataCopy, OutputPath = Filename, Width = Capture.Width, Height = Capture.Height, PixelFormat = Capture.PixelFormat, RowPitchInPixels = RowPitchInPixels]()

@@ -44,6 +44,11 @@ void UAnnotationCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickTy
 
 void UAnnotationCamSensor::CaptureSeg(TArray<FColor>& ImageData, int& Width, int& Height)
 {
+	if (!CheckTextureTarget())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("TextureTarget not initialized, CaptureSeg failed."));
+		return;
+	}
 	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
 	UAnnotationBPLib::GetAnnotationComponents(this->GetWorld(), ComponentList);
 
@@ -114,13 +119,12 @@ void UAnnotationCamSensor::CaptureSegToFile(const FString& Filename)
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
 
-			void* RawDataCopy = FMemory::Malloc(Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+
 			int32 RowPitchInPixels;
-			{
-				const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-				FMemory::Memcpy(RawDataCopy, RawData, Capture.Width * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
-				Capture.Readback->Unlock();
-			}
+			const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
+			void* RawDataCopy = FMemory::Malloc(  RowPitchInPixels * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+			FMemory::Memcpy(RawDataCopy, RawData, RowPitchInPixels * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
+			Capture.Readback->Unlock();
 
 			AsyncTask(ENamedThreads::AnyThread,
 				[RawDataCopy, OutputPath = Filename, Width = Capture.Width, Height = Capture.Height, PixelFormat = Capture.PixelFormat, RowPitchInPixels = RowPitchInPixels]()
@@ -132,6 +136,8 @@ void UAnnotationCamSensor::CaptureSegToFile(const FString& Filename)
 					ReadFlags.SetLinearToGamma(false);
 
 					uint32 SrcPitch = RowPitchInPixels * GPixelFormats[PixelFormat].BlockBytes;
+					// uint32 SrcPitch = Width * GPixelFormats[PixelFormat].BlockBytes;
+					UE_LOG(LogTemp, Warning, TEXT("CaptureSegToFile: SrcPitch = %d, RowPitchInPixels = %d, BlockBytes = %d"), SrcPitch, RowPitchInPixels, GPixelFormats[PixelFormat].BlockBytes);
 					ConvertRAWSurfaceDataToFColorOpt(
 						PixelFormat,
 						Width,

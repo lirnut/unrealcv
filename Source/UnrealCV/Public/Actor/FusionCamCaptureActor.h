@@ -156,7 +156,7 @@ protected:
 	FDateTime RealWorldTimeRecordingEnd;
 	double RealWorldTimeDurationSeconds;
 	double RealWorldTimeFPS;
-	bool bUseSaveToFileAPI;
+	// bool bUseSaveToFileAPI;
 
 	// Unified target location for trajectory calculations
 	FVector UnifiedTargetLocation;
@@ -178,7 +178,7 @@ protected:
 	FSceneHandle SceneHandle;
 
 	void OnTimerRecord();
-	void RecordFrame(bool SaveToFile = true);
+	void RecordFrame();
 
 	void PrepareTargetCamera();
 
