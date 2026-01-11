@@ -33,7 +33,7 @@ void FObjectAnnotator::AnnotateWorld(UWorld* World)
 
 	// Batch annotation with GPU sync to prevent crashes in complex scenes
 	// Process actors in chunks to avoid massive GPU resource allocation spike
-	const int32 BatchSize = 32;  // Number of actors to annotate before GPU sync
+	const int32 BatchSize = 1;  // Number of actors to annotate before GPU sync
 	int32 ProcessedCount = 0;
 
 	for (int32 i = 0; i < ActorArray.Num(); ++i)

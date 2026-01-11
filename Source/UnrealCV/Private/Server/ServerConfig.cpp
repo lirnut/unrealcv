@@ -22,7 +22,7 @@ FServerConfig::FServerConfig()
 	Width = 640;
 	Height = 480;
 	FOV = 90.0f;
-	AnnotateWorld = false;
+	AnnotateWorld = true;
 	DisableSKMAnnotation = false;
 	EnableInput = true;
 	ExitOnFailure = false;
