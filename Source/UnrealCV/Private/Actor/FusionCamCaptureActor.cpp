@@ -1269,7 +1269,8 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 	if (ROTATE_NUM_FRAMES_OVERRIDE > 0)
 	{
 		NumFrames = ROTATE_NUM_FRAMES_OVERRIDE;
-		DegreesPerFrame = TotalRotationDeg / (NumFrames - 1);
+		// DegreesPerFrame = TotalRotationDeg / (NumFrames - 1);
+		DegreesPerFrame = TotalRotationDeg / (NumFrames - 2);
 	}
 
 	for (int i = 0; i < NumFrames; i++)

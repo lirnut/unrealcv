@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Containers/Ticker.h"
 #include "MetaHumanBPLib.generated.h"
 
 struct FBatchContext
@@ -14,7 +15,7 @@ struct FBatchContext
 	TArray<AActor*> SpawnedActors;
 	bool bIsSpawn;
 	bool bCancelled;
-	FTimerHandle TimerHandle;
+	FTicker::FDelegateHandle TickerHandle;
 };
 
 UCLASS()

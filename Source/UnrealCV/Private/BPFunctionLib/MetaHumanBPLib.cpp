@@ -10,7 +10,7 @@
 #include "UnrealcvServer.h"
 #include "Engine/StreamableManager.h"
 #include "Async/TaskGraphInterfaces.h"
-#include "TimerManager.h"
+#include "Containers/Ticker.h"
 #include "Engine/World.h"
 #include "FileHelpers.h"
 
@@ -100,23 +100,27 @@ void UMetaHumanBPLib::ProcessBatch(FBatchContext* Context)
 	{
 		UE_LOG(LogTemp, Log, TEXT("MetaHumanAsync: Batch complete. Success: %d/%d"), Context->SuccessfulPaths.Num(), Context->AllPaths.Num());
 
-		if (UWorld* CurrentWorld = FUnrealcvServer::Get().GetWorld())
+		if (Context->TickerHandle.IsValid())
 		{
-			CurrentWorld->GetTimerManager().ClearTimer(Context->TimerHandle);
+			FTSTicker::GetCoreTicker().RemoveTicker(Context->TickerHandle);
 		}
 		GBatchContext.Reset();
 	}
 	else
 	{
-		if (UWorld* CurrentWorld = FUnrealcvServer::Get().GetWorld())
+		if (Context->TickerHandle.IsValid())
 		{
-			CurrentWorld->GetTimerManager().SetTimer(
-				Context->TimerHandle,
-				[Context]() { ProcessBatch(Context); },
-				5.0f,
-				false
-			);
+			FTSTicker::GetCoreTicker().RemoveTicker(Context->TickerHandle);
 		}
+
+		Context->TickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+			FTickerDelegate::CreateLambda([Context](float DeltaTime)
+			{
+				ProcessBatch(Context);
+				return false;
+			}),
+			5.0f
+		);
 
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		UE_LOG(LogTemp, Log, TEXT("MetaHumanAsync: GC triggered at index %d/%d"), Context->CurrentIndex, Context->AllPaths.Num());
