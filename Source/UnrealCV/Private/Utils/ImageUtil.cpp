@@ -328,7 +328,7 @@ void ConvertDepthToPreview(const TArray<float>& DepthData, TArray<FColor>& OutPr
 	// }
 
 	float MinDepth = 0.0f;
-	float MaxDepth = 500.0f;
+	float MaxDepth = 10000.0f;
 
 	float DepthRange = MaxDepth - MinDepth;
 	if (DepthRange > 0.0f)

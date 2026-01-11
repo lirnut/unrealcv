@@ -154,12 +154,15 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 
 					double SerializeStartTime = FPlatformTime::Seconds();
 					FString OutputPathBase = OutputPath.Replace(TEXT(".npy"), TEXT(""));
-					FString OutputPathPNG = OutputPathBase + TEXT(".png");
+					FString OutputPathPNG1KM = OutputPathBase + TEXT("1km.png");
+					FString OutputPathPNG20KM = OutputPathBase + TEXT("20km.png");
 					FString DepthPreviewPath = OutputPathBase + TEXT("_preview.png");
 					FString DepthNpyPath = OutputPathBase + TEXT(".npy");
 					TArray<FColor> DepthPreview;
-					TArray<FColor> DepthPNG;
-					ConvertDepthToPNG_RGB24(DepthData, DepthPNG, 0.0f, 100000.0f);
+					TArray<FColor> DepthPNG1KM;
+					TArray<FColor> DepthPNG20KM;
+					ConvertDepthToPNG_RGB24(DepthData, DepthPNG1KM, 0.0f, 100000.0f);
+					ConvertDepthToPNG_RGB24(DepthData, DepthPNG20KM, 0.0f, 2000000.0f);
 					ConvertDepthToPreview(DepthData, DepthPreview);
 					// | 你能接受的误差（cm）   | 对应的 MaxDepth（cm）                     |
 					// | ------------- | ------------------------------------ |
@@ -169,7 +172,8 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 					// | 1000 cm（10 m） | **33,554,430,000 cm** ≈ 335,544 km   |
 					// | 2000 cm（20 m） | **67,108,860,000 cm** ≈ 671,088 km   |
 					// | 4000 cm（40 m） | **134,217,720,000 cm**≈ 1,342,177 km |
-					SerializeData(DepthPNG, Width, Height, OutputPathPNG);
+					SerializeData(DepthPNG1KM, Width, Height, OutputPathPNG1KM);
+					SerializeData(DepthPNG20KM, Width, Height, OutputPathPNG20KM);
 					SerializeData(DepthPreview, Width, Height, DepthPreviewPath);
 					SerializeData(DepthData, Width, Height, DepthNpyPath);
 					double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;

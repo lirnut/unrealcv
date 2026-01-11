@@ -14,8 +14,6 @@ class AUnrealcvWorldController : public AActor
 	GENERATED_BODY()
 
 public:
-	FObjectAnnotator ObjectAnnotator;
-
 	UPROPERTY()
 	UPlayerViewMode* PlayerViewMode;
 

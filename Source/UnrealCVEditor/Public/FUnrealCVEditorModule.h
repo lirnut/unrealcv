@@ -14,6 +14,8 @@ public:
 
 private:
 	void RegisterMenus();
+
+	static void OnAnnotateWorld();
 	static void OnSearchAndSaveCache();
 	static void OnSearchSaveAndSetAnimation();
 	static void OnSearchSaveSetAnimationAndSpawn();

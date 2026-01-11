@@ -10,21 +10,18 @@
 // For UE4 < 17
 // check https://github.com/unrealcv/unrealcv/blob/1369a72be8428547318d8a52ae2d63e1eb57a001/Source/UnrealCV/Private/Controller/ObjectAnnotator.cpp#L1
 
-FObjectAnnotator::FObjectAnnotator()
-{
-}
+
+TMap<FString, FColor> FObjectAnnotator::AnnotationColors = {}; // Store annotation data
+FColorGenerator FObjectAnnotator::ColorGenerator;
+
+
+// FObjectAnnotator::FObjectAnnotator()
+// {
+// }
 
 /** Annotate all static mesh in the world */
 void FObjectAnnotator::AnnotateWorld(UWorld* World)
 {
-	bool AnnotateWorld = FUnrealcvServer::Get().Config.AnnotateWorld;
-	if (!AnnotateWorld)
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("Annoataion is not enabled, FObjectAnnotator::AnnotateWorld will not do anything !!!"))
-		UE_LOG(LogUnrealCV, Warning, TEXT("	- Enable EnableAnnotation in unrealcv config file unrealcv.ini"))
-		return;
-	}
-
 	if (!IsValid(World))
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("Can not annotate world, the world is not valid"));
@@ -53,7 +50,7 @@ void FObjectAnnotator::AnnotateWorld(UWorld* World)
 		{
 			FColor AnnotationColor = GetDefaultColor(Actor);
 			// Use VertexColor as annotation
-			this->SetAnnotationColor(Actor, AnnotationColor);
+			SetAnnotationColor(Actor, AnnotationColor);
 			++ProcessedCount;
 		}
 
@@ -89,7 +86,7 @@ int32 FObjectAnnotator::SetAnnotationColor(AActor* Actor, const FColor& Annotati
 	{
 		UpdateAnnotationComponent(Actor, AnnotationColor);
 	}
-	this->AnnotationColors.Emplace(Actor->GetName(), AnnotationColor);
+	AnnotationColors.Emplace(Actor->GetName(), AnnotationColor);
 	// TODO: Remote AnnotationColor Map!
 	return AnnotationComponents.Num();
 }

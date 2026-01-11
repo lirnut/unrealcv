@@ -21,16 +21,13 @@ void UAnnotationBPLib::AnnotateActor(AActor* Actor)
 
 	if (!WorldController.IsValid())
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("AnnotateActor: WorldController is not available"));
+		UE_LOG(LogUnrealCV, Warning, TEXT("AnnotateActor: WorldController is not available, this func will not work withoud game world"));
 		return;
 	}
 
-	FObjectAnnotator& Annotator = WorldController->ObjectAnnotator;
-
-
 	FColor AnnotationColor;
-	Annotator.GetAnnotationColor(Actor, AnnotationColor);
-	Annotator.SetAnnotationColor(Actor, AnnotationColor);
+	FObjectAnnotator::GetAnnotationColor(Actor, AnnotationColor);
+	FObjectAnnotator::SetAnnotationColor(Actor, AnnotationColor);
 	FlushRenderingCommands();
 
 	UE_LOG(LogUnrealCV, Log, TEXT("AnnotateActor: Annotated %s with color %s"),
@@ -41,14 +38,22 @@ void UAnnotationBPLib::AnnotateWorld()
 {
 	TWeakObjectPtr<AUnrealcvWorldController> WorldController = FUnrealcvServer::Get().WorldController;
 
-	if (!WorldController.IsValid())
+	if (!WorldController.IsValid() || IsValid(FUnrealcvServer::Get().GetWorld()))
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("AnnotateActor: WorldController is not available"));
-		return;
-	}
+		if (!GEditor)
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("AnnotateActor: !GEditor"));
+			return;
+		}
 
-	FObjectAnnotator& Annotator = WorldController->ObjectAnnotator;
-	Annotator.AnnotateWorld(FUnrealcvServer::Get().GetWorld());
+		const FWorldContext& WorldContext = GEditor->GetEditorWorldContext();
+		FObjectAnnotator::AnnotateWorld(worldContext.World());
+	}
+	else
+	{
+		FObjectAnnotator::AnnotateWorld(FUnrealcvServer::Get().GetWorld());
+	}
 	UE_LOG(LogUnrealCV, Log, TEXT("AnnotateWorld: World annotation completed"));
 }
 

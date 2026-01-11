@@ -203,7 +203,7 @@ UWorld* FUnrealcvServer::GetGameWorld()
 			return nullptr;
 		}
 	}
-#endif
+#else
 
 	UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
 	if (GameEngine != nullptr)
@@ -221,6 +221,7 @@ UWorld* FUnrealcvServer::GetGameWorld()
 	}
 
 	return nullptr;
+#endif
 }
 
 

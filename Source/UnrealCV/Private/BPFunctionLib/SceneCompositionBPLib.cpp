@@ -546,8 +546,8 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		AUnrealcvWorldController* WorldController = FUnrealcvServer::Get().WorldController.Get();
 		if (IsValid(WorldController))
 		{
-			WorldController->ObjectAnnotator.GetAnnotationColor(OutSceneHandle.ForegroundActor, OutSceneHandle.AnnotationColor);
-			OutSceneHandle.AllAnnotationColors = WorldController->ObjectAnnotator.GetAnnotationColors();
+			FObjectAnnotator::GetAnnotationColor(OutSceneHandle.ForegroundActor, OutSceneHandle.AnnotationColor);
+			OutSceneHandle.AllAnnotationColors = FObjectAnnotator::GetAnnotationColors();
 		}
 	}
 

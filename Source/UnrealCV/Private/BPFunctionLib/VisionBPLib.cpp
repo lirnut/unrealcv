@@ -245,7 +245,7 @@ void UVisionBPLib::GetAnnotationColor(AActor* Actor, FColor& AnnotationColor)
 	AUnrealcvWorldController* WorldController = FUnrealcvServer::Get().WorldController.Get();
 	if (IsValid(WorldController))
 	{
-		WorldController->ObjectAnnotator.GetAnnotationColor(Actor, AnnotationColor);
+		FObjectAnnotator::GetAnnotationColor(Actor, AnnotationColor);
 	}
 }
 
@@ -365,7 +365,7 @@ UFusionCamSensor* UVisionBPLib::GetPlayerSensor()
 
 void UVisionBPLib::AnnotateWorld()
 {
-	FUnrealcvServer::Get().WorldController->ObjectAnnotator.AnnotateWorld(GWorld);
+	FObjectAnnotator::AnnotateWorld(GWorld);
 }
 
 //this is how you can make cpp only internal functions!

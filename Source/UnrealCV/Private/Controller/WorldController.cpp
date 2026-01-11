@@ -60,24 +60,35 @@ void AUnrealcvWorldController::InitWorld()
 
 	this->AttachPawnSensor();
 
-	// Delay annotation to next tick to avoid GPU crashes when Lumen is initializing
-	// This prevents simultaneous GPU proxy creation for AnnotationComponent and SkeletalMesh TLAS building
-	if (UWorld* World = GetWorld())
+	bool AnnotateWorld = FUnrealcvServer::Get().Config.AnnotateWorld;
+	if (AnnotateWorld)
 	{
-		World->GetTimerManager().SetTimerForNextTick([this, World]()
+		// Delay annotation to next tick to avoid GPU crashes when Lumen is initializing
+		// This prevents simultaneous GPU proxy creation for AnnotationComponent and SkeletalMesh TLAS building
+		if (UWorld* World = GetWorld())
 		{
-			if (!IsValid(this) || !IsValid(World))
+			World->GetTimerManager().SetTimerForNextTick([this, World]()
 			{
-				UE_LOG(LogUnrealCV, Error, TEXT("WorldController is not valid"));
-				return;
-			}
-			UE_LOG(LogUnrealCV, Display, TEXT("Delayed world annotation starting..."));
-			FlushRenderingCommands();
-			this->ObjectAnnotator.AnnotateWorld(World);
-			FlushRenderingCommands();
-			UE_LOG(LogUnrealCV, Display, TEXT("Delayed world annotation completed"));
-		});
+				if (!IsValid(this) || !IsValid(World))
+				{
+					UE_LOG(LogUnrealCV, Error, TEXT("WorldController is not valid"));
+					return;
+				}
+				UE_LOG(LogUnrealCV, Display, TEXT("Delayed world annotation starting..."));
+				FlushRenderingCommands();
+				FObjectAnnotator::AnnotateWorld(World);
+				FlushRenderingCommands();
+				UE_LOG(LogUnrealCV, Display, TEXT("Delayed world annotation completed"));
+			});
+		}
 	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Annoataion is not enabled, you can use the editor menu to manually annotate world if you're using UE Editor"))
+		UE_LOG(LogUnrealCV, Warning, TEXT("	- Enable AnnotationWolrd in unrealcv config file unrealcv.ini"))
+		UE_LOG(LogUnrealCV, Warning, TEXT("	- AnnotationWolrd in first tick is NOT SAFE for Skeletal Mesh"))
+	}
+
 
 	// TODO: remove legacy code
 	// Update camera FOV

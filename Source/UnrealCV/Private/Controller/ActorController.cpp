@@ -45,12 +45,10 @@ void FActorController::Hide()
 
 void FActorController::GetAnnotationColor(FColor& AnnotationColor)
 {
-	FObjectAnnotator& Annotator = FUnrealcvServer::Get().WorldController->ObjectAnnotator;
-	Annotator.GetAnnotationColor(Actor, AnnotationColor);
+	FObjectAnnotator::GetAnnotationColor(Actor, AnnotationColor);
 }
 
 void FActorController::SetAnnotationColor(const FColor& AnnotationColor)
 {
-	FObjectAnnotator& Annotator = FUnrealcvServer::Get().WorldController->ObjectAnnotator;
-	Annotator.SetAnnotationColor(Actor, AnnotationColor);
+	FObjectAnnotator::SetAnnotationColor(Actor, AnnotationColor);
 }

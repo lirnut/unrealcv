@@ -6,6 +6,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "BPFunctionLib/MetaHumanBPLib.h"
+#include "BPFunctionLib/AnnotationBPLib.h"
 
 #define LOCTEXT_NAMESPACE "FUnrealCVEditorModule"
 
@@ -13,7 +14,7 @@ IMPLEMENT_MODULE(FUnrealCVEditorModule, UnrealCVEditor)
 
 void FUnrealCVEditorModule::StartupModule()
 {
-	FMetaHumanEditorCommands::Register();
+	// FMetaHumanEditorCommands::Register();
 
 	PluginCommands = MakeShareable(new FUICommandList);
 
@@ -22,7 +23,7 @@ void FUnrealCVEditorModule::StartupModule()
 
 void FUnrealCVEditorModule::ShutdownModule()
 {
-	FMetaHumanEditorCommands::Unregister();
+	// FMetaHumanEditorCommands::Unregister();
 	UToolMenus::UnregisterOwner(this);
 }
 
@@ -47,6 +48,14 @@ void FUnrealCVEditorModule::RegisterMenus()
 			FNewToolMenuDelegate::CreateLambda([](UToolMenu* SubMenu)
 			{
 				FToolMenuSection& CacheSection = SubMenu->AddSection("CacheManagement", LOCTEXT("CacheManagement", "Cache Management"));
+
+				CacheSection.AddMenuEntry(
+					"AnnotateWorld",
+					LOCTEXT("AnnotateWorldLabel", "AnnotateWorld"),
+					LOCTEXT("AnnotateWorldTooltip", "AnnotateWorld"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateStatic(&FUnrealCVEditorModule::OnAnnotateWorld))
+				);
 
 				CacheSection.AddMenuEntry(
 					"SearchAndSaveCache",
@@ -84,6 +93,11 @@ void FUnrealCVEditorModule::RegisterMenus()
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Settings")
 		);
 	}
+}
+
+void FUnrealCVEditorModule::OnAnnotateWorld()
+{
+	UAnnotationBPLib::AnnotateWorld();
 }
 
 void FUnrealCVEditorModule::OnSearchAndSaveCache()
