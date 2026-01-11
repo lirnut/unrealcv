@@ -7,6 +7,24 @@
 
 void FCaptureActorHandler::RegisterCommands()
 {
+	auto BindCommandDualCameraID = [this](
+		const FString& FormatStr,
+		FDispatcherDelegate Delegate,
+		const FString& HelpStr)
+	{
+		if (!FormatStr.Contains(TEXT("[camera_id]")))
+		{
+			UE_LOG(LogTemp, Error, TEXT("FormatStr must contain [camera_id] placeholder: %s"), *FormatStr);
+			check(false);
+		}
+
+		FString UintFormatStr = FormatStr.Replace(TEXT("[camera_id]"), TEXT("[uint]"));
+		CommandDispatcher->BindCommand(UintFormatStr, Delegate, HelpStr);
+
+		FString StrFormatStr = FormatStr.Replace(TEXT("[camera_id]"), TEXT("[str]"));
+		CommandDispatcher->BindCommand(StrFormatStr, Delegate, HelpStr);
+	};
+
 	FDispatcherDelegate Cmd;
 	FString Help;
 
@@ -26,15 +44,16 @@ void FCaptureActorHandler::RegisterCommands()
 	Help = "Start simple recording: vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] [record_options]";
 	Help += "\nRecord options: {lit|rgb},{object_mask|seg},normal,depth,optical_flow";
 	Help += "\nExample: vset /captureactor/0/record ./output 30 10 lit,rgb,object_mask,normal (or empty for default lit only)";
-	CommandDispatcher->BindCommand("vset /captureactor/[uint]/record [str] [uint] [float]", Cmd, Help);
+	BindCommandDualCameraID("vset /captureactor/[camera_id]/record [str] [uint] [float]", Cmd, Help);
+	BindCommandDualCameraID("vset /captureactor/[camera_id]/record [str] [uint] [float] [str]", Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::IsRecording);
 	Help = "Check if a camera is currently recording: vget /captureactor/[id]/is_recording";
-	CommandDispatcher->BindCommand("vget /captureactor/[uint]/is_recording", Cmd, Help);
+	BindCommandDualCameraID("vget /captureactor/[camera_id]/is_recording", Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::StopRecording);
 	Help = "Stop recording for a camera: vset /captureactor/[id]/stop_record";
-	CommandDispatcher->BindCommand("vset /captureactor/[uint]/stop_record", Cmd, Help);
+	BindCommandDualCameraID("vset /captureactor/[camera_id]/stop_record", Cmd, Help);
 }
 
 FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
@@ -114,7 +133,7 @@ FExecStatus FCaptureActorHandler::StartSimpleRecording(const TArray<FString>& Ar
 	bool bRecordDepth = false;
 	bool bRecordFlow = false;
 
-	if (Args.Num() >= 4 && !Args[4].IsEmpty())
+	if (Args.Num() >= 5 && !Args[4].IsEmpty())
 	{
 		ParseRecordingOptions(Args[4], bRecordLit, bRecordMask, bRecordNormal, bRecordDepth, bRecordFlow);
 	}

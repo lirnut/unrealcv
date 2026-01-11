@@ -44,6 +44,7 @@ DebugGame 控制台中支持的完整命令列表
   - vget /camera/[id]/normal [filename] - 获取法线图
   - vget /camera/[id]/optical_flow [filename] - 获取光流
   - vget /camera/[id]/object_mask [filename] - 获取物体分割掩码
+  - vget /camera/[id]/oneobjmask [str] [str] - 单个物体分割掩码
   - vget /camera/[id]/seg [filename] - 获取分割（同上）
   - vget /camera/[id]/fov - 获取 FOV
   - vset /camera/[id]/fov [float] - 设置 FOV
