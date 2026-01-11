@@ -186,6 +186,32 @@ void FObjectAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& An
 			}
 			
 			UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component);
+			check(MeshComponent)
+
+			bool bHasTransparentMaterial = false;
+			for (int ComponentMaterialIdx = 0; ComponentMaterialIdx < MeshComponent->GetNumMaterials(); ++ComponentMaterialIdx)
+			{
+				UMaterialInterface* MaterialInterface = MeshComponent->GetMaterial(ComponentMaterialIdx);
+				if (MaterialInterface != nullptr)
+				{
+					EBlendMode BlendMode = MaterialInterface->GetBlendMode();
+					// OneComponent->SetMaterial(ComponentMaterialIdx, DynamicMaterialInstance);
+					if (BlendMode == EBlendMode::BLEND_Translucent)
+					{
+						FString MaterialName = MaterialInterface->GetFullName();
+						UE_LOG(LogUnrealCV, Warning, TEXT("%s is transparent"), *MaterialName);
+						bHasTransparentMaterial = true;
+						break;
+					}
+				}
+			}
+
+			if (bHasTransparentMaterial)
+			{
+				UE_LOG(LogUnrealCV, Warning, TEXT("Skip annotation for mesh component %s, because it has transparent material"), *MeshComponent->GetName());
+				continue;
+			}
+
 
 			UAnnotationComponent* AnnotationComponent = NewObject<UAnnotationComponent>(MeshComponent);
 			AnnotationComponent->SetupAttachment(MeshComponent);
