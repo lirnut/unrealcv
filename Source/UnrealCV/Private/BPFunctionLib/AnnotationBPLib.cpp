@@ -48,7 +48,7 @@ void UAnnotationBPLib::AnnotateWorld()
 		}
 
 		const FWorldContext& WorldContext = GEditor->GetEditorWorldContext();
-		FObjectAnnotator::AnnotateWorld(worldContext.World());
+		FObjectAnnotator::AnnotateWorld(WorldContext.World());
 	}
 	else
 	{
