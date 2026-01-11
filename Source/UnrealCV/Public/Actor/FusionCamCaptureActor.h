@@ -106,6 +106,9 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
 	bool bRecordFlow;
 
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
+	bool bRecordOneObjectMask;
+
 	/** Record camera metadata (location, rotation, FOV, etc.) */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
 	bool bRecordMetadata;

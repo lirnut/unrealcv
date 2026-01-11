@@ -14,7 +14,8 @@
 #include "BPFunctionLib/AnnotationBPLib.h"
 
 UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectInitializer) :
-	Super(ObjectInitializer)
+	Super(ObjectInitializer),
+	bUseShowOnlyComponentsOverride(false)
 {
 	this->PrimaryComponentTick.bCanEverTick = true;
 	this->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
@@ -49,10 +50,8 @@ void UAnnotationCamSensor::CaptureSeg(TArray<FColor>& ImageData, int& Width, int
 		UE_LOG(LogUnrealCV, Error, TEXT("TextureTarget not initialized, CaptureSeg failed."));
 		return;
 	}
-	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
-	UAnnotationBPLib::GetAnnotationComponents(this->GetWorld(), ComponentList);
 
-	this->ShowOnlyComponents = ComponentList;
+	PrepareShowOnlyComponents();
 
 	Capture(ImageData, Width, Height);
 
@@ -77,10 +76,7 @@ void UAnnotationCamSensor::CaptureSegToFile(const FString& Filename)
 		return;
 	}
 
-	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
-	UAnnotationBPLib::GetAnnotationComponents(this->GetWorld(), ComponentList);
-	this->ShowOnlyComponents = ComponentList;
-
+	PrepareShowOnlyComponents();
 
 	/*
 	 ****************      Below is copied from BaseCameraSensor.cpp     ********************
@@ -163,4 +159,21 @@ void UAnnotationCamSensor::CaptureSegToFile(const FString& Filename)
 	LaunchCapture();
 }
 
+
+
+void UAnnotationCamSensor::PrepareShowOnlyComponents()
+{
+	if (bUseShowOnlyComponentsOverride)
+	{
+		ShowOnlyComponents.Reset();
+		this->ShowOnlyComponents = this->ShowOnlyComponentsOverride;
+	} 
+	else
+	{
+
+		TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+		UAnnotationBPLib::GetAnnotationComponents(this->GetWorld(), ComponentList);
+		this->ShowOnlyComponents = ComponentList;
+	}
+}
 

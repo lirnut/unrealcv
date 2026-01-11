@@ -15,6 +15,7 @@ public:
 	int Width;
 	int Height;
 	float FOV;
+	bool EnableAnnotation;
 	bool EnableInput;
 	bool ExitOnFailure;
 	bool EnableRightEye;

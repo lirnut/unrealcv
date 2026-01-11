@@ -72,6 +72,10 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	// FlowCamSensor = NewObject<UFlowCamSensor>(this, UFlowCamSensor::StaticClass()); /*NewObject with empty name can't be used to create default subobjects*/
 	FusionSensors.Add(FlowCamSensor);
 
+	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("OneObjectMaskCamSensor"));
+	OneObjectMaskCamSensor = CreateDefaultSubobject<UAnnotationCamSensor>(*ComponentName);
+	FusionSensors.Add(OneObjectMaskCamSensor);
+
 	// The config loading code should not be placed into the ctor, otherwise it will break the copy behavior
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	FilmWidth = Config.Width == 0 ? 640 : Config.Width;
@@ -228,31 +232,51 @@ bool UFusionCamSensor::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& V
 // }
 
 
-void UFusionCamSensor::GetObjMask(FString ObjId, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
+void UFusionCamSensor::GetOneObjMask(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
 {
-	SL::get().print("GetObjMask called");
-
-	AActor* Actor = GetActorById(FUnrealcvServer::Get().GetWorld(), ObjId);
-	if (!Actor) {UE_LOG(LogUnrealCV, Error, TEXT("Can not find object")); return;}
+	SL::get().print("GetOneObjMask called");
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetOneObjMask input Actor is not valid"));
+		Data.Empty();
+		InOutWidth = 0;
+		InOutHeight = 0;
+		return;
+	}
 	
 	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
 	CollectShowOnlyForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
 	SL::get().printf("ComponentList Num: %d", ComponentList.Num());
 
-	auto* CamSensor = this->AnnotationCamSensor;
-	// auto* CamSensor = this->LitCamSensor;
-	CamSensor->ShowOnlyComponents = ComponentList;
-	CamSensor->CaptureScene();
-	CamSensor->ReadCaptureResults(Data);
-	InOutWidth = CamSensor->GetFilmWidth();
-	InOutHeight = CamSensor->GetFilmHeight();
+	OneObjectMaskCamSensor->bUseShowOnlyComponentsOverride = true;
+	OneObjectMaskCamSensor->ShowOnlyComponentsOverride = ComponentList;
+	// OneObjectMaskCamSensor->ShowOnlyComponents = ComponentList;
+	// OneObjectMaskCamSensor->CaptureScene();
+	// OneObjectMaskCamSensor->ReadCaptureResults(Data);
+	// InOutWidth = OneObjectMaskCamSensor->GetFilmWidth();
+	// InOutHeight = OneObjectMaskCamSensor->GetFilmHeight();
+	OneObjectMaskCamSensor->CaptureSeg(Data, InOutWidth, InOutHeight);
 	if (Data.Num() == 0) 
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("Captured obj mask data is empty."));
 		return;
 	}
-	SL::get().print("GetObjMask returned");
+	SL::get().print("GetOneObjMask returned");
 }
+void UFusionCamSensor::SaveOneObjMaskToFile(AActor* Actor, const FString& Filename)
+{
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::SaveOneObjMaskToFile input Actor is not valid"));
+		return;
+	}
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+	CollectShowOnlyForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
+	OneObjectMaskCamSensor->bUseShowOnlyComponentsOverride = true;
+	OneObjectMaskCamSensor->ShowOnlyComponentsOverride = ComponentList;
+	OneObjectMaskCamSensor->CaptureSegToFile(Filename);
+}
+
 
 // color
 void UFusionCamSensor::GetLit(TArray<FColor>& LitData, int& Width, int& Height, ELitMode LitMode)

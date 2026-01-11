@@ -90,7 +90,10 @@ DebugGame 控制台中支持的完整命令列表
   - vset /captureactor/spawn_free_cam - 生成自由摄像机
   - vset /captureactor/time_dilation [float] - 设置录制时间膨胀 (0.1-10.0)
   - vget /captureactor/asset_pool - 查询资产池中的资产
-  - vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] - 开始录像（不干涉相机移动）
+  - vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] [{lit|rgb},{object_mask|seg},normal,depth,optical_flow] - 开始录像（不干涉相机移动）
+      ```
+      
+      ```
   - vget /captureactor/[id]/is_recording - 查询是否正在录制
   - vset /captureactor/[id]/stop_record - 停止录制指定摄像机
 

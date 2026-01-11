@@ -1252,7 +1252,7 @@ FExecStatus FCameraHandler::GetCameraOneObjMask(const TArray<FString>& Args)
 	FExecStatus ExecStatus = FExecStatus::OK();
 	if (Args.Num() != 3) {
 		FString Msg = TEXT("Invalid command length.");
-		SL::get().print(TCHAR_TO_UTF8(*Msg));
+		UE_LOG(LogUnrealCV, Error, TEXT("%s"), *Msg);
 		ExecStatus = FExecStatus::Error(Msg);
 		return ExecStatus;
 	}
@@ -1263,23 +1263,32 @@ FExecStatus FCameraHandler::GetCameraOneObjMask(const TArray<FString>& Args)
 
 	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
 	if (!IsValid(FusionCamSensor)) {
-		SL::get().print("FCameraHandler::GetCameraObjMask error, FusionCamSensor is not valid");
+		FString Msg = TEXT("FCameraHandler::GetCameraObjMask error, FusionCamSensor is not valid");
+		UE_LOG(LogUnrealCV, Error, TEXT("%s"), *Msg);
+		ExecStatus = FExecStatus::Error(Msg);
 		return ExecStatus;
 	}
 
+	AActor* Actor = GetActorById(FUnrealcvServer::Get().GetWorld(), ObjectId);
+	if (!Actor) 
+	{
+		FString Msg = TEXT("FCameraHandler::GetCameraObjMask Can not find object");
+		UE_LOG(LogUnrealCV, Error, TEXT("%s"), *Msg);
+		ExecStatus = FExecStatus::Error(Msg);
+		return ExecStatus;
+	}
 
 	TArray<FColor> Data;
 	int Width, Height;
-	FusionCamSensor->GetObjMask(ObjectId, Data, Width, Height);
+	FusionCamSensor->GetOneObjMask(Actor, Data, Width, Height);
 
 	if (Data.Num() == 0)
 	{
 		ExecStatus = FExecStatus::Error("Captured data is empty");
-		SL::get().print("FCameraHandler::GetCameraObjMask error, Captured data is empty");
+		UE_LOG(LogUnrealCV, Error, TEXT("Captured data is empt"));
 		return ExecStatus;
 	}
 	ExecStatus = SerializeData(Data, Width, Height, FileName);
-	SL::get().print("FCameraHandler::GetCameraObjMask returned");
 	return ExecStatus;
 }
 

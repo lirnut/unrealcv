@@ -56,7 +56,8 @@ public:
 
 	/** Get one object mask data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
-	void GetObjMask(FString ObjId, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
+	void GetOneObjMask(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
+	void SaveOneObjMaskToFile(AActor* Actor, const FString& Filename);
 
 	/** Get rgb data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
@@ -221,6 +222,9 @@ protected:
 	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "unrealcv")
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
 	class UFlowCamSensor* FlowCamSensor;
+
+	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
+	class UAnnotationCamSensor* OneObjectMaskCamSensor;
 
 
 	/** This preview camera is used for UE version < 4.17 which only support UCameraComponent PIP preview

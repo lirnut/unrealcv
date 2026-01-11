@@ -3,6 +3,8 @@
 #include "Runtime/Engine/Public/EngineUtils.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "Component/AnnotationComponent.h"
+#include "UnrealcvServer.h"
+#include "UnrealcvLog.h"
 #include "UnrealcvLog.h"
 
 // For UE4 < 17
@@ -15,6 +17,14 @@ FObjectAnnotator::FObjectAnnotator()
 /** Annotate all static mesh in the world */
 void FObjectAnnotator::AnnotateWorld(UWorld* World)
 {
+	bool EnableAnnotation = FUnrealcvServer::Get().Config.EnableAnnotation;
+	if (!EnableAnnotation)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Annoataion is not enabled, FObjectAnnotator::AnnotateWorld will not do anything !!!"))
+		UE_LOG(LogUnrealCV, Warning, TEXT("	- Enable EnableAnnotation in unrealcv config file unrealcv.ini"))
+		return;
+	}
+
 	if (!IsValid(World))
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("Can not annotate world, the world is not valid"));

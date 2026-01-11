@@ -18,6 +18,14 @@ public:
 
 	void InitTextureTarget(int FilmWidth, int FilmHeight);
 
+
+ 	UPROPERTY()
+ 	bool bUseShowOnlyComponentsOverride;
+ 	UPROPERTY()
+ 	TArray<TWeakObjectPtr<UPrimitiveComponent> > ShowOnlyComponentsOverride;
+
 private:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * T);
+
+	void PrepareShowOnlyComponents();
 };

@@ -23,7 +23,9 @@ void FCaptureActorHandler::RegisterCommands()
 	CommandDispatcher->BindCommand("vget /captureactor/asset_pool", Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::StartSimpleRecording);
-	Help = "Start simple recording without camera movement: vset /captureactor/[id]/record [filename] [fps] [duration_seconds]";
+	Help = "Start simple recording: vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] [record_options]";
+	Help += "\nRecord options: {lit|rgb},{object_mask|seg},normal,depth,optical_flow";
+	Help += "\nExample: vset /captureactor/0/record ./output 30 10 lit,rgb,object_mask,normal (or empty for default lit only)";
 	CommandDispatcher->BindCommand("vset /captureactor/[uint]/record [str] [uint] [float]", Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::IsRecording);
@@ -80,9 +82,9 @@ FExecStatus FCaptureActorHandler::PrintAssetPool(const TArray<FString>& Args)
 
 FExecStatus FCaptureActorHandler::StartSimpleRecording(const TArray<FString>& Args)
 {
-	if (Args.Num() < 3)
+	if (Args.Num() < 4)
 	{
-		return FExecStatus::Error("Usage: vset /captureactor/[id]/record [filename] [fps] [duration_seconds]");
+		return FExecStatus::Error("Usage: vset /captureactor/[id]/record [filename] [fps] [duration_seconds] [record_options]");
 	}
 
 	FString IDString = Args[0];
@@ -106,17 +108,91 @@ FExecStatus FCaptureActorHandler::StartSimpleRecording(const TArray<FString>& Ar
 		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID: %s"), *IDString));
 	}
 
-	bool bSuccess = URecordingBPLib::StartSimpleRecording(IDString, FileName, FPS, DurationSeconds);
+	bool bRecordLit = true;
+	bool bRecordMask = false;
+	bool bRecordNormal = false;
+	bool bRecordDepth = false;
+	bool bRecordFlow = false;
+
+	if (Args.Num() >= 4 && !Args[4].IsEmpty())
+	{
+		ParseRecordingOptions(Args[4], bRecordLit, bRecordMask, bRecordNormal, bRecordDepth, bRecordFlow);
+	}
+
+	bool bSuccess = URecordingBPLib::StartSimpleRecording(IDString, FileName, FPS, DurationSeconds,
+		bRecordLit, bRecordMask, bRecordNormal, bRecordDepth, bRecordFlow);
 
 	if (bSuccess)
 	{
 		int32 TotalFrames = FMath::CeilToInt(FPS * DurationSeconds);
-		return FExecStatus::OK(FString::Printf(TEXT("Recording started: Camera %s, File: %s, FPS: %d, Frames: %d"),
-			*IDString, *FileName, FPS, TotalFrames));
+		FString RecordTypes = TEXT("(");
+		if (bRecordLit) RecordTypes += TEXT("lit,");
+		if (bRecordMask) RecordTypes += TEXT("mask,");
+		if (bRecordNormal) RecordTypes += TEXT("normal,");
+		if (bRecordDepth) RecordTypes += TEXT("depth,");
+		if (bRecordFlow) RecordTypes += TEXT("flow,");
+		if (RecordTypes.Len() > 1)
+		{
+			RecordTypes = RecordTypes.Left(RecordTypes.Len() - 1);
+		}
+		RecordTypes += TEXT(")");
+
+		return FExecStatus::OK(FString::Printf(TEXT("Recording started: Camera %s, File: %s, FPS: %d, Frames: %d, Types: %s"),
+			*IDString, *FileName, FPS, TotalFrames, *RecordTypes));
 	}
 	else
 	{
 		return FExecStatus::Error(FString::Printf(TEXT("Failed to start recording for camera %s"), *IDString));
+	}
+}
+
+void FCaptureActorHandler::ParseRecordingOptions(const FString& OptionsStr, bool& bRecordLit, bool& bRecordMask,
+	bool& bRecordNormal, bool& bRecordDepth, bool& bRecordFlow)
+{
+	bRecordLit = false;
+	bRecordMask = false;
+	bRecordNormal = false;
+	bRecordDepth = false;
+	bRecordFlow = false;
+
+	if (OptionsStr.IsEmpty())
+	{
+		bRecordLit = true;
+		return;
+	}
+
+	TArray<FString> Options;
+	OptionsStr.ParseIntoArray(Options, TEXT(","), true);
+
+	for (const FString& Option : Options)
+	{
+		FString Trimmed = Option.TrimStartAndEnd().ToLower();
+
+		if (Trimmed == TEXT("lit") || Trimmed == TEXT("rgb"))
+		{
+			bRecordLit = true;
+		}
+		else if (Trimmed == TEXT("object_mask") || Trimmed == TEXT("seg"))
+		{
+			bRecordMask = true;
+		}
+		else if (Trimmed == TEXT("normal"))
+		{
+			bRecordNormal = true;
+		}
+		else if (Trimmed == TEXT("depth"))
+		{
+			bRecordDepth = true;
+		}
+		else if (Trimmed == TEXT("optical_flow"))
+		{
+			bRecordFlow = true;
+		}
+	}
+
+	if (!bRecordLit && !bRecordMask && !bRecordNormal && !bRecordDepth && !bRecordFlow)
+	{
+		bRecordLit = true;
 	}
 }
 

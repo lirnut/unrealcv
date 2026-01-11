@@ -44,6 +44,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	bRecordDepth = false;
 	bRecordNormal = false;
 	bRecordFlow = false;
+	bRecordOneObjectMask = true;
 	bRecordMetadata = true;
 	bRecordAudio = true;
 	bRecordWithoutTarget = false;
@@ -288,7 +289,13 @@ void AFusionCamCaptureActor::RecordFrame()
 		TargetSensor->SaveFlowToFile(FlowFilename);
 	}
 
-	if (TargetToHide)
+	if (bRecordOneObjectMask && IsValid(TargetToHide))
+	{
+		FString OneObjFilename = MakeFilenameNew("oneobjmask", ".png");
+		TargetSensor->SaveOneObjMaskToFile(TargetToHide, OneObjFilename);
+	}
+
+	if (IsValid(TargetToHide))
 	{
 		TargetToHide->SetActorHiddenInGame(true);
 

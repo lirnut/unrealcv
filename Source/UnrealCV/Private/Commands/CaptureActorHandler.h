@@ -16,6 +16,9 @@ private:
 
 	FExecStatus StartSimpleRecording(const TArray<FString>& Args);
 
+	void ParseRecordingOptions(const FString& OptionsStr, bool& bRecordLit, bool& bRecordMask,
+		bool& bRecordNormal, bool& bRecordDepth, bool& bRecordFlow);
+
 	FExecStatus IsRecording(const TArray<FString>& Args);
 
 	FExecStatus StopRecording(const TArray<FString>& Args);

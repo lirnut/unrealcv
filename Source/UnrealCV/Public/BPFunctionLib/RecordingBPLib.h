@@ -213,8 +213,24 @@ public:
 	 * @param FileName Output file path prefix (e.g., "C:/Output/simple_record")
 	 * @param FPS Frames per second for recording
 	 * @param DurationSeconds Recording duration in seconds
+	 * @param bRecordLit Whether to record lit/RGB data
+	 * @param bRecordMask Whether to record object mask/segmentation
+	 * @param bRecordNormal Whether to record normal maps
+	 * @param bRecordDepth Whether to record depth data
+	 * @param bRecordFlow Whether to record optical flow
 	 * @return True if recording started successfully, false otherwise
 	 */
+	static bool StartSimpleRecording(
+		const FString& IDString,
+		const FString& FileName,
+		int32 FPS,
+		float DurationSeconds,
+		bool bRecordLit = true,
+		bool bRecordMask = false,
+		bool bRecordNormal = false,
+		bool bRecordDepth = false,
+		bool bRecordFlow = false
+	);
 	static bool StartSimpleRecording(
 		const FString& IDString,
 		const FString& FileName,
