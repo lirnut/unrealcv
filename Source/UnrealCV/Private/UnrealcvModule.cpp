@@ -17,6 +17,46 @@ class FUnrealCVPlugin : public IModuleInterface
 
 IMPLEMENT_MODULE(FUnrealCVPlugin, UnrealCV)
 
+bool StartServerWithRetry(FUnrealcvServer &Server)
+{
+	const int32 MaxRetries = 20;
+	// const int32 BaseDelayMs = 100;
+	int32 CurrentPort = Server.Config.Port;
+	bool StartSuccess = false;
+
+	for (int32 Attempt = 0; Attempt < MaxRetries; ++Attempt)
+	{
+		StartSuccess = Server.TcpServer->Start(CurrentPort);
+		if (StartSuccess)
+		{
+			if (Attempt > 0)
+			{
+				UE_LOG(LogUnrealCV, Warning, TEXT("Network server started successfully on port %d after %d attempts"), CurrentPort, Attempt + 1);
+			}
+			break;
+		}
+
+		if (Attempt < MaxRetries - 1)
+		{
+			// int32 DelayMs = BaseDelayMs * (1 << Attempt);
+			UE_LOG(LogUnrealCV, Warning, TEXT("Failed to start network server on port %d (attempt %d/%d), retrying with port %d"),
+				CurrentPort, Attempt + 1, MaxRetries, CurrentPort + 1 + Attempt);
+
+			// FPlatformProcess::Sleep(DelayMs / 1000.0f);
+			FPlatformProcess::Sleep(0.0f);
+			CurrentPort++;
+			Server.Config.Port = CurrentPort;
+		}
+	}
+
+	if (!StartSuccess)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Failed to start network server after %d attempts"), MaxRetries);
+	}
+
+	return StartSuccess;
+}
+
 void FUnrealCVPlugin::StartupModule()
 {
 	FString Commandline = FCommandLine::Get();
@@ -81,10 +121,9 @@ void FUnrealCVPlugin::StartupModule()
 		Server.Config.ExitOnFailure = OverrideExitOnFailure;
 	}
 
-	bool StartSuccess = Server.TcpServer->Start(Server.Config.Port);
+	bool StartSuccess = StartServerWithRetry(Server);
 	if (!StartSuccess)
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("Failed to start network server"));
 		if (Server.Config.ExitOnFailure)
 		{
 			UE_LOG(LogUnrealCV, Warning, TEXT("Requesting exit"));
