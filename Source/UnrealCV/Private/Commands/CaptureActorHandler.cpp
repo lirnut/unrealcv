@@ -89,14 +89,15 @@ FExecStatus FCaptureActorHandler::SetTimeDilation(const TArray<FString>& Args)
 	}
 
 	URecordingBPLib::SetTimeDilation(TimeDilation);
-	return FExecStatus::OK(FString::Printf(TEXT("Time dilation set to %.2f"), URecordingBPLib::GetTimeDilation()));
+	// return FExecStatus::OK(FString::Printf(TEXT("Time dilation set to %.2f"), URecordingBPLib::GetTimeDilation()));
+	return FExecStatus::OK();
 }
 
 FExecStatus FCaptureActorHandler::PrintAssetPool(const TArray<FString>& Args)
 {
 	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
 	AssetPool.PrintAssetPoolSummary();
-	return FExecStatus::OK("Asset pool printed to debug log");
+	return FExecStatus::OK();
 }
 
 FExecStatus FCaptureActorHandler::StartSimpleRecording(const TArray<FString>& Args)
@@ -155,9 +156,9 @@ FExecStatus FCaptureActorHandler::StartSimpleRecording(const TArray<FString>& Ar
 			RecordTypes = RecordTypes.Left(RecordTypes.Len() - 1);
 		}
 		RecordTypes += TEXT(")");
-
-		return FExecStatus::OK(FString::Printf(TEXT("Recording started: Camera %s, File: %s, FPS: %d, Frames: %d, Types: %s"),
-			*IDString, *FileName, FPS, TotalFrames, *RecordTypes));
+		UE_LOG(LogUnrealCV, Warning, TEXT("Recording started: Camera %s, File: %s, FPS: %d, Frames: %d, Types: %s"),
+			*IDString, *FileName, FPS, TotalFrames, *RecordTypes);
+		return FExecStatus::OK();
 	}
 	else
 	{

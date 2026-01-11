@@ -802,7 +802,7 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 	const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
 
 
-	TargetSensor->GetDepthCamSensor()->bIgnoreTransparentObjects = true;
+	// TargetSensor->GetDepthCamSensor()->bIgnoreTransparentObjects = true;
 	TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);
 	
 	// Adjust camera to roughly aim at the target with ±15 degrees noise
