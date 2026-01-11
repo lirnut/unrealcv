@@ -1,6 +1,5 @@
 #include "FUnrealCVEditorModule.h"
 #include "FMetaHumanEditorCommands.h"
-#include "SMetaHumanEditorWindow.h"
 #include "Framework/Application/SlateApplication.h"
 #include "LevelEditor.h"
 #include "ToolMenus.h"
@@ -72,6 +71,14 @@ void FUnrealCVEditorModule::RegisterMenus()
 					FSlateIcon(),
 					FUIAction(FExecuteAction::CreateStatic(&FUnrealCVEditorModule::OnSearchSaveSetAnimationAndSpawn))
 				);
+
+				CacheSection.AddMenuEntry(
+					"Cancel",
+					LOCTEXT("CancelLabel", "Cancel"),
+					LOCTEXT("CancelTooltip", "Cancel any async procedure"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateStatic(&FUnrealCVEditorModule::OnCancel))
+				);
 			}),
 			false,
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Settings")
@@ -123,12 +130,9 @@ void FUnrealCVEditorModule::OnSearchSaveAndSetAnimation()
 	}
 
 	FString AnimBlueprintPath = TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C");
-	TArray<FString> SuccessfulPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(AnimBlueprintPath);
+	UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(AnimBlueprintPath);
 
-	FString Message = FString::Printf(
-		TEXT("Successfully configured %d/%d MetaHumans with animation"),
-		SuccessfulPaths.Num(),
-		AllMetaHumans.Num());
+	FString Message = TEXT("Set Anim started ...");
 	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
 
 	FNotificationInfo SuccessInfo(FText::FromString(Message));
@@ -141,14 +145,20 @@ void FUnrealCVEditorModule::OnSearchSaveSetAnimationAndSpawn()
 	UE_LOG(LogTemp, Log, TEXT("=== MetaHuman Cache Manager: Search, Save, Set Animation & Spawn to Map ==="));
 
 	FString AnimBlueprintPath = TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C");
-	TArray<AActor*> SpawnedActors = UMetaHumanBPLib::SpawnAllMetaHumansToMap(AnimBlueprintPath);
+	UMetaHumanBPLib::SpawnAllMetaHumansToMap(AnimBlueprintPath);
 
-	FString Message = FString::Printf(TEXT("Spawned %d MetaHumans to map at positions 0+N*200, 0, -2000"), SpawnedActors.Num());
+	FString Message = TEXT("Spawned started ...");
 	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
 
 	FNotificationInfo SuccessInfo(FText::FromString(Message));
 	SuccessInfo.ExpireDuration = 5.0f;
 	FSlateNotificationManager::Get().AddNotification(SuccessInfo);
+}
+
+void FUnrealCVEditorModule::OnCancel()
+{
+	UE_LOG(LogTemp, Log, TEXT("Canceling async operation"));
+	UMetaHumanBPLib::CancelAsyncOperation();
 }
 
 #undef LOCTEXT_NAMESPACE
