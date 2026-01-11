@@ -15,7 +15,7 @@ struct FBatchContext
 	TArray<AActor*> SpawnedActors;
 	bool bIsSpawn;
 	bool bCancelled;
-	FTicker::FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 };
 
 UCLASS()

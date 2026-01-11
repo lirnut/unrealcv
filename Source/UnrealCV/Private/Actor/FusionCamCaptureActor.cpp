@@ -771,6 +771,46 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 
 // ========== Camera Trajectory Recording Implementation ==========
 
+void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
+{
+	SetDefaultParamsForTargetCamera();
+	TargetSensor->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
+	TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, static_cast<float>(FPS));
+	// calculate the range from TargetSensor to Target
+	UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
+	FVector SensorLocation = TargetSensor->GetSensorLocation();
+	float Distance = (UnifiedTargetLocation - SensorLocation).Size();
+	const float FocalRegion = 1 * 100;
+	TargetSensor->SetFocalParams(FMath::Max(Distance - FocalRegion/2, 100.0f), FocalRegion);
+
+	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Set all quality settings to maximum for recording (Lumen GI and Reflections enabled)"));
+
+
+
+	static const TArray<FIntPoint> Resolutions = {
+		FIntPoint(1920, 1080),
+		// FIntPoint(640, 480),
+		// FIntPoint(480, 640),
+	};
+	const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
+
+
+	TargetSensor->GetDepthCamSensor()->bIgnoreTransparentObjects = true;
+	TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);
+	
+	// Adjust camera to roughly aim at the target with ±15 degrees noise
+	FVector CameraToTarget = (UnifiedTargetLocation - OriginalCameraLocation).GetSafeNormal();
+	FRotator TargetRotation = CameraToTarget.Rotation();
+
+	// Add ±15 degrees noise to pitch, yaw, and roll
+	float NoisePitch = FMath::RandRange(-5.0f, 5.0f);
+	float NoiseYaw = FMath::RandRange(-12.0f, 12.0f);
+	float NoiseRoll = FMath::RandRange(-6.0f, 6.0f);
+
+	FRotator NoisyRotation = TargetRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
+	TargetSensor->SetSensorRotation(NoisyRotation);
+}
+
 void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS, float DegreesPerSecond, int32 RandomSeed, bool bPauseWorldTime)
 {
 	if (!IsValid(TargetSensor))
@@ -789,17 +829,13 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	{
 		StopRecord();
 	}
-
-	PrepareTargetCamera();
-	TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, static_cast<float>(FPS));
-	// calculate the range from TargetSensor to Target
-	UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
-	FVector SensorLocation = TargetSensor->GetSensorLocation();
-	float Distance = (UnifiedTargetLocation - SensorLocation).Size();
-	const float FocalRegion = 1 * 100;
-	TargetSensor->SetFocalParams(FMath::Max(Distance - FocalRegion/2, 100.0f), FocalRegion);
-
-	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Set all quality settings to maximum for recording (Lumen GI and Reflections enabled)"));
+	
+	if ((UnifiedTargetLocation - Target->GetActorLocation()).Length() > 1000)
+	{
+		UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
+		if (TrajectoryType != ECameraTrajectoryType::RenderOnly && TrajectoryType != ECameraTrajectoryType::RenderOnly5S)
+			UE_LOG(LogUnrealCV, Warning, TEXT("Warning, (UnifiedTargetLocation - Target->GetActorLocation()).Length() > 1000, likely not prepared, call PrepareTrajectoryRecord first"));
+	}
 
 	float DegreesPerFrame = DegreesPerSecond / FPS;
 
@@ -814,30 +850,8 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 
 	RealWorldTimeRecordingStart = FDateTime::Now();
 
-	static const TArray<FIntPoint> Resolutions = {
-		FIntPoint(1920, 1080),
-		// FIntPoint(640, 480),
-		// FIntPoint(480, 640),
-	};
-	const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
-
-
-	TargetSensor->GetDepthCamSensor()->bIgnoreTransparentObjects = true;
-	TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);
 	OriginalCameraLocation = TargetSensor->GetSensorLocation();
 	OriginalCameraRotation = TargetSensor->GetSensorRotation();
-
-	// Adjust camera to roughly aim at the target with ±15 degrees noise
-	FVector CameraToTarget = (UnifiedTargetLocation - OriginalCameraLocation).GetSafeNormal();
-	FRotator TargetRotation = CameraToTarget.Rotation();
-
-	// Add ±15 degrees noise to pitch, yaw, and roll
-	float NoisePitch = FMath::RandRange(-5.0f, 5.0f);
-	float NoiseYaw = FMath::RandRange(-12.0f, 12.0f);
-	float NoiseRoll = FMath::RandRange(-6.0f, 6.0f);
-
-	FRotator NoisyRotation = TargetRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
-	TargetSensor->SetSensorRotation(NoisyRotation);
 
 	CurrentTrajectory = CalculateTrajectory(TrajectoryType, Target, DegreesPerFrame, RandomSeed);
 
@@ -907,7 +921,7 @@ void AFusionCamCaptureActor::StartSimpleRecording(const FString& FileName, int32
 	RenderTrajectory(CurrentTrajectory, bPauseWorldTime);
 }
 
-void AFusionCamCaptureActor::PrepareTargetCamera()
+void AFusionCamCaptureActor::SetDefaultParamsForTargetCamera()
 {
 	if (!IsValid(TargetSensor))
 	{
@@ -971,7 +985,8 @@ void AFusionCamCaptureActor::PrepareTargetCamera()
 
 	TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, 24.0f);
 
-	TargetSensor->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
+	// TargetSensor->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
+	TargetSensor->SetSensorFOV(55.0f);
 
 	TargetSensor->SetFocalParams(500.0f, 50.0f);
 

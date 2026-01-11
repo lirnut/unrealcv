@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Runtime/Engine/Classes/Kismet/BlueprintFunctionLibrary.h"
+#include "FusionCamCaptureActor.h"
 #include "SceneCompositionBPLib.h"
 #include "DatasetAutomationBPLib.generated.h"
 
@@ -145,6 +146,7 @@ private:
 	static FSceneHandle CurrentScene;
 	static UWorld* WorldContext;
 	static FTimerHandle AutomationTimerHandle;
+	static AFusionCamCaptureActor* CaptureActor;
 
 	static TArray<FAutomationStep> CommandQueue;
 	static int32 CurrentCommandIndex;

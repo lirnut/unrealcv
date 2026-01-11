@@ -15,6 +15,7 @@ FAutomationStatus UDatasetAutomationBPLib::CurrentStatus;
 FSceneHandle UDatasetAutomationBPLib::CurrentScene;
 UWorld* UDatasetAutomationBPLib::WorldContext = nullptr;
 FTimerHandle UDatasetAutomationBPLib::AutomationTimerHandle;
+AFusionCamCaptureActor * UDatasetAutomationBPLib::CaptureActor = nullptr;
 
 TArray<FAutomationStep> UDatasetAutomationBPLib::CommandQueue;
 int32 UDatasetAutomationBPLib::CurrentCommandIndex = 0;
@@ -28,8 +29,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	CommandQueue.Empty();
 
 	CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
-
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 15.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+	CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
+	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only_5s")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
@@ -140,6 +142,23 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			CurrentStatus.ErrorMessage = FString::Printf(TEXT("Failed to create scene %d"), CurrentSceneCounter);
 			TransitionToState(EDatasetGenerationState::Error);
 			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
+		}
+	}
+	else if (Step.Command == TEXT("prepare_record"))
+	{
+		int32 CameraID = CurrentConfig.CameraID;
+		CaptureActor = URecordingBPLib::PrepareRecording(CameraID);
+		if (!IsValid(CaptureActor))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("prepare_record: Failed to prepare recording for camera %d"), CameraID);
+			TransitionToState(EDatasetGenerationState::Error);
+		}
+		else
+		{
+			AActor* Target = CurrentScene.ForegroundActor;
+			int32 FPS = CurrentConfig.TrajectoryFPS;
+			CaptureActor->SetSceneHandle(CurrentScene);
+			CaptureActor->PrepareTrajectoryRecord(Target, FPS);
 		}
 	}
 	else if (Step.Command == TEXT("record_trajectory"))
@@ -494,7 +513,6 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	const FString& FileName,
 	const FString& TrajectoryType)
 {
-
 	int32 CameraID = CurrentConfig.CameraID;
 	AActor* Target = CurrentScene.ForegroundActor;
 	int32 FPS = CurrentConfig.TrajectoryFPS;
@@ -507,21 +525,18 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		return false;
 	}
 
+	if (!IsValid(CaptureActor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: CaptureActor is null"));
+		return false;
+	}
+
 	// Parse trajectory type
 	ECameraTrajectoryType TrajectoryEnum;
 	if (!URecordingBPLib::ParseTrajectoryType(TrajectoryType, TrajectoryEnum))
 	{
 		return false;
 	}
-
-	// Prepare recording (reuse existing function)
-	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::PrepareRecording(CameraID);
-	if (!IsValid(CaptureActor))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Failed to prepare recording for camera %d"), CameraID);
-		return false;
-	}
-	CaptureActor->SetSceneHandle(CurrentScene);
 
 	bool PauseWorldTime = false;
 

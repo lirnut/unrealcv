@@ -48,6 +48,10 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
 
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void PrepareTrajectoryRecord(AActor * Target, float FPs);
+
 	// ========== Recording Control (Neo Unified System) ==========
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	void StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS = 30, float DegreesPerSecond = 36.0f, int32 RandomSeed = -1, bool bPauseWorldTime = false);
@@ -180,7 +184,8 @@ protected:
 	void OnTimerRecord();
 	void RecordFrame();
 
-	void PrepareTargetCamera();
+
+	void SetDefaultParamsForTargetCamera();
 
 	// ========== Trajectory Calculation Functions (Separated from Rendering) ==========
 	TArray<FCameraPose> CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, float DegreesPerFrame, int32 RandomSeed);
