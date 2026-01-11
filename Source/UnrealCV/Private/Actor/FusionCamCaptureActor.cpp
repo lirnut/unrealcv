@@ -66,6 +66,9 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	WarmUpFrames = WARM_UP_FRAMES;
 	WarmUpElapsedFrames = 0;
 
+	// OriginalCameraLocation = 
+	// OriginalCameraRotation = 
+
 	Billboard = CreateDefaultSubobject<UMaterialBillboardComponent>(TEXT("BillboardComponent"));
 	if (!IsRunningCommandlet() && (Billboard != nullptr))
 	{
@@ -145,8 +148,20 @@ void AFusionCamCaptureActor::StopRecord()
 
 		if (IsValid(TargetSensor))
 		{
-			TargetSensor->SetSensorLocation(OriginalCameraLocation);
-			TargetSensor->SetSensorRotation(OriginalCameraRotation);
+			bool LocationManaged = false;
+			for (int i = 0; i <= FMath::Min(CurrentTrajectoryIndex - 1, CurrentTrajectory.Num() - 1); i++)
+			{
+				if (CurrentTrajectory[i].bManageTransform)
+				{
+					LocationManaged = true;
+					break;
+				}
+			}
+			if (LocationManaged)
+			{
+				TargetSensor->SetSensorLocation(OriginalCameraLocation);
+				TargetSensor->SetSensorRotation(OriginalCameraRotation);
+			}
 		}
 
 		TriggerVideoGeneration();
@@ -806,7 +821,7 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 	TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);
 	
 	// Adjust camera to roughly aim at the target with ±15 degrees noise
-	FVector CameraToTarget = (UnifiedTargetLocation - OriginalCameraLocation).GetSafeNormal();
+	FVector CameraToTarget = (UnifiedTargetLocation - TargetSensor->GetSensorLocation()).GetSafeNormal();
 	FRotator TargetRotation = CameraToTarget.Rotation();
 
 	// Add ±15 degrees noise to pitch, yaw, and roll
