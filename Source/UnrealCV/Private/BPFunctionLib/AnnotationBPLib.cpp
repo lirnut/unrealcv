@@ -38,7 +38,7 @@ void UAnnotationBPLib::AnnotateWorld()
 {
 	TWeakObjectPtr<AUnrealcvWorldController> WorldController = FUnrealcvServer::Get().WorldController;
 
-	if (!WorldController.IsValid() || IsValid(FUnrealcvServer::Get().GetWorld()))
+	if (!WorldController.IsValid() || !IsValid(FUnrealcvServer::Get().GetWorld()))
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("AnnotateActor: WorldController is not available"));
 		if (!GEditor)

@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "FusionCamSensor.h"
 #include "Runtime/Engine/Classes/Kismet/BlueprintFunctionLibrary.h"
+#include "UnrealcvLog.h"
 #include "SceneCompositionBPLib.generated.h"
 
 /**
@@ -72,10 +73,25 @@ struct FSceneGenerationParams
 		, OccluderPathSpec(TEXT(""))
 		, OccluderCategory(TEXT("Occluder_All"))
 		, OccluderCount(3)
-		, CameraID(0)
+		, CameraID(1)
 		, bAutoPositionCamera(true)
 		, ForegroundYaw(-1.0f)
 	{
+	}
+
+	void DebugPrint() const
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: SpawnAreaMin: %s"), *SpawnAreaMin.ToString());
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: SpawnAreaMax: %s"), *SpawnAreaMax.ToString());
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: GroundHeight: %f"), GroundHeight);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: ForegroundPathSpec: %s"), *ForegroundPathSpec);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: ForegroundCategory: %s"), *ForegroundCategory);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: OccluderPathSpec: %s"), *OccluderPathSpec);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: OccluderCategory: %s"), *OccluderCategory);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: OccluderCount: %d"), OccluderCount);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: CameraID: %d"), CameraID);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: bAutoPositionCamera: %s"), bAutoPositionCamera ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: ForegroundYaw: %f"), ForegroundYaw);
 	}
 };
 

@@ -555,10 +555,7 @@ bool USceneCompositionBPLib::CreateSceneParamsFromJson(
 		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("OccluderCategory"));
 		if (FJsonConfigHelper::ParseJsonValue(Val, Value))
 		{
-			if (!Value.IsEmpty())
-			{
-				OutParams.OccluderCategory = Value;
-			}
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: OccluderCategory parsed: %s"), *Value);
 		}
 		else
 		{
@@ -599,12 +596,13 @@ bool USceneCompositionBPLib::CreateSceneParamsFromJson(
 			int32 CameraID = USensorBPLib::GetIndexByAnyID(Value);
 			if (CameraID < 0)
 			{
-				UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: CameraID is not valid, using 0"));
-				OutParams.CameraID = 0;
+				UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: CameraID is not valid, using 1"));
+				OutParams.CameraID = 1;
 			}
 			else
 			{
 				OutParams.CameraID = CameraID;
+				UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: CameraID parsed: %d"), CameraID);
 			}
 		}
 		else
@@ -664,6 +662,9 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	const FSceneGenerationParams& Params,
 	FSceneHandle& OutSceneHandle)
 {
+	UE_LOG(LogUnrealCV, Log, TEXT("USceneCompositionBPLib::GenerateRandomScene: Input params debug print ->"));
+	Params.DebugPrint();
+
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (!World)
 	{

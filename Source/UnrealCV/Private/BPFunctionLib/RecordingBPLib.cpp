@@ -120,7 +120,7 @@ bool URecordingBPLib::IsRecording(int32 CameraID)
 	UFusionCamSensor* FusionCamSensor = USensorBPLib::GetSensorById(CameraID);
 	if (!IsValid(FusionCamSensor))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::StopRecording: Invalid camera ID %d"), CameraID);
+		UE_LOG(LogUnrealCV, Error, TEXT("URecordingBPLib::IsRecording: Invalid camera ID %d"), CameraID);
 		return false;
 	}
 	FString CID = USensorBPLib::GetSensorNewFormatID(FusionCamSensor);
