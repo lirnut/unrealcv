@@ -519,6 +519,19 @@ void UBaseCameraSensor::ReadCaptureResults(TArray<FColor>& Data)
 	}
 }
 
+void UBaseCameraSensor::SetShowOnlyList(const TArray<TWeakObjectPtr<UPrimitiveComponent>>& InShowOnlyComponents)
+{
+	if (PrimitiveRenderMode != ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("SetShowOnlyList: PrimitiveRenderMode not PRM_UseShowOnlyList, but setting ShowOnlyList !!!"));
+		UE_LOG(LogUnrealCV, Warning, TEXT("SetShowOnlyList: PrimitiveRenderMode set to PRM_UseShowOnlyList"));
+		PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+	}
+
+	ShowOnlyComponents.Reset();
+	ShowOnlyComponents = InShowOnlyComponents;
+}
+
 void UBaseCameraSensor::LaunchCapture()
 {
 	if (!CheckTextureTarget())

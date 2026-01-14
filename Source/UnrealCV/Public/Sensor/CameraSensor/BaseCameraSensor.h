@@ -77,6 +77,8 @@ public:
 
 	void ReadCaptureResults(TArray<FColor>& Data);
 
+	void SetShowOnlyList(const TArray<TWeakObjectPtr<UPrimitiveComponent>>& InShowOnlyComponents);
+
 	// void InitializeAsyncCapture();
 	// void ShutdownAsyncCapture();
 

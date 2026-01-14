@@ -414,7 +414,8 @@ bool USceneCompositionBPLib::CreateSceneParamsFromJson(
 	for (const auto& Pair : JsonObject->Values)
 	{
 		const FString& Key = Pair.Key;
-		if (CurrentMapName.StartsWith(Key) || Key.StartsWith(CurrentMapName))
+		// if (CurrentMapName.StartsWith(Key) || Key.StartsWith(CurrentMapName))
+		if (CurrentMapName.Find(Key) != INDEX_NONE)
 		{
 			if (Pair.Value->Type == EJson::Object)
 			{
@@ -824,7 +825,7 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 
 	ActiveScenes.Add(OutSceneHandle);
 
-	UAnnotationBPLib::AnnotateWorld();
+	// UAnnotationBPLib::AnnotateWorld();
 	return true;
 }
 

@@ -34,7 +34,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only_5s")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
-	CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
+	// CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
@@ -160,6 +160,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			int32 FPS = CurrentConfig.TrajectoryFPS;
 			CaptureActor->SetSceneHandle(CurrentScene);
 			CaptureActor->PrepareTrajectoryRecord(Target, FPS);
+			ExecuteNextCommand();
 		}
 	}
 	else if (Step.Command == TEXT("record_trajectory"))

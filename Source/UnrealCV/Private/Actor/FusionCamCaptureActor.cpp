@@ -109,11 +109,23 @@ void AFusionCamCaptureActor::StopRecord()
 {
 	if (bIsRecording)
 	{
-     	// TargetSensor->GetLitCamSensor()->FlushCapturesToDisk();
-      	// TargetSensor->GetDepthCamSensor()->FlushCapturesToDisk();
-      	// TargetSensor->GetAnnotationCamSensor()->FlushCapturesToDisk();
-      	// TargetSensor->GetNormalCamSensor()->FlushCapturesToDisk();
-      	// TargetSensor->GetFlowCamSensor()->FlushCapturesToDisk();
+		if (IsValid(TargetSensor))
+		{
+			bool LocationManaged = false;
+			for (int i = 0; i <= FMath::Min(CurrentTrajectoryIndex - 1, CurrentTrajectory.Num() - 1); i++)
+			{
+				if (CurrentTrajectory[i].bManageTransform)
+				{
+					LocationManaged = true;
+					break;
+				}
+			}
+			if (LocationManaged)
+			{
+				TargetSensor->SetSensorLocation(OriginalCameraLocation);
+				TargetSensor->SetSensorRotation(OriginalCameraRotation);
+			}
+		}
 
      	TargetSensor->GetLitCamSensor()->CleanCaptureCache();
       	TargetSensor->GetDepthCamSensor()->CleanCaptureCache();
@@ -145,24 +157,6 @@ void AFusionCamCaptureActor::StopRecord()
 			GetWorld()->GetWorldSettings()->SetTimeDilation(TimeDilationBackUp);
 		}
 		// GetWorld()->GetWorldSettings()->SetTimeDilation(1.0f);
-
-		if (IsValid(TargetSensor))
-		{
-			bool LocationManaged = false;
-			for (int i = 0; i <= FMath::Min(CurrentTrajectoryIndex - 1, CurrentTrajectory.Num() - 1); i++)
-			{
-				if (CurrentTrajectory[i].bManageTransform)
-				{
-					LocationManaged = true;
-					break;
-				}
-			}
-			if (LocationManaged)
-			{
-				TargetSensor->SetSensorLocation(OriginalCameraLocation);
-				TargetSensor->SetSensorRotation(OriginalCameraRotation);
-			}
-		}
 
 		TriggerVideoGeneration();
 	}
@@ -310,7 +304,7 @@ void AFusionCamCaptureActor::RecordFrame()
 		TargetSensor->SaveOneObjMaskToFile(TargetToHide, OneObjFilename);
 	}
 
-	if (IsValid(TargetToHide))
+	if (bRecordWithoutTarget && IsValid(TargetToHide))
 	{
 		TargetToHide->SetActorHiddenInGame(true);
 
@@ -555,9 +549,9 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	float cx = Width / 2.0f;
 	float cy = Height / 2.0f;
 	TArray K{
-		USerializeBPLib::VectorToJson({fx   , 0.0f , cx}), 
-		USerializeBPLib::VectorToJson({0.0f , fy   , cy}), 
-		USerializeBPLib::VectorToJson({0.0f , 0.0f , 1.0f})
+		USerializeBPLib::ArrayToJson({FJsonObjectBP(fx)   , FJsonObjectBP(0.0f) , FJsonObjectBP(cx)}), 
+		USerializeBPLib::ArrayToJson({FJsonObjectBP(0.0f) , FJsonObjectBP(fy)   , FJsonObjectBP(cy)}), 
+		USerializeBPLib::ArrayToJson({FJsonObjectBP(0.0f) , FJsonObjectBP(0.0f) , FJsonObjectBP(1.0f)})
 	};
 
 	auto ReflectionMethodToString = [](EReflectionMethod::Type Method) -> FString {
@@ -617,9 +611,9 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	CameraSettingsMap.Add("BloomIntensity", BloomIntensity);
 
 	TArray RotationArray = {
-		USerializeBPLib::VectorToJson({RotationMatrix.M[0][0], RotationMatrix.M[0][1], RotationMatrix.M[0][2]}),
-		USerializeBPLib::VectorToJson({RotationMatrix.M[1][0], RotationMatrix.M[1][1], RotationMatrix.M[1][2]}),
-		USerializeBPLib::VectorToJson({RotationMatrix.M[2][0], RotationMatrix.M[2][1], RotationMatrix.M[2][2]})
+		USerializeBPLib::ArrayToJson({static_cast<float>(RotationMatrix.M[0][0]), static_cast<float>(RotationMatrix.M[0][1]), static_cast<float>(RotationMatrix.M[0][2])}),
+		USerializeBPLib::ArrayToJson({static_cast<float>(RotationMatrix.M[1][0]), static_cast<float>(RotationMatrix.M[1][1]), static_cast<float>(RotationMatrix.M[1][2])}),
+		USerializeBPLib::ArrayToJson({static_cast<float>(RotationMatrix.M[2][0]), static_cast<float>(RotationMatrix.M[2][1]), static_cast<float>(RotationMatrix.M[2][2])})
 	};
 
 	auto TranslationArray = USerializeBPLib::VectorToJson({Location.X, Location.Y, Location.Z});
@@ -652,10 +646,10 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	// Step 5: Convert 4x4 matrix to JSON array (array of 4 rows, each as 3-element vector)
 	TArray<FJsonObjectBP> W2CColmapArray;
 	for (int32 i = 0; i < 4; ++i) {
-		FJsonObjectBP RowJson = USerializeBPLib::VectorToJson({
-			w2c_colmap.M[i][0],
-			w2c_colmap.M[i][1],
-			w2c_colmap.M[i][2]
+		FJsonObjectBP RowJson = USerializeBPLib::ArrayToJson({
+			FJsonObjectBP(static_cast<float>(w2c_colmap.M[i][0])),
+			FJsonObjectBP(static_cast<float>(w2c_colmap.M[i][1])),
+			FJsonObjectBP(static_cast<float>(w2c_colmap.M[i][2]))
 		});
 		W2CColmapArray.Add(RowJson);
 	}
