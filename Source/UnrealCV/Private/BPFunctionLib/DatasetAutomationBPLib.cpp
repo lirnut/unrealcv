@@ -116,20 +116,19 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	{
 		CurrentSceneID = GenerateSceneID(CurrentSceneCounter);
 
+		if (CurrentConfig.bLoadSceneParamsFromJson)
+		{
+			FString JsonFilePath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
+			if (!USceneCompositionBPLib::CreateSceneParamsFromJson(WorldContext, JsonFilePath, CurrentConfig.SceneParams))
+			{
+				UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Failed to load scene params from JSON, using current config"));
+			}
+		}
+
 		bool Success = USceneCompositionBPLib::GenerateRandomScene(
 			WorldContext,
-			CurrentConfig.SpawnAreaMin,
-			CurrentConfig.SpawnAreaMax,
-			CurrentConfig.GroundHeight,
-			CurrentConfig.ForegroundPathSpec,
-			CurrentConfig.ForegroundCategory,
-			CurrentConfig.OccluderPathSpec,
-			CurrentConfig.OccluderCategory,
-			CurrentConfig.OccluderCount,
-			CurrentConfig.CameraID,
-			CurrentScene,
-			CurrentConfig.bAutoPositionCamera,
-			CurrentConfig.ForegroundYaw
+			CurrentConfig.SceneParams,
+			CurrentScene
 		);
 
 		if (Success)
@@ -146,7 +145,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	}
 	else if (Step.Command == TEXT("prepare_record"))
 	{
-		int32 CameraID = CurrentConfig.CameraID;
+		int32 CameraID = CurrentConfig.SceneParams.CameraID;
 		CaptureActor = URecordingBPLib::PrepareRecording(CameraID);
 		if (!IsValid(CaptureActor))
 		{
@@ -193,7 +192,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			return;
 		}
 
-		AFusionCameraActor* CameraActor = GetFusionCameraActor(CurrentConfig.CameraID);
+		AFusionCameraActor* CameraActor = GetFusionCameraActor(CurrentConfig.SceneParams.CameraID);
 		if (!IsValid(CameraActor))
 		{
 			UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Camera is not FusionCameraActor, skipping nav-track"));
@@ -344,7 +343,7 @@ void UDatasetAutomationBPLib::StopBatchGeneration()
 
 	if (CurrentStatus.State == EDatasetGenerationState::WaitingAsync)
 	{
-		URecordingBPLib::StopRecording(CurrentConfig.CameraID);
+		URecordingBPLib::StopRecording(CurrentConfig.SceneParams.CameraID);
 	}
 
 	TransitionToState(EDatasetGenerationState::Idle);
@@ -461,7 +460,7 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 
 	case EDatasetGenerationState::WaitingAsync:
 	{
-		bool RecordingComplete = !URecordingBPLib::IsRecording(CurrentConfig.CameraID);
+		bool RecordingComplete = !URecordingBPLib::IsRecording(CurrentConfig.SceneParams.CameraID);
 		bool DelayComplete = (DelayTimer >= DelayDuration);
 
 		UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Waiting (%.2fs), DelayDuration: %.2fs, RecordingComplete: %d"), DelayTimer, DelayDuration, RecordingComplete);
@@ -473,7 +472,7 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 				CurrentScene.NavController->StopNavigation();
 			}
 
-			AFusionCameraActor* CameraActor = GetFusionCameraActor(CurrentConfig.CameraID);
+			AFusionCameraActor* CameraActor = GetFusionCameraActor(CurrentConfig.SceneParams.CameraID);
 			if (IsValid(CameraActor))
 			{
 				CameraActor->StopTracking();
@@ -513,7 +512,7 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	const FString& FileName,
 	const FString& TrajectoryType)
 {
-	int32 CameraID = CurrentConfig.CameraID;
+	int32 CameraID = CurrentConfig.SceneParams.CameraID;
 	AActor* Target = CurrentScene.ForegroundActor;
 	int32 FPS = CurrentConfig.TrajectoryFPS;
 	float DegreesPerSecond = CurrentConfig.TrajectoryDegreesPerSecond;

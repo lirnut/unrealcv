@@ -22,6 +22,65 @@ struct FOccluderMetadata
 };
 
 /**
+ * Scene generation parameters encapsulating all configuration for GenerateRandomScene.
+ * Supports JSON-based construction with intelligent null/empty parameter handling.
+ */
+USTRUCT(BlueprintType)
+struct FSceneGenerationParams
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	FVector2D SpawnAreaMin;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	FVector2D SpawnAreaMax;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	float GroundHeight;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	FString ForegroundPathSpec;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	FString ForegroundCategory;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	FString OccluderPathSpec;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	FString OccluderCategory;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	int32 OccluderCount;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	int32 CameraID;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	bool bAutoPositionCamera;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	float ForegroundYaw;
+
+	FSceneGenerationParams()
+		: SpawnAreaMin(0.0f, 0.0f)
+		, SpawnAreaMax(1000.0f, 1000.0f)
+		, GroundHeight(100.0f)
+		, ForegroundPathSpec(TEXT(""))
+		, ForegroundCategory(TEXT("Foreground_Human"))
+		, OccluderPathSpec(TEXT(""))
+		, OccluderCategory(TEXT("Occluder_All"))
+		, OccluderCount(3)
+		, CameraID(0)
+		, bAutoPositionCamera(true)
+		, ForegroundYaw(-1.0f)
+	{
+	}
+};
+
+
+/**
  * Scene Handle - Reference to a generated scene for later manipulation/cleanup.
  */
 USTRUCT(BlueprintType)
@@ -124,86 +183,31 @@ class UNREALCV_API USceneCompositionBPLib : public UBlueprintFunctionLibrary
 public:
 	// ========== Core Scene Generation ==========
 
-	/**
-	 * Generate a complete random scene with foreground, occluders, and camera.
-	 * @param ForegroundPathSpec Optional specific path to use for foreground. If not empty, will look up category from asset pool and use specified actor instead of random selection
-	 * @param ForegroundCategory Category for random foreground selection (ignored if ForegroundPathSpec provided)
-	 * @param OccluderPathSpec Optional specific path to use for occluders. If not empty, will spawn this asset for each occluder instead of random selection
-	 * @param bAutoPositionCamera If true, automatically position camera at eye level facing foreground
-	 * @param ForegroundYaw Optional yaw rotation for foreground actor in degrees (default: -1 means random)
-	 */
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
 	static bool GenerateRandomScene(
 		UObject* WorldContextObject,
-		FVector2D SpawnAreaMin,
-		FVector2D SpawnAreaMax,
-		float GroundHeight,
-		const FString& ForegroundPathSpec,
-		const FString& ForegroundCategory,
-		const FString& OccluderPathSpec,
-		const FString& OccluderCategory,
-		int32 OccluderCount,
-		int32 CameraID,
-		FSceneHandle& OutSceneHandle,
-		bool bAutoPositionCamera = true,
-		float ForegroundYaw = -1.0f
+		const FSceneGenerationParams& Params,
+		FSceneHandle& OutSceneHandle
 	);
 
-	/**
-	 * Load stable assets pack for scene composition.
-	 * @param WorldContextObject World context
-	 */
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
+	static bool CreateSceneParamsFromJson(
+		UObject* WorldContextObject,
+		const FString& JsonFilePath,
+		FSceneGenerationParams& OutParams
+	);
+
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
 	static void LoadStableAssetsPack(UObject* WorldContextObject);
 
-	// /**
-	//  * Calculate occlusion ratio for a specific foreground actor from camera view.
-	//  *
-	//  * Method: Render object mask twice (with/without occluders), compare pixel counts.
-	//  * Occlusion Ratio = (Pixels Hidden) / (Total Foreground Pixels)
-	//  *
-	//  * @param CameraID Camera to calculate from
-	//  * @param ForegroundActor Actor to check occlusion for
-	//  * @param OccluderActors Actors that may occlude the foreground
-	//  * @return Occlusion ratio (0.0 = not occluded, 1.0 = fully occluded)
-	//  */
-	// UFUNCTION(BlueprintPure, Category = "UnrealCV|SceneComposition")
-	// static float CalculateOcclusionRatio(
-	// 	int32 CameraID,
-	// 	AActor* ForegroundActor,
-	// 	const TArray<AActor*>& OccluderActors
-	// );
-
-	/**
-	 * Clear all actors in a generated scene.
-	 * @param SceneHandle Handle returned by GenerateRandomScene
-	 */
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition")
 	static void ClearScene(const FSceneHandle& SceneHandle);
 
-	/**
-	 * Clear all scenes tracked by the scene composition system.
-	 * @param WorldContextObject World context
-	 */
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
 	static void ClearAllScenes(UObject* WorldContextObject);
 
 	// ========== Actor Spawning ==========
 
-	/**
-	 * Spawn random occluder actors between camera and foreground.
-	 *
-	 * Occluders are placed randomly in a box volume between camera and foreground,
-	 * with some randomness in height and lateral position.
-	 *
-	 * @param WorldContextObject World context
-	 * @param Count Number of occluders to spawn
-	 * @param CameraPosition Camera world position
-	 * @param ForegroundPosition Foreground actor world position
-	 * @param OccluderPathSpec Optional specific path to use for all occluders. If not empty, will spawn this asset instead of random selection
-	 * @param OccluderCategory Category for random occluder selection (ignored if OccluderPathSpec provided)
-	 * @return Array of spawned occluder actors
-	 */
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
 	static TArray<AActor*> SpawnRandomOccluders(
 		UObject* WorldContextObject,
@@ -237,13 +241,6 @@ public:
 
 	// // ========== Lighting ==========
 
-	// /**
-	//  * Create directional light for scene with random rotation.
-	//  * @param WorldContextObject World context
-	//  * @param Intensity Light intensity (default 5.0)
-	//  * @param Color Light color (default white)
-	//  * @return Spawned directional light actor
-	//  */
 	// UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
 	// static AActor* CreateDirectionalLight(
 	// 	UObject* WorldContextObject,
@@ -253,20 +250,6 @@ public:
 
 	// ========== Camera Positioning ==========
 
-	/**
-	 * Position camera to view a target actor.
-	 *
-	 * Camera is placed at a random distance and angle from the target,
-	 * ensuring the target is visible in the frame.
-	 *
-	 * @param CameraID Camera to position
-	 * @param TargetActor Actor to view
-	 * @param MinDistance Minimum distance from target (cm)
-	 * @param MaxDistance Maximum distance from target (cm)
-	 * @param MinAngle Minimum vertical angle (degrees, 0 = horizontal)
-	 * @param MaxAngle Maximum vertical angle (degrees)
-	 * @return True if camera positioned successfully
-	 */
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition")
 	static bool PositionCameraToViewTarget(
 		int32 CameraID,

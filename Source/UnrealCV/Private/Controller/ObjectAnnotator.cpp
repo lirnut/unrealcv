@@ -188,27 +188,27 @@ void FObjectAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& An
 			UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component);
 			check(MeshComponent)
 
-			bool bAllTransparentMaterial = true;
-			for (int ComponentMaterialIdx = 0; ComponentMaterialIdx < MeshComponent->GetNumMaterials(); ++ComponentMaterialIdx)
-			{
-				UMaterialInterface* MaterialInterface = MeshComponent->GetMaterial(ComponentMaterialIdx);
-				if (MaterialInterface != nullptr)
-				{
-					EBlendMode BlendMode = MaterialInterface->GetBlendMode();
-					// OneComponent->SetMaterial(ComponentMaterialIdx, DynamicMaterialInstance);
-					if (BlendMode != EBlendMode::BLEND_Translucent)
-					{
-						bAllTransparentMaterial = false;
-						break;
-					}
-				}
-			}
+			// bool bAllTransparentMaterial = true;
+			// for (int ComponentMaterialIdx = 0; ComponentMaterialIdx < MeshComponent->GetNumMaterials(); ++ComponentMaterialIdx)
+			// {
+			// 	UMaterialInterface* MaterialInterface = MeshComponent->GetMaterial(ComponentMaterialIdx);
+			// 	if (MaterialInterface != nullptr)
+			// 	{
+			// 		EBlendMode BlendMode = MaterialInterface->GetBlendMode();
+			// 		// OneComponent->SetMaterial(ComponentMaterialIdx, DynamicMaterialInstance);
+			// 		if (BlendMode != EBlendMode::BLEND_Translucent)
+			// 		{
+			// 			bAllTransparentMaterial = false;
+			// 			break;
+			// 		}
+			// 	}
+			// }
 
-			if (bAllTransparentMaterial)
-			{
-				UE_LOG(LogUnrealCV, Warning, TEXT("Skip annotation for mesh component %s, because it is all transparent material"), *MeshComponent->GetName());
-				continue;
-			}
+			// if (bAllTransparentMaterial)
+			// {
+			// 	UE_LOG(LogUnrealCV, Warning, TEXT("Skip annotation for mesh component %s, because it is all transparent material"), *MeshComponent->GetName());
+			// 	continue;
+			// }
 
 
 			UAnnotationComponent* AnnotationComponent = NewObject<UAnnotationComponent>(MeshComponent);

@@ -357,17 +357,17 @@ FString USensorBPLib::GetSensorNewFormatID(UFusionCamSensor* Sensor)
 	return FCameraIDManager::Get().GetNewFormatID(Sensor);
 }
 
-int32 USensorBPLib::GetSensorOldFormatID(const FString& NewFormatID)
-{
-	UFusionCamSensor* Sensor = GetSensorByAnyID(NewFormatID);
-	if (!IsValid(Sensor))
-	{
-		return -1;
-	}
+// int32 USensorBPLib::GetSensorOldFormatID(const FString& NewFormatID)
+// {
+// 	UFusionCamSensor* Sensor = GetSensorByAnyID(NewFormatID);
+// 	if (!IsValid(Sensor))
+// 	{
+// 		return -1;
+// 	}
 
-	TArray<UFusionCamSensor*> SensorList = GetFusionSensorList();
-	return SensorList.Find(Sensor);
-}
+// 	TArray<UFusionCamSensor*> SensorList = GetFusionSensorList();
+// 	return SensorList.Find(Sensor);
+// }
 
 void USensorBPLib::PrintCameraIDMappings()
 {

@@ -28,6 +28,10 @@
 #include "DrawDebugHelpers.h"
 #include "UnrealcvGameMode.h"
 #include "EngineUtils.h"
+#include "Json.h"
+#include "JsonUtilities.h"
+#include "Misc/FileHelper.h"
+#include "JsonConfigHelper.h"
 
 TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
 
@@ -369,21 +373,296 @@ void USceneCompositionBPLib::LoadStableAssetsPack(UObject* WorldContextObject)
 	AssetPool.LoadStableAssetsPack();
 }
 
+bool USceneCompositionBPLib::CreateSceneParamsFromJson(
+	UObject* WorldContextObject,
+	const FString& JsonFilePath,
+	FSceneGenerationParams& OutParams)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: Invalid world context"));
+		return false;
+	}
+
+	// Read JSON file
+	FString JsonFileContent;
+	if (!FFileHelper::LoadFileToString(JsonFileContent, *JsonFilePath))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: Failed to read JSON file '%s'"), *JsonFilePath);
+		return false;
+	}
+
+	// Parse JSON
+	TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonFileContent);
+	if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: Failed to parse JSON from '%s'"), *JsonFilePath);
+		return false;
+	}
+
+	FString CurrentMapPath = World->GetMapName();
+	FString CurrentMapName = FJsonConfigHelper::ExtractMapNameFromPath(CurrentMapPath);
+
+	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Current map name: %s"), *CurrentMapName);
+
+	// Find matching scene config by prefix matching
+	TSharedPtr<FJsonObject> MatchingConfig = nullptr;
+	FString MatchedKey;
+
+	for (const auto& Pair : JsonObject->Values)
+	{
+		const FString& Key = Pair.Key;
+		if (CurrentMapName.StartsWith(Key) || Key.StartsWith(CurrentMapName))
+		{
+			if (Pair.Value->Type == EJson::Object)
+			{
+				MatchingConfig = Pair.Value->AsObject();
+				MatchedKey = Key;
+				UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Found matching config key: %s"), *Key);
+				break;
+			}
+		}
+	}
+
+	if (!MatchingConfig.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: No matching scene config found in JSON for map '%s'"), *CurrentMapName);
+		return false;
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Matched scene config %s in JSON for map '%s'"), *MatchedKey, *CurrentMapName);
+	}
+
+	// Initialize with defaults
+	// OutParams = FSceneGenerationParams();
+
+	// Parse spawn area (required if present)
+	bool bHasSpawnArea = false;
+	if (MatchingConfig->HasField(TEXT("XMin")) && MatchingConfig->HasField(TEXT("XMax")) &&
+		MatchingConfig->HasField(TEXT("YMin")) && MatchingConfig->HasField(TEXT("YMax")))
+	{
+		double XMin = 0.0, XMax = 1000.0, YMin = 0.0, YMax = 1000.0;
+
+		TSharedPtr<FJsonValue> XMinVal = MatchingConfig->TryGetField(TEXT("XMin"));
+		TSharedPtr<FJsonValue> XMaxVal = MatchingConfig->TryGetField(TEXT("XMax"));
+		TSharedPtr<FJsonValue> YMinVal = MatchingConfig->TryGetField(TEXT("YMin"));
+		TSharedPtr<FJsonValue> YMaxVal = MatchingConfig->TryGetField(TEXT("YMax"));
+
+		if (FJsonConfigHelper::ParseJsonNumber(XMinVal, XMin) &&
+			FJsonConfigHelper::ParseJsonNumber(XMaxVal, XMax) &&
+			FJsonConfigHelper::ParseJsonNumber(YMinVal, YMin) &&
+			FJsonConfigHelper::ParseJsonNumber(YMaxVal, YMax))
+		{
+			OutParams.SpawnAreaMin = FVector2D(XMin, YMin);
+			OutParams.SpawnAreaMax = FVector2D(XMax, YMax);
+			bHasSpawnArea = true;
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Spawn area (XMin/XMax/YMin/YMax) parsed: %f"), XMin);
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Spawn area (XMin/XMax/YMin/YMax) parsed: %f"), XMax);
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Spawn area (XMin/XMax/YMin/YMax) parsed: %f"), YMin);
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Spawn area (XMin/XMax/YMin/YMax) parsed: %f"), YMax);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: Failed to parse spawn area (XMin/XMax/YMin/YMax) from config '%s'"), *MatchedKey);
+		}
+	}
+
+	if (!bHasSpawnArea)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Spawn area (XMin/XMax/YMin/YMax) not found in config '%s', using defaults"), *MatchedKey);
+	}
+
+	// Parse GroundHeight
+	if (MatchingConfig->HasField(TEXT("GroundHeight")))
+	{
+		double GroundHeight = 0.0;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("GroundHeight"));
+		if (FJsonConfigHelper::ParseJsonNumber(Val, GroundHeight))
+		{
+			OutParams.GroundHeight = GroundHeight;
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: GroundHeight parsed: %f"), GroundHeight);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse GroundHeight, using default"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: GroundHeight not found in config '%s', using default"), *MatchedKey);
+	}
+
+	// Parse ForegroundPathSpec (non-empty means use it)
+	if (MatchingConfig->HasField(TEXT("ForegroundPathSpec")))
+	{
+		FString Value;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("ForegroundPathSpec"));
+		if (FJsonConfigHelper::ParseJsonValue(Val, Value))
+		{
+			OutParams.ForegroundPathSpec = Value;
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: ForegroundPathSpec parsed: %s"), *Value);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse ForegroundPathSpec"));
+		}
+	}
+
+	// Parse ForegroundCategory (use if non-empty)
+	if (MatchingConfig->HasField(TEXT("ForegroundCategory")))
+	{
+		FString Value;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("ForegroundCategory"));
+		if (FJsonConfigHelper::ParseJsonValue(Val, Value))
+		{
+			OutParams.ForegroundCategory = Value;
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: ForegroundCategory parsed: %s"), *Value);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse ForegroundCategory"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: ForegroundCategory not found in config '%s', using default"), *MatchedKey);
+	}
+
+	// Parse OccluderPathSpec (non-empty means use it)
+	if (MatchingConfig->HasField(TEXT("OccluderPathSpec")))
+	{
+		FString Value;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("OccluderPathSpec"));
+		if (FJsonConfigHelper::ParseJsonValue(Val, Value))
+		{
+			OutParams.OccluderPathSpec = Value;
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: OccluderPathSpec parsed: %s"), *Value);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse OccluderPathSpec"));
+		}
+	}
+
+
+	// Parse OccluderCategory (use if non-empty)
+	if (MatchingConfig->HasField(TEXT("OccluderCategory")))
+	{
+		FString Value;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("OccluderCategory"));
+		if (FJsonConfigHelper::ParseJsonValue(Val, Value))
+		{
+			if (!Value.IsEmpty())
+			{
+				OutParams.OccluderCategory = Value;
+			}
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse OccluderCategory"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: OccluderCategory not found in config '%s', using default"), *MatchedKey);
+	}
+
+	// Parse OccluderCount (0 and non-zero both valid)
+	if (MatchingConfig->HasField(TEXT("OccluderCount")))
+	{
+		double Value = -1.0;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("OccluderCount"));
+		if (FJsonConfigHelper::ParseJsonNumber(Val, Value))
+		{
+			OutParams.OccluderCount = (int32)Value;
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse OccluderCount, using default"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: OccluderCount not found in config '%s', using default"), *MatchedKey);
+	}
+
+	// Parse CameraID
+	if (MatchingConfig->HasField(TEXT("CameraID")))
+	{
+		FString Value;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("CameraID"));
+		if (FJsonConfigHelper::ParseJsonValue(Val, Value))
+		{
+			int32 CameraID = USensorBPLib::GetIndexByAnyID(Value);
+			if (CameraID < 0)
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: CameraID is not valid, using 0"));
+				OutParams.CameraID = 0;
+			}
+			else
+			{
+				OutParams.CameraID = CameraID;
+			}
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse CameraID, using default"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: CameraID not found in config '%s', using default"), *MatchedKey);
+	}
+
+	// Parse bAutoPositionCamera
+	if (MatchingConfig->HasField(TEXT("bAutoPositionCamera")))
+	{
+		TSharedPtr<FJsonValue> JsonVal = MatchingConfig->TryGetField(TEXT("bAutoPositionCamera"));
+		if (JsonVal.IsValid() && JsonVal->Type == EJson::Boolean)
+		{
+			OutParams.bAutoPositionCamera = JsonVal->AsBool();
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse bAutoPositionCamera, using default"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: bAutoPositionCamera not found in config '%s', using default"), *MatchedKey);
+	}
+
+	// Parse ForegroundYaw (use as-is, -1 means random in the generation function)
+	if (MatchingConfig->HasField(TEXT("ForegroundYaw")))
+	{
+		double Value = 0.0;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("ForegroundYaw"));
+		if (FJsonConfigHelper::ParseJsonNumber(Val, Value))
+		{
+			OutParams.ForegroundYaw = Value;
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: ForegroundYaw parsed: %f"), Value);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse ForegroundYaw, using default"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: ForegroundYaw not found in config '%s', using default"), *MatchedKey);
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Successfully loaded params from config '%s'"), *MatchedKey);
+	return true;
+}
+
 bool USceneCompositionBPLib::GenerateRandomScene(
 	UObject* WorldContextObject,
-	FVector2D SpawnAreaMin,
-	FVector2D SpawnAreaMax,
-	float GroundHeight,
-	const FString& ForegroundPathSpec,
-	const FString& ForegroundCategory,
-	const FString& OccluderPathSpec,
-	const FString& OccluderCategory,
-	int32 OccluderCount,
-	int32 CameraID,
-	FSceneHandle& OutSceneHandle,
-	bool bAutoPositionCamera,
-	float ForegroundYaw
-)
+	const FSceneGenerationParams& Params,
+	FSceneHandle& OutSceneHandle)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (!World)
@@ -394,34 +673,32 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 
 	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
 
-	FString ResolvedForegroundCategory = ForegroundCategory;
+	FString ResolvedForegroundCategory = Params.ForegroundCategory;
 
-	// If ForegroundPathSpec is provided, try to resolve category from asset pool
-	if (!ForegroundPathSpec.IsEmpty())
+	if (!Params.ForegroundPathSpec.IsEmpty())
 	{
-		FString ResolvedCategory = AssetPool.GetCategoryByAssetPath(ForegroundPathSpec);
+		FString ResolvedCategory = AssetPool.GetCategoryByAssetPath(Params.ForegroundPathSpec);
 		if (ResolvedCategory.IsEmpty())
 		{
-			UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Asset path '%s' not found in asset pool"), *ForegroundPathSpec);
+			UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Asset path '%s' not found in asset pool"), *Params.ForegroundPathSpec);
 			return false;
 		}
 		ResolvedForegroundCategory = ResolvedCategory;
-		UE_LOG(LogUnrealCV, Log, TEXT("GenerateRandomScene: Resolved foreground path '%s' to category '%s'"), *ForegroundPathSpec, *ResolvedForegroundCategory);
+		UE_LOG(LogUnrealCV, Log, TEXT("GenerateRandomScene: Resolved foreground path '%s' to category '%s'"), *Params.ForegroundPathSpec, *ResolvedForegroundCategory);
 	}
 
-	FString ResolvedOccluderCategory = OccluderCategory;
+	FString ResolvedOccluderCategory = Params.OccluderCategory;
 
-	// If OccluderPathSpec is provided, try to resolve category from asset pool
-	if (!OccluderPathSpec.IsEmpty())
+	if (!Params.OccluderPathSpec.IsEmpty())
 	{
-		FString ResolvedCategory = AssetPool.GetCategoryByAssetPath(OccluderPathSpec);
+		FString ResolvedCategory = AssetPool.GetCategoryByAssetPath(Params.OccluderPathSpec);
 		if (ResolvedCategory.IsEmpty())
 		{
-			UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Occluder asset path '%s' not found in asset pool"), *OccluderPathSpec);
+			UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Occluder asset path '%s' not found in asset pool"), *Params.OccluderPathSpec);
 			return false;
 		}
 		ResolvedOccluderCategory = ResolvedCategory;
-		UE_LOG(LogUnrealCV, Log, TEXT("GenerateRandomScene: Resolved occluder path '%s' to category '%s'"), *OccluderPathSpec, *ResolvedOccluderCategory);
+		UE_LOG(LogUnrealCV, Log, TEXT("GenerateRandomScene: Resolved occluder path '%s' to category '%s'"), *Params.OccluderPathSpec, *ResolvedOccluderCategory);
 	}
 
 	if (!AssetPool.HasCategory(ResolvedForegroundCategory))
@@ -435,24 +712,21 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		return false;
 	}
 
-	// Initialize scene handle
 	OutSceneHandle = FSceneHandle();
 	OutSceneHandle.SceneID = GenerateSceneID();
-	OutSceneHandle.CameraID = CameraID;
+	OutSceneHandle.CameraID = Params.CameraID;
 	OutSceneHandle.ForegroundCategory = ResolvedForegroundCategory;
 
-	// 1. Spawn foreground actor - get metadata to check type
 	FVector ForegroundPosition;
-	ForegroundPosition.X = FMath::RandRange(SpawnAreaMin.X, SpawnAreaMax.X);
-	ForegroundPosition.Y = FMath::RandRange(SpawnAreaMin.Y, SpawnAreaMax.Y);
-	// ForegroundPosition.Z = GetTerrainHeightAtLocation(World, ForegroundPosition, 10000.0f);
-	ForegroundPosition.Z = GroundHeight;
+	ForegroundPosition.X = FMath::RandRange(Params.SpawnAreaMin.X, Params.SpawnAreaMax.X);
+	ForegroundPosition.Y = FMath::RandRange(Params.SpawnAreaMin.Y, Params.SpawnAreaMax.Y);
+	ForegroundPosition.Z = Params.GroundHeight;
 
 	TMap<FString, FString> ForegroundMetadata;
 
-	if (!ForegroundPathSpec.IsEmpty())
+	if (!Params.ForegroundPathSpec.IsEmpty())
 	{
-		ForegroundMetadata = AssetPool.GetAssetMetadataByPath(ForegroundPathSpec);
+		ForegroundMetadata = AssetPool.GetAssetMetadataByPath(Params.ForegroundPathSpec);
 	}
 	else
 	{
@@ -466,8 +740,8 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	}
 
 	FRotator ForegroundRotation = FRotator::ZeroRotator;
-	float Yaw = (ForegroundYaw == -1.0f) ? FMath::RandRange(0.0f, 360.0f) : ForegroundYaw;
-	ForegroundRotation.Yaw += Yaw -90.0f; // metahuman facing local y axis
+	float Yaw = (Params.ForegroundYaw == -1.0f) ? FMath::RandRange(0.0f, 360.0f) : Params.ForegroundYaw;
+	ForegroundRotation.Yaw = Yaw - 90.0f;
 
 	OutSceneHandle.ForegroundActor = SpawnActorFromMetadata(World, ForegroundMetadata, ForegroundPosition, ForegroundRotation);
 	if (!IsValid(OutSceneHandle.ForegroundActor))
@@ -480,7 +754,6 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	OutSceneHandle.ForegroundObjectMetadata = ForegroundMetadata;
 	OutSceneHandle.SceneCategory = World->GetMapName();
 
-	// Check if foreground is Blueprint type and create NavAgent
 	if (ForegroundMetadata.Contains(TEXT("Type")) && ForegroundMetadata[TEXT("Type")] == TEXT("Blueprint"))
 	{
 		OutSceneHandle.NavController = CreateNavAgentController(WorldContextObject, OutSceneHandle.ForegroundActor);
@@ -491,15 +764,15 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		}
 	}
 
-	UFusionCamSensor* Camera = USensorBPLib::GetSensorById(CameraID);
+	UFusionCamSensor* Camera = USensorBPLib::GetSensorById(Params.CameraID);
 	if (!IsValid(Camera))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Invalid camera ID %d"), CameraID);
+		UE_LOG(LogUnrealCV, Error, TEXT("GenerateRandomScene: Invalid camera ID %d"), Params.CameraID);
 		ClearScene(OutSceneHandle);
 		return false;
 	}
 
-	if (bAutoPositionCamera)
+	if (Params.bAutoPositionCamera)
 	{
 		auto NewPosition = OutSceneHandle.ForegroundActor->GetActorLocation();
 		float CameraHeight = FMath::RandRange(120.0f, 150.0f);
@@ -524,22 +797,19 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 
 	FVector CameraPosition = Camera->GetSensorLocation();
 
-	// 3. Spawn occluders between camera and foreground
 	OutSceneHandle.OccluderActors = SpawnRandomOccluders(
 		WorldContextObject,
-		OccluderCount,
+		Params.OccluderCount,
 		CameraPosition,
 		ForegroundPosition,
-		OccluderPathSpec,
+		Params.OccluderPathSpec,
 		ResolvedOccluderCategory,
 		OutSceneHandle
 	);
 
-	// OutSceneHandle.DirectionalLight = CreateDirectionalLight(WorldContextObject);
 	OutSceneHandle.DirectionalLight = nullptr;
 
 	OutSceneHandle.OcclusionRatio = 0.0f;
-
 
 	if (IsValid(OutSceneHandle.ForegroundActor))
 	{
@@ -550,7 +820,6 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 			OutSceneHandle.AllAnnotationColors = FObjectAnnotator::GetAnnotationColors();
 		}
 	}
-
 
 	ActiveScenes.Add(OutSceneHandle);
 
@@ -1270,3 +1539,4 @@ ANavAgentController* USceneCompositionBPLib::CreateNavAgentController(UObject* W
 
 	return NavController;
 }
+

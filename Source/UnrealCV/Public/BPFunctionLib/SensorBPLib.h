@@ -62,8 +62,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	static FString GetSensorNewFormatID(UFusionCamSensor* Sensor);
 
-	UFUNCTION(BlueprintPure, Category = "unrealcv")
-	static int32 GetSensorOldFormatID(const FString& NewFormatID);
+	// UFUNCTION(BlueprintPure, Category = "unrealcv")
+	// static int32 GetSensorOldFormatID(const FString& NewFormatID);
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	static void PrintCameraIDMappings();
