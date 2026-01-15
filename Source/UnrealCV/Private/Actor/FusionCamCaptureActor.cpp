@@ -63,7 +63,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	VideoGenScriptPath = TEXT("");
 
 	CurrentTrajectoryIndex = 0;
-	bPauseWorldDuringRecord = true;
+	bPauseWorldDuringRecord = false;
 	WarmUpFrames = WARM_UP_FRAMES;
 	WarmUpElapsedFrames = 0;
 

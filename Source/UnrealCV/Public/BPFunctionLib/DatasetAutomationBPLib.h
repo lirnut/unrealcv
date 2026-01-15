@@ -127,6 +127,7 @@ private:
 	static FString CurrentSceneID;
 	static float DelayTimer;
 	static float DelayDuration;
+	static double LastRealTimeTickSeconds;
 
 	static void TransitionToState(EDatasetGenerationState NewState);
 	static void ProcessState(float DeltaTime);
