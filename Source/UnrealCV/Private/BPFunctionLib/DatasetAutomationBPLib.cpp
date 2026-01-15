@@ -1,5 +1,6 @@
 // Copyright 2025 UnrealCV Team. All Rights Reserved.
 #include "DatasetAutomationBPLib.h"
+#include "Utils/GenericTickableObject.h"
 #include "SceneCompositionBPLib.h"
 #include "RecordingBPLib.h"
 #include "SensorBPLib.h"
@@ -9,22 +10,22 @@
 #include "Engine/World.h"
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
-#include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "HAL/PlatformTime.h"
 
 FAutomationConfig UDatasetAutomationBPLib::CurrentConfig;
 FAutomationStatus UDatasetAutomationBPLib::CurrentStatus;
 FSceneHandle UDatasetAutomationBPLib::CurrentScene;
 UWorld* UDatasetAutomationBPLib::WorldContext = nullptr;
-FTimerHandle UDatasetAutomationBPLib::AutomationTimerHandle;
 AFusionCamCaptureActor * UDatasetAutomationBPLib::CaptureActor = nullptr;
 
 TArray<FAutomationStep> UDatasetAutomationBPLib::CommandQueue;
 int32 UDatasetAutomationBPLib::CurrentCommandIndex = 0;
 int32 UDatasetAutomationBPLib::CurrentSceneCounter = 0;
 FString UDatasetAutomationBPLib::CurrentSceneID = TEXT("");
-float UDatasetAutomationBPLib::DelayTimer = 0.0f;
-float UDatasetAutomationBPLib::DelayDuration = 0.0f;
+double UDatasetAutomationBPLib::DelayStartTime = 0.0;
+double UDatasetAutomationBPLib::DelayDuration = 0.0;
+FGenericTickableObject* UDatasetAutomationBPLib::TickableObject = nullptr;
 
 void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 {
@@ -39,6 +40,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	// CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
+	CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_30")));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_30")));
@@ -49,6 +51,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
+	CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 
 	// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
@@ -255,7 +258,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	}
 	else if (Step.Command == TEXT("delay"))
 	{
-		DelayTimer = 0.0f;
+		DelayStartTime = FPlatformTime::Seconds();
 		DelayDuration = Step.FloatParam;
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Delaying %.1f seconds"), DelayDuration);
 		TransitionToState(EDatasetGenerationState::WaitingAsync);
@@ -323,12 +326,12 @@ bool UDatasetAutomationBPLib::StartBatchGeneration(
 	CurrentCommandIndex = 0;
 	CurrentSceneCounter = 0;
 
-	WorldContext->GetTimerManager().SetTimer(
-		AutomationTimerHandle,
-		FTimerDelegate::CreateStatic(&UDatasetAutomationBPLib::AutoTick),
-		0.5f,
-		true
-	);
+	if (!TickableObject)
+	{
+		TickableObject = new FGenericTickableObject();
+		TickableObject->SetTickCallback(&UDatasetAutomationBPLib::OnTick);
+	}
+	TickableObject->Activate();
 
 	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Started batch generation (%d scenes)"), Config.TotalScenes);
 
@@ -344,13 +347,10 @@ void UDatasetAutomationBPLib::StopBatchGeneration()
 		return;
 	}
 
-	if (WorldContext && AutomationTimerHandle.IsValid())
+	if (TickableObject)
 	{
-		WorldContext->GetTimerManager().ClearTimer(AutomationTimerHandle);
+		TickableObject->Deactivate();
 	}
-
-	// This can cause duplicate scene destruction
-	// USceneCompositionBPLib::ClearScene(CurrentScene);
 
 	if (CurrentStatus.State == EDatasetGenerationState::WaitingAsync)
 	{
@@ -424,37 +424,22 @@ bool UDatasetAutomationBPLib::IsRunning()
 		   CurrentStatus.State != EDatasetGenerationState::Error;
 }
 
-void UDatasetAutomationBPLib::TickAutomation(UObject* WorldContextObject, float DeltaTime)
+void UDatasetAutomationBPLib::OnTick(double RealDeltaTime)
 {
 	if (!IsRunning())
 	{
-		return;
-	}
-
-	ProcessState(DeltaTime);
-}
-
-void UDatasetAutomationBPLib::AutoTick()
-{
-	if (!IsRunning())
-	{
-		if (WorldContext && AutomationTimerHandle.IsValid())
+		if (CurrentStatus.State == EDatasetGenerationState::Completed ||
+			CurrentStatus.State == EDatasetGenerationState::Error)
 		{
-			WorldContext->GetTimerManager().ClearTimer(AutomationTimerHandle);
+			if (TickableObject)
+			{
+				TickableObject->Deactivate();
+			}
 		}
 		return;
 	}
 
-	ProcessState(0.5f);
-
-	if (CurrentStatus.State == EDatasetGenerationState::Completed ||
-		CurrentStatus.State == EDatasetGenerationState::Error)
-	{
-		if (WorldContext && AutomationTimerHandle.IsValid())
-		{
-			WorldContext->GetTimerManager().ClearTimer(AutomationTimerHandle);
-		}
-	}
+	ProcessState(RealDeltaTime);
 }
 
 void UDatasetAutomationBPLib::TransitionToState(EDatasetGenerationState NewState)
@@ -462,7 +447,7 @@ void UDatasetAutomationBPLib::TransitionToState(EDatasetGenerationState NewState
 	CurrentStatus.State = NewState;
 }
 
-void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
+void UDatasetAutomationBPLib::ProcessState(double RealDeltaTime)
 {
 	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: ProcessState: %s"), *GetAutomationStatusString());
 	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: CameraID %d"), CurrentConfig.SceneParams.CameraID);
@@ -474,9 +459,11 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 	case EDatasetGenerationState::WaitingAsync:
 	{
 		bool RecordingComplete = !URecordingBPLib::IsRecording(CurrentConfig.SceneParams.CameraID);
-		bool DelayComplete = (DelayTimer >= DelayDuration);
+		double CurrentRealTime = FPlatformTime::Seconds();
+		double ElapsedRealTime = CurrentRealTime - DelayStartTime;
+		bool DelayComplete = (ElapsedRealTime >= DelayDuration);
 
-		UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Waiting (%.2fs), DelayDuration: %.2fs, RecordingComplete: %d"), DelayTimer, DelayDuration, RecordingComplete);
+		UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Waiting (%.2fs/%.2fs real time), RecordingComplete: %d"), ElapsedRealTime, DelayDuration, RecordingComplete);
 
 		if (RecordingComplete && DelayComplete)
 		{
@@ -492,10 +479,6 @@ void UDatasetAutomationBPLib::ProcessState(float DeltaTime)
 			}
 
 			ExecuteNextCommand();
-		}
-		else
-		{
-			DelayTimer += DeltaTime;
 		}
 		break;
 	}

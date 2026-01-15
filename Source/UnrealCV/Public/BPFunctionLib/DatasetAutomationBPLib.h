@@ -7,6 +7,8 @@
 #include "SceneCompositionBPLib.h"
 #include "DatasetAutomationBPLib.generated.h"
 
+class FGenericTickableObject;
+
 UENUM(BlueprintType)
 enum class EDatasetGenerationState : uint8
 {
@@ -108,9 +110,6 @@ public:
 	static bool IsRunning();
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation", meta = (WorldContext = "WorldContextObject"))
-	static void TickAutomation(UObject* WorldContextObject, float DeltaTime);
-
-	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation", meta = (WorldContext = "WorldContextObject"))
 	static bool SetMap(UObject* WorldContextObject, const FString& MapName);
 
 private:
@@ -118,20 +117,20 @@ private:
 	static FAutomationStatus CurrentStatus;
 	static FSceneHandle CurrentScene;
 	static UWorld* WorldContext;
-	static FTimerHandle AutomationTimerHandle;
 	static AFusionCamCaptureActor* CaptureActor;
 
 	static TArray<FAutomationStep> CommandQueue;
 	static int32 CurrentCommandIndex;
 	static int32 CurrentSceneCounter;
 	static FString CurrentSceneID;
-	static float DelayTimer;
-	static float DelayDuration;
-	static double LastRealTimeTickSeconds;
+	static double DelayStartTime;
+	static double DelayDuration;
 
+	static FGenericTickableObject* TickableObject;
+
+	static void OnTick(double RealDeltaTime);
 	static void TransitionToState(EDatasetGenerationState NewState);
-	static void ProcessState(float DeltaTime);
-	static void AutoTick();
+	static void ProcessState(double RealDeltaTime);
 
 	static void BuildCommandSequenceForScene();
 	static void ExecuteNextCommand();
@@ -140,5 +139,5 @@ private:
 	static FString GenerateOutputPath(const FString& SceneID, const FString& TrajectoryType);
 	static class AFusionCameraActor* GetFusionCameraActor(int32 CameraID);
 	static bool StartTrajectoryRecording(const FString& FileName, const FString& TrajectoryType);
-
 };
+

@@ -722,15 +722,11 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 
 	TMap<FString, FColor> AllAnnotationColors;
 	FColor AnnotationColor;
-	if (IsValid(SceneHandle.ForegroundActor))
-	{
-		AUnrealcvWorldController* WorldController = FUnrealcvServer::Get().WorldController.Get();
-		if (IsValid(WorldController))
-		{
-			FObjectAnnotator::GetAnnotationColor(SceneHandle.ForegroundActor, AnnotationColor);
-			AllAnnotationColors = FObjectAnnotator::GetAnnotationColors();
-		}
-	}
+	check(IsValid(SceneHandle.ForegroundActor))
+	AUnrealcvWorldController* WorldController = FUnrealcvServer::Get().WorldController.Get();
+	check(IsValid(WorldController))
+	FObjectAnnotator::GetAnnotationColor(SceneHandle.ForegroundActor, AnnotationColor);
+	AllAnnotationColors = FObjectAnnotator::GetAnnotationColors();
 
 
 	FString ForegroundColor = FString::Printf(TEXT("%d,%d,%d"), AnnotationColor.R, AnnotationColor.G, AnnotationColor.B);
