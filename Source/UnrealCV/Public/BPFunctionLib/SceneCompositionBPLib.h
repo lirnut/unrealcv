@@ -158,11 +158,11 @@ struct FSceneHandle
 	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
 	TMap<FString, FString> ForegroundObjectMetadata;
 
-	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
-	FColor AnnotationColor;
+	// UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
+	// FColor AnnotationColor;
 
-	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
-	TMap<FString, FColor> AllAnnotationColors;
+	// UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|Recording")
+	// TMap<FString, FColor> AllAnnotationColors;
 
 	FSceneHandle()
 		: SceneID(TEXT(""))
@@ -179,8 +179,8 @@ struct FSceneHandle
 		, OccluderCategory(TEXT(""))
 		, OccluderMetadataList({})
 		, ForegroundObjectMetadata({})
-		, AnnotationColor(FColor::White)
-		, AllAnnotationColors({})
+		// , AnnotationColor(FColor::White)
+		// , AllAnnotationColors({})
 	{
 	}
 };

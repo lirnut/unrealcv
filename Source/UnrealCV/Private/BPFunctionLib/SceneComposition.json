@@ -112,6 +112,22 @@
     "bAutoPositionCamera": true,
     "ForegroundYaw": -1.0
   },
+  "Demo_Roof": {
+    "XMax": 8230.0,
+    "YMax": 9180.0,
+    "XMin": 8130.0,
+    "YMin": 9080.0,
+    "GroundHeight": 1200.0,
+    "ForegroundPathSpec": "",
+    "ForegroundCategory": "Foreground_Human",
+    "OccluderPathSpec": "",
+    "OccluderCategory": "Occluder_All",
+    "OccluderCount": 0,
+    "CameraID": "1",
+    "OutSceneHandle": null,
+    "bAutoPositionCamera": true,
+    "ForegroundYaw": -1.0
+  },
   "ConferenceRoom": {
     "ForegroundPathSpec": "",
     "ForegroundCategory": "Foreground_Human",

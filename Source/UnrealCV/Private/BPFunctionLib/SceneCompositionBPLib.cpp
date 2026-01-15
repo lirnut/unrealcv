@@ -777,8 +777,8 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	if (Params.bAutoPositionCamera)
 	{
 		auto NewPosition = OutSceneHandle.ForegroundActor->GetActorLocation();
-		float CameraHeight = FMath::RandRange(120.0f, 150.0f);
-		float Distance = FMath::RandRange(300.0f, 600.0f);
+		float CameraHeight = FMath::RandRange(160.0f, 175.0f);
+		float Distance = FMath::RandRange(250.0f, 400.0f);
 
 		float CameraAngleOffset = FMath::RandRange(-15.0f, 15.0f);
 		float HorizontalAngle = Yaw + CameraAngleOffset;
@@ -786,10 +786,11 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		FVector CameraPosition;
 		CameraPosition.X = NewPosition.X + Distance * FMath::Cos(FMath::DegreesToRadians(HorizontalAngle));
 		CameraPosition.Y = NewPosition.Y + Distance * FMath::Sin(FMath::DegreesToRadians(HorizontalAngle));
-		CameraPosition.Z = CameraHeight + NewPosition.Z + 200.0f;
+		CameraPosition.Z = CameraHeight + NewPosition.Z + 100.0f;
 
-		float LandHeight = GetLandHeight(World, CameraPosition.X, CameraPosition.Y, CameraPosition.Z);
-		CameraPosition.Z = LandHeight + CameraHeight;
+		// float LandHeight = GetLandHeight(World, CameraPosition.X, CameraPosition.Y, CameraPosition.Z);
+		// CameraPosition.Z = LandHeight + CameraHeight;
+		CameraPosition.Z = OutSceneHandle.ForegroundActor->GetActorLocation().Z + CameraHeight;
 
 		FRotator CameraRotation = (NewPosition - CameraPosition).Rotation();
 
@@ -812,16 +813,6 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	OutSceneHandle.DirectionalLight = nullptr;
 
 	OutSceneHandle.OcclusionRatio = 0.0f;
-
-	if (IsValid(OutSceneHandle.ForegroundActor))
-	{
-		AUnrealcvWorldController* WorldController = FUnrealcvServer::Get().WorldController.Get();
-		if (IsValid(WorldController))
-		{
-			FObjectAnnotator::GetAnnotationColor(OutSceneHandle.ForegroundActor, OutSceneHandle.AnnotationColor);
-			OutSceneHandle.AllAnnotationColors = FObjectAnnotator::GetAnnotationColors();
-		}
-	}
 
 	ActiveScenes.Add(OutSceneHandle);
 

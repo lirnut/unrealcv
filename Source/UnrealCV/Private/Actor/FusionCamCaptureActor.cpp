@@ -27,6 +27,7 @@
 #include "Utils/PythonExecutor.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/BufferArchive.h"
+#include "LineTraceBPlib.h"
 
 // static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
 static const float ROTATE_BUFFER_DURATION_SECONDS = 0.0f;
@@ -178,6 +179,41 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		return;
 	}
 
+	auto MoveTo = [this] (
+		FVector CurrentLocation,
+		FVector DesiredLocation,
+		FRotator Rotation
+	)
+	{
+		// FVector CurrentLocation = TargetSensor->GetSensorLocation();
+		// FVector DesiredLocation = CurrentTrajectory[CurrentTrajectoryIndex].Location;
+
+		// bool Hit = false;
+		// FHitResult HitResult;
+		// const float CameraRadius = 5.f;
+		// const ECollisionChannel TraceChannel = ECC_WorldStatic;
+		// // const ECollisionChannel TraceChannel = ECC_WorldStatic |ECC_WorldDynamic;
+
+		// FVector SafeLocation = ULineTraceBPlib::SolveCameraSweepSlide(
+		// 	this,                // WorldContextObject
+		// 	CurrentLocation,     // Start
+		// 	DesiredLocation,     // End
+		// 	CameraRadius,
+		// 	TraceChannel,
+		// 	Hit,
+		// 	HitResult
+		// );
+
+		// TargetSensor->SetSensorLocation(SafeLocation);
+		// if (!Hit)
+		// {
+		// 	TargetSensor->SetSensorRotation(Rotation);
+		// }
+
+		TargetSensor->SetSensorLocation(DesiredLocation);
+		TargetSensor->SetSensorRotation(Rotation);
+	};
+
 	// if (WarmUpElapsedFrames < WarmUpFrames)
 	// {
 	// 	if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
@@ -203,8 +239,13 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		{
 			if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 			{
-				TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
-				TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
+				// TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
+				// TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
+				MoveTo(
+					TargetSensor->GetSensorLocation(),
+					CurrentTrajectory[CurrentTrajectoryIndex].Location,
+					CurrentTrajectory[CurrentTrajectoryIndex].Rotation
+				);
 			}
 
 			RecordFrame();
@@ -225,8 +266,13 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	{
 		if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 		{
-			TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
-			TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
+			// TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
+			// TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
+			MoveTo(
+				TargetSensor->GetSensorLocation(),
+				CurrentTrajectory[CurrentTrajectoryIndex].Location,
+				CurrentTrajectory[CurrentTrajectoryIndex].Rotation
+			);
 		}
 
 		RecordFrame();
@@ -674,9 +720,22 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		OccluderArray.Add(OccluderJson);
 	}
 
-	FString ForegroundColor = FString::Printf(TEXT("%d,%d,%d"), SceneHandle.AnnotationColor.R, SceneHandle.AnnotationColor.G, SceneHandle.AnnotationColor.B);
+	TMap<FString, FColor> AllAnnotationColors;
+	FColor AnnotationColor;
+	if (IsValid(SceneHandle.ForegroundActor))
+	{
+		AUnrealcvWorldController* WorldController = FUnrealcvServer::Get().WorldController.Get();
+		if (IsValid(WorldController))
+		{
+			FObjectAnnotator::GetAnnotationColor(SceneHandle.ForegroundActor, AnnotationColor);
+			AllAnnotationColors = FObjectAnnotator::GetAnnotationColors();
+		}
+	}
+
+
+	FString ForegroundColor = FString::Printf(TEXT("%d,%d,%d"), AnnotationColor.R, AnnotationColor.G, AnnotationColor.B);
 	TMap<FString, FString> ColorMap;
-	for (const TPair<FString, FColor>& KV : SceneHandle.AllAnnotationColors)
+	for (const TPair<FString, FColor>& KV : AllAnnotationColors)
 	{
 		FString ColorJson = FString::Printf(TEXT("%d,%d,%d"), KV.Value.R, KV.Value.G, KV.Value.B);
 		ColorMap.Add(KV.Key, ColorJson);
@@ -791,7 +850,7 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 {
 	SetDefaultParamsForTargetCamera();
 	TargetSensor->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
-	TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, static_cast<float>(FPS));
+	// TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, static_cast<float>(FPS));
 	// calculate the range from TargetSensor to Target
 	UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
 	FVector SensorLocation = TargetSensor->GetSensorLocation();
@@ -819,9 +878,9 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 	FRotator TargetRotation = CameraToTarget.Rotation();
 
 	// Add ±15 degrees noise to pitch, yaw, and roll
-	float NoisePitch = FMath::RandRange(-5.0f, 5.0f);
-	float NoiseYaw = FMath::RandRange(-12.0f, 12.0f);
-	float NoiseRoll = FMath::RandRange(-6.0f, 6.0f);
+	float NoisePitch = FMath::RandRange(-4.0f, 4.0f);
+	float NoiseYaw = FMath::RandRange(-1.0f, 1.0f);
+	float NoiseRoll = FMath::RandRange(-4.0f, 4.0f);
 
 	FRotator NoisyRotation = TargetRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
 	TargetSensor->SetSensorRotation(NoisyRotation);
@@ -992,14 +1051,16 @@ void AFusionCamCaptureActor::SetDefaultParamsForTargetCamera()
 	TargetSensor->SetReflectionMethod(EReflectionMethod::Type::Lumen);
     TargetSensor->SetGlobalIlluminationMethod(EDynamicGlobalIlluminationMethod::Type::Lumen);
 
-    TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Histogram);
+    // TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Histogram);
+    TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Basic);
     // TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Manual);
-	TargetSensor->SetAutoExposureSpeed(0.5f, 0.5f); 
+	// TargetSensor->SetAutoExposureSpeed(0.5f, 0.5f); 
+	TargetSensor->SetAutoExposureSpeed(5.f, 8.f); 
 	// TargetSensor->SetExposureBias(0.0f);
 	
 	TargetSensor->SetProjectionType(ECameraProjectionMode::Type::Perspective);
 
-	TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, 24.0f);
+	// TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, 24.0f);
 
 	// TargetSensor->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
 	TargetSensor->SetSensorFOV(55.0f);
@@ -1049,7 +1110,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTra
 	case ECameraTrajectoryType::RandomDirection4:
 		return CalculateRandomDirection(Target, DegreesPerFrame, RandomSeed);
 	case ECameraTrajectoryType::RenderOnly:
-		return CalculateRenderOnly(10.0);
+		// return CalculateRenderOnly(10.0);
 	case ECameraTrajectoryType::RenderOnly5S:
 		return CalculateRenderOnly(5.0);
 	default:
@@ -1124,7 +1185,7 @@ void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Traject
 FVector AFusionCamCaptureActor::GetTargetLocationWithRandomHeight(AActor* Target) const
 {
 	FVector TargetLocation = Target->GetActorLocation();
-	float RandomHeight = FMath::RandRange(70.0f, 160.0f);
+	float RandomHeight = FMath::RandRange(155.0f, 175.0f);
 	TargetLocation.Z += RandomHeight;
 	return TargetLocation;
 }
@@ -1407,11 +1468,10 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 	FVector Offset = OriginalLocation - TargetLocation;
 	FRotator InitRotation = OriginalRotation - (TargetLocation - OriginalLocation).Rotation();
 
-	float RandomYaw = RandomStream.FRandRange(-180.0f, 180.0f);
-	float RandomPitch = RandomStream.FRandRange(0.0f, 45.0f);
-	FVector RandomAxis = FRotator(RandomPitch, RandomYaw, 0.0f).Vector();
+	float VerticalTiltStrength = RandomStream.FRandRange(-0.08f, 0.4f);
+	int HoriParam = RandomStream.FRandRange(-1, 1) > 0 ? 1 : -1;
 
-	float TotalRotationDeg = RandomStream.FRandRange(30.0f, 90.0f);
+	float TotalRotationDeg = RandomStream.FRandRange(15.0f, 45.0f);
 	NumFrames = FMath::CeilToInt(TotalRotationDeg / DegreesPerFrame) + 1;
 	if (ROTATE_NUM_FRAMES_OVERRIDE > 0)
 	{
@@ -1419,7 +1479,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 		DegreesPerFrame = TotalRotationDeg / (NumFrames - 1);
 	}
 
-	bool bVaryDistance = RandomStream.FRand() > 0.5f;
+	bool bVaryDistance = false;
 	float OriginalDistance = Offset.Size();
 	float DistanceVariation = RandomStream.FRandRange(0.7f, 1.3f);
 
@@ -1428,8 +1488,16 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 		float Alpha = static_cast<float>(i) / (NumFrames - 1);
 		float CurrentDeg = FMath::Min(DegreesPerFrame * i, TotalRotationDeg);
 
-		FQuat RotationQuat = FQuat(RandomAxis, FMath::DegreesToRadians(CurrentDeg));
-		FVector NewOffset = RotationQuat.RotateVector(Offset);
+		// FQuat RotationQuat = FQuat(RandomAxis, FMath::DegreesToRadians(CurrentDeg));
+		// FVector NewOffset = RotationQuat.RotateVector(Offset);
+
+		FVector ToCamera = Offset.GetSafeNormal();
+		FVector RightVector = FVector::CrossProduct(ToCamera, FVector::UpVector).GetSafeNormal();
+		FQuat RotationQuatHori = FQuat(FVector::UpVector, FMath::DegreesToRadians(CurrentDeg * HoriParam));
+		float PitchDeg = CurrentDeg * VerticalTiltStrength;
+		FQuat RotationQuatUp = FQuat(RightVector, FMath::DegreesToRadians(PitchDeg));
+		FQuat FinalQuat = RotationQuatUp * RotationQuatHori;
+		FVector NewOffset = FinalQuat.RotateVector(Offset);
 
 		if (bVaryDistance)
 		{
@@ -1437,12 +1505,12 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 			NewOffset = NewOffset.GetSafeNormal() * CurrentDistance;
 		}
 
-		float NewHeight = 25.;
+		// float NewHeight = 25.;
 		FVector NewLocation = TargetLocation + NewOffset;
-		if (NewLocation.Z < NewHeight) 
-		{
-			NewLocation.Z = NewHeight;
-		}
+		// if (NewLocation.Z < NewHeight) 
+		// {
+		// 	NewLocation.Z = NewHeight;
+		// }
 		FRotator NewRotation = (TargetLocation - NewLocation).Rotation() + InitRotation;
 
 		FCameraPose Pose;
@@ -1459,6 +1527,10 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRen
 {
 	TArray<FCameraPose> Trajectory;
 	NumFrames = RecordFPS * Time;
+	if (ROTATE_NUM_FRAMES_OVERRIDE > 0)
+	{
+		NumFrames = ROTATE_NUM_FRAMES_OVERRIDE;
+	}
 
 	for (int i = 0; i < NumFrames; i++)
 	{
