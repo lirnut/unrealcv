@@ -22,7 +22,7 @@ TArray<FString> UDatasetAutomationBPLib::ActiveCameraPool;
 // TMap<FString, bool> UDatasetAutomationBPLib::CameraRecordingState;
 
 TArray<FAutomationStep> UDatasetAutomationBPLib::CommandQueue;
-int32 UDatasetAutomationBPLib::CurrentCommandIndex = 0;
+int32 UDatasetAutomationBPLib::CurrentCommandIndex = -1;
 int32 UDatasetAutomationBPLib::CurrentSceneCounter = 0;
 FString UDatasetAutomationBPLib::CurrentSceneID = TEXT("");
 double UDatasetAutomationBPLib::DelayStartTime = 0.0;
@@ -93,6 +93,9 @@ FString UDatasetAutomationBPLib::GenerateOutputPath(const FString& SceneID, cons
 
 void UDatasetAutomationBPLib::ExecuteNextCommand()
 {
+	CurrentCommandIndex++;
+	check(CurrentCommandIndex >= 0);
+
 	if (CurrentCommandIndex >= CommandQueue.Num())
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Command index out of bounds"));
@@ -101,9 +104,7 @@ void UDatasetAutomationBPLib::ExecuteNextCommand()
 
 	const FAutomationStep& Step = CommandQueue[CurrentCommandIndex];
 	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Executing command %d/%d: %s"),
-		CurrentCommandIndex + 1, CommandQueue.Num(), *Step.Command);
-
-	CurrentCommandIndex++;
+		CurrentCommandIndex, CommandQueue.Num(), *Step.Command);
 	ExecuteCommand(Step);
 }
 
@@ -194,12 +195,16 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		check(PriCaptureActor);
 		
 		float TriggerIndex = Step.FloatParam;
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Special wait for trajectory index: %f, current pri cam traj index: %d"), TriggerIndex, PriCaptureActor->GetCurrentTrajectoryIndex());
 		if (PriCaptureActor->GetCurrentTrajectoryIndex() >= static_cast<int32>(TriggerIndex))
 		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Special wait condition met, execute next command"));
+			FString SyncFrameOutputPath = FString::Printf(TEXT("%s/%s/SyncFrameNum.txt"), *CurrentConfig.OutputDirectory, *CurrentSceneID);
+			// write the sync frame number to the file
+			FFileHelper::SaveStringToFile(FString::Printf(TEXT("%d"), PriCaptureActor->GetCurrentTrajectoryIndex()), *SyncFrameOutputPath);
 			ExecuteNextCommand();
 		}
 		// wait for next call
-		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Special wait for trajectory index: %f"), TriggerIndex);
 	}
 	else if (Step.Command == TEXT("set_pause"))
 	{
@@ -304,7 +309,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		}
 		else
 		{
-			CurrentCommandIndex = 0;
+			CurrentCommandIndex = -1;
 			BuildCommandSequenceForScene();
 			ExecuteNextCommand();
 		}
@@ -367,7 +372,7 @@ bool UDatasetAutomationBPLib::StartBatchGeneration(
 	// CameraRecordingState.Empty();
 
 	BuildCommandSequenceForScene();
-	CurrentCommandIndex = 0;
+	CurrentCommandIndex = -1;
 	CurrentSceneCounter = 0;
 
 	if (!TickableObject)
@@ -505,8 +510,8 @@ void UDatasetAutomationBPLib::ProcessState(double RealDeltaTime)
 			return;
 		}
 		const FAutomationStep& Step = CommandQueue[CurrentCommandIndex];
-		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Executing command %d/%d: %s"),
-			CurrentCommandIndex + 1, CommandQueue.Num(), *Step.Command);
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: ProcessState: Executing command %d/%d: %s"),
+			CurrentCommandIndex, CommandQueue.Num(), *Step.Command);
 		ExecuteCommand(Step);
 		break;
 	}

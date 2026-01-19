@@ -1267,6 +1267,78 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddRotateBuf
 	return FullTrajectory;
 }
 
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddHandheldShake(const TArray<FCameraPose>& InputTrajectory)
+{
+	if (InputTrajectory.Num() == 0)
+	{
+		return InputTrajectory;
+	}
+
+	const int32 SHAKE_KEYFRAME_INTERVAL = 8;
+	const float SHAKE_LOCATION_MAGNITUDE_CM = 0.8f;
+	const float SHAKE_ROTATION_MAGNITUDE_DEG = 0.5f;
+
+	int32 NumFramesInput = InputTrajectory.Num();
+	int32 NumKeyframes = FMath::CeilToInt(float(NumFramesInput) / SHAKE_KEYFRAME_INTERVAL) + 1;
+
+	TArray<FVector> LocationKeyframes;
+	TArray<FRotator> RotationKeyframes;
+	LocationKeyframes.Reserve(NumKeyframes);
+	RotationKeyframes.Reserve(NumKeyframes);
+
+	for (int32 k = 0; k < NumKeyframes; k++)
+	{
+		if (FMath::RandRange(0, 100) < 80)
+		{
+			LocationKeyframes.Add(FVector::ZeroVector);
+			RotationKeyframes.Add(FRotator::ZeroRotator);
+		}
+		else
+		{
+			FVector LocOffset(
+				FMath::FRandRange(-SHAKE_LOCATION_MAGNITUDE_CM, SHAKE_LOCATION_MAGNITUDE_CM),
+				FMath::FRandRange(-SHAKE_LOCATION_MAGNITUDE_CM, SHAKE_LOCATION_MAGNITUDE_CM),
+				FMath::FRandRange(-SHAKE_LOCATION_MAGNITUDE_CM * 0.5f, SHAKE_LOCATION_MAGNITUDE_CM * 0.5f)
+			);
+			LocationKeyframes.Add(LocOffset);
+
+			FRotator RotOffset(
+				FMath::FRandRange(-SHAKE_ROTATION_MAGNITUDE_DEG, SHAKE_ROTATION_MAGNITUDE_DEG),
+				FMath::FRandRange(-SHAKE_ROTATION_MAGNITUDE_DEG, SHAKE_ROTATION_MAGNITUDE_DEG),
+				FMath::FRandRange(-SHAKE_ROTATION_MAGNITUDE_DEG * 0.6f, SHAKE_ROTATION_MAGNITUDE_DEG * 0.6f)
+			);
+			RotationKeyframes.Add(RotOffset);
+		}
+	}
+
+	TArray<FCameraPose> ShakenTrajectory;
+	ShakenTrajectory.Reserve(NumFramesInput);
+
+	for (int32 i = 0; i < NumFramesInput; i++)
+	{
+		const FCameraPose& OriginalPose = InputTrajectory[i];
+		FCameraPose ShakenPose = OriginalPose;
+
+		int32 KeyIndex1 = i / SHAKE_KEYFRAME_INTERVAL;
+		int32 KeyIndex2 = FMath::Min(KeyIndex1 + 1, NumKeyframes - 1);
+		float Alpha = (i % SHAKE_KEYFRAME_INTERVAL) / float(SHAKE_KEYFRAME_INTERVAL);
+		float SmoothedAlpha = Alpha * Alpha * (3.0f - 2.0f * Alpha);
+
+		FVector LocalShake = FMath::Lerp(LocationKeyframes[KeyIndex1], LocationKeyframes[KeyIndex2], SmoothedAlpha);
+		FVector WorldShake = OriginalPose.Rotation.RotateVector(LocalShake);
+		ShakenPose.Location = OriginalPose.Location + WorldShake;
+
+		FRotator RotShake = FMath::Lerp(RotationKeyframes[KeyIndex1], RotationKeyframes[KeyIndex2], SmoothedAlpha);
+		ShakenPose.Rotation = OriginalPose.Rotation + RotShake;
+
+		ShakenPose.bManageTransform = true;
+
+		ShakenTrajectory.Add(ShakenPose);
+	}
+
+	return ShakenTrajectory;
+}
+
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateLeft(AActor* Target, float DegreesPerFrame, float TotalRotationDeg)
 {
 	TArray<FCameraPose> CoreTrajectory;
@@ -1565,14 +1637,20 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRen
 		NumFrames = ROTATE_NUM_FRAMES_OVERRIDE;
 	}
 
+	FVector SensorLocation = TargetSensor->GetSensorLocation();
+	FRotator SensorRotation = TargetSensor->GetSensorRotation();
 	for (int i = 0; i < NumFrames; i++)
 	{
 		FCameraPose Pose;
+		// Pose.Location = OriginalCameraLocation;
+		// Pose.Rotation = OriginalCameraRotation;
+		Pose.Location = SensorLocation;
+		Pose.Rotation = SensorRotation;
 		Pose.bManageTransform = false;
 		Trajectory.Add(Pose);
 	}
 
-	return Trajectory;
+	return AddHandheldShake(Trajectory);
 }
 
 

@@ -216,6 +216,7 @@ protected:
 	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, float DegreesPerFrame, int32 RandomSeed);
 	TArray<FCameraPose> CalculateRenderOnly(float Time);
 	TArray<FCameraPose> AddRotateBufferFrames(const TArray<FCameraPose>& CoreTrajectory);
+	TArray<FCameraPose> AddHandheldShake(const TArray<FCameraPose>& InputTrajectory);
 
 	// Audio recording
 	void StartAudioRecord();
