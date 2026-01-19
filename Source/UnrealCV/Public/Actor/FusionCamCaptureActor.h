@@ -146,6 +146,12 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Video Generation")
 	FString CondaEnvName;
 
+
+	static FVector GetTargetLocationWithRandomHeight(AActor* Target);
+
+	void TriggerVideoGeneration();
+	int32 GetCurrentTrajectoryIndex() const { return CurrentTrajectoryIndex; }
+
 protected:
 	// Recording state
 	float TimeDilationBackUp;
@@ -211,8 +217,6 @@ protected:
 	TArray<FCameraPose> CalculateRenderOnly(float Time);
 	TArray<FCameraPose> AddRotateBufferFrames(const TArray<FCameraPose>& CoreTrajectory);
 
-	FVector GetTargetLocationWithRandomHeight(AActor* Target) const;
-
 	// Audio recording
 	void StartAudioRecord();
 	void StopAudioRecord();
@@ -223,7 +227,6 @@ protected:
 	FString MakeFilenameNew(FString DataType, FString FileExtension);
 	FString MakeFilenameNewWithFolder(FString DataType, FString FileExtension);
 	void SaveCameraMetadata();
-	void TriggerVideoGeneration();
 
 private:
 	UPROPERTY()

@@ -9,6 +9,7 @@
 #include "Runtime/Engine/Public/TimerManager.h"
 #include "Runtime/Engine/Classes/Engine/Engine.h"
 #include "Materials/Material.h"
+#include "HAL/PlatformProcess.h"
 
 #include "FusionCamSensor.h"
 #include "LitCamSensor.h"
@@ -52,6 +53,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	ElapsedSteps = 0;
 	TargetToHide = nullptr;
 	NumFrames = 0;
+	RecordFPS = 0;
 
 	TimeDilation = 0.25f;
 	// TimeDilation = 0.1f;
@@ -126,15 +128,30 @@ void AFusionCamCaptureActor::StopRecord()
 				TargetSensor->SetSensorLocation(OriginalCameraLocation);
 				TargetSensor->SetSensorRotation(OriginalCameraRotation);
 			}
+
+			if (IsValid(TargetSensor->GetLitCamSensor()))
+			{
+				TargetSensor->GetLitCamSensor()->CleanCaptureCache();
+			}
+			if (IsValid(TargetSensor->GetDepthCamSensor()))
+			{
+				TargetSensor->GetDepthCamSensor()->CleanCaptureCache();
+			}
+			if (IsValid(TargetSensor->GetAnnotationCamSensor()))
+			{
+				TargetSensor->GetAnnotationCamSensor()->CleanCaptureCache();
+			}
+			if (IsValid(TargetSensor->GetNormalCamSensor()))
+			{
+				TargetSensor->GetNormalCamSensor()->CleanCaptureCache();
+			}
+			if (IsValid(TargetSensor->GetFlowCamSensor()))
+			{
+				TargetSensor->GetFlowCamSensor()->CleanCaptureCache();
+			}
 		}
 
-     	TargetSensor->GetLitCamSensor()->CleanCaptureCache();
-      	TargetSensor->GetDepthCamSensor()->CleanCaptureCache();
-      	TargetSensor->GetAnnotationCamSensor()->CleanCaptureCache();
-      	TargetSensor->GetNormalCamSensor()->CleanCaptureCache();
-      	TargetSensor->GetFlowCamSensor()->CleanCaptureCache();
-
-		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded. Real Duration: %.2fs, Real FPS: %.2f"),
+		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded. Real Duration: %.2fs, Real FPS: %.2f"),
 			ElapsedSteps, RealWorldTimeDurationSeconds, RealWorldTimeFPS);
 
 		if (bRecordAudio)
@@ -160,6 +177,11 @@ void AFusionCamCaptureActor::StopRecord()
 		// GetWorld()->GetWorldSettings()->SetTimeDilation(1.0f);
 
 		TriggerVideoGeneration();
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Stop recording but bIsRecording is false. CurrentTrajectoryIndex = %d, NumFrames = %d"), CurrentTrajectoryIndex, NumFrames);
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_Record);
 	}
 }
 
@@ -248,6 +270,8 @@ void AFusionCamCaptureActor::OnTimerRecord()
 				);
 			}
 
+			
+			// FlushRenderingCommands();
 			RecordFrame();
 
 
@@ -261,6 +285,15 @@ void AFusionCamCaptureActor::OnTimerRecord()
 				CurrentTrajectoryIndex++;
 			}
 		}
+
+		// if (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
+		//  	 FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
+		// {
+		// 	AsyncTask(ENamedThreads::GameThread, [this]()
+		// 	{
+		// 		OnTimerRecord();
+		// 	});
+		// }
 	}
 	else
 	{
@@ -807,7 +840,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		FJsonObjectBP(ForegroundLocation),
 		FJsonObjectBP(ForegroundRotation),
 		FJsonObjectBP(OccluderArray),
-		FJsonObjectBP(SceneHandle.OcclusionRatio),
+		FJsonObjectBP(0.0f),
 		FJsonObjectBP(Location),
 		FJsonObjectBP(Rotation),
 		FJsonObjectBP(CameraSettingsMap),
@@ -869,17 +902,17 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 	// TargetSensor->GetDepthCamSensor()->bIgnoreTransparentObjects = true;
 	TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);
 	
-	// Adjust camera to roughly aim at the target with ±15 degrees noise
-	FVector CameraToTarget = (UnifiedTargetLocation - TargetSensor->GetSensorLocation()).GetSafeNormal();
-	FRotator TargetRotation = CameraToTarget.Rotation();
+	// // Adjust camera to roughly aim at the target with ±15 degrees noise
+	// FVector CameraToTarget = (UnifiedTargetLocation - TargetSensor->GetSensorLocation()).GetSafeNormal();
+	// FRotator TargetRotation = CameraToTarget.Rotation();
 
-	// Add ±15 degrees noise to pitch, yaw, and roll
-	float NoisePitch = FMath::RandRange(-4.0f, 4.0f);
-	float NoiseYaw = FMath::RandRange(-1.0f, 1.0f);
-	float NoiseRoll = FMath::RandRange(-4.0f, 4.0f);
+	// // Add ±15 degrees noise to pitch, yaw, and roll
+	// float NoisePitch = FMath::RandRange(-4.0f, 4.0f);
+	// float NoiseYaw = FMath::RandRange(-1.0f, 1.0f);
+	// float NoiseRoll = FMath::RandRange(-4.0f, 4.0f);
 
-	FRotator NoisyRotation = TargetRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
-	TargetSensor->SetSensorRotation(NoisyRotation);
+	// FRotator NoisyRotation = TargetRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
+	// TargetSensor->SetSensorRotation(NoisyRotation);
 }
 
 void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS, float DegreesPerSecond, int32 RandomSeed, bool bPauseWorldTime)
@@ -901,12 +934,15 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 		StopRecord();
 	}
 	
-	if ((UnifiedTargetLocation - Target->GetActorLocation()).Length() > 1000)
-	{
-		UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
-		if (TrajectoryType != ECameraTrajectoryType::RenderOnly && TrajectoryType != ECameraTrajectoryType::RenderOnly5S)
-			UE_LOG(LogUnrealCV, Warning, TEXT("Warning, (UnifiedTargetLocation - Target->GetActorLocation()).Length() > 1000, likely not prepared, call PrepareTrajectoryRecord first"));
-	}
+	// if ((UnifiedTargetLocation - Target->GetActorLocation()).Length() > 1000)
+	// {
+	// 	UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
+	// 	if (TrajectoryType != ECameraTrajectoryType::RenderOnly && TrajectoryType != ECameraTrajectoryType::RenderOnly5S)
+	// 		UE_LOG(LogUnrealCV, Warning, TEXT("Warning, (UnifiedTargetLocation - Target->GetActorLocation()).Length() > 1000, likely not prepared, call PrepareTrajectoryRecord first"));
+	// }
+
+
+	PrepareTrajectoryRecord(Target, FPS);
 
 	float DegreesPerFrame = DegreesPerSecond / FPS;
 
@@ -1051,7 +1087,8 @@ void AFusionCamCaptureActor::SetDefaultParamsForTargetCamera()
     TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Basic);
     // TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Manual);
 	// TargetSensor->SetAutoExposureSpeed(0.5f, 0.5f); 
-	TargetSensor->SetAutoExposureSpeed(5.f, 8.f); 
+	// TargetSensor->SetAutoExposureSpeed(5.f, 8.f); 
+	TargetSensor->SetAutoExposureSpeed(20.f, 20.f); 
 	// TargetSensor->SetExposureBias(0.0f);
 	
 	TargetSensor->SetProjectionType(ECameraProjectionMode::Type::Perspective);
@@ -1178,7 +1215,7 @@ void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Traject
 
 // ========== Individual Trajectory Calculation Functions ==========
 
-FVector AFusionCamCaptureActor::GetTargetLocationWithRandomHeight(AActor* Target) const
+FVector AFusionCamCaptureActor::GetTargetLocationWithRandomHeight(AActor* Target)
 {
 	FVector TargetLocation = Target->GetActorLocation();
 	float RandomHeight = FMath::RandRange(155.0f, 175.0f);

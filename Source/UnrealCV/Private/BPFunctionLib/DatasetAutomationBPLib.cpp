@@ -17,7 +17,9 @@ FAutomationConfig UDatasetAutomationBPLib::CurrentConfig;
 FAutomationStatus UDatasetAutomationBPLib::CurrentStatus;
 FSceneHandle UDatasetAutomationBPLib::CurrentScene;
 UWorld* UDatasetAutomationBPLib::WorldContext = nullptr;
-AFusionCamCaptureActor * UDatasetAutomationBPLib::CaptureActor = nullptr;
+
+TArray<FString> UDatasetAutomationBPLib::ActiveCameraPool;
+// TMap<FString, bool> UDatasetAutomationBPLib::CameraRecordingState;
 
 TArray<FAutomationStep> UDatasetAutomationBPLib::CommandQueue;
 int32 UDatasetAutomationBPLib::CurrentCommandIndex = 0;
@@ -35,12 +37,13 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only_5s")));
+	// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only_5s")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 	// CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
-	CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
+	CommandQueue.Add(FAutomationStep(TEXT("special_wait"), TEXT(""), FMath::RandRange(50.f, 70.f)));
+	// CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_30")));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_30")));
@@ -51,8 +54,10 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
 	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
-	CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
+	// CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
+	CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	// CommandQueue.Add(FAutomationStep(TEXT("save_videos")));
 
 	// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 	// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
@@ -142,20 +147,21 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	else if (Step.Command == TEXT("prepare_record"))
 	{
 		int32 CameraID = CurrentConfig.SceneParams.CameraID;
-		CaptureActor = URecordingBPLib::PrepareRecording(CameraID);
-		if (!IsValid(CaptureActor))
+		UFusionCamSensor* Sensor = USensorBPLib::GetSensorById(CameraID);
+		if (!IsValid(Sensor))
 		{
-			UE_LOG(LogUnrealCV, Error, TEXT("prepare_record: Failed to prepare recording for camera %d"), CameraID);
+			UE_LOG(LogUnrealCV, Error, TEXT("prepare_record: Failed to get sensor for camera %d"), CameraID);
 			TransitionToState(EDatasetGenerationState::Error);
+			return;
 		}
-		else
-		{
-			AActor* Target = CurrentScene.ForegroundActor;
-			int32 FPS = CurrentConfig.TrajectoryFPS;
-			CaptureActor->SetSceneHandle(CurrentScene);
-			CaptureActor->PrepareTrajectoryRecord(Target, FPS);
-			ExecuteNextCommand();
-		}
+
+		FString PrimaryCameraID = USensorBPLib::GetSensorNewFormatID(Sensor);
+		ActiveCameraPool.Empty();
+		ActiveCameraPool.Add(PrimaryCameraID);
+
+
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Prepared_record, primary camera is : %s"), *PrimaryCameraID);
+		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("record_trajectory"))
 	{
@@ -169,9 +175,8 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 
 		if (RecordingStarted)
 		{
-			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Recording trajectory: %s -> %s"), *TrajectoryType, *OutputPath);
-			CurrentStatus.CurrentFileName = OutputPath;
-			TransitionToState(EDatasetGenerationState::WaitingAsync);
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Fired trajectory recording: %s -> %s"), *TrajectoryType, *OutputPath);
+			ExecuteNextCommand();
 		}
 		else
 		{
@@ -180,15 +185,33 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
 		}
 	}
+	else if (Step.Command == TEXT("special_wait"))
+	{
+		check(CurrentScene.CameraID >= 0);
+		auto* PriamaryCam = USensorBPLib::GetSensorById(CurrentScene.CameraID);
+		check(PriamaryCam);
+		auto* PriCaptureActor = URecordingBPLib::GetCaptureActor(USensorBPLib::GetSensorNewFormatID(PriamaryCam));
+		check(PriCaptureActor);
+		
+		float TriggerIndex = Step.FloatParam;
+		if (PriCaptureActor->GetCurrentTrajectoryIndex() >= static_cast<int32>(TriggerIndex))
+		{
+			ExecuteNextCommand();
+		}
+		// wait for next call
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Special wait for trajectory index: %f"), TriggerIndex);
+	}
 	else if (Step.Command == TEXT("set_pause"))
 	{
 		if (Step.StringParam == "true")
 		{
 			FUnrealcvServer::Get().GetWorld()->GetFirstPlayerController()->SetPause(true);
+			ExecuteNextCommand();
 		}
 		else if (Step.StringParam == "false")
 		{
 			FUnrealcvServer::Get().GetWorld()->GetFirstPlayerController()->SetPause(false);
+			ExecuteNextCommand();
 		}
 		else
 		{
@@ -282,8 +305,26 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		else
 		{
 			CurrentCommandIndex = 0;
+			BuildCommandSequenceForScene();
 			ExecuteNextCommand();
 		}
+	}
+	else if (Step.Command == TEXT("sync_all_cameras"))
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Synchronizing all cameras..."));
+		TransitionToState(EDatasetGenerationState::WaitingAsync);
+	}
+	else if (Step.Command == TEXT("save_videos"))
+	{
+		for (auto& CID : ActiveCameraPool)
+		{
+			AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(CID);
+			if (IsValid(CaptureActor))
+			{
+				CaptureActor->TriggerVideoGeneration();
+			}
+		}
+		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("annotate_world"))
 	{
@@ -322,6 +363,9 @@ bool UDatasetAutomationBPLib::StartBatchGeneration(
 	CurrentStatus.TotalScenes = Config.TotalScenes;
 	CurrentStatus.CurrentSceneIndex = 0;
 
+	ActiveCameraPool.Empty();
+	// CameraRecordingState.Empty();
+
 	BuildCommandSequenceForScene();
 	CurrentCommandIndex = 0;
 	CurrentSceneCounter = 0;
@@ -352,9 +396,9 @@ void UDatasetAutomationBPLib::StopBatchGeneration()
 		TickableObject->Deactivate();
 	}
 
-	if (CurrentStatus.State == EDatasetGenerationState::WaitingAsync)
+	for (const FString& CID : ActiveCameraPool)
 	{
-		URecordingBPLib::StopRecording(CurrentConfig.SceneParams.CameraID);
+		URecordingBPLib::StopRecording(CID);
 	}
 
 	TransitionToState(EDatasetGenerationState::Idle);
@@ -450,32 +494,37 @@ void UDatasetAutomationBPLib::TransitionToState(EDatasetGenerationState NewState
 void UDatasetAutomationBPLib::ProcessState(double RealDeltaTime)
 {
 	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: ProcessState: %s"), *GetAutomationStatusString());
-	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: CameraID %d"), CurrentConfig.SceneParams.CameraID);
 	switch (CurrentStatus.State)
 	{
 	case EDatasetGenerationState::ExecutingCommand:
+	{
+		// UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Executing no command (%.2fs real time)"), RealDeltaTime);
+		if (CurrentCommandIndex >= CommandQueue.Num())
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Command index out of bounds"));
+			return;
+		}
+		const FAutomationStep& Step = CommandQueue[CurrentCommandIndex];
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Executing command %d/%d: %s"),
+			CurrentCommandIndex + 1, CommandQueue.Num(), *Step.Command);
+		ExecuteCommand(Step);
 		break;
+	}
 
 	case EDatasetGenerationState::WaitingAsync:
 	{
-		bool RecordingComplete = !URecordingBPLib::IsRecording(CurrentConfig.SceneParams.CameraID);
 		double CurrentRealTime = FPlatformTime::Seconds();
 		double ElapsedRealTime = CurrentRealTime - DelayStartTime;
 		bool DelayComplete = (ElapsedRealTime >= DelayDuration);
+		bool AllCamerasIdle = AreAllCamerasIdle();
 
-		UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Waiting (%.2fs/%.2fs real time), RecordingComplete: %d"), ElapsedRealTime, DelayDuration, RecordingComplete);
+		UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Waiting (%.2fs/%.2fs real time), AllCamerasIdle: %d"), ElapsedRealTime, DelayDuration, AllCamerasIdle);
 
-		if (RecordingComplete && DelayComplete)
+		if (AllCamerasIdle && DelayComplete)
 		{
 			if (IsValid(CurrentScene.NavController) && CurrentScene.NavController->IsNavigating())
 			{
 				CurrentScene.NavController->StopNavigation();
-			}
-
-			AFusionCameraActor* CameraActor = GetFusionCameraActor(CurrentConfig.SceneParams.CameraID);
-			if (IsValid(CameraActor))
-			{
-				CameraActor->StopTracking();
 			}
 
 			ExecuteNextCommand();
@@ -508,39 +557,72 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	const FString& FileName,
 	const FString& TrajectoryType)
 {
-	int32 CameraID = CurrentConfig.SceneParams.CameraID;
 	AActor* Target = CurrentScene.ForegroundActor;
 	int32 FPS = CurrentConfig.TrajectoryFPS;
 	float DegreesPerSecond = CurrentConfig.TrajectoryDegreesPerSecond;
 	int32 RandomSeed = -1;
-	// Validate target
+
 	if (!IsValid(Target))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Target actor is null"));
 		return false;
 	}
 
+	int32 AllocatedCID = USensorBPLib::GetIndexByAnyID(GetIdleCamera());
+	auto* AllocatedCam = USensorBPLib::GetSensorById(AllocatedCID);
+	check(AllocatedCam);
+	check(AllocatedCID >= 0);
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::PrepareRecording(AllocatedCID);
 	if (!IsValid(CaptureActor))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: CaptureActor is null"));
+		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Failed to prepare recording for camera %d"), AllocatedCID);
 		return false;
 	}
 
-	// Parse trajectory type
+	// Crucial
+	CaptureActor->SetSceneHandle(CurrentScene);
+
+
+
+	int32 PrimaryCameraID = CurrentConfig.SceneParams.CameraID;
+	if (AllocatedCID != PrimaryCameraID)
+	{
+		auto* PrimaryCam = USensorBPLib::GetSensorById(PrimaryCameraID);
+		check(PrimaryCam);
+		AllocatedCam->SetSensorLocation(PrimaryCam->GetSensorLocation());
+		AllocatedCam->SetSensorRotation(PrimaryCam->GetSensorRotation());
+	}
+	else
+	{
+		// Adjust camera to roughly aim at the target with ±15 degrees noise
+		FVector CameraToTarget = (CaptureActor->GetTargetLocationWithRandomHeight(Target) - AllocatedCam->GetSensorLocation()).GetSafeNormal();
+		FRotator TargetRotation = CameraToTarget.Rotation();
+
+		// Add ±15 degrees noise to pitch, yaw, and roll
+		float NoisePitch = FMath::RandRange(-4.0f, 4.0f);
+		float NoiseYaw = FMath::RandRange(-1.0f, 1.0f);
+		float NoiseRoll = FMath::RandRange(-4.0f, 4.0f);
+
+		FRotator NoisyRotation = TargetRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
+		AllocatedCam->SetSensorRotation(NoisyRotation);
+	}
+
+
+
+
 	ECameraTrajectoryType TrajectoryEnum;
 	if (!URecordingBPLib::ParseTrajectoryType(TrajectoryType, TrajectoryEnum))
 	{
 		return false;
 	}
 
-	bool PauseWorldTime = false;
-
-	// Start trajectory recording
 	UE_LOG(LogUnrealCV, Log, TEXT("StartTrajectoryRecording: Camera %d, File: %s, Type: %s, FPS: %d, Deg/s: %.2f, Target: %s"),
-		CameraID, *FileName, *TrajectoryType, FPS, DegreesPerSecond, *Target->GetName());
-
-	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, FPS, DegreesPerSecond, RandomSeed, PauseWorldTime);
-
+		AllocatedCID, *FileName, *TrajectoryType, FPS, DegreesPerSecond, *Target->GetName());
+	check(Target);
+	check(FPS > 0);
+	check(DegreesPerSecond > 0);
+	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, FPS, DegreesPerSecond, RandomSeed, false);
 	return true;
 }
 
@@ -565,3 +647,66 @@ bool UDatasetAutomationBPLib::SetMap(UObject* WorldContextObject, const FString&
 
 	return true;
 }
+
+FString UDatasetAutomationBPLib::GetIdleCamera()
+{
+
+
+	if (!URecordingBPLib::IsRecording(CurrentScene.CameraID))
+	{
+		return USensorBPLib::GetSensorNewFormatID(USensorBPLib::GetSensorById(CurrentScene.CameraID));
+	}
+
+	// // check(ActiveCameraPool.Num() > 0);
+	// for (const FString& CID : ActiveCameraPool)
+	// {
+	// 	// bool* pIsRecording = CameraRecordingState.Find(CID);
+	// 	// if (pIsRecording && !(*pIsRecording))
+	// 	// {
+	// 	// 	return CID;
+	// 	// }
+	// 	bool IsRecording = URecordingBPLib::IsRecording(CID);
+	// 	if (!IsRecording)
+	// 	{
+	// 		return CID;
+	// 	}
+	// }
+
+	if (!WorldContext || !IsValid(CurrentScene.ForegroundActor))
+	{
+		return TEXT("");
+	}
+
+	int32 NewCameraID = URecordingBPLib::CreateFreeCamera(WorldContext);
+	if (NewCameraID < 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("GetIdleCameraFromPool: Failed to create new free camera"));
+		return TEXT("");
+	}
+
+	UFusionCamSensor* Sensor = USensorBPLib::GetSensorById(NewCameraID);
+	if (!IsValid(Sensor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("GetIdleCameraFromPool: Failed to get sensor for new camera %d"), NewCameraID);
+		return TEXT("");
+	}
+
+	FString NewCID = USensorBPLib::GetSensorNewFormatID(Sensor);
+	ActiveCameraPool.Add(NewCID);
+
+	UE_LOG(LogUnrealCV, Log, TEXT("GetIdleCameraFromPool: Created new camera %s (ID: %d)"), *NewCID, NewCameraID);
+	return NewCID;
+}
+
+bool UDatasetAutomationBPLib::AreAllCamerasIdle()
+{
+	for (const FString& CID : ActiveCameraPool)
+	{
+		if (URecordingBPLib::IsRecording(CID))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+

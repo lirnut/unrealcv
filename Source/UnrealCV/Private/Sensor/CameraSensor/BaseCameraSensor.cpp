@@ -251,6 +251,22 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 		return;
 	}
 
+	static int32 InFlight = 0;  // not thread safe
+	constexpr int32 MaxInFlight = 40;
+
+	if (InFlight >= MaxInFlight)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CaptureFastToFile in flight N = %d, MaxInFlight = %d"), InFlight, MaxInFlight);
+
+		// busy wait
+		double WaitStartTime = FPlatformTime::Seconds();
+		while (InFlight >= MaxInFlight && (FPlatformTime::Seconds() - WaitStartTime) < 0.5)
+		{
+			FPlatformProcess::Sleep(0.001f);
+		}
+	}
+	InFlight++;
+
 	CheckCaptureCache(ECaptureFormat::Invalid);
 
 	if (!bCaptureLaunched)
@@ -269,32 +285,35 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 	int32 Width = TextureTarget->SizeX;
 	int32 Height = TextureTarget->SizeY;
 
-	FQueuedCapture Capture;
-	Capture.Readback = MakeShared<FRHIGPUTextureReadback>(
+	// FQueuedCapture Capture;
+	TSharedPtr<FQueuedCapture> Capture = MakeShared<FQueuedCapture>();
+	Capture->Readback = MakeShared<FRHIGPUTextureReadback>(
 		// random name
 		*FString::Printf(TEXT("Capture_%d"), FMath::Rand())
 	);
-	Capture.OutputPath = TEXT("");
-	Capture.Width = Width;
-	Capture.Height = Height;
-	Capture.PixelFormat = PixelFormat;
+	Capture->OutputPath = Filename;
+	Capture->Width = Width;
+	Capture->Height = Height;
+	Capture->PixelFormat = PixelFormat;
 
 	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
-		[RenderTargetResource, Capture = MoveTemp(Capture), Filename](FRHICommandListImmediate& RHICmdList)
+		[RenderTargetResource, Capture, Filename](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::SRVMask, ERHIAccess::CopySrc));
-			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
+			Capture->Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
 			// RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::CopySrc, ERHIAccess::SRVMask));
+			// Capture->Readback->Wait(RHICmdList, FRHIGPUMask::GPU0());
 
 			int32 RowPitchInPixels;
-			const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-			void* RawDataCopy = FMemory::Malloc(  RowPitchInPixels * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
-			FMemory::Memcpy(RawDataCopy, RawData, RowPitchInPixels * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
-			Capture.Readback->Unlock();
+			const void* RawData = Capture->Readback->Lock(RowPitchInPixels);
+			void* RawDataCopy = FMemory::Malloc(  RowPitchInPixels * Capture->Height * GPixelFormats[Capture->PixelFormat].BlockBytes);
+			FMemory::Memcpy(RawDataCopy, RawData, RowPitchInPixels * Capture->Height * GPixelFormats[Capture->PixelFormat].BlockBytes);
+			Capture->Readback->Unlock();
+			InFlight--;
 
 			AsyncTask(ENamedThreads::AnyThread,
-				[RawDataCopy, OutputPath = Filename, Width = Capture.Width, Height = Capture.Height, PixelFormat = Capture.PixelFormat, RowPitchInPixels = RowPitchInPixels]()
+				[RawDataCopy, OutputPath = Capture->OutputPath, Width = Capture->Width, Height = Capture->Height, PixelFormat = Capture->PixelFormat, RowPitchInPixels = RowPitchInPixels]()
 				{
 
 					TArray<FColor> PixelData;

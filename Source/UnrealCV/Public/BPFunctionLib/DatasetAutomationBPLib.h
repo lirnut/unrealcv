@@ -117,7 +117,10 @@ private:
 	static FAutomationStatus CurrentStatus;
 	static FSceneHandle CurrentScene;
 	static UWorld* WorldContext;
-	static AFusionCamCaptureActor* CaptureActor;
+
+	// static FString PrimaryCameraID;
+	static TArray<FString> ActiveCameraPool;
+	// static TMap<FString, bool> CameraRecordingState;
 
 	static TArray<FAutomationStep> CommandQueue;
 	static int32 CurrentCommandIndex;
@@ -138,6 +141,9 @@ private:
 	static FString GenerateSceneID(int32 SceneIndex);
 	static FString GenerateOutputPath(const FString& SceneID, const FString& TrajectoryType);
 	static class AFusionCameraActor* GetFusionCameraActor(int32 CameraID);
+
+	static FString GetIdleCamera();
+	static bool AreAllCamerasIdle();
 	static bool StartTrajectoryRecording(const FString& FileName, const FString& TrajectoryType);
 };
 

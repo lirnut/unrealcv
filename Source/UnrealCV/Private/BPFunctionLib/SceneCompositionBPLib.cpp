@@ -812,8 +812,6 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 
 	OutSceneHandle.DirectionalLight = nullptr;
 
-	OutSceneHandle.OcclusionRatio = 0.0f;
-
 	ActiveScenes.Add(OutSceneHandle);
 
 	// UAnnotationBPLib::AnnotateWorld();

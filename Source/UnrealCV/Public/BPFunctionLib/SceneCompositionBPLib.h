@@ -128,10 +128,6 @@ struct FSceneHandle
 	UPROPERTY(BlueprintReadOnly, Category = "UnrealCV|SceneComposition")
 	FString ForegroundCategory;
 
-	/** Calculated occlusion ratio (0.0 - 1.0) */
-	UPROPERTY(BlueprintReadOnly, Category = "UnrealCV|SceneComposition")
-	float OcclusionRatio;
-
 	/** Navigation controller for Blueprint actors */
 	UPROPERTY(BlueprintReadOnly, Category = "UnrealCV|SceneComposition")
 	class ANavAgentController* NavController;
@@ -170,7 +166,6 @@ struct FSceneHandle
 		, DirectionalLight(nullptr)
 		, CameraID(0)
 		, ForegroundCategory(TEXT(""))
-		, OcclusionRatio(0.0f)
 		, NavController(nullptr)
 		, bHasNavigation(false)
 
@@ -182,6 +177,20 @@ struct FSceneHandle
 		// , AnnotationColor(FColor::White)
 		// , AllAnnotationColors({})
 	{
+	}
+
+	void DebugPrint() const
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneHandle: SceneID: %s"), *SceneID);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneHandle: ForegroundActor: %p"), ForegroundActor);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneHandle: DirectionalLight: %p"), DirectionalLight);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneHandle: CameraID: %d"), CameraID);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneHandle: ForegroundCategory: %s"), *ForegroundCategory);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneHandle: NavController: %p"), NavController);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneHandle: bHasNavigation: %s"), bHasNavigation ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneHandle: SceneCategory: %s"), *SceneCategory);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneHandle: ForegroundSubcategory: %s"), *ForegroundSubcategory);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneHandle: OccluderCategory: %s"), *OccluderCategory);
 	}
 };
 

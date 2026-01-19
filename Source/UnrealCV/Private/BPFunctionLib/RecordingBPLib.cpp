@@ -75,6 +75,18 @@ AFusionCamCaptureActor* URecordingBPLib::PrepareRecording(int32 CameraID)
 	return CaptureActor;
 }
 
+AFusionCamCaptureActor* URecordingBPLib::GetCaptureActor(FString CID)
+{
+	// Check if this camera is already recording
+	AFusionCamCaptureActor* ExistingActor = nullptr;
+	if (GlobalCameraRecordingActors.Contains(CID))
+	{
+		ExistingActor = GlobalCameraRecordingActors[CID];
+		check(IsValid(ExistingActor));
+	}
+	return ExistingActor;
+}
+
 bool URecordingBPLib::StopRecording(int32 CameraID)
 {
 	// Get the camera sensor
