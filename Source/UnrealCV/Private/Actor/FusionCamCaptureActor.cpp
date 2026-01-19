@@ -1288,7 +1288,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddHandheldS
 
 	for (int32 k = 0; k < NumKeyframes; k++)
 	{
-		if (FMath::RandRange(0, 100) < 80)
+		if (FMath::RandRange(0, 100) < 50)
 		{
 			LocationKeyframes.Add(FVector::ZeroVector);
 			RotationKeyframes.Add(FRotator::ZeroRotator);
