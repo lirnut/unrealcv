@@ -58,6 +58,14 @@ void FUnrealCVEditorModule::RegisterMenus()
 				);
 
 				CacheSection.AddMenuEntry(
+					"DeannotateWorld",
+					LOCTEXT("DeannotateWorldLabel", "DeannotateWorld"),
+					LOCTEXT("DeannotateWorldTooltip", "DeannotateWorld"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateStatic(&FUnrealCVEditorModule::OnDeannotateWorld))
+				);
+
+				CacheSection.AddMenuEntry(
 					"SearchAndSaveCache",
 					LOCTEXT("SearchAndSaveCacheLabel", "Search & Save Cache"),
 					LOCTEXT("SearchAndSaveCacheTooltip", "Search for all MetaHumans and save to cache file"),
@@ -98,6 +106,11 @@ void FUnrealCVEditorModule::RegisterMenus()
 void FUnrealCVEditorModule::OnAnnotateWorld()
 {
 	UAnnotationBPLib::AnnotateWorld();
+}
+
+void FUnrealCVEditorModule::OnDeannotateWorld()
+{
+	UAnnotationBPLib::DeannotateWorld();
 }
 
 void FUnrealCVEditorModule::OnSearchAndSaveCache()

@@ -1274,41 +1274,41 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddHandheldS
 		return InputTrajectory;
 	}
 
-	const int32 SHAKE_KEYFRAME_INTERVAL = 8;
+	const int32 MIN_INTERVAL = 4;
+	const int32 MAX_INTERVAL = 40;
 	const float SHAKE_LOCATION_MAGNITUDE_CM = 0.8f;
 	const float SHAKE_ROTATION_MAGNITUDE_DEG = 0.5f;
 
 	int32 NumFramesInput = InputTrajectory.Num();
-	int32 NumKeyframes = FMath::CeilToInt(float(NumFramesInput) / SHAKE_KEYFRAME_INTERVAL) + 1;
 
+	TArray<int32> KeyframeIndices;
 	TArray<FVector> LocationKeyframes;
 	TArray<FRotator> RotationKeyframes;
-	LocationKeyframes.Reserve(NumKeyframes);
-	RotationKeyframes.Reserve(NumKeyframes);
 
-	for (int32 k = 0; k < NumKeyframes; k++)
+	KeyframeIndices.Add(0);
+	LocationKeyframes.Add(FVector::ZeroVector);
+	RotationKeyframes.Add(FRotator::ZeroRotator);
+
+	int32 CurrentFrame = 0;
+	while (CurrentFrame < NumFramesInput - 1)
 	{
-		if (FMath::RandRange(0, 100) < 50)
-		{
-			LocationKeyframes.Add(FVector::ZeroVector);
-			RotationKeyframes.Add(FRotator::ZeroRotator);
-		}
-		else
-		{
-			FVector LocOffset(
-				FMath::FRandRange(-SHAKE_LOCATION_MAGNITUDE_CM, SHAKE_LOCATION_MAGNITUDE_CM),
-				FMath::FRandRange(-SHAKE_LOCATION_MAGNITUDE_CM, SHAKE_LOCATION_MAGNITUDE_CM),
-				FMath::FRandRange(-SHAKE_LOCATION_MAGNITUDE_CM * 0.5f, SHAKE_LOCATION_MAGNITUDE_CM * 0.5f)
-			);
-			LocationKeyframes.Add(LocOffset);
+		int32 Interval = FMath::RandRange(MIN_INTERVAL, MAX_INTERVAL);
+		CurrentFrame = FMath::Min(CurrentFrame + Interval, NumFramesInput - 1);
+		KeyframeIndices.Add(CurrentFrame);
 
-			FRotator RotOffset(
-				FMath::FRandRange(-SHAKE_ROTATION_MAGNITUDE_DEG, SHAKE_ROTATION_MAGNITUDE_DEG),
-				FMath::FRandRange(-SHAKE_ROTATION_MAGNITUDE_DEG, SHAKE_ROTATION_MAGNITUDE_DEG),
-				FMath::FRandRange(-SHAKE_ROTATION_MAGNITUDE_DEG * 0.6f, SHAKE_ROTATION_MAGNITUDE_DEG * 0.6f)
-			);
-			RotationKeyframes.Add(RotOffset);
-		}
+		FVector LocOffset(
+			FMath::FRandRange(-SHAKE_LOCATION_MAGNITUDE_CM, SHAKE_LOCATION_MAGNITUDE_CM),
+			FMath::FRandRange(-SHAKE_LOCATION_MAGNITUDE_CM, SHAKE_LOCATION_MAGNITUDE_CM),
+			FMath::FRandRange(-SHAKE_LOCATION_MAGNITUDE_CM * 0.5f, SHAKE_LOCATION_MAGNITUDE_CM * 0.5f)
+		);
+		LocationKeyframes.Add(LocOffset);
+
+		FRotator RotOffset(
+			FMath::FRandRange(-SHAKE_ROTATION_MAGNITUDE_DEG, SHAKE_ROTATION_MAGNITUDE_DEG),
+			FMath::FRandRange(-SHAKE_ROTATION_MAGNITUDE_DEG, SHAKE_ROTATION_MAGNITUDE_DEG),
+			FMath::FRandRange(-SHAKE_ROTATION_MAGNITUDE_DEG * 0.6f, SHAKE_ROTATION_MAGNITUDE_DEG * 0.6f)
+		);
+		RotationKeyframes.Add(RotOffset);
 	}
 
 	TArray<FCameraPose> ShakenTrajectory;
@@ -1319,9 +1319,25 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddHandheldS
 		const FCameraPose& OriginalPose = InputTrajectory[i];
 		FCameraPose ShakenPose = OriginalPose;
 
-		int32 KeyIndex1 = i / SHAKE_KEYFRAME_INTERVAL;
-		int32 KeyIndex2 = FMath::Min(KeyIndex1 + 1, NumKeyframes - 1);
-		float Alpha = (i % SHAKE_KEYFRAME_INTERVAL) / float(SHAKE_KEYFRAME_INTERVAL);
+		int32 KeyIndex1 = 0;
+		for (int32 k = 0; k < KeyframeIndices.Num() - 1; k++)
+		{
+			if (i >= KeyframeIndices[k] && i <= KeyframeIndices[k + 1])
+			{
+				KeyIndex1 = k;
+				break;
+			}
+		}
+
+		int32 KeyIndex2 = FMath::Min(KeyIndex1 + 1, KeyframeIndices.Num() - 1);
+		int32 Frame1 = KeyframeIndices[KeyIndex1];
+		int32 Frame2 = KeyframeIndices[KeyIndex2];
+
+		float Alpha = 0.0f;
+		if (Frame2 > Frame1)
+		{
+			Alpha = float(i - Frame1) / float(Frame2 - Frame1);
+		}
 		float SmoothedAlpha = Alpha * Alpha * (3.0f - 2.0f * Alpha);
 
 		FVector LocalShake = FMath::Lerp(LocationKeyframes[KeyIndex1], LocationKeyframes[KeyIndex2], SmoothedAlpha);

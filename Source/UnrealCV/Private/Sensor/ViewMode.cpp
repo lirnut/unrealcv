@@ -113,10 +113,10 @@ void FViewMode::VertexColor(FEngineShowFlags& ShowFlags)
 
 	// From MeshPaintEdMode.cpp:2942
 	ShowFlags.SetMaterials(false);
-	// ShowFlags.SetLighting(false);
+	ShowFlags.SetLighting(false);
 	// ShowFlags.SetBSPTriangles(true);
 	ShowFlags.SetVertexColors(true);
-	// ShowFlags.SetPostProcessing(false);
+	ShowFlags.SetPostProcessing(false);
 	// ShowFlags.SetHMDDistortion(false);
 	// ShowFlags.SetTonemapper(false); // This won't take effect here
 

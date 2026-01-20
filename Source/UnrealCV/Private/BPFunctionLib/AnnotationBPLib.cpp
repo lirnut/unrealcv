@@ -57,6 +57,32 @@ void UAnnotationBPLib::AnnotateWorld()
 	UE_LOG(LogUnrealCV, Log, TEXT("AnnotateWorld: World annotation completed"));
 }
 
+void UAnnotationBPLib::DeannotateWorld()
+{
+	TWeakObjectPtr<AUnrealcvWorldController> WorldController = FUnrealcvServer::Get().WorldController;
+
+	if (!WorldController.IsValid() || !IsValid(FUnrealcvServer::Get().GetWorld()))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("DeannotateWorld: WorldController is not available"));
+		if (!GEditor)
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DeannotateWorld: !GEditor"));
+			return;
+		}
+
+		const FWorldContext& WorldContext = GEditor->GetEditorWorldContext();
+		FObjectAnnotator::DeannotateWorld(WorldContext.World());
+	}
+	else
+	{
+		FObjectAnnotator::DeannotateWorld(FUnrealcvServer::Get().GetWorld());
+	}
+
+	ClearAnnotationCache();
+
+	UE_LOG(LogUnrealCV, Log, TEXT("DeannotateWorld: World deannotation completed"));
+}
+
 void UAnnotationBPLib::GetAnnotationComponents(UWorld* World, TArray<TWeakObjectPtr<UPrimitiveComponent>>& OutComponentList)
 {
 	if (!IsValid(World))

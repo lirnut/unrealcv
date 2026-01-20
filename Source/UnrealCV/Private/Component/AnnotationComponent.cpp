@@ -139,6 +139,13 @@ public:
 		// This is required, otherwise the code will fail
 
 		bCastShadow = false;
+
+		// bAffectDynamicIndirectLighting = false;
+		// bAffectIndirectLightingWhileHidden = false;
+		// bAffectDistanceFieldLighting = false;
+
+		// // // bVisibleInRayTracing = false;
+		// bVisibleInLumenScene = false;
 	}
 
 	virtual void GetDynamicMeshElements(
@@ -163,17 +170,23 @@ public:
 
 FPrimitiveViewRelevance FStaticAnnotationSceneProxy::GetViewRelevance(const FSceneView * View) const
 {
-	if (View->Family->EngineShowFlags.Materials)
+	if ( !View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing )
 	{
-		FPrimitiveViewRelevance ViewRelevance;
-		ViewRelevance.bDrawRelevance = 0; 
-		// This will make the AnnotationComponent gets ignored if the Materials flag is on
-		// Which means it won't affect regulary rendering.
-		return ViewRelevance;
+		return FStaticMeshSceneProxy::GetViewRelevance(View);
 	}
 	else
 	{
-		return FStaticMeshSceneProxy::GetViewRelevance(View);
+		FPrimitiveViewRelevance ViewRelevance;
+		ViewRelevance.bDrawRelevance = 0;
+		// This will make the AnnotationComponent gets ignored if the Materials flag is on
+		// Which means it won't affect regulary rendering.
+		// ViewRelevance.bDynamicRelevance = 0;
+		// ViewRelevance.bStaticRelevance = 0;
+		// ViewRelevance.bShadowRelevance = 0;
+		// ViewRelevance.bRenderInMainPass = 0;
+		// ViewRelevance.bRenderInDepthPass = 0;
+		// ViewRelevance.bVelocityRelevance = 0;
+		return ViewRelevance;
 	}
 }
 
@@ -212,6 +225,14 @@ public:
 		this->bVerifyUsedMaterials = false;
 		// this->bCastShadow = false;
 		this->bCastDynamicShadow = false;
+
+		// bAffectDynamicIndirectLighting = false;
+		// bAffectIndirectLightingWhileHidden = false;
+		// bAffectDistanceFieldLighting = false;
+
+		// // bVisibleInRayTracing = false;
+		// bVisibleInLumenScene = false;
+
 		for(int32 LODIdx=0; LODIdx < LODSections.Num(); LODIdx++)
 		{
 			FLODSectionElements& LODSection = LODSections[LODIdx];
@@ -249,15 +270,23 @@ void FSkeletalAnnotationSceneProxy::GetDynamicMeshElements(
 
 FPrimitiveViewRelevance FSkeletalAnnotationSceneProxy::GetViewRelevance(const FSceneView * View) const
 {
-	if (View->Family->EngineShowFlags.Materials)
+	if ( !View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing )
 	{
-		FPrimitiveViewRelevance ViewRelevance;
-		ViewRelevance.bDrawRelevance = 0; // This will make it gets ignored, when materials flag is enabled.
-		return ViewRelevance;
+		return FSkeletalMeshSceneProxy::GetViewRelevance(View);
 	}
 	else
 	{
-		return FSkeletalMeshSceneProxy::GetViewRelevance(View);
+		FPrimitiveViewRelevance ViewRelevance;
+		ViewRelevance.bDrawRelevance = 0;
+		// This will make the AnnotationComponent gets ignored if the Materials flag is on
+		// Which means it won't affect regulary rendering.
+		// ViewRelevance.bDynamicRelevance = 0;
+		// ViewRelevance.bStaticRelevance = 0;
+		// ViewRelevance.bShadowRelevance = 0;
+		// ViewRelevance.bRenderInMainPass = 0;
+		// ViewRelevance.bRenderInDepthPass = 0;
+		// ViewRelevance.bVelocityRelevance = 0;
+		return ViewRelevance;
 	}
 }
 
@@ -265,7 +294,6 @@ FPrimitiveViewRelevance FSkeletalAnnotationSceneProxy::GetViewRelevance(const FS
 // static ConstructorHelpers::FObjectFinder<UMaterialInstanceDynamic> AnnotationMaterialObject(*MaterialPath);
 UAnnotationComponent::UAnnotationComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	  // , ParentMeshInfo(nullptr)
 {
 	bSkeletalMesh = false;
 	FString MaterialPath = TEXT("Material'/UnrealCV/AnnotationColor.AnnotationColor'");
@@ -281,6 +309,15 @@ UAnnotationComponent::UAnnotationComponent(const FObjectInitializer& ObjectIniti
 	// ParentMeshInfo = MakeShareable(new FParentMeshInfo(nullptr));
 	// This will be invalid until attached to a MeshComponent
 	this->PrimaryComponentTick.bCanEverTick = true;
+
+	// SetCastShadow(false);
+	// SetAffectDynamicIndirectLighting(false);
+	// SetAffectIndirectLightingWhileHidden(false);
+	// SetAffectDistanceFieldLighting(false);
+	// SetVisibleInSceneCaptureOnly(false);
+	// bVisibleInReflectionCaptures = false;
+	// bVisibleInRealTimeSkyCaptures = false;
+	// bVisibleInRayTracing = false;
 }
 
 void UAnnotationComponent::OnRegister()

@@ -69,6 +69,51 @@ void FObjectAnnotator::AnnotateWorld(UWorld* World)
 		ActorArray.Num(), AnnotationColors.Num());
 }
 
+void FObjectAnnotator::DeannotateWorld(UWorld* World)
+{
+	if (!IsValid(World))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Can not deannotate world, the world is not valid"));
+		return;
+	}
+
+	int32 DestroyedCount = 0;
+	int32 ComponentCount = 0;
+
+	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		AActor* Actor = *ActorItr;
+		if (!IsValid(Actor))
+		{
+			continue;
+		}
+
+		TArray<UActorComponent*> AnnotationComponents = Actor->K2_GetComponentsByClass(UAnnotationComponent::StaticClass());
+		ComponentCount += AnnotationComponents.Num();
+
+		for (UActorComponent* Component : AnnotationComponents)
+		{
+			if (IsValid(Component))
+			{
+				// cast to UAnnotationComponent* to destroy the component
+				UAnnotationComponent* AnnotationComponent = Cast<UAnnotationComponent>(Component);
+				if (AnnotationComponent)
+				{
+					AnnotationComponent->DestroyComponent();
+					++DestroyedCount;
+				}
+			}
+		}
+	}
+
+	AnnotationColors.Empty();
+
+	FlushRenderingCommands();
+
+	UE_LOG(LogUnrealCV, Log, TEXT("Deannotate world completed (%d components destroyed out of %d found, annotation colors cleared)"),
+		DestroyedCount, ComponentCount);
+}
+
 
 int32 FObjectAnnotator::SetAnnotationColor(AActor* Actor, const FColor& AnnotationColor)
 {

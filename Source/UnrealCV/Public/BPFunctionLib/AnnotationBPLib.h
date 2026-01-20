@@ -17,6 +17,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "unrealcv|Annotation")
 	static void AnnotateWorld();
 
+	UFUNCTION(BlueprintCallable, Category = "unrealcv|Annotation")
+	static void DeannotateWorld();
+
 	static void GetAnnotationComponents(
 		UWorld* World,
 		TArray<TWeakObjectPtr<UPrimitiveComponent>>& OutComponentList);

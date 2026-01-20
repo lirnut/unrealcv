@@ -29,6 +29,9 @@ public:
 	// Annotate all StaticMesh actor in the world
 	static void AnnotateWorld(UWorld* World);
 
+	// Remove all AnnotationComponents from the world
+	static void DeannotateWorld(UWorld* World);
+
 	/** Annotate all MeshComponents in the world */
 	// void AnnotateMeshComponents(UWorld* World);
 
