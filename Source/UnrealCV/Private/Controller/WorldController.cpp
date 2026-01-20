@@ -114,11 +114,11 @@ void AUnrealcvWorldController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UE_LOG(LogTemp, Display, TEXT("AUnrealcvWorldController::EndPlay"));
 
-	UWorld* World = GetWorld();
-	if (IsValid(World))
-	{
-		FObjectAnnotator::DeannotateWorld(World);
-	}
+	// UWorld* World = GetWorld();
+	// if (IsValid(World))
+	// {
+	// 	FObjectAnnotator::DeannotateWorld(World);
+	// }
 
 	Super::EndPlay(EndPlayReason);
 }

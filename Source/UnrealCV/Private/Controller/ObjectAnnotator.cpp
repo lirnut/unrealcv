@@ -45,8 +45,8 @@ void FObjectAnnotator::AnnotateWorld(UWorld* World)
 			continue;
 		}
 
-		TArray<UActorComponent*> AnnotationComponents = Actor->K2_GetComponentsByClass(UAnnotationComponent::StaticClass());
-		if (AnnotationComponents.Num() == 0)
+		// TArray<UActorComponent*> AnnotationComponents = Actor->K2_GetComponentsByClass(UAnnotationComponent::StaticClass());
+		// if (AnnotationComponents.Num() == 0)
 		{
 			FColor AnnotationColor = GetDefaultColor(Actor);
 			// Use VertexColor as annotation
@@ -99,8 +99,15 @@ void FObjectAnnotator::DeannotateWorld(UWorld* World)
 				UAnnotationComponent* AnnotationComponent = Cast<UAnnotationComponent>(Component);
 				if (AnnotationComponent)
 				{
+					// AnnotationComponent->SetVisibility(false);
+					// AnnotationComponent->MarkRenderStateDirty();
+					// FlushRenderingCommands();
 					AnnotationComponent->DestroyComponent();
 					++DestroyedCount;
+				}
+				else
+				{
+					UE_LOG(LogUnrealCV, Warning, TEXT("DeannotateWorld: Can not cast to UAnnotationComponent*"));
 				}
 			}
 		}
