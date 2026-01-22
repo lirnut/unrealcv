@@ -4,6 +4,7 @@
 #include "Runtime/Engine/Classes/Components/StaticMeshComponent.h"
 #include "Runtime/Engine/Classes/Engine/CollisionProfile.h"
 #include "Runtime/Engine/Classes/Engine/StaticMesh.h"
+#include "EngineUtils.h"
 #include "TextureReader.h"
 #include "UnrealcvServer.h"
 #include "UnrealcvStats.h"
@@ -13,6 +14,7 @@
 #include "RenderingThread.h"
 #include "RHISurfaceDataConversionOpt.h"
 #include "SetAlpha.h"
+#include "BPFunctionLib/AnnotationBPLib.h"
 #include "SL.h"
 
 DECLARE_CYCLE_STAT(TEXT("ReadBuffer"), STAT_ReadBuffer, STATGROUP_UnrealCV);
@@ -30,6 +32,8 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	bCaptureEveryFrame = false;
 	bCaptureOnMovement = false;
 	PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
+	HiddenComponents.Reset();
+	UAnnotationBPLib::GetAnnotationComponents(this->GetWorld(), HiddenComponents);
 	CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 	bUseRayTracingIfEnabled = true;
 	bAlwaysPersistRenderingState = true;
@@ -40,6 +44,7 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
 
 	bUseFastCapture = Config.UseFastCapture;
+	bAsyncCaptureNextFrame = true;
 	// bUseFastCapture = true;
 	// bool bSetLinearToGamma = false;
 	// QueuedCaptures.Empty();
@@ -351,7 +356,10 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 		}
 	);
 
-	LaunchCapture();
+	if (bAsyncCaptureNextFrame)
+	{
+		LaunchCapture();
+	}
 }
 
 // void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
@@ -428,10 +436,13 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 	bCaptureCacheValid = false;
 	CaptureCache = {};
 
-	double LaunchStartTime = FPlatformTime::Seconds();
-	LaunchCapture();
-	CopyBackCapture(ECaptureFormat::UInt8);
-	SL::get().printf("CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
+	if (bAsyncCaptureNextFrame)
+	{
+		double LaunchStartTime = FPlatformTime::Seconds();
+		LaunchCapture();
+		CopyBackCapture(ECaptureFormat::UInt8);
+		SL::get().printf("CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
+	}
 }
 
 void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width, int& Height)
@@ -490,10 +501,13 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 	bCaptureCacheValid = false;
 	CaptureCacheFloat16 = {};
 
-	double LaunchStartTime = FPlatformTime::Seconds();
-	LaunchCapture();
-	CopyBackCapture(ECaptureFormat::F16);
-	SL::get().printf("CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
+	if (bAsyncCaptureNextFrame)
+	{
+		double LaunchStartTime = FPlatformTime::Seconds();
+		LaunchCapture();
+		CopyBackCapture(ECaptureFormat::F16);
+		SL::get().printf("CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
+	}
 }
 
 
@@ -543,13 +557,75 @@ void UBaseCameraSensor::SetShowOnlyList(const TArray<TWeakObjectPtr<UPrimitiveCo
 	if (PrimitiveRenderMode != ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("SetShowOnlyList: PrimitiveRenderMode not PRM_UseShowOnlyList, but setting ShowOnlyList !!!"));
-		UE_LOG(LogUnrealCV, Warning, TEXT("SetShowOnlyList: PrimitiveRenderMode set to PRM_UseShowOnlyList"));
-		PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+		// UE_LOG(LogUnrealCV, Warning, TEXT("SetShowOnlyList: PrimitiveRenderMode set to PRM_UseShowOnlyList"));
+		// PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 	}
 
 	ShowOnlyComponents.Reset();
 	ShowOnlyComponents = InShowOnlyComponents;
 }
+
+// void UBaseCameraSensor::HideOneActor(AActor* Actor)
+// {
+// 	if (!IsValid(Actor))
+// 	{
+// 		UE_LOG(LogUnrealCV, Warning, TEXT("HideOneActor: Invalid actor"));
+// 		return;
+// 	}
+
+// 	if ( PrimitiveRenderMode != ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives )
+// 	{
+// 		UE_LOG(LogUnrealCV, Warning, TEXT("HideOneActor: PrimitiveRenderMode not PRM_RenderScenePrimitives, but setting ShowOnlyList"));
+// 		PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
+// 	}
+// 	HiddenActors.Reset();
+// 	HiddenActors.AddUnique(Actor);
+// }
+
+void UBaseCameraSensor::HideActor(AActor* Actor)
+{
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("HideOneActor: Invalid actor"));
+		return;
+	}
+
+	if ( PrimitiveRenderMode != ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives )
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("HideOneActor: PrimitiveRenderMode not PRM_RenderScenePrimitives, but setting ShowOnlyList"));
+	}
+	if (!HiddenActors.Contains(Actor))
+	{
+		HiddenActors.AddUnique(Actor);
+	}
+}
+
+void UBaseCameraSensor::ShowActor(AActor* Actor)
+{
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("HideOneActor: Invalid actor"));
+		return;
+	}
+
+	if ( PrimitiveRenderMode != ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives )
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("HideOneActor: PrimitiveRenderMode not PRM_RenderScenePrimitives, but setting ShowOnlyList"));
+	}
+	if (HiddenActors.Contains(Actor))
+	{
+		HiddenActors.Remove(Actor);
+	}
+	// while (HiddenActors.Contains(Actor))
+	// {
+	// 	HiddenActors.Remove(Actor);
+	// }
+}
+
+// void UBaseCameraSensor::ShowAllActors()
+// {
+// 	HiddenActors.Reset();
+// }
 
 void UBaseCameraSensor::LaunchCapture()
 {

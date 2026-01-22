@@ -15,9 +15,11 @@
 #include "Commands/CameraHandler.h"
 #include "Commands/CaptureActorHandler.h"
 #include "Commands/AgentNavHandler.h"
+#include "Commands/DatasetAutomationHandler.h"
 #include "WorldController.h"
 #include "UnrealcvLog.h"
 #include "UnrealcvStats.h"
+#include "AutomationBPLib.h"
 
 DECLARE_CYCLE_STAT(TEXT("FUnrealcvServer::Tick"), STAT_Tick, STATGROUP_UnrealCV);
 DECLARE_CYCLE_STAT(TEXT("FUnrealcvServer::ProcessRequest"), STAT_ProcessRequest, STATGROUP_UnrealCV);
@@ -45,6 +47,7 @@ void FUnrealcvServer::InitWorldController()
 			WorldController.Reset();
 			UE_LOG(LogUnrealCV, Warning, TEXT("GameWorld is not valid, destroyed old WorldController"));
 		}
+		if (UAutomationBPLib::IsTickingActive()) UAutomationBPLib::StopTicking();
 		return;
 	}
 
@@ -69,6 +72,7 @@ void FUnrealcvServer::InitWorldController()
 	if (this->WorldController != nullptr)
 	{
 		this->WorldController->InitWorld();
+		UAutomationBPLib::StartTicking();
 	}
 	else
 	{
@@ -111,6 +115,7 @@ void FUnrealcvServer::RegisterCommandHandlers()
 	CommandHandlers.Add(new FCameraHandler());
 	CommandHandlers.Add(new FCaptureActorHandler());
 	CommandHandlers.Add(new FAgentNavHandler());
+	CommandHandlers.Add(new FDatasetAutomationHandler());
 	for (FCommandHandler* Handler : CommandHandlers)
 	{
 		Handler->CommandDispatcher = CommandDispatcher;

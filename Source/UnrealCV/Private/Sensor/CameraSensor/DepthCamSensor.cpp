@@ -183,5 +183,8 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 		}
 	);
 
-	LaunchCapture();
+	if (bAsyncCaptureNextFrame)
+	{
+		LaunchCapture();
+	}
 }

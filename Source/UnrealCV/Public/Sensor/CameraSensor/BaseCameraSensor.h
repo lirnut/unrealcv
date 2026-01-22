@@ -79,11 +79,21 @@ public:
 
 	void SetShowOnlyList(const TArray<TWeakObjectPtr<UPrimitiveComponent>>& InShowOnlyComponents);
 
+	// void HideOneActor(AActor* Actor);
+	void HideActor(AActor* Actor);
+	void ShowActor(AActor* Actor);
+
+	// void ShowAllActors();
+
 	// void InitializeAsyncCapture();
 	// void ShutdownAsyncCapture();
 
 	void SetUseFastCapture(bool bInUseFast) { bUseFastCapture = bInUseFast; }
 	bool GetUseFastCapture() const { return bUseFastCapture; }
+	bool bAsyncCaptureNextFrame;
+	virtual void LaunchCapture();
+	void CheckCaptureCache(ECaptureFormat Format);
+	virtual void CopyBackCapture(ECaptureFormat Format);
 	void CleanCaptureCache();
 	
 public:
@@ -107,15 +117,6 @@ protected:
 
 
 protected:
-	// virtual void CaptureToGPUQueue(const FString& Filename);
-	// void FlushCapturesToDisk();
-
-	void CheckCaptureCache(ECaptureFormat Format);
-	virtual void LaunchCapture();
-	virtual void CopyBackCapture(ECaptureFormat Format);
-	// virtual void ConvertCapture(TArray<FColor>& OutPixelData, int32& OutWidth, int32& OutHeight);
-
-
 	void InitFloat16TextureTarget(int FilmWidth, int FilmHeight);
 	void InitUInt8TextureTarget(int FilmWidth, int FilmHeight, bool bUseLinearGamma = true);
 	

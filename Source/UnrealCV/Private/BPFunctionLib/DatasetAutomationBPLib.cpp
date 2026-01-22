@@ -25,6 +25,8 @@ TArray<FAutomationStep> UDatasetAutomationBPLib::CommandQueue;
 int32 UDatasetAutomationBPLib::CurrentCommandIndex = -1;
 int32 UDatasetAutomationBPLib::CurrentSceneCounter = 0;
 FString UDatasetAutomationBPLib::CurrentSceneID = TEXT("");
+FString UDatasetAutomationBPLib::TaskName = TEXT("Omnimatte");
+// FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
 double UDatasetAutomationBPLib::DelayStartTime = 0.0;
 double UDatasetAutomationBPLib::DelayDuration = 0.0;
 FGenericTickableObject* UDatasetAutomationBPLib::TickableObject = nullptr;
@@ -32,45 +34,55 @@ FGenericTickableObject* UDatasetAutomationBPLib::TickableObject = nullptr;
 void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 {
 	CommandQueue.Empty();
+	if (TaskName == TEXT("Trajectory"))
+	{
+		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
+		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only_5s")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
+		// CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
+		CommandQueue.Add(FAutomationStep(TEXT("special_wait"), TEXT(""), FMath::RandRange(50.f, 70.f)));
+		// CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_30")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_30")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_360")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
+		// CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+		// CommandQueue.Add(FAutomationStep(TEXT("save_videos")));
 
-	CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
-	CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
-	// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only_5s")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
-	// CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
-	CommandQueue.Add(FAutomationStep(TEXT("special_wait"), TEXT(""), FMath::RandRange(50.f, 70.f)));
-	// CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_30")));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_30")));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_360")));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
-	CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
-	// CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
-	CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
-	// CommandQueue.Add(FAutomationStep(TEXT("save_videos")));
-
-	// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
-	// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
-
-	// CommandQueue.Add(FAutomationStep(TEXT("record_nav_track")));
-	// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+		// CommandQueue.Add(FAutomationStep(TEXT("record_nav_track")));
+		// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+	}
+	else if (TaskName == TEXT("Omnimatte"))
+	{
+		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Invalid task name"));
+		check(false);
+	}
 
 	CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
-
 	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
-
 	CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
-
 	CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
 
 	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Built command sequence with %d commands"), CommandQueue.Num());
@@ -224,6 +236,20 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			TransitionToState(EDatasetGenerationState::Error);
 			return;
 		}
+	}
+	else if (Step.Command == TEXT("load_level"))
+	{
+		FString LevelName = Step.StringParam;
+		if (LevelName.IsEmpty())
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: load_level requires level name"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		FUnrealcvServer::Get().WorldController->OpenLevel(FName(*LevelName));
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Loading level: %s"), *LevelName);
+		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("record_nav_track"))
 	{
@@ -614,6 +640,43 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	}
 
 
+	if (TaskName == "Trajectory")
+	{
+		CaptureActor->bRecordAudio = false;
+		CaptureActor->bRecordRGB = true;
+		CaptureActor->bRecordMask = true;
+		CaptureActor->bRecordDepth = false;
+		CaptureActor->bRecordFlow = false;
+		CaptureActor->bRecordNormal = false;
+		CaptureActor->bRecordOneObjectMask = true;
+		CaptureActor->bRecordMetadata = true;
+		CaptureActor->bRecordWithoutTarget = false;
+		AllocatedCam->SetFilmSize(1920, 1080);
+	}
+	else if (TaskName == "Omnimatte")
+	{
+		CaptureActor->bRecordAudio = true;
+		CaptureActor->bRecordRGB = true;
+		CaptureActor->bRecordMask = true;
+		CaptureActor->bRecordDepth = false;
+		CaptureActor->bRecordFlow = false;
+		CaptureActor->bRecordNormal = false;
+		CaptureActor->bRecordOneObjectMask = true;
+		CaptureActor->bRecordMetadata = true;
+		CaptureActor->bRecordWithoutTarget = true;
+		
+		const TArray<FIntPoint> Resolutions = {
+			FIntPoint(640, 480),
+			FIntPoint(480, 640),
+		};
+		const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
+		AllocatedCam->SetFilmSize(ChosenRes.X, ChosenRes.Y);
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Invalid task name '%s'."), *TaskName);
+		return false;
+	}
 
 
 	ECameraTrajectoryType TrajectoryEnum;
@@ -651,6 +714,26 @@ bool UDatasetAutomationBPLib::SetMap(UObject* WorldContextObject, const FString&
 	UE_LOG(LogUnrealCV, Log, TEXT("SetMap: Loading map '%s'"), *MapName);
 
 	return true;
+}
+
+bool UDatasetAutomationBPLib::SetTaskName(const FString& InTaskName)
+{
+	static const TSet<FString> ValidTaskNames = { TEXT("Trajectory"), TEXT("Omnimatte") };
+
+	if (!ValidTaskNames.Contains(InTaskName))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SetTaskName: Invalid task name '%s'. Must be 'Trajectory' or 'Omnimatte'"), *InTaskName);
+		return false;
+	}
+
+	TaskName = InTaskName;
+	UE_LOG(LogUnrealCV, Log, TEXT("SetTaskName: Task name set to '%s'"), *TaskName);
+	return true;
+}
+
+FString UDatasetAutomationBPLib::GetTaskName()
+{
+	return TaskName;
 }
 
 FString UDatasetAutomationBPLib::GetIdleCamera()

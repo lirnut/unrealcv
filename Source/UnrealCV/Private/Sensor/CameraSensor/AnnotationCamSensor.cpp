@@ -19,6 +19,7 @@ UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectIniti
 {
 	this->PrimaryComponentTick.bCanEverTick = true;
 	this->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+	this->HiddenComponents.Reset();
 
 	this->ShowFlags.SetMaterials(false);
 	this->ShowFlags.SetLighting(false);
@@ -156,13 +157,18 @@ void UAnnotationCamSensor::CaptureSegToFile(const FString& Filename)
 		}
 	);
 
-	LaunchCapture();
+	if (bAsyncCaptureNextFrame)
+	{
+		LaunchCapture();
+	}
 }
 
 
 
 void UAnnotationCamSensor::PrepareShowOnlyComponents()
 {
+	// this->HiddenActors.Reset();
+	// this->HiddenComponents.Reset();
 	if (bUseShowOnlyComponentsOverride)
 	{
 		ShowOnlyComponents.Reset();

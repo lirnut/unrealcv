@@ -112,6 +112,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation", meta = (WorldContext = "WorldContextObject"))
 	static bool SetMap(UObject* WorldContextObject, const FString& MapName);
 
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation")
+	static bool SetTaskName(const FString& InTaskName);
+
+	UFUNCTION(BlueprintPure, Category = "UnrealCV|Automation")
+	static FString GetTaskName();
+
 private:
 	static FAutomationConfig CurrentConfig;
 	static FAutomationStatus CurrentStatus;
@@ -126,6 +132,7 @@ private:
 	static int32 CurrentCommandIndex;
 	static int32 CurrentSceneCounter;
 	static FString CurrentSceneID;
+	static FString TaskName;
 	static double DelayStartTime;
 	static double DelayDuration;
 

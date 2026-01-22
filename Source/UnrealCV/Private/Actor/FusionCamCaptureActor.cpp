@@ -347,6 +347,30 @@ void AFusionCamCaptureActor::RecordFrame()
 {
 	FScopeLock Lock(&RecordCriticalSection);
 
+	// bool bAsyncCaptureNextFrame = bRecordWithoutTarget ? false : true;
+	bool bAsyncCaptureNextFrame = false;
+	for (auto* Sensor : TargetSensor->GetSensors())
+	{
+		check(IsValid(Sensor));
+		Sensor->bAsyncCaptureNextFrame = bAsyncCaptureNextFrame;
+	}
+
+	if (bRecordWithoutTarget)
+	{
+		// if (bRecordRGB) TargetSensor->GetLitCamSensor()->HideOneActor(TargetToHide);
+		// if (bRecordMask) TargetSensor->GetAnnotationCamSensor()->HideOneActor(TargetToHide);
+		// if (bRecordDepth) TargetSensor->GetDepthCamSensor()->HideOneActor(TargetToHide);
+		// if (bRecordNormal) TargetSensor->GetNormalCamSensor()->HideOneActor(TargetToHide);
+		// if (bRecordFlow) TargetSensor->GetFlowCamSensor()->HideOneActor(TargetToHide);
+
+		if (bRecordRGB) TargetSensor->GetLitCamSensor()->HideActor(TargetToHide);
+		if (bRecordMask) TargetSensor->GetAnnotationCamSensor()->HideActor(TargetToHide);
+		if (bRecordDepth) TargetSensor->GetDepthCamSensor()->HideActor(TargetToHide);
+		if (bRecordNormal) TargetSensor->GetNormalCamSensor()->HideActor(TargetToHide);
+		if (bRecordFlow) TargetSensor->GetFlowCamSensor()->HideActor(TargetToHide);
+	}
+
+	
 	if (bRecordRGB)
 	{
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
@@ -385,7 +409,20 @@ void AFusionCamCaptureActor::RecordFrame()
 
 	if (bRecordWithoutTarget && IsValid(TargetToHide))
 	{
-		TargetToHide->SetActorHiddenInGame(true);
+		// TargetToHide->SetActorHiddenInGame(true);
+
+		// if (bRecordRGB) TargetSensor->GetLitCamSensor()->LaunchCapture();
+		// if (bRecordMask) TargetSensor->GetAnnotationCamSensor()->LaunchCapture();
+		// if (bRecordDepth) TargetSensor->GetDepthCamSensor()->LaunchCapture();
+		// if (bRecordNormal) TargetSensor->GetNormalCamSensor()->LaunchCapture();
+		// if (bRecordFlow) TargetSensor->GetFlowCamSensor()->LaunchCapture();
+
+		if (bRecordRGB) TargetSensor->GetLitCamSensor()->ShowActor(TargetToHide);
+		if (bRecordMask) TargetSensor->GetAnnotationCamSensor()->ShowActor(TargetToHide);
+		if (bRecordDepth) TargetSensor->GetDepthCamSensor()->ShowActor(TargetToHide);
+		if (bRecordNormal) TargetSensor->GetNormalCamSensor()->ShowActor(TargetToHide);
+		if (bRecordFlow) TargetSensor->GetFlowCamSensor()->ShowActor(TargetToHide);
+
 
 		if (bRecordRGB)
 		{
@@ -417,7 +454,13 @@ void AFusionCamCaptureActor::RecordFrame()
 			TargetSensor->SaveFlowToFile(FlowFilename);
 		}
 
-		TargetToHide->SetActorHiddenInGame(false);
+		// TargetToHide->SetActorHiddenInGame(false);
+
+		// if (bRecordRGB) TargetSensor->GetLitCamSensor()->LaunchCapture();
+		// if (bRecordMask) TargetSensor->GetAnnotationCamSensor()->LaunchCapture();
+		// if (bRecordDepth) TargetSensor->GetDepthCamSensor()->LaunchCapture();
+		// if (bRecordNormal) TargetSensor->GetNormalCamSensor()->LaunchCapture();
+		// if (bRecordFlow) TargetSensor->GetFlowCamSensor()->LaunchCapture();
 	}
 
 	if (bRecordMetadata)
@@ -891,16 +934,16 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 
 
 
-	static const TArray<FIntPoint> Resolutions = {
-		FIntPoint(1920, 1080),
-		// FIntPoint(640, 480),
-		// FIntPoint(480, 640),
-	};
-	const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
+	// static const TArray<FIntPoint> Resolutions = {
+	// 	FIntPoint(1920, 1080),
+	// 	// FIntPoint(640, 480),
+	// 	// FIntPoint(480, 640),
+	// };
+	// const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
 
 
-	// TargetSensor->GetDepthCamSensor()->bIgnoreTransparentObjects = true;
-	TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);
+	// // TargetSensor->GetDepthCamSensor()->bIgnoreTransparentObjects = true;
+	// TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);
 	
 	// // Adjust camera to roughly aim at the target with ±15 degrees noise
 	// FVector CameraToTarget = (UnifiedTargetLocation - TargetSensor->GetSensorLocation()).GetSafeNormal();
