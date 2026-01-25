@@ -26,6 +26,8 @@ public:
 
 	virtual FBoxSphereBounds CalcBounds(const FTransform & LocalToWorld) const override;
 
+	virtual FMatrix GetRenderMatrix() const override;
+
 	virtual void TickComponent(float DeltaTime,
 		enum ELevelTick TickType,
 		FActorComponentTickFunction * ThisTickFunction) override;

@@ -293,58 +293,54 @@ FPrimitiveViewRelevance FSkeletalAnnotationSceneProxy::GetViewRelevance(const FS
 	}
 }
 
+
 class FInstancedStaticMeshAnnotationSceneProxy : public FStaticMeshSceneProxy
 {
 public:
-	FMaterialRenderProxy* MaterialRenderProxy;
+	FMaterialRenderProxy* AnnotationMaterialRenderProxy;
+	UStaticMesh* StaticMesh;
 	FInstancedStaticMeshRenderData InstancedRenderData;
 	TSharedPtr<FInstanceDataSceneProxy, ESPMode::ThreadSafe> InstanceDataSceneProxy;
-	UStaticMesh* StaticMesh;
-	TMap<int32, FInstancedStaticMeshVFLooseUniformShaderParametersRef> LODLooseUniformBuffers;
+
 	FInstancingUserData UserData_AllInstances;
-	FMatrix CachedRenderMatrix;
-	FBoxSphereBounds CachedBounds;
+	FInstancingUserData UserData_SelectedInstances;
+	FInstancingUserData UserData_DeselectedInstances;
 
-	FInstancedStaticMeshAnnotationSceneProxy(UInstancedStaticMeshComponent* Component, UMaterialInterface* AnnotationMID, ERHIFeatureLevel::Type InFeatureLevel)
-		: FStaticMeshSceneProxy(FInstancedStaticMeshSceneProxyDesc(Component), true)
-		, InstancedRenderData([Component, InFeatureLevel]() {
-			FInstancedStaticMeshSceneProxyDesc Desc(Component);
-			return FInstancedStaticMeshRenderData(&Desc, InFeatureLevel);
-		}())
-		, StaticMesh(Component->GetStaticMesh())
+	TMap<int32, FInstancedStaticMeshVFLooseUniformShaderParametersRef> LODLooseUniformBuffers;
+
+	float InstanceLODDistanceScale;
+	FBoxSphereBounds StaticMeshBounds;
+	bool bAnySegmentUsesWorldPositionOffset;
+	bool bUseGpuLodSelection;
+
+#if WITH_EDITOR
+	bool bHasSelectedInstances;
+#endif
+
+	FInstancedStaticMeshAnnotationSceneProxy(const FInstancedStaticMeshSceneProxyDesc& InProxyDesc, UMaterialInterface* AnnotationMID, ERHIFeatureLevel::Type InFeatureLevel)
+		: FStaticMeshSceneProxy(InProxyDesc, true)
+		, StaticMesh(InProxyDesc.GetStaticMesh())
+		, InstancedRenderData(&InProxyDesc, InFeatureLevel)
+		, InstanceLODDistanceScale(InProxyDesc.InstanceLODDistanceScale)
+		, StaticMeshBounds(StaticMesh->GetBounds())
 	{
-		FInstancedStaticMeshSceneProxyDesc ProxyDesc(Component);
-		InstanceDataSceneProxy = ProxyDesc.InstanceDataSceneProxy;
+		InstanceDataSceneProxy = InProxyDesc.InstanceDataSceneProxy;
 
-		CachedRenderMatrix = Component->GetRenderMatrix();
-		CachedBounds = Component->CalcBounds(FTransform::Identity);
-
-		UE_LOG(LogUnrealCV, Log, TEXT("FInstancedStaticMeshAnnotationSceneProxy: Component=%s, RenderMatrix=%s"),
-			*Component->GetName(),
-			*CachedRenderMatrix.ToString());
-
-		// struct FPrimitiveSceneProxyHack
-		// {
-		// 	char Padding[offsetof(FPrimitiveSceneProxy, LocalToWorld)];
-		// 	FMatrix LocalToWorld;
-		// };
-		// static_assert(offsetof(FPrimitiveSceneProxyHack, LocalToWorld) == offsetof(FPrimitiveSceneProxy, LocalToWorld), "Offset mismatch");
-
-		// FPrimitiveSceneProxyHack* Hack = reinterpret_cast<FPrimitiveSceneProxyHack*>(this);
-		// Hack->LocalToWorld = CachedRenderMatrix;
-
-		MaterialRenderProxy = AnnotationMID->GetRenderProxy();
+		AnnotationMaterialRenderProxy = AnnotationMID->GetRenderProxy();
 		this->bVerifyUsedMaterials = false;
 		bCastShadow = false;
 
+#if WITH_EDITOR
+		bHasSelectedInstances = InProxyDesc.bHasSelectedInstances;
+		if (bHasSelectedInstances)
+		{
+			SetSelection_GameThread(true);
+		}
+#endif
+
 		SetupInstanceSceneDataBuffers(InstanceDataSceneProxy->GeInstanceSceneDataBuffers());
 
-		UserData_AllInstances.MeshRenderData = StaticMesh->GetRenderData();
-		UserData_AllInstances.StartCullDistance = ProxyDesc.InstanceStartCullDistance;
-		UserData_AllInstances.EndCullDistance = ProxyDesc.InstanceEndCullDistance;
-		UserData_AllInstances.MinLOD = ClampedMinLOD;
-		UserData_AllInstances.bRenderSelected = true;
-		UserData_AllInstances.bRenderUnselected = true;
+		bAnySegmentUsesWorldPositionOffset = false;
 
 		for (int32 LODIndex = 0; LODIndex < LODs.Num(); LODIndex++)
 		{
@@ -353,36 +349,29 @@ public:
 			{
 				FStaticMeshSceneProxy::FLODInfo::FSectionInfo& Section = LODInfo.Sections[SectionIndex];
 				Section.Material = AnnotationMID;
+				bAnySegmentUsesWorldPositionOffset |= Section.Material->IsUsingWorldPositionOffset_Concurrent(GMaxRHIFeatureLevel);
 			}
 		}
-	}
 
-	FInstancedStaticMeshVFLooseUniformShaderParametersRef CreateSimpleLooseUniformBuffer() const
-	{
-		FInstancedStaticMeshVFLooseUniformShaderParameters LooseParameters;
+		UserData_AllInstances.MeshRenderData = StaticMesh->GetRenderData();
+		UserData_AllInstances.MinDrawDistance = InProxyDesc.InstanceMinDrawDistance;
+		UserData_AllInstances.StartCullDistance = InProxyDesc.InstanceStartCullDistance;
+		UserData_AllInstances.EndCullDistance = InProxyDesc.InstanceEndCullDistance;
+		UserData_AllInstances.LODDistanceScale = 1.0f;
+		UserData_AllInstances.InstancingOffset = StaticMesh->GetBoundingBox().GetCenter();
+		UserData_AllInstances.MinLOD = ClampedMinLOD;
+		UserData_AllInstances.bRenderSelected = true;
+		UserData_AllInstances.bRenderUnselected = true;
+		UserData_AllInstances.RenderData = nullptr;
+		UserData_AllInstances.AverageInstancesScale = FVector::Zero();
 
-		FVector4f InstancingViewZCompareZero(MIN_flt, MIN_flt, MAX_flt, 1.0f);
-		FVector4f InstancingViewZCompareOne(MIN_flt, MIN_flt, MAX_flt, 0.0f);
-		FVector4f InstancingViewZConstant(0.0f, 0.0f, 1.0f, 0.0f);
-		// FVector4f InstancingTranslatedWorldViewOriginZero(ForceInit);
-		// FVector4f InstancingTranslatedWorldViewOriginOne(ForceInit);
-		FVector4f InstancingTranslatedWorldViewOriginZero(ForceInit);
-		FVector4f InstancingTranslatedWorldViewOriginOne(ForceInit);
-		InstancingTranslatedWorldViewOriginOne.W = 1.0f;
+		UserData_SelectedInstances = UserData_AllInstances;
+		UserData_SelectedInstances.bRenderUnselected = false;
 
-		LooseParameters.InstancingViewZCompareZero = InstancingViewZCompareZero;
-		LooseParameters.InstancingViewZCompareOne = InstancingViewZCompareOne;
-		LooseParameters.InstancingViewZConstant = InstancingViewZConstant;
-		LooseParameters.InstancingTranslatedWorldViewOriginZero = InstancingTranslatedWorldViewOriginZero;
-		LooseParameters.InstancingTranslatedWorldViewOriginOne = InstancingTranslatedWorldViewOriginOne;
+		UserData_DeselectedInstances = UserData_AllInstances;
+		UserData_DeselectedInstances.bRenderSelected = false;
 
-		FVector4f InstancingFadeOutParams(MAX_flt, 0.f, 1.f, 1.f);
-		LooseParameters.InstancingFadeOutParams = InstancingFadeOutParams;
-
-		return FInstancedStaticMeshVFLooseUniformShaderParametersRef::CreateUniformBufferImmediate(
-			LooseParameters,
-			EUniformBufferUsage::UniformBuffer_MultiFrame
-		);
+		bUseGpuLodSelection = InProxyDesc.bUseGpuLodSelection;
 	}
 
 	virtual void CreateRenderThreadResources(FRHICommandListBase& RHICmdList) override
@@ -395,7 +384,7 @@ public:
 
 			for (int32 LODIndex = 0; LODIndex < LODs.Num(); ++LODIndex)
 			{
-				FInstancedStaticMeshVFLooseUniformShaderParametersRef LooseUniformBuffer = CreateSimpleLooseUniformBuffer();
+				FInstancedStaticMeshVFLooseUniformShaderParametersRef LooseUniformBuffer = CreateLooseUniformBuffer(nullptr, &UserData_AllInstances, 0, LODIndex);
 				LODLooseUniformBuffers.Add(LODIndex, LooseUniformBuffer);
 			}
 		}
@@ -407,12 +396,64 @@ public:
 		FStaticMeshSceneProxy::DestroyRenderThreadResources();
 	}
 
+	FInstancedStaticMeshVFLooseUniformShaderParametersRef CreateLooseUniformBuffer(const FSceneView* View, const FInstancingUserData* InstancingUserData, uint32 InstancedLODRange, uint32 InstancedLODIndex) const
+	{
+		FInstancedStaticMeshVFLooseUniformShaderParameters LooseParameters;
+
+		FVector4f InstancingViewZCompareZero(MIN_flt, MIN_flt, MAX_flt, 1.0f);
+		FVector4f InstancingViewZCompareOne(MIN_flt, MIN_flt, MAX_flt, 0.0f);
+		FVector4f InstancingViewZConstant(0.0f, 0.0f, 1.0f, 0.0f);
+		FVector4f InstancingTranslatedWorldViewOriginZero(ForceInit);
+		FVector4f InstancingTranslatedWorldViewOriginOne(ForceInit);
+		InstancingTranslatedWorldViewOriginOne.W = 1.0f;
+
+		LooseParameters.InstancingViewZCompareZero = InstancingViewZCompareZero;
+		LooseParameters.InstancingViewZCompareOne = InstancingViewZCompareOne;
+		LooseParameters.InstancingViewZConstant = InstancingViewZConstant;
+		LooseParameters.InstancingTranslatedWorldViewOriginZero = InstancingTranslatedWorldViewOriginZero;
+		LooseParameters.InstancingTranslatedWorldViewOriginOne = InstancingTranslatedWorldViewOriginOne;
+
+		FVector4f InstancingFadeOutParams(MAX_flt, 0.f, 1.f, 1.f);
+		if (InstancingUserData)
+		{
+			const float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
+			const float StartDistance = InstancingUserData->StartCullDistance * MaxDrawDistanceScale;
+			const float EndDistance = InstancingUserData->EndCullDistance * MaxDrawDistanceScale;
+
+			InstancingFadeOutParams.X = StartDistance;
+			if (EndDistance > 0)
+			{
+				if (EndDistance > StartDistance)
+				{
+					InstancingFadeOutParams.Y = 1.f / (float)(EndDistance - StartDistance);
+				}
+				else
+				{
+					InstancingFadeOutParams.Y = 1.f;
+				}
+			}
+			else
+			{
+				InstancingFadeOutParams.Y = 0.f;
+			}
+			InstancingFadeOutParams.Z = InstancingUserData->bRenderSelected ? 1.f : 0.f;
+			InstancingFadeOutParams.W = InstancingUserData->bRenderUnselected ? 1.f : 0.f;
+		}
+
+		LooseParameters.InstancingFadeOutParams = InstancingFadeOutParams;
+
+		return FInstancedStaticMeshVFLooseUniformShaderParametersRef::CreateUniformBufferImmediate(
+			LooseParameters,
+			EUniformBufferUsage::UniformBuffer_MultiFrame
+		);
+	}
+
 	bool CanSetupInstancedMeshBatch(int32 LODIndex) const
 	{
 		return LODLooseUniformBuffers.Contains(LODIndex) && LODIndex < InstancedRenderData.VertexFactories.Num();
 	}
 
-	void SetupInstancedMeshBatch(int32 LODIndex, FMeshBatch& OutMeshBatch) const
+	void SetupInstancedMeshBatch(int32 LODIndex, int32 BatchIndex, FMeshBatch& OutMeshBatch) const
 	{
 		OutMeshBatch.VertexFactory = &InstancedRenderData.VertexFactories[LODIndex];
 
@@ -447,8 +488,8 @@ public:
 			return false;
 		}
 
-		SetupInstancedMeshBatch(LODIndex, OutMeshBatch);
-		OutMeshBatch.MaterialRenderProxy = this->MaterialRenderProxy;
+		SetupInstancedMeshBatch(LODIndex, BatchIndex, OutMeshBatch);
+		OutMeshBatch.MaterialRenderProxy = this->AnnotationMaterialRenderProxy;
 
 		return true;
 	}
@@ -461,6 +502,13 @@ public:
 			if (View->Family->EngineShowFlags.InstancedStaticMeshes)
 			{
 				Result = FStaticMeshSceneProxy::GetViewRelevance(View);
+#if WITH_EDITOR
+				if (bHasSelectedInstances)
+				{
+					Result.bDynamicRelevance = true;
+					Result.bStaticRelevance = false;
+				}
+#endif
 			}
 			return Result;
 		}
@@ -585,7 +633,8 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponen
 	if (InstancedComponent)
 	{
 		UE_LOG(LogUnrealCV, Log, TEXT("Creating FInstancedStaticMeshAnnotationSceneProxy for %s"), *StaticMeshComponent->GetName());
-		FPrimitiveSceneProxy* Proxy = ::new FInstancedStaticMeshAnnotationSceneProxy(InstancedComponent, ProxyMaterial, GetWorld()->GetFeatureLevel());
+		FInstancedStaticMeshSceneProxyDesc ProxyDesc(InstancedComponent);
+		FPrimitiveSceneProxy* Proxy = ::new FInstancedStaticMeshAnnotationSceneProxy(ProxyDesc, ProxyMaterial, GetWorld()->GetFeatureLevel());
 		UE_LOG(LogUnrealCV, Log, TEXT("Created FInstancedStaticMeshAnnotationSceneProxy for %s, Proxy=%p"), *StaticMeshComponent->GetName(), Proxy);
 		return Proxy;
 	}
@@ -717,6 +766,20 @@ FBoxSphereBounds UAnnotationComponent::CalcBounds(const FTransform & LocalToWorl
 	UE_LOG(LogTemp, Error, TEXT("The type of ParentMeshComponent : %s can not be supported."), *Parent->GetClass()->GetName());
     FBoxSphereBounds DefaultBounds = FBoxSphereBounds(FVector::ZeroVector, FVector::ZeroVector, 0.0f);
 	return DefaultBounds;
+}
+
+FMatrix UAnnotationComponent::GetRenderMatrix() const
+{
+	USceneComponent* Parent = this->GetAttachParent();
+	if (IsValid(Parent))
+	{
+		UPrimitiveComponent* ParentPrimitive = Cast<UPrimitiveComponent>(Parent);
+		if (IsValid(ParentPrimitive))
+		{
+			return ParentPrimitive->GetRenderMatrix();
+		}
+	}
+	return Super::GetRenderMatrix();
 }
 
 // Extra overhead for the game scene
