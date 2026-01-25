@@ -498,18 +498,83 @@ public:
 	{
 		if (!View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing)
 		{
+// 			FPrimitiveViewRelevance Result;
+// 			if (View->Family->EngineShowFlags.InstancedStaticMeshes)
+// 			{
+// 				Result = FStaticMeshSceneProxy::GetViewRelevance(View);
+// #if WITH_EDITOR
+// 				if (bHasSelectedInstances)
+// 				{
+// 					Result.bDynamicRelevance = true;
+// 					Result.bStaticRelevance = false;
+// 				}
+// #endif
+// 			}
+// 			return Result;
+
+			checkSlow(IsInParallelRenderingThread());
+
 			FPrimitiveViewRelevance Result;
-			if (View->Family->EngineShowFlags.InstancedStaticMeshes)
-			{
-				Result = FStaticMeshSceneProxy::GetViewRelevance(View);
+			Result.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.StaticMeshes;
+			Result.bRenderCustomDepth = ShouldRenderCustomDepth();
+			Result.bRenderInMainPass = ShouldRenderInMainPass();
+			Result.bRenderInDepthPass = ShouldRenderInDepthPass();
+			Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
+			Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
+
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+			bool bDrawSimpleCollision = false, bDrawComplexCollision = false;
+			const bool bInCollisionView = IsCollisionView(View->Family->EngineShowFlags, bDrawSimpleCollision, bDrawComplexCollision);
+#else
+			bool bInCollisionView = false;
+#endif
+			const bool bAllowStaticLighting = IsStaticLightingAllowed();
+
+			if(
+#if !(UE_BUILD_SHIPPING) || WITH_EDITOR
+				IsRichView(*View->Family) || 
+				View->Family->EngineShowFlags.Collision ||
+				bInCollisionView ||
+				View->Family->EngineShowFlags.Bounds ||
+				View->Family->EngineShowFlags.VisualizeInstanceUpdates ||
+#endif
 #if WITH_EDITOR
-				if (bHasSelectedInstances)
-				{
-					Result.bDynamicRelevance = true;
-					Result.bStaticRelevance = false;
-				}
+				(IsSelected() && View->Family->EngineShowFlags.VertexColors) ||
+				(IsSelected() && View->Family->EngineShowFlags.PhysicalMaterialMasks) ||
+#endif
+				// Force down dynamic rendering path if invalid lightmap settings, so we can apply an error material in DrawRichMesh
+				(bAllowStaticLighting && HasStaticLighting() && !HasValidSettingsForStaticLighting()) ||
+				HasViewDependentDPG()
+				)
+			{
+				Result.bDynamicRelevance = true;
+			}
+			else
+			{
+				Result.bStaticRelevance = true;
+
+#if WITH_EDITOR
+				//only check these in the editor
+				Result.bEditorVisualizeLevelInstanceRelevance = IsEditingLevelInstanceChild();
+				Result.bEditorStaticSelectionRelevance = (WantsEditorEffects() || IsSelected() || IsHovered());
 #endif
 			}
+
+			Result.bShadowRelevance = IsShadowCast(View);
+
+			MaterialRelevance.SetPrimitiveViewRelevance(Result);
+
+			if (!View->Family->EngineShowFlags.Materials 
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+				|| bInCollisionView
+#endif
+				)
+			{
+				Result.bOpaque = true;
+			}
+
+			Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
+
 			return Result;
 		}
 		else
