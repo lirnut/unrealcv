@@ -43,8 +43,7 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	FilmHeight = Config.Height == 0 ? 480 : Config.Height;
 	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
 
-	// bUseFastCapture = Config.UseFastCapture;
-	bUseFastCapture = false;
+	bUseFastCapture = Config.UseFastCapture;
 	bAsyncCaptureNextFrame = true;
 	// bUseFastCapture = true;
 	// bool bSetLinearToGamma = false;

@@ -272,12 +272,11 @@ void FObjectAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& An
 
 			UAnnotationComponent* AnnotationComponent = NewObject<UAnnotationComponent>(MeshComponent);
 			AnnotationComponent->SetupAttachment(MeshComponent);
-			AnnotationComponent->RegisterComponent();
 
-			// Set annotation color after the component is registered
 			AnnotationComponent->SetAnnotationColor(AnnotationColor);
 
-			// Mark dirty to update GPU resources
+			AnnotationComponent->RegisterComponent();
+
 			AnnotationComponent->MarkRenderStateDirty();
 		}
 	}

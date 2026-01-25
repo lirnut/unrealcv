@@ -63,9 +63,11 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
-		// CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT(""), 1.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 		// CommandQueue.Add(FAutomationStep(TEXT("save_videos")));
 
 		// CommandQueue.Add(FAutomationStep(TEXT("record_nav_track")));
@@ -350,6 +352,36 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			CurrentCommandIndex = -1;
 			BuildCommandSequenceForScene();
 			ExecuteNextCommand();
+		}
+	}
+	else if (Step.Command == TEXT("set_time_dilation"))
+	{
+		FUnrealcvServer::Get().GetWorld()->GetWorldSettings()->SetTimeDilation(Step.FloatParam);
+	}
+	else if (Step.Command == TEXT("sync_secondary_cameras"))
+	{
+		bool AllFinished = true;
+		for (const FString& CID : ActiveCameraPool)
+		{
+			if (USensorBPLib::GetIndexByAnyID(CID) == CurrentConfig.SceneParams.CameraID)
+			{
+				continue;
+			}
+			if (URecordingBPLib::IsRecording(CID))
+			{
+				AllFinished = false;
+				break;
+			}
+		}
+		
+		if (AllFinished)
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: All secondary cameras finished recording"));
+			ExecuteNextCommand();
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Waiting for secondary cameras to finish recording"));
 		}
 	}
 	else if (Step.Command == TEXT("sync_all_cameras"))

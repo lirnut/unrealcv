@@ -203,7 +203,7 @@ void AFusionCamCaptureActor::StopRecord()
 			GetWorld()->GetFirstPlayerController()->SetPause(false);
 		}
 
-		if (TimeDilationBackUp > 0.0f)
+		if (TimeDilationBackUp > 0.01f && TimeDilationBackUp > GetWorld()->GetWorldSettings()->TimeDilation)
 		{
 			GetWorld()->GetWorldSettings()->SetTimeDilation(TimeDilationBackUp);
 		}

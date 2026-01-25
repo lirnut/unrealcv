@@ -352,6 +352,8 @@ public:
 				bAnySegmentUsesWorldPositionOffset |= Section.Material->IsUsingWorldPositionOffset_Concurrent(GMaxRHIFeatureLevel);
 			}
 		}
+		UE_LOG(LogUnrealCV, Log, TEXT("FInstancedStaticMeshAnnotationSceneProxy: LODs.Num=%d, AnnotationMID=%p, AnnotationMaterialRenderProxy=%p"),
+			LODs.Num(), AnnotationMID, AnnotationMaterialRenderProxy);
 
 		UserData_AllInstances.MeshRenderData = StaticMesh->GetRenderData();
 		UserData_AllInstances.MinDrawDistance = InProxyDesc.InstanceMinDrawDistance;
@@ -490,6 +492,13 @@ public:
 
 		SetupInstancedMeshBatch(LODIndex, BatchIndex, OutMeshBatch);
 		OutMeshBatch.MaterialRenderProxy = this->AnnotationMaterialRenderProxy;
+
+		static bool bLogOnce = true;
+		if (bLogOnce)
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("GetMeshElement: LODIndex=%d, MaterialRenderProxy=%p"), LODIndex, OutMeshBatch.MaterialRenderProxy);
+			bLogOnce = false;
+		}
 
 		return true;
 	}
@@ -672,13 +681,15 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponen
 	// FPrimitiveSceneProxy* PrimitiveSceneProxy = StaticMeshComponent->CreateSceneProxy();
 	// FStaticMeshSceneProxy* StaticMeshSceneProxy = (FStaticMeshSceneProxy*)PrimitiveSceneProxy;
 
-	UMaterialInterface* ProxyMaterial = AnnotationMID; // Material Instance Dynamic
+	UMaterialInterface* ProxyMaterial = AnnotationMID;
 	UStaticMesh* ParentStaticMesh = StaticMeshComponent->GetStaticMesh();
 
-	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for StaticMeshComponent: %s, Class: %s, Owner: %s"),
+	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for StaticMeshComponent: %s, Class: %s, Owner: %s, AnnotationMID=%p, AnnotationColor=%s"),
 		*StaticMeshComponent->GetName(),
 		*StaticMeshComponent->GetClass()->GetName(),
-		StaticMeshComponent->GetOwner() ? *StaticMeshComponent->GetOwner()->GetName() : TEXT("None"));
+		StaticMeshComponent->GetOwner() ? *StaticMeshComponent->GetOwner()->GetName() : TEXT("None"),
+		AnnotationMID,
+		*AnnotationColor.ToString());
 
 	if(ParentStaticMesh == NULL
 		|| ParentStaticMesh->GetRenderData() == NULL
