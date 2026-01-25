@@ -6,6 +6,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Runtime/Engine/Classes/Engine/StaticMesh.h"
 #include "Runtime/Engine/Classes/Components/SkeletalMeshComponent.h"
+#include "Runtime/Engine/Classes/Components/InstancedStaticMeshComponent.h"
+#include "Runtime/Engine/Classes/Engine/InstancedStaticMesh.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "Runtime/Engine/Public/MaterialShared.h"
 #include "Runtime/Engine/Classes/Engine/Engine.h"
@@ -14,6 +16,7 @@
 //different header files in UE
 #include "Runtime/Engine/Public/StaticMeshSceneProxy.h"
 #include "Runtime/Engine/Public/SkeletalMeshSceneProxy.h"
+#include "InstancedStaticMeshSceneProxyDesc.h"
 
 #endif
 #include "Runtime/Engine/Public/Rendering/SkeletalMeshRenderData.h"
@@ -290,6 +293,187 @@ FPrimitiveViewRelevance FSkeletalAnnotationSceneProxy::GetViewRelevance(const FS
 	}
 }
 
+class FInstancedStaticMeshAnnotationSceneProxy : public FStaticMeshSceneProxy
+{
+public:
+	FMaterialRenderProxy* MaterialRenderProxy;
+	FInstancedStaticMeshRenderData InstancedRenderData;
+	TSharedPtr<FInstanceDataSceneProxy, ESPMode::ThreadSafe> InstanceDataSceneProxy;
+	UStaticMesh* StaticMesh;
+	TMap<int32, FInstancedStaticMeshVFLooseUniformShaderParametersRef> LODLooseUniformBuffers;
+	FInstancingUserData UserData_AllInstances;
+	FMatrix CachedRenderMatrix;
+	FBoxSphereBounds CachedBounds;
+
+	FInstancedStaticMeshAnnotationSceneProxy(UInstancedStaticMeshComponent* Component, UMaterialInterface* AnnotationMID, ERHIFeatureLevel::Type InFeatureLevel)
+		: FStaticMeshSceneProxy(FInstancedStaticMeshSceneProxyDesc(Component), true)
+		, InstancedRenderData([Component, InFeatureLevel]() {
+			FInstancedStaticMeshSceneProxyDesc Desc(Component);
+			return FInstancedStaticMeshRenderData(&Desc, InFeatureLevel);
+		}())
+		, StaticMesh(Component->GetStaticMesh())
+	{
+		FInstancedStaticMeshSceneProxyDesc ProxyDesc(Component);
+		InstanceDataSceneProxy = ProxyDesc.InstanceDataSceneProxy;
+
+		CachedRenderMatrix = Component->GetRenderMatrix();
+		CachedBounds = Component->CalcBounds(FTransform::Identity);
+
+		UE_LOG(LogUnrealCV, Log, TEXT("FInstancedStaticMeshAnnotationSceneProxy: Component=%s, RenderMatrix=%s"),
+			*Component->GetName(),
+			*CachedRenderMatrix.ToString());
+
+		// struct FPrimitiveSceneProxyHack
+		// {
+		// 	char Padding[offsetof(FPrimitiveSceneProxy, LocalToWorld)];
+		// 	FMatrix LocalToWorld;
+		// };
+		// static_assert(offsetof(FPrimitiveSceneProxyHack, LocalToWorld) == offsetof(FPrimitiveSceneProxy, LocalToWorld), "Offset mismatch");
+
+		// FPrimitiveSceneProxyHack* Hack = reinterpret_cast<FPrimitiveSceneProxyHack*>(this);
+		// Hack->LocalToWorld = CachedRenderMatrix;
+
+		MaterialRenderProxy = AnnotationMID->GetRenderProxy();
+		this->bVerifyUsedMaterials = false;
+		bCastShadow = false;
+
+		SetupInstanceSceneDataBuffers(InstanceDataSceneProxy->GeInstanceSceneDataBuffers());
+
+		UserData_AllInstances.MeshRenderData = StaticMesh->GetRenderData();
+		UserData_AllInstances.StartCullDistance = ProxyDesc.InstanceStartCullDistance;
+		UserData_AllInstances.EndCullDistance = ProxyDesc.InstanceEndCullDistance;
+		UserData_AllInstances.MinLOD = ClampedMinLOD;
+		UserData_AllInstances.bRenderSelected = true;
+		UserData_AllInstances.bRenderUnselected = true;
+
+		for (int32 LODIndex = 0; LODIndex < LODs.Num(); LODIndex++)
+		{
+			FStaticMeshSceneProxy::FLODInfo& LODInfo = LODs[LODIndex];
+			for (int32 SectionIndex = 0; SectionIndex < LODInfo.Sections.Num(); SectionIndex++)
+			{
+				FStaticMeshSceneProxy::FLODInfo::FSectionInfo& Section = LODInfo.Sections[SectionIndex];
+				Section.Material = AnnotationMID;
+			}
+		}
+	}
+
+	FInstancedStaticMeshVFLooseUniformShaderParametersRef CreateSimpleLooseUniformBuffer() const
+	{
+		FInstancedStaticMeshVFLooseUniformShaderParameters LooseParameters;
+
+		FVector4f InstancingViewZCompareZero(MIN_flt, MIN_flt, MAX_flt, 1.0f);
+		FVector4f InstancingViewZCompareOne(MIN_flt, MIN_flt, MAX_flt, 0.0f);
+		FVector4f InstancingViewZConstant(0.0f, 0.0f, 1.0f, 0.0f);
+		// FVector4f InstancingTranslatedWorldViewOriginZero(ForceInit);
+		// FVector4f InstancingTranslatedWorldViewOriginOne(ForceInit);
+		FVector4f InstancingTranslatedWorldViewOriginZero(ForceInit);
+		FVector4f InstancingTranslatedWorldViewOriginOne(ForceInit);
+		InstancingTranslatedWorldViewOriginOne.W = 1.0f;
+
+		LooseParameters.InstancingViewZCompareZero = InstancingViewZCompareZero;
+		LooseParameters.InstancingViewZCompareOne = InstancingViewZCompareOne;
+		LooseParameters.InstancingViewZConstant = InstancingViewZConstant;
+		LooseParameters.InstancingTranslatedWorldViewOriginZero = InstancingTranslatedWorldViewOriginZero;
+		LooseParameters.InstancingTranslatedWorldViewOriginOne = InstancingTranslatedWorldViewOriginOne;
+
+		FVector4f InstancingFadeOutParams(MAX_flt, 0.f, 1.f, 1.f);
+		LooseParameters.InstancingFadeOutParams = InstancingFadeOutParams;
+
+		return FInstancedStaticMeshVFLooseUniformShaderParametersRef::CreateUniformBufferImmediate(
+			LooseParameters,
+			EUniformBufferUsage::UniformBuffer_MultiFrame
+		);
+	}
+
+	virtual void CreateRenderThreadResources(FRHICommandListBase& RHICmdList) override
+	{
+		FStaticMeshSceneProxy::CreateRenderThreadResources(RHICmdList);
+
+		if (InstanceDataSceneProxy.IsValid())
+		{
+			InstancedRenderData.BindBuffersToVertexFactories(RHICmdList, InstanceDataSceneProxy->GetLegacyInstanceBuffer());
+
+			for (int32 LODIndex = 0; LODIndex < LODs.Num(); ++LODIndex)
+			{
+				FInstancedStaticMeshVFLooseUniformShaderParametersRef LooseUniformBuffer = CreateSimpleLooseUniformBuffer();
+				LODLooseUniformBuffers.Add(LODIndex, LooseUniformBuffer);
+			}
+		}
+	}
+
+	virtual void DestroyRenderThreadResources() override
+	{
+		InstancedRenderData.ReleaseResources(&GetScene(), StaticMesh);
+		FStaticMeshSceneProxy::DestroyRenderThreadResources();
+	}
+
+	bool CanSetupInstancedMeshBatch(int32 LODIndex) const
+	{
+		return LODLooseUniformBuffers.Contains(LODIndex) && LODIndex < InstancedRenderData.VertexFactories.Num();
+	}
+
+	void SetupInstancedMeshBatch(int32 LODIndex, FMeshBatch& OutMeshBatch) const
+	{
+		OutMeshBatch.VertexFactory = &InstancedRenderData.VertexFactories[LODIndex];
+
+		FMeshBatchElement& BatchElement0 = OutMeshBatch.Elements[0];
+		BatchElement0.UserData = (void*)&UserData_AllInstances;
+		BatchElement0.bUserDataIsColorVertexBuffer = false;
+		BatchElement0.InstancedLODIndex = LODIndex;
+		BatchElement0.UserIndex = 0;
+		BatchElement0.PrimitiveUniformBuffer = GetUniformBuffer();
+		BatchElement0.LooseParametersUniformBuffer = LODLooseUniformBuffers[LODIndex];
+		BatchElement0.bForceInstanceCulling = true;
+		BatchElement0.NumInstances = GetInstanceDataHeader().NumInstances;
+	}
+
+	virtual bool GetMeshElement(
+		int32 LODIndex,
+		int32 BatchIndex,
+		int32 ElementIndex,
+		uint8 InDepthPriorityGroup,
+		bool bUseSelectedMaterial,
+		bool bAllowPreCulledIndices,
+		FMeshBatch& OutMeshBatch) const override
+	{
+		if (!CanSetupInstancedMeshBatch(LODIndex))
+		{
+			return false;
+		}
+
+		if (!FStaticMeshSceneProxy::GetMeshElement(LODIndex, BatchIndex, ElementIndex, InDepthPriorityGroup,
+			bUseSelectedMaterial, bAllowPreCulledIndices, OutMeshBatch))
+		{
+			return false;
+		}
+
+		SetupInstancedMeshBatch(LODIndex, OutMeshBatch);
+		OutMeshBatch.MaterialRenderProxy = this->MaterialRenderProxy;
+
+		return true;
+	}
+
+	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
+	{
+		if (!View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing)
+		{
+			FPrimitiveViewRelevance Result;
+			if (View->Family->EngineShowFlags.InstancedStaticMeshes)
+			{
+				Result = FStaticMeshSceneProxy::GetViewRelevance(View);
+			}
+			return Result;
+		}
+		else
+		{
+			FPrimitiveViewRelevance ViewRelevance;
+			ViewRelevance.bDrawRelevance = 0;
+			return ViewRelevance;
+		}
+	}
+};
+
+
 // FString MeterialPath = TEXT("MaterialInstanceConstant'/UnrealCV/AnnotationColor_Inst.AnnotationColor_Inst'");
 // static ConstructorHelpers::FObjectFinder<UMaterialInstanceDynamic> AnnotationMaterialObject(*MaterialPath);
 UAnnotationComponent::UAnnotationComponent(const FObjectInitializer& ObjectInitializer)
@@ -377,17 +561,38 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponen
 
 	UMaterialInterface* ProxyMaterial = AnnotationMID; // Material Instance Dynamic
 	UStaticMesh* ParentStaticMesh = StaticMeshComponent->GetStaticMesh();
+
+	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for StaticMeshComponent: %s, Class: %s, Owner: %s"),
+		*StaticMeshComponent->GetName(),
+		*StaticMeshComponent->GetClass()->GetName(),
+		StaticMeshComponent->GetOwner() ? *StaticMeshComponent->GetOwner()->GetName() : TEXT("None"));
+
 	if(ParentStaticMesh == NULL
 		|| ParentStaticMesh->GetRenderData() == NULL
 		|| ParentStaticMesh->GetRenderData()->LODResources.Num() == 0)
 		// || StaticMesh->RenderData->LODResources[0].VertexBuffer.GetNumVertices() == 0)
 	{
 		// UE_LOG(LogTemp, Warning, TEXT("%s, ParentStaticMesh is invalid."), *StaticMeshComponent->GetName());
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneProxy failed for %s: ParentStaticMesh=%p, RenderData=%p, LODResources=%d"),
+			*StaticMeshComponent->GetName(),
+			ParentStaticMesh,
+			ParentStaticMesh ? ParentStaticMesh->GetRenderData() : nullptr,
+			(ParentStaticMesh && ParentStaticMesh->GetRenderData()) ? ParentStaticMesh->GetRenderData()->LODResources.Num() : 0);
 		return NULL;
+	}
+
+	UInstancedStaticMeshComponent* InstancedComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent);
+	if (InstancedComponent)
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("Creating FInstancedStaticMeshAnnotationSceneProxy for %s"), *StaticMeshComponent->GetName());
+		FPrimitiveSceneProxy* Proxy = ::new FInstancedStaticMeshAnnotationSceneProxy(InstancedComponent, ProxyMaterial, GetWorld()->GetFeatureLevel());
+		UE_LOG(LogUnrealCV, Log, TEXT("Created FInstancedStaticMeshAnnotationSceneProxy for %s, Proxy=%p"), *StaticMeshComponent->GetName(), Proxy);
+		return Proxy;
 	}
 
 	// FPrimitiveSceneProxy* Proxy = ::new FStaticMeshSceneProxy(OwnerComponent, false);
 	FPrimitiveSceneProxy* Proxy = ::new FStaticAnnotationSceneProxy(StaticMeshComponent, false, ProxyMaterial);
+	UE_LOG(LogUnrealCV, Log, TEXT("Created FStaticAnnotationSceneProxy for %s, Proxy=%p"), *StaticMeshComponent->GetName(), Proxy);
 	return Proxy;
 	// This is not recommended, but I know what I am doing.
 }
@@ -454,6 +659,10 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
+	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for AnnotationComponent: %s, ParentComponent: %s, ParentClass: %s"),
+		*this->GetName(),
+		*ParentComponent->GetName(),
+		*ParentComponent->GetClass()->GetName());
 
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(ParentComponent);
 	USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ParentComponent);
@@ -505,6 +714,7 @@ FBoxSphereBounds UAnnotationComponent::CalcBounds(const FTransform & LocalToWorl
 		return SkeletalMeshComponent->CalcBounds(LocalToWorld);
 	}
 
+	UE_LOG(LogTemp, Error, TEXT("The type of ParentMeshComponent : %s can not be supported."), *Parent->GetClass()->GetName());
     FBoxSphereBounds DefaultBounds = FBoxSphereBounds(FVector::ZeroVector, FVector::ZeroVector, 0.0f);
 	return DefaultBounds;
 }

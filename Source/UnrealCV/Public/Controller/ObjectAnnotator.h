@@ -66,4 +66,5 @@ private:
 
 private:
 	static TMap<FString, FColor> AnnotationColors; // Store annotation data
+	static TMap<UMeshComponent*, TArray<UMaterialInterface*>> OriginalMaterials; // Store original materials for ISM
 };

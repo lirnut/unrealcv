@@ -31,6 +31,13 @@ void FObjectAnnotator::AnnotateWorld(UWorld* World)
 	TArray<AActor*> ActorArray;
 	GetAnnotableActors(World, ActorArray);
 
+	// log all ActorArray
+	UE_LOG(LogUnrealCV, Log, TEXT("ActorArray: "));
+	for (int32 i = 0; i < ActorArray.Num(); ++i)
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("ActorArray[%d]: %s"), i, *ActorArray[i]->GetName());
+	}
+
 	// Batch annotation with GPU sync to prevent crashes in complex scenes
 	// Process actors in chunks to avoid massive GPU resource allocation spike
 	const int32 BatchSize = 1;  // Number of actors to annotate before GPU sync
@@ -220,15 +227,13 @@ void FObjectAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& An
 	TArray<UActorComponent*> MeshComponents = Actor->K2_GetComponentsByClass(UMeshComponent::StaticClass());
 	if (MeshComponents.Num() > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Annotate actor %s (%s) with color %s"), *Actor->GetActorNameOrLabel(), *Actor->GetName(), *AnnotationColor.ToString());
+		UE_LOG(LogTemp, Log, TEXT("Annotate actor %s (%s) with color %s, MeshComponents: %d"), *Actor->GetActorNameOrLabel(), *Actor->GetName(), *AnnotationColor.ToString(), MeshComponents.Num());
 
 		for (UActorComponent* Component : MeshComponents)
 		{
 			bool DisableSKMAnnotation = FUnrealcvServer::Get().Config.DisableSKMAnnotation;
 			if (DisableSKMAnnotation)
 			{
-				// Skip SkeletalMeshComponent - they have special GPU behavior (skinning, animation)
-				// that can conflict with Lumen TLAS building, especially in complex scenes
 				if (Component->IsA<USkeletalMeshComponent>())
 				{
 					UE_LOG(LogUnrealCV, Log, TEXT("Skipping SkeletalMeshComponent annotation for %s (use Depth/Annotation cameras for skeletal meshes)"),
@@ -236,9 +241,11 @@ void FObjectAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& An
 					continue;
 				}
 			}
-			
+
 			UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component);
 			check(MeshComponent)
+
+			UE_LOG(LogUnrealCV, Log, TEXT("  MeshComponent: %s, Class: %s"), *MeshComponent->GetName(), *MeshComponent->GetClass()->GetName());
 
 			// bool bAllTransparentMaterial = true;
 			// for (int ComponentMaterialIdx = 0; ComponentMaterialIdx < MeshComponent->GetNumMaterials(); ++ComponentMaterialIdx)

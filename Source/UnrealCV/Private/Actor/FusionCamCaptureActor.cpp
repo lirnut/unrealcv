@@ -19,6 +19,7 @@
 #include "FlowCamSensor.h"
 #include "BPFunctionLib/VisionBPLib.h"
 #include "BPFunctionLib/SerializeBPLib.h"
+#include "BPFunctionLib/RecordingBPLib.h"
 #include "Controller/ActorController.h"
 #include "UnrealcvLog.h"
 #include "UnrealcvServer.h"
@@ -52,6 +53,8 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	bRecordWithoutTarget = false;
 	ElapsedSteps = 0;
 	TargetToHide = nullptr;
+	BackupSensor = nullptr;
+	BackupCameraID = -1;
 	NumFrames = 0;
 	RecordFPS = 0;
 
@@ -129,26 +132,50 @@ void AFusionCamCaptureActor::StopRecord()
 				TargetSensor->SetSensorRotation(OriginalCameraRotation);
 			}
 
-			if (IsValid(TargetSensor->GetLitCamSensor()))
-			{
-				TargetSensor->GetLitCamSensor()->CleanCaptureCache();
-			}
-			if (IsValid(TargetSensor->GetDepthCamSensor()))
-			{
-				TargetSensor->GetDepthCamSensor()->CleanCaptureCache();
-			}
-			if (IsValid(TargetSensor->GetAnnotationCamSensor()))
-			{
-				TargetSensor->GetAnnotationCamSensor()->CleanCaptureCache();
-			}
-			if (IsValid(TargetSensor->GetNormalCamSensor()))
-			{
-				TargetSensor->GetNormalCamSensor()->CleanCaptureCache();
-			}
-			if (IsValid(TargetSensor->GetFlowCamSensor()))
-			{
-				TargetSensor->GetFlowCamSensor()->CleanCaptureCache();
-			}
+		// 	if (IsValid(TargetSensor->GetLitCamSensor()))
+		// 	{
+		// 		TargetSensor->GetLitCamSensor()->CleanCaptureCache();
+		// 	}
+		// 	if (IsValid(TargetSensor->GetDepthCamSensor()))
+		// 	{
+		// 		TargetSensor->GetDepthCamSensor()->CleanCaptureCache();
+		// 	}
+		// 	if (IsValid(TargetSensor->GetAnnotationCamSensor()))
+		// 	{
+		// 		TargetSensor->GetAnnotationCamSensor()->CleanCaptureCache();
+		// 	}
+		// 	if (IsValid(TargetSensor->GetNormalCamSensor()))
+		// 	{
+		// 		TargetSensor->GetNormalCamSensor()->CleanCaptureCache();
+		// 	}
+		// 	if (IsValid(TargetSensor->GetFlowCamSensor()))
+		// 	{
+		// 		TargetSensor->GetFlowCamSensor()->CleanCaptureCache();
+		// 	}
+		// }
+
+		// if (IsValid(BackupSensor))
+		// {
+		// 	if (IsValid(BackupSensor->GetLitCamSensor()))
+		// 	{
+		// 		BackupSensor->GetLitCamSensor()->CleanCaptureCache();
+		// 	}
+		// 	if (IsValid(BackupSensor->GetDepthCamSensor()))
+		// 	{
+		// 		BackupSensor->GetDepthCamSensor()->CleanCaptureCache();
+		// 	}
+		// 	if (IsValid(BackupSensor->GetAnnotationCamSensor()))
+		// 	{
+		// 		BackupSensor->GetAnnotationCamSensor()->CleanCaptureCache();
+		// 	}
+		// 	if (IsValid(BackupSensor->GetNormalCamSensor()))
+		// 	{
+		// 		BackupSensor->GetNormalCamSensor()->CleanCaptureCache();
+		// 	}
+		// 	if (IsValid(BackupSensor->GetFlowCamSensor()))
+		// 	{
+		// 		BackupSensor->GetFlowCamSensor()->CleanCaptureCache();
+		// 	}
 		}
 
 		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded. Real Duration: %.2fs, Real FPS: %.2f"),
@@ -164,6 +191,12 @@ void AFusionCamCaptureActor::StopRecord()
 		TargetToHide = nullptr;
 		CurrentTrajectory.Empty();
 		CurrentTrajectoryIndex = 0;
+
+		if (IsValid(BackupSensor))
+		{
+			BackupSensor = nullptr;
+			BackupCameraID = -1;
+		}
 
 		if (bPauseWorldDuringRecord)
 		{
@@ -256,8 +289,8 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	{
 		WorldSettings->SetTimeDilation(0.0f);
 
-		while (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
-			   FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
+		// while (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
+		// 	   FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
 		{
 			if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 			{
@@ -286,14 +319,14 @@ void AFusionCamCaptureActor::OnTimerRecord()
 			}
 		}
 
-		// if (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
-		//  	 FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
-		// {
-		// 	AsyncTask(ENamedThreads::GameThread, [this]()
-		// 	{
-		// 		OnTimerRecord();
-		// 	});
-		// }
+		if (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
+		 	 FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
+		{
+			AsyncTask(ENamedThreads::GameThread, [this]()
+			{
+				OnTimerRecord();
+			});
+		}
 	}
 	else
 	{
@@ -347,40 +380,42 @@ void AFusionCamCaptureActor::RecordFrame()
 {
 	FScopeLock Lock(&RecordCriticalSection);
 
-	// bool bAsyncCaptureNextFrame = bRecordWithoutTarget ? false : true;
-	bool bAsyncCaptureNextFrame = false;
-	for (auto* Sensor : TargetSensor->GetSensors())
+	auto SaveRGBToFile = [this](UFusionCamSensor *Sensor, const FString& FileName)
 	{
-		check(IsValid(Sensor));
-		Sensor->bAsyncCaptureNextFrame = bAsyncCaptureNextFrame;
-	}
+		TArray<FColor> ImageData;
+		int Width, Height;
+		Sensor->GetLit(ImageData, Width, Height);
+		AsyncTask(ENamedThreads::AnyThread, [this, ImageData = MoveTemp(ImageData), Width, Height, FileName]()
+		{
+			SerializeData(ImageData, Width, Height, FileName);
+		});
+	};
 
-	if (bRecordWithoutTarget)
+	auto SaveSegToFile = [this](UFusionCamSensor *Sensor, const FString& FileName)
 	{
-		// if (bRecordRGB) TargetSensor->GetLitCamSensor()->HideOneActor(TargetToHide);
-		// if (bRecordMask) TargetSensor->GetAnnotationCamSensor()->HideOneActor(TargetToHide);
-		// if (bRecordDepth) TargetSensor->GetDepthCamSensor()->HideOneActor(TargetToHide);
-		// if (bRecordNormal) TargetSensor->GetNormalCamSensor()->HideOneActor(TargetToHide);
-		// if (bRecordFlow) TargetSensor->GetFlowCamSensor()->HideOneActor(TargetToHide);
+		TArray<FColor> ImageData;
+		int Width, Height;
+		Sensor->GetSeg(ImageData, Width, Height);
+		AsyncTask(ENamedThreads::AnyThread, [this, ImageData = MoveTemp(ImageData), Width, Height, FileName]()
+		{
+			SerializeData(ImageData, Width, Height, FileName);
+		});
+	};
 
-		if (bRecordRGB) TargetSensor->GetLitCamSensor()->HideActor(TargetToHide);
-		if (bRecordMask) TargetSensor->GetAnnotationCamSensor()->HideActor(TargetToHide);
-		if (bRecordDepth) TargetSensor->GetDepthCamSensor()->HideActor(TargetToHide);
-		if (bRecordNormal) TargetSensor->GetNormalCamSensor()->HideActor(TargetToHide);
-		if (bRecordFlow) TargetSensor->GetFlowCamSensor()->HideActor(TargetToHide);
-	}
 
 	
 	if (bRecordRGB)
 	{
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
-		TargetSensor->SaveLitToFile(FileNameRGB);
+		// TargetSensor->SaveLitToFile(FileNameRGB);
+		SaveRGBToFile(TargetSensor, FileNameRGB);
 	}
 
 	if (bRecordMask)
 	{
 		FString FileNameMask = MakeFilenameNew("mask", ".png");
-		TargetSensor->SaveSegToFile(FileNameMask);
+		// TargetSensor->SaveSegToFile(FileNameMask);
+		SaveSegToFile(TargetSensor, FileNameMask);
 	}
 
 	if (bRecordDepth)
@@ -409,58 +444,52 @@ void AFusionCamCaptureActor::RecordFrame()
 
 	if (bRecordWithoutTarget && IsValid(TargetToHide))
 	{
-		// TargetToHide->SetActorHiddenInGame(true);
-
-		// if (bRecordRGB) TargetSensor->GetLitCamSensor()->LaunchCapture();
-		// if (bRecordMask) TargetSensor->GetAnnotationCamSensor()->LaunchCapture();
-		// if (bRecordDepth) TargetSensor->GetDepthCamSensor()->LaunchCapture();
-		// if (bRecordNormal) TargetSensor->GetNormalCamSensor()->LaunchCapture();
-		// if (bRecordFlow) TargetSensor->GetFlowCamSensor()->LaunchCapture();
-
-		if (bRecordRGB) TargetSensor->GetLitCamSensor()->ShowActor(TargetToHide);
-		if (bRecordMask) TargetSensor->GetAnnotationCamSensor()->ShowActor(TargetToHide);
-		if (bRecordDepth) TargetSensor->GetDepthCamSensor()->ShowActor(TargetToHide);
-		if (bRecordNormal) TargetSensor->GetNormalCamSensor()->ShowActor(TargetToHide);
-		if (bRecordFlow) TargetSensor->GetFlowCamSensor()->ShowActor(TargetToHide);
-
-
-		if (bRecordRGB)
+		if (IsValid(BackupSensor))
 		{
-			FString FileNameRGB = MakeFilenameNew("rgb_woTarget", ".png");
-			TargetSensor->SaveLitToFile(FileNameRGB);
+			BackupSensor->SetSensorLocation(TargetSensor->GetSensorLocation());
+			BackupSensor->SetSensorRotation(TargetSensor->GetSensorRotation());
+
+			if (bRecordRGB) BackupSensor->GetLitCamSensor()->HideActor(TargetToHide);
+			if (bRecordMask) BackupSensor->GetAnnotationCamSensor()->HideActor(TargetToHide);
+			if (bRecordDepth) BackupSensor->GetDepthCamSensor()->HideActor(TargetToHide);
+			if (bRecordNormal) BackupSensor->GetNormalCamSensor()->HideActor(TargetToHide);
+			if (bRecordFlow) BackupSensor->GetFlowCamSensor()->HideActor(TargetToHide);
+
+			if (bRecordRGB)
+			{
+				FString FileNameRGB = MakeFilenameNew("rgb_woTarget", ".png");
+				// BackupSensor->SaveLitToFile(FileNameRGB);
+				SaveRGBToFile(BackupSensor, FileNameRGB);
+			}
+
+			if (bRecordMask)
+			{
+				FString FileNameMask = MakeFilenameNew("mask_woTarget", ".png");
+				// BackupSensor->SaveSegToFile(FileNameMask);
+				SaveSegToFile(BackupSensor, FileNameMask);
+			}
+
+			if (bRecordDepth)
+			{
+				FString DepthFilename = MakeFilenameNew("depth_woTarget", ".npy");
+				BackupSensor->SaveDepthToFile(DepthFilename);
+			}
+
+			if (bRecordNormal)
+			{
+				FString NormalFilename = MakeFilenameNew("normal_woTarget", ".png");
+				BackupSensor->SaveNormalToFile(NormalFilename);
+			}
+
+			if (bRecordFlow)
+			{
+				FString FlowFilename = MakeFilenameNew("flow_woTarget", ".png");
+				BackupSensor->SaveFlowToFile(FlowFilename);
+			}
 		}
-
-		if (bRecordMask)
-		{
-			FString FileNameMask = MakeFilenameNew("mask_woTarget", ".png");
-			TargetSensor->SaveSegToFile(FileNameMask);
+		else{
+			UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: BackupSensor is invalid!"));
 		}
-
-		if (bRecordDepth)
-		{
-			FString DepthFilename = MakeFilenameNew("depth_woTarget", ".npy");
-			TargetSensor->SaveDepthToFile(DepthFilename);
-		}
-
-		if (bRecordNormal)
-		{
-			FString NormalFilename = MakeFilenameNew("normal_woTarget", ".png");
-			TargetSensor->SaveNormalToFile(NormalFilename);
-		}
-
-		if (bRecordFlow)
-		{
-			FString FlowFilename = MakeFilenameNew("flow_woTarget", ".png");
-			TargetSensor->SaveFlowToFile(FlowFilename);
-		}
-
-		// TargetToHide->SetActorHiddenInGame(false);
-
-		// if (bRecordRGB) TargetSensor->GetLitCamSensor()->LaunchCapture();
-		// if (bRecordMask) TargetSensor->GetAnnotationCamSensor()->LaunchCapture();
-		// if (bRecordDepth) TargetSensor->GetDepthCamSensor()->LaunchCapture();
-		// if (bRecordNormal) TargetSensor->GetNormalCamSensor()->LaunchCapture();
-		// if (bRecordFlow) TargetSensor->GetFlowCamSensor()->LaunchCapture();
 	}
 
 	if (bRecordMetadata)
@@ -932,6 +961,38 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 
 	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Set all quality settings to maximum for recording (Lumen GI and Reflections enabled)"));
 
+	if (bRecordWithoutTarget && !IsValid(BackupSensor) && IsValid(TargetSensor))
+	{
+		BackupCameraID = URecordingBPLib::CreateFreeCamera(
+			this,
+			TargetSensor->GetSensorLocation(),
+			TargetSensor->GetSensorRotation()
+		);
+
+		if (BackupCameraID >= 0)
+		{
+			BackupSensor = URecordingBPLib::GetCameraByID(BackupCameraID);
+			if (IsValid(BackupSensor))
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Created BackupSensor via URecordingBPLib, CameraID=%d"), BackupCameraID);
+			}
+			else
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: Failed to get BackupSensor from CameraID=%d"), BackupCameraID);
+			}
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: Failed to create BackupCamera"));
+		}
+	}
+
+
+	if (bRecordWithoutTarget && IsValid(BackupSensor))
+	{
+		CopySensorSettings(TargetSensor, BackupSensor);
+	}
+
 
 
 	// static const TArray<FIntPoint> Resolutions = {
@@ -1150,13 +1211,49 @@ void AFusionCamCaptureActor::SetDefaultParamsForTargetCamera()
 
 	TargetSensor->SetVignetteIntensity(0.1f);
 
-	TargetSensor->GetLitCamSensor()->CleanCaptureCache();
-	TargetSensor->GetDepthCamSensor()->CleanCaptureCache();
-	TargetSensor->GetAnnotationCamSensor()->CleanCaptureCache();
-	TargetSensor->GetNormalCamSensor()->CleanCaptureCache();
-	TargetSensor->GetFlowCamSensor()->CleanCaptureCache();
+	// TargetSensor->GetLitCamSensor()->CleanCaptureCache();
+	// TargetSensor->GetDepthCamSensor()->CleanCaptureCache();
+	// TargetSensor->GetAnnotationCamSensor()->CleanCaptureCache();
+	// TargetSensor->GetNormalCamSensor()->CleanCaptureCache();
+	// TargetSensor->GetFlowCamSensor()->CleanCaptureCache();
 }
 
+void AFusionCamCaptureActor::CopySensorSettings(UFusionCamSensor* Source, UFusionCamSensor* Target)
+{
+	if (!IsValid(Source) || !IsValid(Target))
+	{
+		return;
+	}
+
+	Target->SetFilmSize(Source->GetFilmWidth(), Source->GetFilmHeight());
+	Target->SetSensorFOV(Source->GetSensorFOV());
+	Target->SetProjectionType(ECameraProjectionMode::Type::Perspective);
+
+	Target->SetReflectionMethod(Source->GetReflectionMethod());
+	Target->SetGlobalIlluminationMethod(Source->GetGlobalIlluminationMethod());
+	Target->SetExposureMethod(Source->GetExposureMethod());
+
+	float ExposureSpeedDown, ExposureSpeedUp;
+	Source->GetAutoExposureSpeed(ExposureSpeedDown, ExposureSpeedUp);
+	Target->SetAutoExposureSpeed(ExposureSpeedDown, ExposureSpeedUp);
+
+	float MotionBlurAmount, MotionBlurMax, MotionBlurPerObjectSize;
+	int MotionBlurTargetFPS;
+	Source->GetMotionBlurParams(MotionBlurAmount, MotionBlurMax, MotionBlurPerObjectSize, MotionBlurTargetFPS);
+	Target->SetMotionBlurParams(MotionBlurAmount, MotionBlurMax, MotionBlurPerObjectSize, MotionBlurTargetFPS);
+
+	float FocalDistance, FocalRegion;
+	Source->GetFocalParams(FocalDistance, FocalRegion);
+	Target->SetFocalParams(FocalDistance, FocalRegion);
+
+	Target->SetChromaticAberration(Source->GetChromaticAberration());
+	Target->SetVignetteIntensity(Source->GetVignetteIntensity());
+
+	EBloomMethod BloomMethod;
+	float BloomIntensity;
+	Source->GetBloomParams(BloomMethod, BloomIntensity);
+	Target->SetConvolutionBloom(BloomMethod, nullptr, BloomIntensity);
+}
 
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, float DegreesPerFrame, int32 RandomSeed)
 {

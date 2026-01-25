@@ -12,6 +12,12 @@
 #include "UnrealcvLog.h"
 #include "Kismet/GameplayStatics.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "Dom/JsonObject.h"
+#include "JsonConfigHelper.h"
 
 FAutomationConfig UDatasetAutomationBPLib::CurrentConfig;
 FAutomationStatus UDatasetAutomationBPLib::CurrentStatus;
@@ -25,7 +31,7 @@ TArray<FAutomationStep> UDatasetAutomationBPLib::CommandQueue;
 int32 UDatasetAutomationBPLib::CurrentCommandIndex = -1;
 int32 UDatasetAutomationBPLib::CurrentSceneCounter = 0;
 FString UDatasetAutomationBPLib::CurrentSceneID = TEXT("");
-FString UDatasetAutomationBPLib::TaskName = TEXT("Omnimatte");
+FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
 // FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
 double UDatasetAutomationBPLib::DelayStartTime = 0.0;
 double UDatasetAutomationBPLib::DelayDuration = 0.0;
@@ -64,6 +70,12 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 
 		// CommandQueue.Add(FAutomationStep(TEXT("record_nav_track")));
 		// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+
+		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
+		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
+		CommandQueue.Add(FAutomationStep(TEXT("load_random_level_every_n_scenes"), TEXT(""), 2));
+		CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
 	}
 	else if (TaskName == TEXT("Omnimatte"))
 	{
@@ -73,17 +85,17 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
+
+		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
+		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
+		CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
 	}
 	else
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Invalid task name"));
 		check(false);
 	}
-
-	CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
-	CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
-	CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
-	CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
 
 	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Built command sequence with %d commands"), CommandQueue.Num());
 }
@@ -362,6 +374,107 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Annotating world: %s"), *CurrentSceneID);
 		UAnnotationBPLib::AnnotateWorld();
 		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("load_random_level_every_n_scenes"))
+	{
+		int32 N = static_cast<int32>(Step.FloatParam);
+		if (N <= 0)
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: load_random_level_every_n_scenes requires N > 0"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		if (CurrentSceneCounter % N == 0 && CurrentSceneCounter > 0)
+		{
+			FString JsonFilePath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
+			FString JsonFileContent;
+			if (!FFileHelper::LoadFileToString(JsonFileContent, *JsonFilePath))
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Failed to read JSON file '%s'"), *JsonFilePath);
+				TransitionToState(EDatasetGenerationState::Error);
+				return;
+			}
+
+			TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonFileContent);
+			if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Failed to parse JSON from '%s'"), *JsonFilePath);
+				TransitionToState(EDatasetGenerationState::Error);
+				return;
+			}
+
+			TArray<FString> EnabledLevels;
+			for (const auto& Pair : JsonObject->Values)
+			{
+				if (Pair.Value->Type == EJson::Object)
+				{
+					TSharedPtr<FJsonObject> LevelConfig = Pair.Value->AsObject();
+					bool bEnabled = false;
+					if (LevelConfig->TryGetBoolField(TEXT("Enabled"), bEnabled) && bEnabled)
+					{
+						EnabledLevels.Add(Pair.Key);
+					}
+				}
+			}
+
+			if (EnabledLevels.Num() == 0)
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: No enabled levels found in JSON"));
+				TransitionToState(EDatasetGenerationState::Error);
+				return;
+			}
+
+			FString CurrentMapPath = WorldContext->GetMapName();
+			FString CurrentMapName = FJsonConfigHelper::ExtractMapNameFromPath(CurrentMapPath);
+
+			TArray<FString> AvailableLevels;
+			for (const FString& LevelName : EnabledLevels)
+			{
+				if (CurrentMapName.Find(LevelName) == INDEX_NONE)
+				{
+					AvailableLevels.Add(LevelName);
+				}
+			}
+
+			if (AvailableLevels.Num() == 0)
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: No other levels available, staying on current level"));
+				ExecuteNextCommand();
+				return;
+			}
+
+			int32 RandomIndex = FMath::RandRange(0, AvailableLevels.Num() - 1);
+			FString SelectedLevel = AvailableLevels[RandomIndex];
+
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Loading random level: %s (scene %d, every %d scenes)"),
+				*SelectedLevel, CurrentSceneCounter, N);
+
+			FString PreviousLevelName = CurrentMapName;
+			FUnrealcvServer::Get().WorldController->OpenLevel(FName(*SelectedLevel));
+
+			FString NewMapPath = WorldContext->GetMapName();
+			FString NewMapName = FJsonConfigHelper::ExtractMapNameFromPath(NewMapPath);
+
+			if (NewMapName == PreviousLevelName)
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: OpenLevel failed - Level name unchanged: %s"), *NewMapName);
+			}
+
+			if (NewMapName.Find(SelectedLevel) == INDEX_NONE)
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: OpenLevel failed - New level '%s' does not contain target name '%s'"), *NewMapName, *SelectedLevel);
+			}
+
+			ExecuteNextCommand();
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Skipping level load (scene %d, trigger every %d scenes)"),
+				CurrentSceneCounter, N);
+			ExecuteNextCommand();
+		}
 	}
 	else
 	{

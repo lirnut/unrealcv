@@ -31,6 +31,8 @@ void UAutomationBPLib::StartTicking()
 
 
 	PushCommand("vset /captureactor/spawn_free_cam");
+	PushCommand("r.ForceLOD 0");
+	PushCommand("r.SkeletalMeshLODBias -10");
 }
 
 void UAutomationBPLib::StopTicking()

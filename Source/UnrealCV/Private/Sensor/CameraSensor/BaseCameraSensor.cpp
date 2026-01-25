@@ -43,7 +43,8 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	FilmHeight = Config.Height == 0 ? 480 : Config.Height;
 	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
 
-	bUseFastCapture = Config.UseFastCapture;
+	// bUseFastCapture = Config.UseFastCapture;
+	bUseFastCapture = false;
 	bAsyncCaptureNextFrame = true;
 	// bUseFastCapture = true;
 	// bool bSetLinearToGamma = false;
@@ -408,33 +409,40 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 
 	// busy wait
 	double WaitStartTime = FPlatformTime::Seconds();
-	while (!bCaptureCacheValid && (FPlatformTime::Seconds() - WaitStartTime) < 1.0)
+	double CaptureCacheTimeOut = 5.0;
+	while (!bCaptureCacheValid && (FPlatformTime::Seconds() - WaitStartTime) < CaptureCacheTimeOut)
 	{
-		FPlatformProcess::Sleep(0.00001f); // sleep 0.01 ms
+		FPlatformProcess::Sleep(0.00001f);
 	}
 	if (!bCaptureCacheValid)
 	{
-		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast: CaptureCache not valid, failed"));
-		return;
+		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast: CaptureCache not valid, failed after %lf"), (FPlatformTime::Seconds() - WaitStartTime));
+		CleanCaptureCache();
+		CaptureScene();
+		ReadTextureRenderTarget(TextureTarget, ImageData, Width, Height);
 	}
-	SL::get().printf("CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
-
-	// TArray<FColor> PixelData;
-	double CopyStartTime = FPlatformTime::Seconds();
-	if (CaptureCache.Num() == FilmWidth * FilmHeight)
+	else 
 	{
-		ImageData = MoveTemp(CaptureCache);
-		Width = FilmWidth;
-		Height = FilmHeight;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast: CaptureCache size not match, failed"));
-	}
-	SL::get().printf("CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
+		SL::get().printf("CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
 
-	bCaptureCacheValid = false;
-	CaptureCache = {};
+		// TArray<FColor> PixelData;
+		double CopyStartTime = FPlatformTime::Seconds();
+		if (CaptureCache.Num() == FilmWidth * FilmHeight)
+		{
+			ImageData = MoveTemp(CaptureCache);
+			Width = FilmWidth;
+			Height = FilmHeight;
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast: CaptureCache size not match, failed"));
+			check(false);
+		}
+		SL::get().printf("CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
+
+		bCaptureCacheValid = false;
+		CaptureCache = {};
+	}
 
 	if (bAsyncCaptureNextFrame)
 	{

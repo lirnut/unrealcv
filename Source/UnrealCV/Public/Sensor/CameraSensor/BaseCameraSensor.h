@@ -94,7 +94,6 @@ public:
 	virtual void LaunchCapture();
 	void CheckCaptureCache(ECaptureFormat Format);
 	virtual void CopyBackCapture(ECaptureFormat Format);
-	void CleanCaptureCache();
 	
 public:
 	/** The old version to read TextureBuffer, slow but is sync operation */
@@ -115,11 +114,11 @@ protected:
 
 	// void CaptureFloat16(TArray<FFloat16Color>& ImageData, int& Width, int& Height);
 
+	void CleanCaptureCache();
 
 protected:
 	void InitFloat16TextureTarget(int FilmWidth, int FilmHeight);
-	void InitUInt8TextureTarget(int FilmWidth, int FilmHeight, bool bUseLinearGamma = true);
-	
+	void InitUInt8TextureTarget(int FilmWidth, int FilmHeight, bool bUseLinearGamma = true);	
 
 protected:
 	int FilmWidth;

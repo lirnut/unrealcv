@@ -78,6 +78,13 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
 	class UFusionCamSensor* TargetSensor;
 
+	/** Backup sensor for recording without target (created automatically when bRecordWithoutTarget is true) */
+	UPROPERTY()
+	class UFusionCamSensor* BackupSensor;
+
+	/** Backup camera ID for destroying camera when done */
+	int32 BackupCameraID;
+
 	/** Output folder for recorded files */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
 	FDirectoryPath DataFolder;
@@ -148,6 +155,8 @@ public:
 
 
 	static FVector GetTargetLocationWithRandomHeight(AActor* Target);
+
+	static void CopySensorSettings(UFusionCamSensor* Source, UFusionCamSensor* Target);
 
 	void TriggerVideoGeneration();
 	int32 GetCurrentTrajectoryIndex() const { return CurrentTrajectoryIndex; }

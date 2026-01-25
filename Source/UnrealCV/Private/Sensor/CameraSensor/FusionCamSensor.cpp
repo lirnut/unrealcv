@@ -64,9 +64,6 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	LitCamSensor = CreateDefaultSubobject<ULitCamSensor>(*ComponentName);
 	FusionSensors.Add(LitCamSensor);
 
-	// FlowCamSensor is created later to avoid template mismatch issues
-	// Unhandled Exception: EXCEPTION_ACCESS_VIOLATION reading address 0x0000000000000008 UnrealEditor_Engine UnrealEditor_UnrealCV!AUnrealcvWorldController::OpenLevel() [C:\Users\hulc\Desktop\HUAWEI_Project\Plugins\unrealcv\Source\UnrealCV\Private\Controller\WorldController.cpp:90]
-	// FlowCamSensor = nullptr;
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("FlowCamSensor"));
 	FlowCamSensor = CreateDefaultSubobject<UFlowCamSensor>(*ComponentName);
 	// FlowCamSensor = NewObject<UFlowCamSensor>(this, UFlowCamSensor::StaticClass()); /*NewObject with empty name can't be used to create default subobjects*/
