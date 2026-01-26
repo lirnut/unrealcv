@@ -64,6 +64,9 @@ struct FSceneGenerationParams
 	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
 	float ForegroundYaw;
 
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	TArray<FVector> SafePoints;
+
 	FSceneGenerationParams()
 		: SpawnAreaMin(0.0f, 0.0f)
 		, SpawnAreaMax(1000.0f, 1000.0f)
@@ -76,6 +79,7 @@ struct FSceneGenerationParams
 		, CameraID(1)
 		, bAutoPositionCamera(true)
 		, ForegroundYaw(-1.0f)
+		, SafePoints({})
 	{
 	}
 
@@ -92,6 +96,7 @@ struct FSceneGenerationParams
 		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: CameraID: %d"), CameraID);
 		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: bAutoPositionCamera: %s"), bAutoPositionCamera ? TEXT("true") : TEXT("false"));
 		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: ForegroundYaw: %f"), ForegroundYaw);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: SafePoints count: %d"), SafePoints.Num());
 	}
 };
 
@@ -230,6 +235,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
 	static void ClearAllScenes(UObject* WorldContextObject);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition")
+	static bool AddSafePointToScene(const FString& SceneName, FVector Location);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
+	static bool AddSafePointToCurrentScene(UObject* WorldContextObject, FVector Location);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition")
+	static TArray<FVector> GetSafePointsForScene(const FString& SceneName);
 
 	// ========== Actor Spawning ==========
 

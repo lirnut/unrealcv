@@ -42,6 +42,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	CommandQueue.Empty();
 	if (TaskName == TEXT("Trajectory"))
 	{
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/spawn_free_cam")));
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.ForceLOD 0")));
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.SkeletalMeshLODBias -10")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
@@ -52,21 +55,28 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 		CommandQueue.Add(FAutomationStep(TEXT("special_wait"), TEXT(""), FMath::RandRange(50.f, 70.f)));
-		// CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_30")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_30")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_360")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
+		
+		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT(""), 1.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 15.0f));
+
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
+		
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT(""), 1.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT(""), 1.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 		// CommandQueue.Add(FAutomationStep(TEXT("save_videos")));
 
@@ -76,7 +86,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
 		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
-		CommandQueue.Add(FAutomationStep(TEXT("load_random_level_every_n_scenes"), TEXT(""), 2));
+		// CommandQueue.Add(FAutomationStep(TEXT("load_random_level_every_n_scenes"), TEXT(""), 1));
 		CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
 	}
 	else if (TaskName == TEXT("Omnimatte"))
@@ -356,7 +366,17 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	}
 	else if (Step.Command == TEXT("set_time_dilation"))
 	{
-		FUnrealcvServer::Get().GetWorld()->GetWorldSettings()->SetTimeDilation(Step.FloatParam);
+		auto* World = FUnrealcvServer::Get().GetGameWorld();
+		if (IsValid(World))
+		{
+			World->GetWorldSettings()->SetTimeDilation(Step.FloatParam);
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set time dilation to %.2f"), Step.FloatParam);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Failed to set time dilation, world is invalid"));
+		}
+		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("sync_secondary_cameras"))
 	{
@@ -387,7 +407,16 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	else if (Step.Command == TEXT("sync_all_cameras"))
 	{
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Synchronizing all cameras..."));
-		TransitionToState(EDatasetGenerationState::WaitingAsync);
+		bool AllCamerasIdle = AreAllCamerasIdle();
+		if (AllCamerasIdle)
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: All cameras are idle, proceeding to next command"));
+			ExecuteNextCommand();
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Waiting for all cameras to finish recording"));
+		}
 	}
 	else if (Step.Command == TEXT("save_videos"))
 	{
@@ -507,6 +536,29 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 				CurrentSceneCounter, N);
 			ExecuteNextCommand();
 		}
+	}
+	else if (Step.Command == TEXT("vrun"))
+	{
+		FString Command = Step.StringParam;
+		UE_LOG(LogUnrealCV, Log, TEXT("Executing console command: %s"), *Command);
+		UWorld* World = FUnrealcvServer::Get().GetGameWorld();
+		if (World && World->GetFirstPlayerController())
+		{
+			FString Result = World->GetFirstPlayerController()->ConsoleCommand(Command, true);
+			if (!Result.IsEmpty())
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("Command result: %s"), *Result);
+			}
+			else
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("Command executed (no result)"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Failed to get World or PlayerController"));
+		}
+		ExecuteNextCommand();
 	}
 	else
 	{
@@ -692,16 +744,15 @@ void UDatasetAutomationBPLib::ProcessState(double RealDeltaTime)
 		double CurrentRealTime = FPlatformTime::Seconds();
 		double ElapsedRealTime = CurrentRealTime - DelayStartTime;
 		bool DelayComplete = (ElapsedRealTime >= DelayDuration);
-		bool AllCamerasIdle = AreAllCamerasIdle();
 
-		UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Waiting (%.2fs/%.2fs real time), AllCamerasIdle: %d"), ElapsedRealTime, DelayDuration, AllCamerasIdle);
+		UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Waiting (%.2fs/%.2fs real time)"), ElapsedRealTime, DelayDuration);
 
-		if (AllCamerasIdle && DelayComplete)
+		if (DelayComplete)
 		{
-			if (IsValid(CurrentScene.NavController) && CurrentScene.NavController->IsNavigating())
-			{
-				CurrentScene.NavController->StopNavigation();
-			}
+			// if (IsValid(CurrentScene.NavController) && CurrentScene.NavController->IsNavigating())
+			// {
+			// 	CurrentScene.NavController->StopNavigation();
+			// }
 
 			ExecuteNextCommand();
 		}

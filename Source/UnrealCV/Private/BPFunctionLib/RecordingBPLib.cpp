@@ -9,6 +9,7 @@
 #include "FusionCameraActor.h"
 #include "UnrealcvLog.h"
 #include "Utils/PythonExecutor.h"
+#include "UnrealcvServer.h"
 
 // Static map to track recording actors (camera ID -> capture actor)
 // This replaces the need to access CameraHandler's private map
@@ -108,6 +109,13 @@ bool URecordingBPLib::StopRecording(int32 CameraID)
 	if (!IsValid(CaptureActor))
 	{
 		// CaptureActor was destroyed, clean up the mapping
+		GlobalCameraRecordingActors.Remove(CID);
+		return false;
+	}
+
+	if (FUnrealcvServer::Get().GetGameWorld() != CaptureActor->GetWorld())
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("URecordingBPLib::StopRecording: Camera %s is not in the same world as the game world"), *CID);
 		GlobalCameraRecordingActors.Remove(CID);
 		return false;
 	}

@@ -654,6 +654,44 @@ bool USceneCompositionBPLib::CreateSceneParamsFromJson(
 		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: ForegroundYaw not found in config '%s', using default"), *MatchedKey);
 	}
 
+	if (MatchingConfig->HasField(TEXT("SafePoints")))
+	{
+		const TArray<TSharedPtr<FJsonValue>>* SafePointsArray = nullptr;
+		if (MatchingConfig->TryGetArrayField(TEXT("SafePoints"), SafePointsArray))
+		{
+			OutParams.SafePoints.Empty();
+			for (const TSharedPtr<FJsonValue>& PointValue : *SafePointsArray)
+			{
+				if (PointValue->Type == EJson::Object)
+				{
+					TSharedPtr<FJsonObject> PointObj = PointValue->AsObject();
+
+					if (PointObj->HasField(TEXT("Position")))
+					{
+						TSharedPtr<FJsonObject> PosObj = PointObj->GetObjectField(TEXT("Position"));
+						double X = 0.0, Y = 0.0, Z = 0.0;
+
+						TSharedPtr<FJsonValue> XVal = PosObj->TryGetField(TEXT("X"));
+						TSharedPtr<FJsonValue> YVal = PosObj->TryGetField(TEXT("Y"));
+						TSharedPtr<FJsonValue> ZVal = PosObj->TryGetField(TEXT("Z"));
+
+						if (FJsonConfigHelper::ParseJsonNumber(XVal, X) &&
+							FJsonConfigHelper::ParseJsonNumber(YVal, Y) &&
+							FJsonConfigHelper::ParseJsonNumber(ZVal, Z))
+						{
+							OutParams.SafePoints.Add(FVector(X, Y, Z));
+						}
+					}
+					else
+					{
+						UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: Safe point missing 'Position' field"));
+					}
+				}
+			}
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Parsed %d safe points"), OutParams.SafePoints.Num());
+		}
+	}
+
 	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Successfully loaded params from config '%s'"), *MatchedKey);
 	return true;
 }
@@ -720,9 +758,21 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	OutSceneHandle.ForegroundCategory = ResolvedForegroundCategory;
 
 	FVector ForegroundPosition;
-	ForegroundPosition.X = FMath::RandRange(Params.SpawnAreaMin.X, Params.SpawnAreaMax.X);
-	ForegroundPosition.Y = FMath::RandRange(Params.SpawnAreaMin.Y, Params.SpawnAreaMax.Y);
-	ForegroundPosition.Z = Params.GroundHeight;
+	if (Params.SafePoints.Num() > 0 && FMath::RandRange(0.0f, 1.0f) < 0.8f)
+	{
+		int32 RandomIndex = FMath::RandRange(0, Params.SafePoints.Num() - 1);
+		ForegroundPosition = Params.SafePoints[RandomIndex];
+		UE_LOG(LogUnrealCV, Log, TEXT("GenerateRandomScene: Using safe point %d: (%.2f, %.2f, %.2f)"),
+			RandomIndex, ForegroundPosition.X, ForegroundPosition.Y, ForegroundPosition.Z);
+	}
+	else
+	{
+		ForegroundPosition.X = FMath::RandRange(Params.SpawnAreaMin.X, Params.SpawnAreaMax.X);
+		ForegroundPosition.Y = FMath::RandRange(Params.SpawnAreaMin.Y, Params.SpawnAreaMax.Y);
+		ForegroundPosition.Z = Params.GroundHeight;
+		UE_LOG(LogUnrealCV, Log, TEXT("GenerateRandomScene: Using rectangle randomization: (%.2f, %.2f, %.2f)"),
+			ForegroundPosition.X, ForegroundPosition.Y, ForegroundPosition.Z);
+	}
 
 	TMap<FString, FString> ForegroundMetadata;
 
@@ -1529,5 +1579,187 @@ ANavAgentController* USceneCompositionBPLib::CreateNavAgentController(UObject* W
 	}
 
 	return NavController;
+}
+
+bool USceneCompositionBPLib::AddSafePointToScene(const FString& SceneName, FVector Location)
+{
+	FString JsonFilePath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
+
+	FString JsonFileContent;
+	if (!FFileHelper::LoadFileToString(JsonFileContent, *JsonFilePath))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("AddSafePointToScene: Failed to read JSON file '%s'"), *JsonFilePath);
+		return false;
+	}
+
+	TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonFileContent);
+	if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("AddSafePointToScene: Failed to parse JSON from '%s'"), *JsonFilePath);
+		return false;
+	}
+
+	TSharedPtr<FJsonObject> SceneConfig = nullptr;
+	FString MatchedKey;
+	for (const auto& Pair : JsonObject->Values)
+	{
+		if (Pair.Value->Type == EJson::Object)
+		{
+			if (Pair.Key.Find(SceneName) != INDEX_NONE || SceneName.Find(Pair.Key) != INDEX_NONE)
+			{
+				SceneConfig = Pair.Value->AsObject();
+				MatchedKey = Pair.Key;
+				break;
+			}
+		}
+	}
+
+	if (!SceneConfig.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("AddSafePointToScene: Scene '%s' not found in JSON"), *SceneName);
+		return false;
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("AddSafePointToScene: Matched scene config '%s' for input '%s'"), *MatchedKey, *SceneName);
+
+	TArray<TSharedPtr<FJsonValue>> SafePointsArray;
+	if (SceneConfig->HasField(TEXT("SafePoints")))
+	{
+		const TArray<TSharedPtr<FJsonValue>>* ExistingArray = nullptr;
+		if (SceneConfig->TryGetArrayField(TEXT("SafePoints"), ExistingArray))
+		{
+			SafePointsArray = *ExistingArray;
+		}
+	}
+
+	TSharedPtr<FJsonObject> PositionObj = MakeShared<FJsonObject>();
+	PositionObj->SetNumberField(TEXT("X"), Location.X);
+	PositionObj->SetNumberField(TEXT("Y"), Location.Y);
+	PositionObj->SetNumberField(TEXT("Z"), Location.Z);
+
+	TSharedPtr<FJsonObject> NewPoint = MakeShared<FJsonObject>();
+	NewPoint->SetObjectField(TEXT("Position"), PositionObj);
+
+	SafePointsArray.Add(MakeShared<FJsonValueObject>(NewPoint));
+
+	SceneConfig->SetArrayField(TEXT("SafePoints"), SafePointsArray);
+
+	FString OutputString;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+	if (!FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("AddSafePointToScene: Failed to serialize JSON"));
+		return false;
+	}
+
+	if (!FFileHelper::SaveStringToFile(OutputString, *JsonFilePath))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("AddSafePointToScene: Failed to write JSON file '%s'"), *JsonFilePath);
+		return false;
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("AddSafePointToScene: Added safe point (%.2f, %.2f, %.2f) to scene '%s'"),
+		Location.X, Location.Y, Location.Z, *SceneName);
+	return true;
+}
+
+bool USceneCompositionBPLib::AddSafePointToCurrentScene(UObject* WorldContextObject, FVector Location)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("AddSafePointToCurrentScene: Invalid world context"));
+		return false;
+	}
+
+	FString CurrentMapPath = World->GetMapName();
+	FString CurrentMapName = FJsonConfigHelper::ExtractMapNameFromPath(CurrentMapPath);
+
+	UE_LOG(LogUnrealCV, Log, TEXT("AddSafePointToCurrentScene: Current map name: %s"), *CurrentMapName);
+
+	return AddSafePointToScene(CurrentMapName, Location);
+}
+
+TArray<FVector> USceneCompositionBPLib::GetSafePointsForScene(const FString& SceneName)
+{
+	TArray<FVector> SafePoints;
+	FString JsonFilePath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
+
+	FString JsonFileContent;
+	if (!FFileHelper::LoadFileToString(JsonFileContent, *JsonFilePath))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("GetSafePointsForScene: Failed to read JSON file '%s'"), *JsonFilePath);
+		return SafePoints;
+	}
+
+	TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonFileContent);
+	if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("GetSafePointsForScene: Failed to parse JSON from '%s'"), *JsonFilePath);
+		return SafePoints;
+	}
+
+	TSharedPtr<FJsonObject> SceneConfig = nullptr;
+	FString MatchedKey;
+	for (const auto& Pair : JsonObject->Values)
+	{
+		if (Pair.Value->Type == EJson::Object)
+		{
+			if (Pair.Key.Find(SceneName) != INDEX_NONE || SceneName.Find(Pair.Key) != INDEX_NONE)
+			{
+				SceneConfig = Pair.Value->AsObject();
+				MatchedKey = Pair.Key;
+				break;
+			}
+		}
+	}
+
+	if (!SceneConfig.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("GetSafePointsForScene: Scene '%s' not found in JSON"), *SceneName);
+		return SafePoints;
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("GetSafePointsForScene: Matched scene config '%s' for input '%s'"), *MatchedKey, *SceneName);
+
+	if (SceneConfig->HasField(TEXT("SafePoints")))
+	{
+		const TArray<TSharedPtr<FJsonValue>>* SafePointsArray = nullptr;
+		if (SceneConfig->TryGetArrayField(TEXT("SafePoints"), SafePointsArray))
+		{
+			for (const TSharedPtr<FJsonValue>& PointValue : *SafePointsArray)
+			{
+				if (PointValue->Type == EJson::Object)
+				{
+					TSharedPtr<FJsonObject> PointObj = PointValue->AsObject();
+
+					if (PointObj->HasField(TEXT("Position")))
+					{
+						TSharedPtr<FJsonObject> PosObj = PointObj->GetObjectField(TEXT("Position"));
+						double X = 0.0, Y = 0.0, Z = 0.0;
+
+						TSharedPtr<FJsonValue> XVal = PosObj->TryGetField(TEXT("X"));
+						TSharedPtr<FJsonValue> YVal = PosObj->TryGetField(TEXT("Y"));
+						TSharedPtr<FJsonValue> ZVal = PosObj->TryGetField(TEXT("Z"));
+
+						if (FJsonConfigHelper::ParseJsonNumber(XVal, X) &&
+							FJsonConfigHelper::ParseJsonNumber(YVal, Y) &&
+							FJsonConfigHelper::ParseJsonNumber(ZVal, Z))
+						{
+							SafePoints.Add(FVector(X, Y, Z));
+						}
+					}
+					else
+					{
+						UE_LOG(LogUnrealCV, Error, TEXT("GetSafePointsForScene: Safe point missing 'Position' field"));
+					}
+				}
+			}
+		}
+	}
+
+	return SafePoints;
 }
 
