@@ -1,5 +1,4 @@
 #include "AnnotationComponent.h"
-// Overwrite the material
 
 #include "Runtime/CoreUObject/Public/UObject/ConstructorHelpers.h"
 #include "Materials/Material.h"
@@ -13,16 +12,23 @@
 #include "Runtime/Engine/Classes/Engine/Engine.h"
 
 #if ENGINE_MAJOR_VERSION >= 5
-//different header files in UE
 #include "Runtime/Engine/Public/StaticMeshSceneProxy.h"
 #include "Runtime/Engine/Public/SkeletalMeshSceneProxy.h"
 #include "InstancedStaticMeshSceneProxyDesc.h"
 
 #endif
 #include "Runtime/Engine/Public/Rendering/SkeletalMeshRenderData.h"
-// #include "SkeletalMeshRenderData.h"
 #include "SkinnedMeshSceneProxyDesc.h"
 #include "UnrealcvLog.h"
+
+#include "GroomComponent.h"
+#include "ExtraSceneProxies/HairStrandsSceneProxy.h"
+// #include "ExtraSceneProxies/GroomAnnotationSceneProxy.h"
+
+
+
+
+
 // Note: For UE4 < 19
 // Note: check https://github.com/unrealcv/unrealcv/blob/1369a72be8428547318d8a52ae2d63e1eb57a001/Source/UnrealCV/Private/Component/AnnotationComponent.cpp#L11
 
@@ -596,12 +602,65 @@ public:
 };
 
 
+// Old implementation: Inherit from FHairStrandsSceneProxy
+// Problem: Complex Hair rendering logic, material domain issues, resource conflicts
+class FGroomAnnotationSceneProxy : public FHairStrandsSceneProxy
+{
+public:
+	FMaterialRenderProxy* AnnotationMaterialRenderProxy;
+
+	FGroomAnnotationSceneProxy(UGroomComponent* Component, UMaterialInterface* AnnotationMID)
+		: FHairStrandsSceneProxy(Component)
+	{
+		AnnotationMaterialRenderProxy = AnnotationMID->GetRenderProxy();
+
+		for (int32 GroupIt = 0; GroupIt < HairGroupMaterialProxies.Num(); ++GroupIt)
+		{
+			HairGroupMaterialProxies[GroupIt].Strands = AnnotationMaterialRenderProxy;
+			for (int32 LODIt = 0; LODIt < HairGroupMaterialProxies[GroupIt].Cards.Num(); ++LODIt)
+			{
+				HairGroupMaterialProxies[GroupIt].Cards[LODIt] = AnnotationMaterialRenderProxy;
+			}
+			for (int32 LODIt = 0; LODIt < HairGroupMaterialProxies[GroupIt].Meshes.Num(); ++LODIt)
+			{
+				HairGroupMaterialProxies[GroupIt].Meshes[LODIt] = AnnotationMaterialRenderProxy;
+			}
+		}
+	}
+
+	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
+	{
+		if (!View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing)
+		{
+			return FHairStrandsSceneProxy::GetViewRelevance(View);
+		}
+		else
+		{
+			FPrimitiveViewRelevance ViewRelevance;
+			ViewRelevance.bDrawRelevance = 0;
+			return ViewRelevance;
+		}
+	}
+
+	virtual void GetDynamicMeshElements(
+		const TArray<const FSceneView*>& Views,
+		const FSceneViewFamily& ViewFamily,
+		uint32 VisibilityMap,
+		FMeshElementCollector& Collector) const
+	{
+		return FHairStrandsSceneProxy::GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector);
+	}
+};
+
+
+
+
 // FString MeterialPath = TEXT("MaterialInstanceConstant'/UnrealCV/AnnotationColor_Inst.AnnotationColor_Inst'");
 // static ConstructorHelpers::FObjectFinder<UMaterialInstanceDynamic> AnnotationMaterialObject(*MaterialPath);
 UAnnotationComponent::UAnnotationComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bSkeletalMesh = false;
+	bRefreshRenderState = false;
 	FString MaterialPath = TEXT("Material'/UnrealCV/AnnotationColor.AnnotationColor'");
 	static ConstructorHelpers::FObjectFinder<UMaterial> AnnotationMaterialObject(*MaterialPath);
 	if (AnnotationMaterialObject.Object == nullptr)
@@ -768,6 +827,28 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(USkeletalMeshCompon
 }
 
 
+FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UGroomComponent* GroomComponent)
+{
+	UMaterialInterface* ProxyMaterial = AnnotationMID;
+
+	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for GroomComponent: %s, Owner: %s, AnnotationMID=%p, AnnotationColor=%s"),
+		*GroomComponent->GetName(),
+		GroomComponent->GetOwner() ? *GroomComponent->GetOwner()->GetName() : TEXT("None"),
+		AnnotationMID,
+		*AnnotationColor.ToString());
+
+	if (!GroomComponent->GroomAsset || GroomComponent->GroomAsset->GetNumHairGroups() == 0)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneProxy failed for GroomComponent %s: Invalid GroomAsset"), *GroomComponent->GetName());
+		return nullptr;
+	}
+
+	FPrimitiveSceneProxy* Proxy = ::new FGroomAnnotationSceneProxy(GroomComponent, ProxyMaterial);
+	UE_LOG(LogUnrealCV, Log, TEXT("Created FGroomAnnotationSceneProxy for %s, Proxy=%p"), *GroomComponent->GetName(), Proxy);
+	return Proxy;
+}
+
+
 // TODO: This needs to be involked when the ParentComponent refresh its render state, otherwise it will crash the engine
 FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 {
@@ -791,6 +872,7 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(ParentComponent);
 	USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ParentComponent);
+	UGroomComponent* GroomComponent = Cast<UGroomComponent>(ParentComponent);
 	// UCableComponent* CableComponent = Cast<UCableComponent>(ParentComponent);
 	if (IsValid(StaticMeshComponent))
 	{
@@ -798,8 +880,13 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 	}
 	else if (IsValid(SkeletalMeshComponent))
 	{
-		bSkeletalMesh = true;
+		bRefreshRenderState= true;
 		return CreateSceneProxy(SkeletalMeshComponent);
+	}
+	else if (IsValid(GroomComponent))
+	{
+		// bRefreshRenderState= true;
+		return CreateSceneProxy(GroomComponent);
 	}
 	// else if (IsValid(CableComponent))
 	// {
@@ -807,7 +894,7 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 	// }
 	else
 	{
-		LOG1(FString::Printf(TEXT("The type of ParentMeshComponent : %s can not be supported."), *ParentComponent->GetClass()->GetName()));
+		UE_LOG(LogUnrealCV, Warning, TEXT("The type of ParentMeshComponent : %s can not be supported."), *ParentComponent->GetClass()->GetName());
 		return nullptr;
 	}
 	// return nullptr;
@@ -839,6 +926,12 @@ FBoxSphereBounds UAnnotationComponent::CalcBounds(const FTransform & LocalToWorl
 		return SkeletalMeshComponent->CalcBounds(LocalToWorld);
 	}
 
+	UGroomComponent* GroomComponent = Cast<UGroomComponent>(Parent);
+	if (IsValid(GroomComponent))
+	{
+		return GroomComponent->CalcBounds(LocalToWorld);
+	}
+
 	UE_LOG(LogTemp, Error, TEXT("The type of ParentMeshComponent : %s can not be supported."), *Parent->GetClass()->GetName());
     FBoxSphereBounds DefaultBounds = FBoxSphereBounds(FVector::ZeroVector, FVector::ZeroVector, 0.0f);
 	return DefaultBounds;
@@ -866,7 +959,7 @@ void UAnnotationComponent::TickComponent(
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction); 
 
-	if (bSkeletalMesh)
+	if (bRefreshRenderState)
 	{
 		MarkRenderStateDirty(); // Without it will break the SkeletalMeshComponent
 	}

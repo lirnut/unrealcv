@@ -57,7 +57,9 @@ public class UnrealcvBuildConfig
             "AudioMixer",
 			"NavigationSystem", // For NavAgentController
 			"AIModule", // For AI navigation
-			"AssetRegistry" // For MetaHuman asset discovery
+			"AssetRegistry", // For MetaHuman asset discovery
+			"HairStrandsCore", // For GroomComponent annotation support
+			"Renderer" // For HairStrands interface functions
 		});
 
 		EditorPrivateDependencyModuleNames.AddRange(
@@ -71,7 +73,6 @@ public class UnrealcvBuildConfig
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
-				"Renderer"
 			}
 		);
 	}

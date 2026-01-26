@@ -53,8 +53,9 @@ private:
 
 	FColor AnnotationColor;
 
-	bool bSkeletalMesh; // indicate whether this is for a SkeletalMesh
+	bool bRefreshRenderState;
 
 	FPrimitiveSceneProxy* CreateSceneProxy(UStaticMeshComponent* StaticMeshComponent);
 	FPrimitiveSceneProxy* CreateSceneProxy(USkeletalMeshComponent* SkeletalMeshComponent);
+	FPrimitiveSceneProxy* CreateSceneProxy(class UGroomComponent* GroomComponent);
 };

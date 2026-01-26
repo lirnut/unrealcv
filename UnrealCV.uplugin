@@ -18,6 +18,10 @@
         {
             "Name": "AudioCapture",
             "Enabled": true
+        },
+        {
+            "Name": "HairStrands",
+            "Enabled": true
         }
     ],
     "Modules" :
