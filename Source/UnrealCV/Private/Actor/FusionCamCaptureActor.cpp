@@ -43,11 +43,12 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	bIsRecording = false;
 	bAddTimestamp = true;
 	bRecordRGB = true;
-	bRecordMask = true;
+	bRecordMask = false;
 	bRecordDepth = false;
 	bRecordNormal = false;
 	bRecordFlow = false;
-	bRecordOneObjectMask = true;
+	bRecordOneObjectMask = false;
+	bRecordOneObjectLit = false;
 	bRecordMetadata = true;
 	bRecordAudio = true;
 	bRecordWithoutTarget = false;
@@ -407,15 +408,15 @@ void AFusionCamCaptureActor::RecordFrame()
 	if (bRecordRGB)
 	{
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
-		// TargetSensor->SaveLitToFile(FileNameRGB);
-		SaveRGBToFile(TargetSensor, FileNameRGB);
+		TargetSensor->SaveLitToFile(FileNameRGB);
+		// SaveRGBToFile(TargetSensor, FileNameRGB);
 	}
 
 	if (bRecordMask)
 	{
 		FString FileNameMask = MakeFilenameNew("mask", ".png");
-		// TargetSensor->SaveSegToFile(FileNameMask);
-		SaveSegToFile(TargetSensor, FileNameMask);
+		TargetSensor->SaveSegToFile(FileNameMask);
+		// SaveSegToFile(TargetSensor, FileNameMask);
 	}
 
 	if (bRecordDepth)
@@ -440,6 +441,12 @@ void AFusionCamCaptureActor::RecordFrame()
 	{
 		FString OneObjFilename = MakeFilenameNew("oneobjmask", ".png");
 		TargetSensor->SaveOneObjMaskToFile(TargetToHide, OneObjFilename);
+	}
+
+	if (bRecordOneObjectLit && IsValid(TargetToHide))
+	{
+		FString OneObjLitFilename = MakeFilenameNew("oneobjlit", ".png");
+		TargetSensor->SaveOneObjLitToFile(TargetToHide, OneObjLitFilename);
 	}
 
 	if (bRecordWithoutTarget && IsValid(TargetToHide))
@@ -660,21 +667,17 @@ FString AFusionCamCaptureActor::MakeFilenameNewWithFolder(FString DataType, FStr
 	return FileName;
 }
 
-void AFusionCamCaptureActor::SaveCameraMetadata()
+void AFusionCamCaptureActor::SaveOverviewMetadata()
 {
 	if (!IsValid(TargetSensor))
 	{
 		return;
 	}
 
-	FVector Location = TargetSensor->GetSensorLocation();
-	FRotator Rotation = TargetSensor->GetSensorRotation();
 	float FOV = TargetSensor->GetSensorFOV();
 	int32 Width = TargetSensor->GetFilmWidth();
 	int32 Height = TargetSensor->GetFilmHeight();
-
-	float FOVRadians = FMath::DegreesToRadians(FOV);
-	FMatrix RotationMatrix = FRotationMatrix::Make(Rotation);
+	FString ResolutionStr = FString::Printf(TEXT("%dx%d"), Width, Height);
 
 	float ExposureSpeedDown = 0.0f, ExposureSpeedUp = 0.0f;
 	TargetSensor->GetAutoExposureSpeed(ExposureSpeedDown, ExposureSpeedUp);
@@ -692,18 +695,6 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	EBloomMethod BloomMethod = EBloomMethod::BM_FFT;
 	float BloomIntensity = 0.0f;
 	TargetSensor->GetBloomParams(BloomMethod, BloomIntensity);
-
-	// Calculate focal length in pixels from FOV
-	float Focal = FMath::Max(Width, Height) / 2.0f / FMath::Tan(FOVRadians / 2.0f);		
-	float fx = Focal;
-	float fy = Focal;
-	float cx = Width / 2.0f;
-	float cy = Height / 2.0f;
-	TArray K{
-		USerializeBPLib::ArrayToJson({FJsonObjectBP(fx)   , FJsonObjectBP(0.0f) , FJsonObjectBP(cx)}), 
-		USerializeBPLib::ArrayToJson({FJsonObjectBP(0.0f) , FJsonObjectBP(fy)   , FJsonObjectBP(cy)}), 
-		USerializeBPLib::ArrayToJson({FJsonObjectBP(0.0f) , FJsonObjectBP(0.0f) , FJsonObjectBP(1.0f)})
-	};
 
 	auto ReflectionMethodToString = [](EReflectionMethod::Type Method) -> FString {
 		switch (Method) {
@@ -761,56 +752,6 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	CameraSettingsMap.Add("VignetteIntensity", Vignette);
 	CameraSettingsMap.Add("BloomIntensity", BloomIntensity);
 
-	TArray RotationArray = {
-		USerializeBPLib::ArrayToJson({static_cast<float>(RotationMatrix.M[0][0]), static_cast<float>(RotationMatrix.M[0][1]), static_cast<float>(RotationMatrix.M[0][2])}),
-		USerializeBPLib::ArrayToJson({static_cast<float>(RotationMatrix.M[1][0]), static_cast<float>(RotationMatrix.M[1][1]), static_cast<float>(RotationMatrix.M[1][2])}),
-		USerializeBPLib::ArrayToJson({static_cast<float>(RotationMatrix.M[2][0]), static_cast<float>(RotationMatrix.M[2][1]), static_cast<float>(RotationMatrix.M[2][2])})
-	};
-
-	auto TranslationArray = USerializeBPLib::VectorToJson({Location.X, Location.Y, Location.Z});
-
-	// Calculate w2c_colmap matrix: COLMAP world-to-camera transformation
-	// Step 1: Build 4x4 c2w_unreal (camera-to-world in Unreal coordinates)
-	FMatrix c2w_unreal = FMatrix::Identity;
-	c2w_unreal.M[0][0] = RotationMatrix.M[0][0]; c2w_unreal.M[0][1] = RotationMatrix.M[0][1]; c2w_unreal.M[0][2] = RotationMatrix.M[0][2]; c2w_unreal.M[0][3] = Location.X;
-	c2w_unreal.M[1][0] = RotationMatrix.M[1][0]; c2w_unreal.M[1][1] = RotationMatrix.M[1][1]; c2w_unreal.M[1][2] = RotationMatrix.M[1][2]; c2w_unreal.M[1][3] = Location.Y;
-	c2w_unreal.M[2][0] = RotationMatrix.M[2][0]; c2w_unreal.M[2][1] = RotationMatrix.M[2][1]; c2w_unreal.M[2][2] = RotationMatrix.M[2][2]; c2w_unreal.M[2][3] = Location.Z;
-	// M[3][0-3] already [0, 0, 0, 1] from Identity
-
-	// Step 2: Invert to get w2c_unreal (world-to-camera in Unreal coordinates)
-	FMatrix w2c_unreal = c2w_unreal.Inverse();
-
-	// Step 3: Create coordinate system transformation matrices
-	// T_cam_unreal_to_colmap: Y↔X swap, Z→-Z flip (camera frame conversion)
-	FMatrix T_cam_unreal_to_colmap = FMatrix::Identity;
-	T_cam_unreal_to_colmap.M[0][0] = 0; T_cam_unreal_to_colmap.M[0][1] = 1;  // X ← Y
-	T_cam_unreal_to_colmap.M[1][0] = 1; T_cam_unreal_to_colmap.M[1][1] = 0;  // Y ← X
-	T_cam_unreal_to_colmap.M[2][2] = -1;  // Z ← -Z
-
-	// T_world_colmap_to_unreal: Y→-Y flip (world frame conversion)
-	FMatrix T_world_colmap_to_unreal = FMatrix::Identity;
-	T_world_colmap_to_unreal.M[1][1] = -1;  // Y ← -Y
-
-	// Step 4: Compute final COLMAP w2c matrix
-	FMatrix w2c_colmap = T_cam_unreal_to_colmap * w2c_unreal * T_world_colmap_to_unreal;
-
-	// Step 5: Convert 4x4 matrix to JSON array (array of 4 rows, each as 3-element vector)
-	TArray<FJsonObjectBP> W2CColmapArray;
-	for (int32 i = 0; i < 4; ++i) {
-		FJsonObjectBP RowJson = USerializeBPLib::ArrayToJson({
-			FJsonObjectBP(static_cast<float>(w2c_colmap.M[i][0])),
-			FJsonObjectBP(static_cast<float>(w2c_colmap.M[i][1])),
-			FJsonObjectBP(static_cast<float>(w2c_colmap.M[i][2]))
-		});
-		W2CColmapArray.Add(RowJson);
-	}
-
-	TArray<FString> ExtrinsicsKeys = {"RotationMatrix", "Translation", "w2c_colmap"};
-	TArray<FJsonObjectBP> ExtrinsicsValues;
-	ExtrinsicsValues.Add(FJsonObjectBP(RotationArray));
-	ExtrinsicsValues.Add(TranslationArray);
-	ExtrinsicsValues.Add(USerializeBPLib::ArrayToJson(W2CColmapArray));
-
 	TArray<FJsonObjectBP> OccluderArray;
 	for (const FOccluderMetadata& Occluder : SceneHandle.OccluderMetadataList)
 	{
@@ -833,7 +774,6 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	FObjectAnnotator::GetAnnotationColor(SceneHandle.ForegroundActor, AnnotationColor);
 	AllAnnotationColors = FObjectAnnotator::GetAnnotationColors();
 
-
 	FString ForegroundColor = FString::Printf(TEXT("%d,%d,%d"), AnnotationColor.R, AnnotationColor.G, AnnotationColor.B);
 	TMap<FString, FString> ColorMap;
 	for (const TPair<FString, FColor>& KV : AllAnnotationColors)
@@ -842,37 +782,131 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 		ColorMap.Add(KV.Key, ColorJson);
 	}
 
+	FString RealWorldTimeStartStr = RealWorldTimeRecordingStart.ToString(TEXT("%Y-%m-%d %H:%M:%S"));
 
 	TArray<FString> Keys = {
-		"FrameNumber",
 		"VideoName",
 		"Resolution",
 		"Width",
 		"Height",
-		"FrameCount",
 		"RecordedFPS",
 		"FOV",
 		"SceneCategory",
 		"ForegroundCategory",
 		"ForegroundSubcategory",
 		"ForegroundObjectMetadata",
-		"ForegroundLocation",
-		"ForegroundRotation",
 		"OccluderMetaDataList",
-		"OcclusionRatio",
-		"CameraLocation",
-		"CameraRotation",
 		"CameraSettings",
 		"CameraSettingsString",
-		"IntrinsicsMatrix",
-		"Extrinsics",
 		"ForegroundColor",
 		"AnnotationColors",
-		"RealWorldTimeRecordingStart",
-		"RealWorldTimeRecordingEnd",
-		"RealWorldTimeDurationSeconds",
-		"RealWorldTimeFPS"
+		"RealWorldTimeRecordingStart"
 	};
+
+	TArray<FJsonObjectBP> Values = {
+		FJsonObjectBP(RecordFileName),
+		FJsonObjectBP(ResolutionStr),
+		FJsonObjectBP(Width),
+		FJsonObjectBP(Height),
+		FJsonObjectBP(RecordFPS),
+		FJsonObjectBP(FOV),
+		FJsonObjectBP(SceneHandle.SceneCategory),
+		FJsonObjectBP(SceneHandle.ForegroundCategory),
+		FJsonObjectBP(SceneHandle.ForegroundSubcategory),
+		FJsonObjectBP(SceneHandle.ForegroundObjectMetadata),
+		FJsonObjectBP(OccluderArray),
+		FJsonObjectBP(CameraSettingsMap),
+		FJsonObjectBP(CameraSettingsStringMap),
+		FJsonObjectBP(ForegroundColor),
+		FJsonObjectBP(ColorMap),
+		FJsonObjectBP(RealWorldTimeStartStr)
+	};
+
+	FJsonObjectBP JsonObject = USerializeBPLib::TMapToJson(Keys, Values);
+	FString JsonStr = USerializeBPLib::JsonToStr(JsonObject);
+	FString JsonFilename = FPaths::Combine(FPaths::ConvertRelativePathToFull(FinalDataFolder, RecordFileName), TEXT("overview.json"));
+
+	AsyncTask(ENamedThreads::AnyThread, [JsonStr, JsonFilename]()
+	{
+		UVisionBPLib::SaveData(JsonStr, JsonFilename);
+	});
+}
+
+void AFusionCamCaptureActor::SaveCameraMetadata()
+{
+	if (!IsValid(TargetSensor))
+	{
+		return;
+	}
+
+	FVector Location = TargetSensor->GetSensorLocation();
+	FRotator Rotation = TargetSensor->GetSensorRotation();
+	float FOV = TargetSensor->GetSensorFOV();
+	int32 Width = TargetSensor->GetFilmWidth();
+	int32 Height = TargetSensor->GetFilmHeight();
+
+	float FOVRadians = FMath::DegreesToRadians(FOV);
+	FMatrix RotationMatrix = FRotationMatrix::Make(Rotation);
+
+	float Focal = FMath::Max(Width, Height) / 2.0f / FMath::Tan(FOVRadians / 2.0f);
+	float fx = Focal;
+	float fy = Focal;
+	float cx = Width / 2.0f;
+	float cy = Height / 2.0f;
+	TArray K{
+		USerializeBPLib::ArrayToJson({FJsonObjectBP(fx)   , FJsonObjectBP(0.0f) , FJsonObjectBP(cx)}),
+		USerializeBPLib::ArrayToJson({FJsonObjectBP(0.0f) , FJsonObjectBP(fy)   , FJsonObjectBP(cy)}),
+		USerializeBPLib::ArrayToJson({FJsonObjectBP(0.0f) , FJsonObjectBP(0.0f) , FJsonObjectBP(1.0f)})
+	};
+
+	TArray RotationArray = {
+		USerializeBPLib::ArrayToJson({static_cast<float>(RotationMatrix.M[0][0]), static_cast<float>(RotationMatrix.M[0][1]), static_cast<float>(RotationMatrix.M[0][2])}),
+		USerializeBPLib::ArrayToJson({static_cast<float>(RotationMatrix.M[1][0]), static_cast<float>(RotationMatrix.M[1][1]), static_cast<float>(RotationMatrix.M[1][2])}),
+		USerializeBPLib::ArrayToJson({static_cast<float>(RotationMatrix.M[2][0]), static_cast<float>(RotationMatrix.M[2][1]), static_cast<float>(RotationMatrix.M[2][2])})
+	};
+
+	auto TranslationArray = USerializeBPLib::VectorToJson({Location.X, Location.Y, Location.Z});
+
+	FMatrix c2w_unreal = FMatrix::Identity;
+	c2w_unreal.M[0][0] = RotationMatrix.M[0][0]; c2w_unreal.M[0][1] = RotationMatrix.M[0][1]; c2w_unreal.M[0][2] = RotationMatrix.M[0][2]; c2w_unreal.M[0][3] = Location.X;
+	c2w_unreal.M[1][0] = RotationMatrix.M[1][0]; c2w_unreal.M[1][1] = RotationMatrix.M[1][1]; c2w_unreal.M[1][2] = RotationMatrix.M[1][2]; c2w_unreal.M[1][3] = Location.Y;
+	c2w_unreal.M[2][0] = RotationMatrix.M[2][0]; c2w_unreal.M[2][1] = RotationMatrix.M[2][1]; c2w_unreal.M[2][2] = RotationMatrix.M[2][2]; c2w_unreal.M[2][3] = Location.Z;
+
+	FMatrix w2c_unreal = c2w_unreal.Inverse();
+
+	FMatrix T_cam_unreal_to_colmap = FMatrix::Identity;
+	T_cam_unreal_to_colmap.M[0][0] = 0; T_cam_unreal_to_colmap.M[0][1] = 1;
+	T_cam_unreal_to_colmap.M[1][0] = 1; T_cam_unreal_to_colmap.M[1][1] = 0;
+	T_cam_unreal_to_colmap.M[2][2] = -1;
+
+	FMatrix T_world_colmap_to_unreal = FMatrix::Identity;
+	T_world_colmap_to_unreal.M[1][1] = -1;
+
+	FMatrix w2c_colmap = T_cam_unreal_to_colmap * w2c_unreal * T_world_colmap_to_unreal;
+
+	TArray<FJsonObjectBP> W2CColmapArray;
+	for (int32 i = 0; i < 4; ++i) {
+		FJsonObjectBP RowJson = USerializeBPLib::ArrayToJson({
+			FJsonObjectBP(static_cast<float>(w2c_colmap.M[i][0])),
+			FJsonObjectBP(static_cast<float>(w2c_colmap.M[i][1])),
+			FJsonObjectBP(static_cast<float>(w2c_colmap.M[i][2]))
+		});
+		W2CColmapArray.Add(RowJson);
+	}
+
+	TArray<FString> ExtrinsicsKeys = {"RotationMatrix", "Translation", "w2c_colmap"};
+	TArray<FJsonObjectBP> ExtrinsicsValues;
+	ExtrinsicsValues.Add(FJsonObjectBP(RotationArray));
+	ExtrinsicsValues.Add(TranslationArray);
+	ExtrinsicsValues.Add(USerializeBPLib::ArrayToJson(W2CColmapArray));
+
+	FVector ForegroundLocation = FVector::Zero();
+	FRotator ForegroundRotation = FRotator::ZeroRotator;
+	if (IsValid(SceneHandle.ForegroundActor))
+	{
+		ForegroundLocation = SceneHandle.ForegroundActor->GetActorLocation();
+		ForegroundRotation = SceneHandle.ForegroundActor->GetActorRotation();
+	}
 
 	RealWorldTimeRecordingEnd = FDateTime::Now();
 	RealWorldTimeDurationSeconds = (RealWorldTimeRecordingEnd - RealWorldTimeRecordingStart).GetTotalSeconds();
@@ -888,40 +922,29 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	FString RealWorldTimeStartStr = RealWorldTimeRecordingStart.ToString(TEXT("%Y-%m-%d %H:%M:%S"));
 	FString RealWorldTimeEndStr = RealWorldTimeRecordingEnd.ToString(TEXT("%Y-%m-%d %H:%M:%S"));
 
-	FVector ForegroundLocation = FVector::Zero();
-	FRotator ForegroundRotation = FRotator::ZeroRotator;
-	if (IsValid(SceneHandle.ForegroundActor))
-	{
-		ForegroundLocation = SceneHandle.ForegroundActor->GetActorLocation();
-		ForegroundRotation = SceneHandle.ForegroundActor->GetActorRotation();
-	}
+	TArray<FString> Keys = {
+		"FrameNumber",
+		"CameraLocation",
+		"CameraRotation",
+		"ForegroundLocation",
+		"ForegroundRotation",
+		"IntrinsicsMatrix",
+		"Extrinsics",
+
+		"RealWorldTimeRecordingEnd",
+		"RealWorldTimeDurationSeconds",
+		"RealWorldTimeFPS"
+	};
 
 	TArray<FJsonObjectBP> Values = {
-		FJsonObjectBP(NumFrames),
-		FJsonObjectBP(RecordFileName),
-		FJsonObjectBP(ResolutionStr),
-		FJsonObjectBP(Width),
-		FJsonObjectBP(Height),
 		FJsonObjectBP(ElapsedSteps),
-		FJsonObjectBP(RecordFPS),
-		FJsonObjectBP(FOV),
-		FJsonObjectBP(SceneHandle.SceneCategory),
-		FJsonObjectBP(SceneHandle.ForegroundCategory),
-		FJsonObjectBP(SceneHandle.ForegroundSubcategory),
-		FJsonObjectBP(SceneHandle.ForegroundObjectMetadata),
-		FJsonObjectBP(ForegroundLocation),
-		FJsonObjectBP(ForegroundRotation),
-		FJsonObjectBP(OccluderArray),
-		FJsonObjectBP(0.0f),
 		FJsonObjectBP(Location),
 		FJsonObjectBP(Rotation),
-		FJsonObjectBP(CameraSettingsMap),
-		FJsonObjectBP(CameraSettingsStringMap),
+		FJsonObjectBP(ForegroundLocation),
+		FJsonObjectBP(ForegroundRotation),
 		K,
 		FJsonObjectBP(ExtrinsicsKeys, ExtrinsicsValues),
-		FJsonObjectBP(ForegroundColor),
-		FJsonObjectBP(ColorMap),
-		FJsonObjectBP(RealWorldTimeStartStr),
+		
 		FJsonObjectBP(RealWorldTimeEndStr),
 		FJsonObjectBP(static_cast<float>(RealWorldTimeDurationSeconds)),
 		FJsonObjectBP(static_cast<float>(RealWorldTimeFPS))
@@ -931,7 +954,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	FString JsonStr = USerializeBPLib::JsonToStr(JsonObject);
 	FString JsonFilename = MakeFilenameNewWithFolder("metadata", ".json");
 
-    AsyncTask(ENamedThreads::AnyThread, [JsonStr, JsonFilename]()
+	AsyncTask(ENamedThreads::AnyThread, [JsonStr, JsonFilename]()
 	{
 		UVisionBPLib::SaveData(JsonStr, JsonFilename);
 	});
@@ -944,8 +967,6 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 ///////////////////////////////////////////// Neo Trajector Render System /////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// ========== Camera Trajectory Recording Implementation ==========
 
 void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 {
@@ -1066,6 +1087,8 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 
 	CurrentTrajectory = CalculateTrajectory(TrajectoryType, Target, DegreesPerFrame, RandomSeed);
 
+	SaveOverviewMetadata();
+
 	if (bRecordAudio)
 	{
 		StartAudioRecord();
@@ -1124,6 +1147,8 @@ void AFusionCamCaptureActor::StartSimpleRecording(const FString& FileName, int32
 	RealWorldTimeRecordingStart = FDateTime::Now();
 
 	CurrentTrajectory = SimpleTrajectory;
+
+	SaveOverviewMetadata();
 
 	UE_LOG(LogUnrealCV, Log, TEXT("StartSimpleRecording: FileName=%s, FPS=%d, Duration=%.2fs, TotalFrames=%d"),
 		*FileName, FPS, DurationSeconds, TotalFrames);
