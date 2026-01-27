@@ -32,7 +32,7 @@ int32 UDatasetAutomationBPLib::CurrentCommandIndex = -1;
 int32 UDatasetAutomationBPLib::CurrentSceneCounter = 0;
 FString UDatasetAutomationBPLib::CurrentSceneID = TEXT("");
 FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
-// FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
+// FString UDatasetAutomationBPLib::TaskName = TEXT("SpeedTest");
 double UDatasetAutomationBPLib::DelayStartTime = 0.0;
 double UDatasetAutomationBPLib::DelayDuration = 0.0;
 FGenericTickableObject* UDatasetAutomationBPLib::TickableObject = nullptr;
@@ -57,19 +57,27 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("special_wait"), TEXT(""), FMath::RandRange(50.f, 70.f)));
 		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_30")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_30")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_360")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
 		
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT(""), 1.0f));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 15.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
 		
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
@@ -98,6 +106,21 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
 
+		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
+		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
+		CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
+	}
+	else if (TaskName == "SpeedTest")
+	{
+		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
 		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
@@ -845,6 +868,7 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		CaptureActor->bRecordFlow = false;
 		CaptureActor->bRecordNormal = false;
 		CaptureActor->bRecordOneObjectMask = true;
+		CaptureActor->bRecordOneObjectLit = true;
 		CaptureActor->bRecordMetadata = true;
 		CaptureActor->bRecordWithoutTarget = false;
 		AllocatedCam->SetFilmSize(1920, 1080);
@@ -867,6 +891,20 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		};
 		const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
 		AllocatedCam->SetFilmSize(ChosenRes.X, ChosenRes.Y);
+	}
+	else if (TaskName == "SpeedTest")
+	{
+		CaptureActor->bRecordAudio = false;
+		CaptureActor->bRecordRGB = true;
+		CaptureActor->bRecordMask = false;
+		CaptureActor->bRecordDepth = false;
+		CaptureActor->bRecordFlow = false;
+		CaptureActor->bRecordNormal = false;
+		CaptureActor->bRecordOneObjectMask = false;
+		CaptureActor->bRecordOneObjectLit = false;
+		CaptureActor->bRecordMetadata = true;
+		CaptureActor->bRecordWithoutTarget = false;
+		AllocatedCam->SetFilmSize(1920, 1080);
 	}
 	else
 	{

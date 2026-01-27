@@ -40,6 +40,25 @@ static void CollectShowOnlyForActor(
     }
 }
 
+static void CollectAllPrimitiveComponentsForActor(
+    AActor* Actor, UWorld* World,
+    TArray<TWeakObjectPtr<UPrimitiveComponent>>& OutComponents)
+{
+    OutComponents.Reset();
+    if (!IsValid(World) || !IsValid(Actor)) return;
+
+    TArray<UPrimitiveComponent*> PrimitiveComps;
+    Actor->GetComponents<UPrimitiveComponent>(PrimitiveComps, /*bIncludeFromChildActors*/ true);
+
+    for (UPrimitiveComponent* C : PrimitiveComps)
+    {
+        if (IsValid(C) && C->IsRegistered() && C->GetWorld() == World)
+        {
+            OutComponents.Add(C);
+        }
+    }
+}
+
 UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -72,6 +91,15 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("OneObjectMaskCamSensor"));
 	OneObjectMaskCamSensor = CreateDefaultSubobject<UAnnotationCamSensor>(*ComponentName);
 	FusionSensors.Add(OneObjectMaskCamSensor);
+
+	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("OneObjectLitCamSensor"));
+	OneObjectLitCamSensor = CreateDefaultSubobject<ULitCamSensor>(*ComponentName);
+	OneObjectLitCamSensor->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+	// OneObjectLitCamSensor->CaptureSource = ESceneCaptureSource::SCS_BaseColor;
+	// OneObjectLitCamSensor->ShowFlags.SetMaterials(true);
+	// OneObjectLitCamSensor->ShowFlags.SetLighting(true);
+	// OneObjectLitCamSensor->ShowFlags.SetPostProcessing(true);
+	FusionSensors.Add(OneObjectLitCamSensor);
 
 	// The config loading code should not be placed into the ctor, otherwise it will break the copy behavior
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
@@ -272,6 +300,45 @@ void UFusionCamSensor::SaveOneObjMaskToFile(AActor* Actor, const FString& Filena
 	OneObjectMaskCamSensor->bUseShowOnlyComponentsOverride = true;
 	OneObjectMaskCamSensor->ShowOnlyComponentsOverride = ComponentList;
 	OneObjectMaskCamSensor->CaptureSegToFile(Filename);
+}
+
+void UFusionCamSensor::GetOneObjLit(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
+{
+	SL::get().print("GetOneObjLit called");
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetOneObjLit input Actor is not valid"));
+		Data.Empty();
+		InOutWidth = 0;
+		InOutHeight = 0;
+		return;
+	}
+
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+	CollectAllPrimitiveComponentsForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
+	SL::get().printf("ComponentList Num: %d", ComponentList.Num());
+
+	OneObjectLitCamSensor->ShowOnlyComponents = ComponentList;
+	OneObjectLitCamSensor->CaptureLit(Data, InOutWidth, InOutHeight);
+	if (Data.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Captured obj lit data is empty."));
+		return;
+	}
+	SL::get().print("GetOneObjLit returned");
+}
+
+void UFusionCamSensor::SaveOneObjLitToFile(AActor* Actor, const FString& Filename)
+{
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::SaveOneObjLitToFile input Actor is not valid"));
+		return;
+	}
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+	CollectAllPrimitiveComponentsForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
+	OneObjectLitCamSensor->ShowOnlyComponents = ComponentList;
+	OneObjectLitCamSensor->CaptureLitToFile(Filename);
 }
 
 

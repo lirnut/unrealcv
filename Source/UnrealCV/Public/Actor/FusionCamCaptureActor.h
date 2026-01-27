@@ -116,6 +116,9 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
 	bool bRecordOneObjectMask;
 
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
+	bool bRecordOneObjectLit;
+
 	/** Record camera metadata (location, rotation, FOV, etc.) */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
 	bool bRecordMetadata;
@@ -201,7 +204,7 @@ protected:
 
 	void OnTimerRecord();
 	void RecordFrame();
-
+	void UpdateFocalDistance();
 
 	void SetDefaultParamsForTargetCamera();
 
@@ -236,6 +239,7 @@ protected:
 	FString MakeFilename(FString DataType, FString FileExtension);
 	FString MakeFilenameNew(FString DataType, FString FileExtension);
 	FString MakeFilenameNewWithFolder(FString DataType, FString FileExtension);
+	void SaveOverviewMetadata();
 	void SaveCameraMetadata();
 
 private:

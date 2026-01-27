@@ -99,7 +99,7 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 	int32 Height = TextureTarget->SizeY;
 
 	FQueuedCapture Capture;
-	Capture.Readback = MakeShared<FRHIGPUTextureReadback>(
+	Capture.Readback = new FRHIGPUTextureReadback(
 		*FString::Printf(TEXT("Capture_%d"), FMath::Rand())
 	);
 	Capture.OutputPath = TEXT("");
@@ -118,6 +118,7 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 			void* RawDataCopy = FMemory::Malloc(  RowPitchInPixels * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
 			FMemory::Memcpy(RawDataCopy, RawData, RowPitchInPixels * Capture.Height * GPixelFormats[Capture.PixelFormat].BlockBytes);
 			Capture.Readback->Unlock();
+			delete Capture.Readback;
 
 			AsyncTask(ENamedThreads::AnyThread,
 				[RawDataCopy, OutputPath = Filename, Width = Capture.Width, Height = Capture.Height, PixelFormat = Capture.PixelFormat, RowPitchInPixels = RowPitchInPixels]()

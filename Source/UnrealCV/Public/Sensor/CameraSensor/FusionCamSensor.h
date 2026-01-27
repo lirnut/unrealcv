@@ -59,6 +59,11 @@ public:
 	void GetOneObjMask(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
 	void SaveOneObjMaskToFile(AActor* Actor, const FString& Filename);
 
+	/** Get one object lit data */
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetOneObjLit(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
+	void SaveOneObjLitToFile(AActor* Actor, const FString& Filename);
+
 	/** Get rgb data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void GetLit(TArray<FColor>& LitData, int& InOutWidth, int& InOutHeight, ELitMode LitMode = ELitMode::Lit);
@@ -225,6 +230,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
 	class UAnnotationCamSensor* OneObjectMaskCamSensor;
+
+	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
+	class ULitCamSensor* OneObjectLitCamSensor;
 
 
 	/** This preview camera is used for UE version < 4.17 which only support UCameraComponent PIP preview

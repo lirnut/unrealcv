@@ -132,7 +132,8 @@ protected:
 	struct FQueuedCapture
 	{
 		// TUniquePtr<FRHIGPUTextureReadback> Readback;
-		TSharedPtr<FRHIGPUTextureReadback> Readback;
+		// TSharedPtr<FRHIGPUTextureReadback> Readback;
+		FRHIGPUTextureReadback* Readback;
 		FString OutputPath;
 		int32 Width;
 		int32 Height;
@@ -150,4 +151,6 @@ protected:
 	TArray<FFloat16Color> CaptureCacheFloat16;
 
 	// TArray<FQueuedCapture> QueuedCaptures;
+	int32 InFlight; 
+	int32 MaxInFlight;
 };

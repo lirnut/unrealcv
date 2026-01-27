@@ -295,8 +295,6 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		{
 			if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 			{
-				// TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
-				// TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
 				MoveTo(
 					TargetSensor->GetSensorLocation(),
 					CurrentTrajectory[CurrentTrajectoryIndex].Location,
@@ -304,8 +302,8 @@ void AFusionCamCaptureActor::OnTimerRecord()
 				);
 			}
 
-			
-			// FlushRenderingCommands();
+			UpdateFocalDistance();
+
 			RecordFrame();
 
 
@@ -333,14 +331,14 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	{
 		if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 		{
-			// TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
-			// TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
 			MoveTo(
 				TargetSensor->GetSensorLocation(),
 				CurrentTrajectory[CurrentTrajectoryIndex].Location,
 				CurrentTrajectory[CurrentTrajectoryIndex].Rotation
 			);
 		}
+
+		UpdateFocalDistance();
 
 		RecordFrame();
 
@@ -374,6 +372,25 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Stop recording normally. CurrentTrajectoryIndex = %d, NumFrames = %d"), CurrentTrajectoryIndex, NumFrames);
 		StopRecord();
 		return;
+	}
+}
+
+void AFusionCamCaptureActor::UpdateFocalDistance()
+{
+	if (!IsValid(TargetSensor))
+	{
+		return;
+	}
+
+	float Distance = (UnifiedTargetLocation - TargetSensor->GetSensorLocation()).Size();
+	const float FocalRegion = 1 * 100;
+	float FocalDistance = FMath::Max(Distance - FocalRegion/2, 100.0f);
+
+	TargetSensor->SetFocalParams(FocalDistance, FocalRegion);
+
+	if (IsValid(BackupSensor))
+	{
+		BackupSensor->SetFocalParams(FocalDistance, FocalRegion);
 	}
 }
 
