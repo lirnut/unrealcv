@@ -23,7 +23,6 @@
 
 #include "GroomComponent.h"
 #include "ExtraSceneProxies/HairStrandsSceneProxy.h"
-// #include "ExtraSceneProxies/GroomAnnotationSceneProxy.h"
 
 
 
@@ -602,84 +601,7 @@ public:
 };
 
 
-// Old implementation: Inherit from FHairStrandsSceneProxy
-// Problem: Complex Hair rendering logic, material domain issues, resource conflicts
-class FGroomAnnotationSceneProxy : public FHairStrandsSceneProxy
-{
-public:
-	FMaterialRenderProxy* AnnotationMaterialRenderProxy;
 
-	FGroomAnnotationSceneProxy(UGroomComponent* Component, UMaterialInterface* AnnotationMID)
-		: FHairStrandsSceneProxy(Component)
-	{
-		AnnotationMaterialRenderProxy = AnnotationMID->GetRenderProxy();
-
-		// for (int32 GroupIt = 0; GroupIt < HairGroupMaterialProxies.Num(); ++GroupIt)
-		// {
-		// 	HairGroupMaterialProxies[GroupIt].Strands = AnnotationMaterialRenderProxy;
-		// 	for (int32 LODIt = 0; LODIt < HairGroupMaterialProxies[GroupIt].Cards.Num(); ++LODIt)
-		// 	{
-		// 		HairGroupMaterialProxies[GroupIt].Cards[LODIt] = AnnotationMaterialRenderProxy;
-		// 	}
-		// 	for (int32 LODIt = 0; LODIt < HairGroupMaterialProxies[GroupIt].Meshes.Num(); ++LODIt)
-		// 	{
-		// 		HairGroupMaterialProxies[GroupIt].Meshes[LODIt] = AnnotationMaterialRenderProxy;
-		// 	}
-		// }
-
-#if WITH_EDITOR
-		TArray<UMaterialInterface*> UsedMaterials;
-		UsedMaterials.Add(AnnotationMID);
-		SetUsedMaterialForVerification(UsedMaterials);
-#endif
-
-	}
-
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
-	{
-		// if (!View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing)
-		// {
-			return FHairStrandsSceneProxy::GetViewRelevance(View);
-		// }
-		// else
-		// {
-		// 	FPrimitiveViewRelevance ViewRelevance;
-		// 	ViewRelevance.bDrawRelevance = 0;
-		// 	return ViewRelevance;
-		// }
-	}
-
-	virtual void GetDynamicMeshElements(
-		const TArray<const FSceneView*>& Views,
-		const FSceneViewFamily& ViewFamily,
-		uint32 VisibilityMap,
-		FMeshElementCollector& Collector) const
-	{
-		return FHairStrandsSceneProxy::GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector);
-	}
-
-	virtual FMeshBatch* CreateMeshBatch(
-		const FSceneView* View,
-		const FSceneViewFamily& ViewFamily,
-		FMeshElementCollector& Collector,
-		const EHairMeshBatchType MeshBatchType,
-		const FHairGroupInstance* Instance,
-		uint32 GroupIndex,
-		FMaterialRenderProxy* Debug_MaterialProxy) const override
-	{
-		FMeshBatch* Out = FHairStrandsSceneProxy::CreateMeshBatch(View, ViewFamily, Collector, MeshBatchType, Instance, GroupIndex, Debug_MaterialProxy);
-		if (Out)
-		{
-			// Out->MaterialRenderProxy = AnnotationMaterialRenderProxy;
-			UE_LOG(LogUnrealCV, Log, TEXT("CreateMeshBatch: Out is good"));
-		}
-		else
-		{
-			UE_LOG(LogUnrealCV, Error, TEXT("CreateMeshBatch: Out is nullptr"));
-		}
-		return Out;
-	}
-};
 
 
 
@@ -690,6 +612,7 @@ UAnnotationComponent::UAnnotationComponent(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	bRefreshRenderState = false;
+
 	FString MaterialPath = TEXT("Material'/UnrealCV/AnnotationColor.AnnotationColor'");
 	static ConstructorHelpers::FObjectFinder<UMaterial> AnnotationMaterialObject(*MaterialPath);
 	if (AnnotationMaterialObject.Object == nullptr)
@@ -700,31 +623,41 @@ UAnnotationComponent::UAnnotationComponent(const FObjectInitializer& ObjectIniti
     {
         AnnotationMaterial = AnnotationMaterialObject.Object;
 	}
-	// ParentMeshInfo = MakeShareable(new FParentMeshInfo(nullptr));
-	// This will be invalid until attached to a MeshComponent
-	this->PrimaryComponentTick.bCanEverTick = true;
 
-	// SetCastShadow(false);
-	// SetAffectDynamicIndirectLighting(false);
-	// SetAffectIndirectLightingWhileHidden(false);
-	// SetAffectDistanceFieldLighting(false);
-	// SetVisibleInSceneCaptureOnly(false);
-	// bVisibleInReflectionCaptures = false;
-	// bVisibleInRealTimeSkyCaptures = false;
-	// bVisibleInRayTracing = false;
+	FString GroomMaterialPath = TEXT("Material'/UnrealCV/GroomAnnotationColor.GroomAnnotationColor'");
+	static ConstructorHelpers::FObjectFinder<UMaterial> GroomAnnotationMaterialObject(*GroomMaterialPath);
+	if (GroomAnnotationMaterialObject.Object == nullptr)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("GroomAnnotationColor material is not valid."));
+	}
+	else
+	{
+		GroomAnnotationMaterial = GroomAnnotationMaterialObject.Object;
+	}
+
+	this->PrimaryComponentTick.bCanEverTick = true;
 }
 
 void UAnnotationComponent::OnRegister()
 {
 	Super::OnRegister();
 
-	// Note: This can not be placed in the constructor, MID means material instance dynamic
 	AnnotationMID = UMaterialInstanceDynamic::Create(AnnotationMaterial, this, TEXT("AnnotationMaterialMID"));
 	if (!IsValid(AnnotationMID))
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("AnnotationMaterial is not correctly initialized"));
 		return;
 	}
+
+	if (IsValid(GroomAnnotationMaterial))
+	{
+		GroomAnnotationMID = UMaterialInstanceDynamic::Create(GroomAnnotationMaterial, this, TEXT("GroomAnnotationMaterialMID"));
+		if (!IsValid(GroomAnnotationMID))
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("GroomAnnotationMaterial is not correctly initialized"));
+		}
+	}
+
 	const float OneOver255 = 1.0f / 255.0f;
 	FLinearColor LinearAnnotationColor = FLinearColor(
 		this->AnnotationColor.R * OneOver255,
@@ -734,8 +667,10 @@ void UAnnotationComponent::OnRegister()
 	);
 	AnnotationMID->SetVectorParameterValue("AnnotationColor", LinearAnnotationColor);
 
-	// SetAnnotationColor(this->AnnotationColor);
-	// ParentMeshInfo = MakeShareable(new FParentMeshInfo(this->GetAttachParent()));
+	if (IsValid(GroomAnnotationMID))
+	{
+		GroomAnnotationMID->SetVectorParameterValue("AnnotationColor", LinearAnnotationColor);
+	}
 }
 
 /** 
@@ -745,7 +680,7 @@ void UAnnotationComponent::OnRegister()
 void UAnnotationComponent::SetAnnotationColor(FColor NewAnnotationColor)
 {
 	this->AnnotationColor = NewAnnotationColor;
-	const float OneOver255 = 1.0f / 255.0f; // TODO: Check 255 or 256?
+	const float OneOver255 = 1.0f / 255.0f;
 	FLinearColor LinearAnnotationColor = FLinearColor(
 		AnnotationColor.R * OneOver255,
 		AnnotationColor.G * OneOver255,
@@ -756,6 +691,11 @@ void UAnnotationComponent::SetAnnotationColor(FColor NewAnnotationColor)
 	if (IsValid(AnnotationMID))
 	{
 		AnnotationMID->SetVectorParameterValue("AnnotationColor", LinearAnnotationColor);
+	}
+
+	if (IsValid(GroomAnnotationMID))
+	{
+		GroomAnnotationMID->SetVectorParameterValue("AnnotationColor", LinearAnnotationColor);
 	}
 }
 
@@ -771,6 +711,11 @@ void UAnnotationComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMate
 	if (AnnotationMID)
 	{
 		OutMaterials.AddUnique(AnnotationMID);
+	}
+
+	if (GroomAnnotationMID)
+	{
+		OutMaterials.AddUnique(GroomAnnotationMID);
 	}
 }
 
@@ -868,17 +813,23 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(USkeletalMeshCompon
 
 FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UGroomComponent* GroomComponent)
 {
-	UMaterialInterface* ProxyMaterial = AnnotationMID;
+	UMaterialInterface* ProxyMaterial = GroomAnnotationMID;
 
-	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for GroomComponent: %s, Owner: %s, AnnotationMID=%p, AnnotationColor=%s"),
+	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for GroomComponent: %s, Owner: %s, GroomAnnotationMID=%p, AnnotationColor=%s"),
 		*GroomComponent->GetName(),
 		GroomComponent->GetOwner() ? *GroomComponent->GetOwner()->GetName() : TEXT("None"),
-		AnnotationMID,
+		GroomAnnotationMID,
 		*AnnotationColor.ToString());
 
 	if (!GroomComponent->GroomAsset || GroomComponent->GroomAsset->GetNumHairGroups() == 0)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneProxy failed for GroomComponent %s: Invalid GroomAsset"), *GroomComponent->GetName());
+		return nullptr;
+	}
+
+	if (!IsValid(ProxyMaterial))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneProxy failed for GroomComponent %s: GroomAnnotationMID is invalid"), *GroomComponent->GetName());
 		return nullptr;
 	}
 
@@ -919,30 +870,13 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 	}
 	else if (IsValid(SkeletalMeshComponent))
 	{
-		bRefreshRenderState= true;
+		bRefreshRenderState = true;
 		return CreateSceneProxy(SkeletalMeshComponent);
 	}
 	else if (IsValid(GroomComponent))
 	{
-		// if (UWorld* World = GetWorld())
-		// {
-		// 	World->GetTimerManager().SetTimerForNextTick([this, World, GroomComponent]()
-		// 	{
-		// 		// bRefreshRenderState= true;
-		// 		int32 NumMaterials = GroomComponent->GetNumMaterials();
-		// 		for (int32 i = 0; i < NumMaterials; ++i)
-		// 		{
-		// 			GroomComponent->SetMaterial(i, AnnotationMaterial);
-		// 		}
-		// 		if (GroomComponent->SceneProxy)
-		// 		{
-		// 			GroomComponent->MarkRenderStateDirty();
-		// 		}
-		// 	});
-		// }
-
-		// return CreateSceneProxy(GroomComponent);
-		return nullptr;
+		bRefreshRenderState = true;
+		return CreateSceneProxy(GroomComponent);
 	}
 	// else if (IsValid(CableComponent))
 	// {
@@ -1027,21 +961,27 @@ void UAnnotationComponent::TickComponent(
 	enum ELevelTick TickType,
 	FActorComponentTickFunction * ThisTickFunction)
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction); 
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	USceneComponent* Parent = this->GetAttachParent();
+	if (IsValid(Parent))
+	{
+		UGroomComponent* GroomComponent = Cast<UGroomComponent>(Parent);
+		if (IsValid(GroomComponent))
+		{
+			SetWorldTransform(GroomComponent->GetComponentTransform());
+		}
+	}
 
 	if (bRefreshRenderState)
 	{
 		MarkRenderStateDirty(); // Without it will break the SkeletalMeshComponent
 	}
-	/*
-	// if (ParentMeshInfo->RequiresUpdate()) 
+
+	// if (ParentMeshInfo->RequiresUpdate())
 	// TODO: This sometimes miss a required update, see OWIMap. Not sure why.
 	// TODO: Per-frame update is certainly wasted.
-	{
-		// FIXME: Update the render proxy per frame will cause jittering on the material.
-		ParentMeshInfo = MakeShareable(new FParentMeshInfo(this->GetAttachParent()));
-	}
-	*/
+	// FIXME: Update the render proxy per frame will cause jittering on the material.
 }
 
 

@@ -51,7 +51,13 @@ private:
 	UMaterial* AnnotationMaterial;
 
 	UPROPERTY()
+	UMaterial* GroomAnnotationMaterial;
+
+	UPROPERTY()
 	UMaterialInstanceDynamic* AnnotationMID;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* GroomAnnotationMID;
 
 	FColor AnnotationColor;
 
