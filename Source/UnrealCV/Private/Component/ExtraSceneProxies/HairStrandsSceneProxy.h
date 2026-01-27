@@ -50,7 +50,7 @@ public:
 #endif
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
-	FMeshBatch* CreateMeshBatch(
+	virtual FMeshBatch* CreateMeshBatch(
 		const FSceneView* View,
 		const FSceneViewFamily& ViewFamily,
 		FMeshElementCollector& Collector,

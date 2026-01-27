@@ -38,6 +38,8 @@ public:
 
 	virtual void OnRegister() override;
 
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+
 	/** Force the component to update to capture changes from the parent */
 	void ForceUpdate();
 

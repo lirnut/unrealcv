@@ -4,6 +4,7 @@
 #include "GroomComponent.h"
 #include "HairCardsVertexFactory.h"
 #include "PrimitiveUniformShaderParametersBuilder.h"
+#include "UnrealCVLog.h"
 
 
 inline int32 GetMaterialIndexWithFallback(int32 SlotIndex)
@@ -201,15 +202,18 @@ FHairStrandsSceneProxy::FHairStrandsSceneProxy(UGroomComponent* Component)
     FPrimitiveSceneProxy::CreateRenderThreadResources(RHICmdList);
 
     // Register the data to the scene
-    // FSceneInterface& LocalScene = GetScene();
+    FSceneInterface& LocalScene = GetScene();
     for (TRefCountPtr<FHairGroupInstance>& Instance : HairGroupInstances)
     {
         if (Instance->IsValid() || Instance->Strands.ClusterResource)
         {
             check(Instance->HairGroupPublicData != nullptr);
-            // Instance->AddRef();
+            // auto RegisteredIndex = Instance->RegisteredIndex;
+            Instance->AddRef();
             // Instance->Debug.Proxy = this;
-            // LocalScene.AddHairStrands(Instance);
+            LocalScene.RemoveHairStrands(Instance);
+            LocalScene.AddHairStrands(Instance);
+            // Instance->RegisteredIndex = RegisteredIndex;
         }
     }
 }
@@ -224,7 +228,7 @@ void FHairStrandsSceneProxy::DestroyRenderThreadResources()
     FPrimitiveSceneProxy::DestroyRenderThreadResources();
 
     // Unregister the data to the scene
-    // FSceneInterface& LocalScene = GetScene();
+    FSceneInterface& LocalScene = GetScene();
     for (TRefCountPtr<FHairGroupInstance>& Instance : HairGroupInstances)
     {
         if (Instance->IsValid() || Instance->Strands.ClusterResource)
@@ -266,7 +270,7 @@ void FHairStrandsSceneProxy::GetDynamicRayTracingInstances(FRayTracingInstanceCo
         return;
     }
 
-    const bool bWireframe = AllowDebugViewmodes() && Collector.GetReferenceView()->Family->EngineShowFlags.Wireframe;
+    const bool bWireframe = false && Collector.GetReferenceView()->Family->EngineShowFlags.Wireframe;
     const EHairViewRayTracingMask ViewRayTracingMask = Collector.GetReferenceView()->Family->EngineShowFlags.PathTracing ? EHairViewRayTracingMask::PathTracing : EHairViewRayTracingMask::RayTracing;
     if (bWireframe)
         return;
@@ -276,9 +280,15 @@ void FHairStrandsSceneProxy::GetDynamicRayTracingInstances(FRayTracingInstanceCo
         FHairGroupInstance* Instance = HairGroupInstances[GroupIt];
         check(Instance->GetRefCount() > 0);
 
+        const EHairGeometryType GeometryType = Instance->HairGroupPublicData->VFInput.GeometryType;
+        if (GeometryType == EHairGeometryType::NoneGeometry)
+        {
+            UE_LOG(LogUnrealCV, Verbose, TEXT("GetDynamicRayTracingInstances: Skipping HairGroup %d with NoneGeometry"), GroupIt);
+            continue;
+        }
+
         FMatrix OverrideLocalToWorld = UseProxyLocalToWorld(Instance) ? GetLocalToWorld() : Instance->GetCurrentLocalToWorld().ToMatrixWithScale();
 
-        const EHairGeometryType GeometryType = Instance->HairGroupPublicData->VFInput.GeometryType;
         const uint32 LODIndex = Instance->HairGroupPublicData->GetIntLODIndex();
 
         FHairStrandsRaytracingResource* RTGeometry = nullptr;
@@ -317,7 +327,6 @@ void FHairStrandsSceneProxy::GetDynamicRayTracingInstances(FRayTracingInstanceCo
             {
                 check(Segment.VertexBuffer.IsValid());
             }
-            // ViewFamily.EngineShowFlags.PathTracing
             if (FMeshBatch* MeshBatch = CreateMeshBatch(Collector.GetReferenceView(), *Collector.GetReferenceView()->Family, Collector, EHairMeshBatchType::Raytracing, Instance, GroupIt, nullptr))
             {
                 FRayTracingInstance RayTracingInstance;
@@ -335,7 +344,19 @@ void FHairStrandsSceneProxy::GetDynamicRayTracingInstances(FRayTracingInstanceCo
                 {
                     Collector.AddRDGPooledBuffer(RTGeometry->IndexBuffer.Buffer);
                 }
+                UE_LOG(LogUnrealCV, VeryVerbose, TEXT("GetDynamicRayTracingInstances: Added RayTracingInstance for HairGroup %d, GeometryType=%d"),
+                    GroupIt, (int32)GeometryType);
             }
+            else
+            {
+                UE_LOG(LogUnrealCV, Warning, TEXT("GetDynamicRayTracingInstances: CreateMeshBatch failed for HairGroup %d, GeometryType=%d"),
+                    GroupIt, (int32)GeometryType);
+            }
+        }
+        else
+        {
+            UE_LOG(LogUnrealCV, Verbose, TEXT("GetDynamicRayTracingInstances: Invalid RTGeometry for HairGroup %d, GeometryType=%d"),
+                GroupIt, (int32)GeometryType);
         }
     }
 }
@@ -374,6 +395,12 @@ void FHairStrandsSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
             for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
             {
                 check(HairGroupInstances[GroupIt]->GetRefCount() > 0);
+
+                if (HairGroupInstances[GroupIt]->GeometryType == EHairGeometryType::NoneGeometry)
+                {
+                    UE_LOG(LogUnrealCV, Verbose, TEXT("GetDynamicMeshElements: Skipping HairGroup %d with NoneGeometry"), GroupIt);
+                    continue;
+                }
 
                 FMaterialRenderProxy* Debug_MaterialProxy = nullptr;
                 const EGroomViewMode ViewMode = GetGroomViewMode(*View);
@@ -464,9 +491,13 @@ void FHairStrandsSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
                 if (FMeshBatch* MeshBatch = CreateMeshBatch(View, ViewFamily, Collector, EHairMeshBatchType::Raster, HairGroupInstances[GroupIt], GroupIt, Debug_MaterialProxy))
                 {
                     Collector.AddMesh(ViewIndex, *MeshBatch);
+                    UE_LOG(LogUnrealCV, VeryVerbose, TEXT("GetDynamicMeshElements: Added MeshBatch for HairGroup %d, GeometryType=%d"),
+                        GroupIt, (int32)HairGroupInstances[GroupIt]->GeometryType);
                 }
                 else
                 {
+                    UE_LOG(LogUnrealCV, Warning, TEXT("GetDynamicMeshElements: CreateMeshBatch failed for HairGroup %d, GeometryType=%d"),
+                        GroupIt, (int32)HairGroupInstances[GroupIt]->GeometryType);
                     continue;
                 }
 
@@ -491,17 +522,17 @@ FMeshBatch* FHairStrandsSceneProxy::CreateMeshBatch(
     const EHairGeometryType GeometryType = Instance->GeometryType;
     if (GeometryType == EHairGeometryType::NoneGeometry)
     {
+        UE_LOG(LogUnrealCV, VeryVerbose, TEXT("CreateMeshBatch: GeometryType is NoneGeometry for HairGroup %d"), GroupIndex);
         return nullptr;
     }
 
     check(Instance->GetRefCount());
 
     const int32 IntLODIndex = Instance->HairGroupPublicData->GetIntLODIndex();
-    const bool bIsVisible = Instance->HairGroupPublicData->GetLODVisibility();
+    const bool bIsVisible = true;
 
     const FVertexFactory* VertexFactory = nullptr;
     FIndexBuffer* IndexBuffer = nullptr;
-    // const FMaterialRenderProxy* MaterialRenderProxy = Debug_MaterialProxy;
     const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
     const ERHIFeatureLevel::Type FeatureLevel = View->GetFeatureLevel();
 
@@ -515,6 +546,7 @@ FMeshBatch* FHairStrandsSceneProxy::CreateMeshBatch(
     {
         if (!Instance->Meshes.IsValid(IntLODIndex))
         {
+            UE_LOG(LogUnrealCV, Warning, TEXT("CreateMeshBatch: Meshes LOD %d is invalid for HairGroup %d"), IntLODIndex, GroupIndex);
             return nullptr;
         }
         VertexFactory = (FVertexFactory*)Instance->Meshes.LODs[IntLODIndex].GetVertexFactory();
@@ -529,12 +561,13 @@ FMeshBatch* FHairStrandsSceneProxy::CreateMeshBatch(
         {
             MaterialRenderProxy = HairGroupMaterialProxies[GroupIndex].Meshes[IntLODIndex];
         }
-        bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
+        bWireframe = false && ViewFamily.EngineShowFlags.Wireframe;
     }
     else if (GeometryType == EHairGeometryType::Cards)
     {
         if (!Instance->Cards.IsValid(IntLODIndex))
         {
+            UE_LOG(LogUnrealCV, Warning, TEXT("CreateMeshBatch: Cards LOD %d is invalid for HairGroup %d"), IntLODIndex, GroupIndex);
             return nullptr;
         }
 
@@ -550,7 +583,7 @@ FMeshBatch* FHairStrandsSceneProxy::CreateMeshBatch(
         {
             MaterialRenderProxy = HairGroupMaterialProxies[GroupIndex].Cards[IntLODIndex];
         }
-        bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
+        bWireframe = false && ViewFamily.EngineShowFlags.Wireframe;
     }
     else // if (GeometryType == EHairGeometryType::Strands)
     {
@@ -564,17 +597,20 @@ FMeshBatch* FHairStrandsSceneProxy::CreateMeshBatch(
         {
             MaterialRenderProxy = HairGroupMaterialProxies[GroupIndex].Strands;
         }
-        bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
+        bWireframe = false && ViewFamily.EngineShowFlags.Wireframe;
     }
 
     if (MaterialRenderProxy == nullptr || !bIsVisible)
     {
+        UE_LOG(LogUnrealCV, Warning, TEXT("CreateMeshBatch: MaterialRenderProxy=%p, bIsVisible=%d for HairGroup %d, GeometryType=%d"),
+            MaterialRenderProxy, bIsVisible, GroupIndex, (int32)GeometryType);
         return nullptr;
     }
 
     // Invalid primitive setup. This can happens when the (procedural) resources are not ready.
     if (NumPrimitive == 0 && !bUseCulling)
     {
+        UE_LOG(LogTemp, Error, TEXT("NumPrimitive is 0 and bUseCulling is false"));
         return nullptr;
     }
 
@@ -701,9 +737,11 @@ FPrimitiveViewRelevance FHairStrandsSceneProxy::GetViewRelevance(const FSceneVie
     // When path tracing is enabled force DrawRelevance if not visible in main view ('hidden in game'), 
     // but visible in shadow 'hidden shadow') so that raytracing geometry is created/updated correctly
     const bool bPathtracing = View->Family->EngineShowFlags.PathTracing;
-    const bool bIsShown = IsShown(View);
+    // const bool bIsShown = IsShown(View);
+    const bool bIsShown = true;
     const bool bForceDrawRelevance = bPathtracing && (!bIsShown && (IsShadowCast(View) || bAffectIndirectLightingWhileHidden));
-    const bool bVisible = View->Family->EngineShowFlags.Hair;
+    // const bool bVisible = View->Family->EngineShowFlags.Hair;
+    const bool bVisible = true;
 
     bool bUseCardsOrMesh = false;
     for (const TRefCountPtr<FHairGroupInstance>& Instance : HairGroupInstances)

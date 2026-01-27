@@ -5,6 +5,9 @@
 #include "Runtime/CoreUObject/Public/UObject/UObjectHash.h"
 #include "Runtime/Core/Public/Async/ParallelFor.h"
 
+
+#include "GroomComponent.h"
+
 TMap<UWorld*, TArray<TWeakObjectPtr<UPrimitiveComponent>>> UAnnotationBPLib::CachedAnnotationComponents;
 TMap<UWorld*, int32> UAnnotationBPLib::CachedWorldFrameNumbers;
 bool UAnnotationBPLib::bCacheEnabled = false;
@@ -120,10 +123,13 @@ void UAnnotationBPLib::GetAnnotationComponents(UWorld* World, TArray<TWeakObject
 	}
 
 	TArray<UObject*> UObjectList;
+	TArray<UObject*> GroomList;
 	bool bIncludeDerivedClasses = false;
 	EObjectFlags ExclusionFlags = EObjectFlags::RF_ClassDefaultObject;
 
 	GetObjectsOfClass(UAnnotationComponent::StaticClass(), UObjectList, bIncludeDerivedClasses, ExclusionFlags);
+	GetObjectsOfClass(UGroomComponent::StaticClass(), GroomList, bIncludeDerivedClasses, ExclusionFlags);
+	UObjectList.Append(GroomList);
 
 	TArray<TArray<UPrimitiveComponent*>> TempComponentLists;
 	TempComponentLists.SetNum(UObjectList.Num());

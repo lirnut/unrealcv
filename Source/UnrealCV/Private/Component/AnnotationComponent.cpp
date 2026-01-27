@@ -614,32 +614,39 @@ public:
 	{
 		AnnotationMaterialRenderProxy = AnnotationMID->GetRenderProxy();
 
-		for (int32 GroupIt = 0; GroupIt < HairGroupMaterialProxies.Num(); ++GroupIt)
-		{
-			HairGroupMaterialProxies[GroupIt].Strands = AnnotationMaterialRenderProxy;
-			for (int32 LODIt = 0; LODIt < HairGroupMaterialProxies[GroupIt].Cards.Num(); ++LODIt)
-			{
-				HairGroupMaterialProxies[GroupIt].Cards[LODIt] = AnnotationMaterialRenderProxy;
-			}
-			for (int32 LODIt = 0; LODIt < HairGroupMaterialProxies[GroupIt].Meshes.Num(); ++LODIt)
-			{
-				HairGroupMaterialProxies[GroupIt].Meshes[LODIt] = AnnotationMaterialRenderProxy;
-			}
-		}
+		// for (int32 GroupIt = 0; GroupIt < HairGroupMaterialProxies.Num(); ++GroupIt)
+		// {
+		// 	HairGroupMaterialProxies[GroupIt].Strands = AnnotationMaterialRenderProxy;
+		// 	for (int32 LODIt = 0; LODIt < HairGroupMaterialProxies[GroupIt].Cards.Num(); ++LODIt)
+		// 	{
+		// 		HairGroupMaterialProxies[GroupIt].Cards[LODIt] = AnnotationMaterialRenderProxy;
+		// 	}
+		// 	for (int32 LODIt = 0; LODIt < HairGroupMaterialProxies[GroupIt].Meshes.Num(); ++LODIt)
+		// 	{
+		// 		HairGroupMaterialProxies[GroupIt].Meshes[LODIt] = AnnotationMaterialRenderProxy;
+		// 	}
+		// }
+
+#if WITH_EDITOR
+		TArray<UMaterialInterface*> UsedMaterials;
+		UsedMaterials.Add(AnnotationMID);
+		SetUsedMaterialForVerification(UsedMaterials);
+#endif
+
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
-		if (!View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing)
-		{
+		// if (!View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing)
+		// {
 			return FHairStrandsSceneProxy::GetViewRelevance(View);
-		}
-		else
-		{
-			FPrimitiveViewRelevance ViewRelevance;
-			ViewRelevance.bDrawRelevance = 0;
-			return ViewRelevance;
-		}
+		// }
+		// else
+		// {
+		// 	FPrimitiveViewRelevance ViewRelevance;
+		// 	ViewRelevance.bDrawRelevance = 0;
+		// 	return ViewRelevance;
+		// }
 	}
 
 	virtual void GetDynamicMeshElements(
@@ -649,6 +656,28 @@ public:
 		FMeshElementCollector& Collector) const
 	{
 		return FHairStrandsSceneProxy::GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector);
+	}
+
+	virtual FMeshBatch* CreateMeshBatch(
+		const FSceneView* View,
+		const FSceneViewFamily& ViewFamily,
+		FMeshElementCollector& Collector,
+		const EHairMeshBatchType MeshBatchType,
+		const FHairGroupInstance* Instance,
+		uint32 GroupIndex,
+		FMaterialRenderProxy* Debug_MaterialProxy) const override
+	{
+		FMeshBatch* Out = FHairStrandsSceneProxy::CreateMeshBatch(View, ViewFamily, Collector, MeshBatchType, Instance, GroupIndex, Debug_MaterialProxy);
+		if (Out)
+		{
+			// Out->MaterialRenderProxy = AnnotationMaterialRenderProxy;
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateMeshBatch: Out is good"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("CreateMeshBatch: Out is nullptr"));
+		}
+		return Out;
 	}
 };
 
@@ -733,6 +762,16 @@ void UAnnotationComponent::SetAnnotationColor(FColor NewAnnotationColor)
 FColor UAnnotationComponent::GetAnnotationColor()
 {
 	return AnnotationColor;
+}
+
+void UAnnotationComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
+{
+	Super::GetUsedMaterials(OutMaterials, bGetDebugMaterials);
+
+	if (AnnotationMID)
+	{
+		OutMaterials.AddUnique(AnnotationMID);
+	}
 }
 
 FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponent* StaticMeshComponent)
@@ -885,8 +924,25 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 	}
 	else if (IsValid(GroomComponent))
 	{
-		// bRefreshRenderState= true;
-		return CreateSceneProxy(GroomComponent);
+		// if (UWorld* World = GetWorld())
+		// {
+		// 	World->GetTimerManager().SetTimerForNextTick([this, World, GroomComponent]()
+		// 	{
+		// 		// bRefreshRenderState= true;
+		// 		int32 NumMaterials = GroomComponent->GetNumMaterials();
+		// 		for (int32 i = 0; i < NumMaterials; ++i)
+		// 		{
+		// 			GroomComponent->SetMaterial(i, AnnotationMaterial);
+		// 		}
+		// 		if (GroomComponent->SceneProxy)
+		// 		{
+		// 			GroomComponent->MarkRenderStateDirty();
+		// 		}
+		// 	});
+		// }
+
+		// return CreateSceneProxy(GroomComponent);
+		return nullptr;
 	}
 	// else if (IsValid(CableComponent))
 	// {
@@ -942,11 +998,25 @@ FMatrix UAnnotationComponent::GetRenderMatrix() const
 	USceneComponent* Parent = this->GetAttachParent();
 	if (IsValid(Parent))
 	{
+		UGroomComponent* GroomComponent = Cast<UGroomComponent>(Parent);
+		if (IsValid(GroomComponent))
+		{
+			return GroomComponent->GetRenderMatrix();
+		}
+
 		UPrimitiveComponent* ParentPrimitive = Cast<UPrimitiveComponent>(Parent);
 		if (IsValid(ParentPrimitive))
 		{
 			return ParentPrimitive->GetRenderMatrix();
 		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("ParentMeshComponent is not a PrimitiveComponent."));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("ParentMeshComponent is invalid."));
 	}
 	return Super::GetRenderMatrix();
 }
