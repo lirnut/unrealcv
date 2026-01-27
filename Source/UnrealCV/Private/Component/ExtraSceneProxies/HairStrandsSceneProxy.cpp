@@ -145,17 +145,19 @@ void FGroomAnnotationSceneProxy::GetDynamicMeshElements(
 					FMatrix CurrentLocalToWorld = Instance->GetCurrentLocalToWorld().ToMatrixWithScale();
 					FMatrix PreviousLocalToWorld = Instance->GetPreviousLocalToWorld().ToMatrixWithScale();
 
-					static int32 FrameCounter = 0;
-					if (FrameCounter++ % 60 == 0)
-					{
-						UE_LOG(LogUnrealCV, Warning, TEXT("GroomAnnotation Frame %d: BindingType=%d, Instance=%p, CurrentLocalToWorld Origin=(%f,%f,%f)"),
-							FrameCounter,
-							(int32)Instance->BindingType,
-							Instance,
-							CurrentLocalToWorld.GetOrigin().X,
-							CurrentLocalToWorld.GetOrigin().Y,
-							CurrentLocalToWorld.GetOrigin().Z);
-					}
+					// FixMe: the Transform of Groom Annotation wil not be updated when the original GroomComponent can not be seen
+
+					// static int32 FrameCounter = 0;
+					// if (FrameCounter++ % 60 == 0)
+					// {
+					// 	UE_LOG(LogUnrealCV, Warning, TEXT("GroomAnnotation Frame %d: BindingType=%d, Instance=%p, CurrentLocalToWorld Origin=(%f,%f,%f)"),
+					// 		FrameCounter,
+					// 		(int32)Instance->BindingType,
+					// 		Instance,
+					// 		CurrentLocalToWorld.GetOrigin().X,
+					// 		CurrentLocalToWorld.GetOrigin().Y,
+					// 		CurrentLocalToWorld.GetOrigin().Z);
+					// }
 
 					FBoxSphereBounds NewLocalBound = GetLocalBounds();
 					if (bUseSkinning)

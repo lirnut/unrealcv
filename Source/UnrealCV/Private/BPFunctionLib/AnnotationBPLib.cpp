@@ -123,13 +123,13 @@ void UAnnotationBPLib::GetAnnotationComponents(UWorld* World, TArray<TWeakObject
 	}
 
 	TArray<UObject*> UObjectList;
-	TArray<UObject*> GroomList;
+	// TArray<UObject*> GroomList;
 	bool bIncludeDerivedClasses = false;
 	EObjectFlags ExclusionFlags = EObjectFlags::RF_ClassDefaultObject;
 
 	GetObjectsOfClass(UAnnotationComponent::StaticClass(), UObjectList, bIncludeDerivedClasses, ExclusionFlags);
-	GetObjectsOfClass(UGroomComponent::StaticClass(), GroomList, bIncludeDerivedClasses, ExclusionFlags);
-	UObjectList.Append(GroomList);
+	// GetObjectsOfClass(UGroomComponent::StaticClass(), GroomList, bIncludeDerivedClasses, ExclusionFlags);
+	// UObjectList.Append(GroomList);
 
 	TArray<TArray<UPrimitiveComponent*>> TempComponentLists;
 	TempComponentLists.SetNum(UObjectList.Num());
