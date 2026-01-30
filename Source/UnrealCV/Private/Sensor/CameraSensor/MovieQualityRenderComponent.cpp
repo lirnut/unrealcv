@@ -23,7 +23,6 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
 	bIsInitialized = false;
 	PrimaryComponentTick.bCanEverTick = false;
 
-	ShowFlags = FEngineShowFlags(ESFIM_Game);
 	ShowFlags.SetScreenPercentage(true);
 	ShowFlags.SetMotionBlur(true);
 
