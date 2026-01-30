@@ -65,7 +65,7 @@ protected:
 		TFunction<void(bool)> OnComplete
 	);
 
-	float GetTargetGamma() const;
+	// float GetTargetGamma() const;
 
 protected:
 	bool bIsInitialized;

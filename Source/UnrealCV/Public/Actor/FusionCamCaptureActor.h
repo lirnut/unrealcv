@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "JsonObjectBP.h"
 #include "BPFunctionLib\SceneCompositionBPLib.h"
+#include "MovieQualityRenderSubsystem.h"
 #include "FusionCamCaptureActor.generated.h"
 
 /**
@@ -177,6 +178,8 @@ public:
 	int32 GetCurrentTrajectoryIndex() const { return CurrentTrajectoryIndex; }
 
 protected:
+	UMovieQualityRenderSubsystem* MovieQualityRenderer;
+
 	// Recording state
 	float TimeDilationBackUp;
 	FTimerHandle TimerHandle_Record;

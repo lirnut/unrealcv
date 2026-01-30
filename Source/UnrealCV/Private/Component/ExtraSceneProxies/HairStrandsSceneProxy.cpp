@@ -32,8 +32,8 @@ FGroomAnnotationSceneProxy::FGroomAnnotationSceneProxy(UGroomComponent* Componen
 			if (FHairGroupInstance* Instance = Component->GetGroupInstance(GroupIt))
 			{
 				HairGroupInstances.Add(Instance);
-				UE_LOG(LogUnrealCV, Warning, TEXT("FGroomAnnotationSceneProxy: Added Instance %d, Ptr=%p, RefCount=%d, BindingType=%d"),
-					GroupIt, Instance, Instance->GetRefCount(), (int32)Instance->BindingType);
+				// UE_LOG(LogUnrealCV, Warning, TEXT("FGroomAnnotationSceneProxy: Added Instance %d, Ptr=%p, RefCount=%d, BindingType=%d"),
+				// 	GroupIt, Instance, Instance->GetRefCount(), (int32)Instance->BindingType);
 			}
 		}
 		MaterialRenderProxy = AnnotationMID->GetRenderProxy();

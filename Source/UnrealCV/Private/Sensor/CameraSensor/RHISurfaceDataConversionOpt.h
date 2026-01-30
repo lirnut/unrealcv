@@ -27,7 +27,7 @@
 
 inline void ConvertRawB8G8R8A8DataToFColorOpt(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
 {
-	UE_LOG(LogTemp, Warning, TEXT("ConvertRawB8G8R8A8DataToFColorOpt: called"));
+	// UE_LOG(LogTemp, Warning, TEXT("ConvertRawB8G8R8A8DataToFColorOpt: called"));
 	const uint32 DstPitch = Width * sizeof(FColor);
 
 	// If source & dest pitch matches, perform a single memcpy.
@@ -38,8 +38,8 @@ inline void ConvertRawB8G8R8A8DataToFColorOpt(uint32 Width, uint32 Height, uint8
 	else
 	{
 		check(SrcPitch > DstPitch);
-		UE_LOG(LogTemp, Warning, TEXT("ConvertRawB8G8R8A8DataToFColorOpt: SrcPitch != DstPitch"));
-		UE_LOG(LogTemp, Warning, TEXT("ConvertRawB8G8R8A8DataToFColorOpt: SrcPitch = %d, DstPitch = %d"), SrcPitch, DstPitch);
+		// UE_LOG(LogTemp, Warning, TEXT("ConvertRawB8G8R8A8DataToFColorOpt: SrcPitch != DstPitch"));
+		// UE_LOG(LogTemp, Warning, TEXT("ConvertRawB8G8R8A8DataToFColorOpt: SrcPitch = %d, DstPitch = %d"), SrcPitch, DstPitch);
 
 		// Need to copy row wise since the Pitch does not match the Width.
 		for (uint32 Y = 0; Y < Height; Y++)
@@ -53,7 +53,7 @@ inline void ConvertRawB8G8R8A8DataToFColorOpt(uint32 Width, uint32 Height, uint8
 
 inline void ConvertRawB8G8R8A8DataToFColorOptWithMinMaxMapping(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
 {
-	UE_LOG(LogTemp, Warning, TEXT("ConvertRawB8G8R8A8DataToFColorOptWithMinMaxMapping: called"));
+	// UE_LOG(LogTemp, Warning, TEXT("ConvertRawB8G8R8A8DataToFColorOptWithMinMaxMapping: called"));
 	FPlane	MinValue(255.0f, 255.0f, 255.0f, 255.0f),
 		MaxValue(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -96,7 +96,7 @@ inline void ConvertRawB8G8R8A8DataToFColorOptWithMinMaxMapping(uint32 Width, uin
 
 inline void ConvertRawR16G16B16A16FDataToFFloat16ColorOpt(uint32 Width, uint32 Height, uint8* In, uint32 SrcPitch, FFloat16Color* Out)
 {
-	UE_LOG(LogTemp, Warning, TEXT("ConvertRawR16G16B16A16FDataToFFloat16ColorOpt: called"));
+	// UE_LOG(LogTemp, Warning, TEXT("ConvertRawR16G16B16A16FDataToFFloat16ColorOpt: called"));
 	const uint32 DstPitch = Width * sizeof(FFloat16Color);
 
 	// If source & dest pitch matches, perform a single memcpy.
@@ -121,7 +121,7 @@ inline void ConvertRawR16G16B16A16FDataToFFloat16ColorOpt(uint32 Width, uint32 H
 
 inline void ConvertRawR16G16B16A16FDataToFColorOptWithMinMaxMapping(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
 {
-	UE_LOG(LogTemp, Warning, TEXT("ConvertRawR16G16B16A16FDataToFColorOptWithMinMaxMapping: called"));
+	// UE_LOG(LogTemp, Warning, TEXT("ConvertRawR16G16B16A16FDataToFColorOptWithMinMaxMapping: called"));
 	FPlane	MinValue(0.0f, 0.0f, 0.0f, 0.0f),
 		MaxValue(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -170,7 +170,7 @@ inline void ConvertRawR16G16B16A16FDataToFColorOptWithMinMaxMapping(uint32 Width
 
 inline void ConvertRawR16G16B16A16FDataToFColorOpt(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
 {
-	UE_LOG(LogTemp, Warning, TEXT("ConvertRawR16G16B16A16FDataToFColorOpt: called"));
+	// UE_LOG(LogTemp, Warning, TEXT("ConvertRawR16G16B16A16FDataToFColorOpt: called"));
 	check(sizeof(FFloat16) == sizeof(uint16));
 
 	ParallelFor(Height, [&](int32 Y)
@@ -196,7 +196,7 @@ inline void ConvertRawR16G16B16A16FDataToFColorOpt(uint32 Width, uint32 Height, 
 
 inline bool ConvertRAWSurfaceDataToFColorOpt(EPixelFormat Format, uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, FReadSurfaceDataFlags InFlags_)
 {
-	UE_LOG(LogTemp, Warning, TEXT("ConvertRAWSurfaceDataToFColorOpt: called"));
+	// UE_LOG(LogTemp, Warning, TEXT("ConvertRAWSurfaceDataToFColorOpt: called"));
 	FReadSurfaceDataFlags InFlags(RCM_MinMax); // Read Data withoud changing them
 	bool bLinearToGamma = InFlags.GetLinearToGamma();
 
@@ -220,7 +220,7 @@ inline bool ConvertRAWSurfaceDataToFColorOpt(EPixelFormat Format, uint32 Width, 
 
 inline bool ConvertRAWSurfaceDataToFFloat16ColorOpt(EPixelFormat Format, uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FFloat16Color* Out, FReadSurfaceDataFlags InFlags_)
 {
-	UE_LOG(LogTemp, Warning, TEXT("ConvertRAWSurfaceDataToFFloat16ColorOpt: called"));
+	// UE_LOG(LogTemp, Warning, TEXT("ConvertRAWSurfaceDataToFFloat16ColorOpt: called"));
 	FReadSurfaceDataFlags InFlags(RCM_MinMax); // Read Data withoud changing them
 	bool bLinearToGamma = InFlags.GetLinearToGamma();
 

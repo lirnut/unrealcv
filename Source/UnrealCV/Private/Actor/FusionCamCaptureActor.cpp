@@ -33,6 +33,7 @@
 #include "Serialization/BufferArchive.h"
 #include "LineTraceBPlib.h"
 #include "MovieQualityRenderComponent.h"
+#include "MovieQualityRenderSubsystem.h"
 
 // static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
 static const float ROTATE_BUFFER_DURATION_SECONDS = 0.0f;
@@ -79,6 +80,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	WarmUpElapsedFrames = 0;
 
 	bUseMovieQualityRendering = true;
+	MovieQualityRenderer = nullptr;
 
 	// OriginalCameraLocation =
 	// OriginalCameraRotation =
@@ -433,15 +435,28 @@ void AFusionCamCaptureActor::RecordFrame()
 	{
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
 
-		if (bUseMovieQualityRendering && TargetSensor->GetMovieQualityRenderer() && TargetSensor->GetMovieQualityRenderer()->IsInitialized())
+		if (bUseMovieQualityRendering)
 		{
-			TargetSensor->GetMovieQualityRenderer()->SaveLitToFile(
+			// TargetSensor->GetMovieQualityRenderer()->SaveLitToFile(
+			// 	FileNameRGB,
+			// 	[](bool bSuccess)
+			// 	{
+			// 		if (!bSuccess)
+			// 		{
+			// 			UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
+			// 		}
+			// 	}
+			// );
+			MovieQualityRenderer->CaptureFrame(
+				TargetSensor,
 				FileNameRGB,
+				TEXT("RGB"),
+				ElapsedSteps,
 				[](bool bSuccess)
 				{
 					if (!bSuccess)
 					{
-						UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
+					UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
 					}
 				}
 			);
@@ -1085,6 +1100,28 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	if (bIsRecording)
 	{
 		StopRecord();
+	}
+
+	if (MovieQualityRenderer && MovieQualityRenderer->IsInitialized())
+	{
+	MovieQualityRenderer->RestoreQualitySettings();
+	MovieQualityRenderer->Shutdown();
+	MovieQualityRenderer = nullptr;
+	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: MovieQualityRenderer shutdown and quality settings restored"));
+	}
+	
+
+	if (!MovieQualityRenderer)
+	{
+		MovieQualityRenderer = NewObject<UMovieQualityRenderSubsystem>(this);
+	}
+	
+	if (MovieQualityRenderer && !MovieQualityRenderer->IsInitialized())
+	{
+		FIntPoint Resolution(TargetSensor->GetFilmWidth(), TargetSensor->GetFilmHeight());
+		MovieQualityRenderer->Initialize(GetWorld(), Resolution);
+		MovieQualityRenderer->ApplyMovieQualitySettings();
+		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: MovieQualityRenderer initialized at %dx%d"), Resolution.X, Resolution.Y);
 	}
 	
 	// if ((UnifiedTargetLocation - Target->GetActorLocation()).Length() > 1000)

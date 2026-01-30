@@ -28,7 +28,7 @@ FServerConfig::FServerConfig()
 	ExitOnFailure = false;
 	EnableRightEye = false;
 	UseFastCapture = true;
-	bLitUseBGRA8 = true;
+	bLitUseBGRA8 = false;
 	OpticalFlowScale = 100.0f;
 
 	SupportedModes.Add(TEXT("lit"));

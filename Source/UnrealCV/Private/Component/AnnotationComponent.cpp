@@ -727,12 +727,12 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponen
 	UMaterialInterface* ProxyMaterial = AnnotationMID;
 	UStaticMesh* ParentStaticMesh = StaticMeshComponent->GetStaticMesh();
 
-	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for StaticMeshComponent: %s, Class: %s, Owner: %s, AnnotationMID=%p, AnnotationColor=%s"),
-		*StaticMeshComponent->GetName(),
-		*StaticMeshComponent->GetClass()->GetName(),
-		StaticMeshComponent->GetOwner() ? *StaticMeshComponent->GetOwner()->GetName() : TEXT("None"),
-		AnnotationMID,
-		*AnnotationColor.ToString());
+	// UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for StaticMeshComponent: %s, Class: %s, Owner: %s, AnnotationMID=%p, AnnotationColor=%s"),
+	// 	*StaticMeshComponent->GetName(),
+	// 	*StaticMeshComponent->GetClass()->GetName(),
+	// 	StaticMeshComponent->GetOwner() ? *StaticMeshComponent->GetOwner()->GetName() : TEXT("None"),
+	// 	AnnotationMID,
+	// 	*AnnotationColor.ToString());
 
 	if(ParentStaticMesh == NULL
 		|| ParentStaticMesh->GetRenderData() == NULL
@@ -762,16 +762,16 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponen
 			return nullptr;
 		}
 
-		UE_LOG(LogUnrealCV, Log, TEXT("Creating FInstancedStaticMeshAnnotationSceneProxy for %s"), *StaticMeshComponent->GetName());
+		// UE_LOG(LogUnrealCV, Log, TEXT("Creating FInstancedStaticMeshAnnotationSceneProxy for %s"), *StaticMeshComponent->GetName());
 		FInstancedStaticMeshSceneProxyDesc ProxyDesc(InstancedComponent);
 		FPrimitiveSceneProxy* Proxy = ::new FInstancedStaticMeshAnnotationSceneProxy(ProxyDesc, ProxyMaterial, GetWorld()->GetFeatureLevel());
-		UE_LOG(LogUnrealCV, Log, TEXT("Created FInstancedStaticMeshAnnotationSceneProxy for %s, Proxy=%p"), *StaticMeshComponent->GetName(), Proxy);
+		// UE_LOG(LogUnrealCV, Log, TEXT("Created FInstancedStaticMeshAnnotationSceneProxy for %s, Proxy=%p"), *StaticMeshComponent->GetName(), Proxy);
 		return Proxy;
 	}
 
 	// FPrimitiveSceneProxy* Proxy = ::new FStaticMeshSceneProxy(OwnerComponent, false);
 	FPrimitiveSceneProxy* Proxy = ::new FStaticAnnotationSceneProxy(StaticMeshComponent, false, ProxyMaterial);
-	UE_LOG(LogUnrealCV, Log, TEXT("Created FStaticAnnotationSceneProxy for %s, Proxy=%p"), *StaticMeshComponent->GetName(), Proxy);
+	// UE_LOG(LogUnrealCV, Log, TEXT("Created FStaticAnnotationSceneProxy for %s, Proxy=%p"), *StaticMeshComponent->GetName(), Proxy);
 	return Proxy;
 	// This is not recommended, but I know what I am doing.
 }
