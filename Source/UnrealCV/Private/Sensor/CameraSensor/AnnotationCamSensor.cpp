@@ -31,6 +31,8 @@ UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectIniti
 
 	this->PostProcessSettings.bOverride_AutoExposureBias = true;
 	this->PostProcessSettings.AutoExposureBias = 0;
+
+	bRenderInMainRenderer = true;  // optimization
 }
 
 

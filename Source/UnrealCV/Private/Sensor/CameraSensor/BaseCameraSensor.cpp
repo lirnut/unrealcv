@@ -50,7 +50,7 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
     // this->ShowFlags.SetDynamicShadows(false);  // 如果不需要动态阴影
     // this->ShowFlags.SetBloom(false);           // 如果不需要泛光
 
-	bRenderInMainRenderer = true;
+	// bRenderInMainRenderer = true;  // optimization
 
 
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
@@ -412,7 +412,7 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 							int32 RowPitchInPixels;
 							void* RawData = Capture->Readback->Lock(RowPitchInPixels);
 							void* RawDataCopy = FMemory::Malloc(  RowPitchInPixels * Capture->Height * GPixelFormats[Capture->PixelFormat].BlockBytes);
-							FMemory::Memcpy(RawDataCopy, RawData, RowPitchInPixels * Capture->Height * GPixelFormats[Capture->PixelFormat].BlockBytes);
+							FMemory::BigBlockMemcpy(RawDataCopy, RawData, RowPitchInPixels * Capture->Height * GPixelFormats[Capture->PixelFormat].BlockBytes);
 							Capture->Readback->Unlock();
 							delete Capture->Readback;
 							UE_LOG(LogTemp, Log, TEXT("[CaptureFastToFile] CPU Mem Copy time: %lf"), FPlatformTime::Seconds() - StartTime);

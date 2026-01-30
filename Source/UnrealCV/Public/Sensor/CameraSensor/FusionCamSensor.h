@@ -249,6 +249,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
 	class UStencilMaskCamSensor* StencilMaskCamSensor;
 
+	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
+	class UMovieQualityRenderComponent* MovieQualityRenderer;
+
 
 	/** This preview camera is used for UE version < 4.17 which only support UCameraComponent PIP preview
 	See the difference between
@@ -278,6 +281,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	class UStencilMaskCamSensor* GetStencilMaskCamSensor() const { return StencilMaskCamSensor; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	class UMovieQualityRenderComponent* GetMovieQualityRenderer() const { return MovieQualityRenderer; }
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	TArray<class UBaseCameraSensor*> GetSensors() const { return FusionSensors; }

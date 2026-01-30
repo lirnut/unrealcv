@@ -48,6 +48,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
 		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only_5s")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
@@ -102,6 +103,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
@@ -116,6 +118,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 8.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 6.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
@@ -560,6 +563,53 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			ExecuteNextCommand();
 		}
 	}
+	else if (Step.Command == TEXT("sync_pawn_to_primary_camera"))
+	{
+		int32 PrimaryCameraID = CurrentConfig.SceneParams.CameraID;
+		UFusionCamSensor* PrimaryCam = USensorBPLib::GetSensorById(PrimaryCameraID);
+		if (!IsValid(PrimaryCam))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("sync_pawn_to_primary_camera: Failed to get primary camera %d"), PrimaryCameraID);
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		UWorld* World = FUnrealcvServer::Get().GetGameWorld();
+		if (!World)
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("sync_pawn_to_primary_camera: Failed to get world"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		APlayerController* PlayerController = World->GetFirstPlayerController();
+		if (!IsValid(PlayerController))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("sync_pawn_to_primary_camera: Failed to get PlayerController"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		APawn* Pawn = PlayerController->GetPawn();
+		if (!IsValid(Pawn))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("sync_pawn_to_primary_camera: Failed to get Pawn"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		FVector CameraLocation = PrimaryCam->GetSensorLocation();
+		FRotator CameraRotation = PrimaryCam->GetSensorRotation();
+
+		Pawn->SetActorLocation(CameraLocation, false, nullptr, ETeleportType::TeleportPhysics);
+		PlayerController->ClientSetRotation(CameraRotation);
+
+		UE_LOG(LogUnrealCV, Log, TEXT("sync_pawn_to_primary_camera: Synced Pawn to camera %d at location (%.2f, %.2f, %.2f) rotation (%.2f, %.2f, %.2f)"),
+			PrimaryCameraID, CameraLocation.X, CameraLocation.Y, CameraLocation.Z,
+			CameraRotation.Pitch, CameraRotation.Yaw, CameraRotation.Roll);
+
+		ExecuteNextCommand();
+	}
 	else if (Step.Command == TEXT("vrun"))
 	{
 		FString Command = Step.StringParam;
@@ -915,10 +965,10 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		CaptureActor->bRecordDepth = false;
 		CaptureActor->bRecordFlow = false;
 		CaptureActor->bRecordNormal = false;
-		CaptureActor->bRecordOneObjectMask = true;
-		CaptureActor->bRecordOneObjectLit = true;
+		CaptureActor->bRecordOneObjectMask = false;
+		CaptureActor->bRecordOneObjectLit = false;
  		CaptureActor->bRecordShadowCatcher = false;
- 		CaptureActor->bRecordStencilMask = true;
+ 		CaptureActor->bRecordStencilMask = false;
 		CaptureActor->bRecordMetadata = true;
 		CaptureActor->bRecordWithoutTarget = false;
 		AllocatedCam->SetFilmSize(1920, 1080);

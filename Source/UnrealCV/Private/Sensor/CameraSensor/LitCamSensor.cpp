@@ -15,6 +15,7 @@ ULitCamSensor::ULitCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
 	CaptureSource = ESceneCaptureSource::SCS_FinalColorHDR;
+	// CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
 }
 
 // void ULitCamSensor::SetupRenderTarget()

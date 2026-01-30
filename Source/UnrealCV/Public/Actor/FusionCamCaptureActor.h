@@ -85,6 +85,10 @@ public:
 	/** Backup camera ID for destroying camera when done */
 	int32 BackupCameraID;
 
+	/** Use MRQ rendering pipeline for RGB (higher quality) */
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
+	bool bUseMovieQualityRendering;
+
 	/** Output folder for recorded files */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
 	FDirectoryPath DataFolder;

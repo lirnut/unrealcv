@@ -32,6 +32,7 @@
 #include "Misc/FileHelper.h"
 #include "Serialization/BufferArchive.h"
 #include "LineTraceBPlib.h"
+#include "MovieQualityRenderComponent.h"
 
 // static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
 static const float ROTATE_BUFFER_DURATION_SECONDS = 0.0f;
@@ -77,8 +78,10 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	WarmUpFrames = WARM_UP_FRAMES;
 	WarmUpElapsedFrames = 0;
 
-	// OriginalCameraLocation = 
-	// OriginalCameraRotation = 
+	bUseMovieQualityRendering = true;
+
+	// OriginalCameraLocation =
+	// OriginalCameraRotation =
 
 	Billboard = CreateDefaultSubobject<UMaterialBillboardComponent>(TEXT("BillboardComponent"));
 	if (!IsRunningCommandlet() && (Billboard != nullptr))
@@ -425,12 +428,29 @@ void AFusionCamCaptureActor::RecordFrame()
 	};
 
 
-	
+
 	if (bRecordRGB)
 	{
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
-		TargetSensor->SaveLitToFile(FileNameRGB);
-		// SaveRGBToFile(TargetSensor, FileNameRGB);
+
+		if (bUseMovieQualityRendering && TargetSensor->GetMovieQualityRenderer() && TargetSensor->GetMovieQualityRenderer()->IsInitialized())
+		{
+			TargetSensor->GetMovieQualityRenderer()->SaveLitToFile(
+				FileNameRGB,
+				[](bool bSuccess)
+				{
+					if (!bSuccess)
+					{
+						UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
+					}
+				}
+			);
+		}
+		else
+		{
+			// TargetSensor->SaveLitToFile(FileNameRGB);
+			SaveRGBToFile(TargetSensor, FileNameRGB);
+		}
 	}
 
 	if (bRecordMask)
@@ -1006,9 +1026,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 {
 	SetDefaultParamsForTargetCamera();
-	// TargetSensor->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
-	// TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, static_cast<float>(FPS));
-	// calculate the range from TargetSensor to Target
+
 	UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
 	FVector SensorLocation = TargetSensor->GetSensorLocation();
 	float Distance = (UnifiedTargetLocation - SensorLocation).Size();
@@ -1048,31 +1066,6 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 	{
 		CopySensorSettings(TargetSensor, BackupSensor);
 	}
-
-
-
-	// static const TArray<FIntPoint> Resolutions = {
-	// 	FIntPoint(1920, 1080),
-	// 	// FIntPoint(640, 480),
-	// 	// FIntPoint(480, 640),
-	// };
-	// const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
-
-
-	// // TargetSensor->GetDepthCamSensor()->bIgnoreTransparentObjects = true;
-	// TargetSensor->SetFilmSize(ChosenRes.X, ChosenRes.Y);
-	
-	// // Adjust camera to roughly aim at the target with ±15 degrees noise
-	// FVector CameraToTarget = (UnifiedTargetLocation - TargetSensor->GetSensorLocation()).GetSafeNormal();
-	// FRotator TargetRotation = CameraToTarget.Rotation();
-
-	// // Add ±15 degrees noise to pitch, yaw, and roll
-	// float NoisePitch = FMath::RandRange(-4.0f, 4.0f);
-	// float NoiseYaw = FMath::RandRange(-1.0f, 1.0f);
-	// float NoiseRoll = FMath::RandRange(-4.0f, 4.0f);
-
-	// FRotator NoisyRotation = TargetRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
-	// TargetSensor->SetSensorRotation(NoisyRotation);
 }
 
 void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS, float DegreesPerSecond, int32 RandomSeed, bool bPauseWorldTime)

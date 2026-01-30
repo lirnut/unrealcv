@@ -46,6 +46,7 @@ public class UnrealcvBuildConfig
 			"SlateCore",
 			"UMG", // For in-game UI widgets
 			"ImageWrapper",
+			"ImageWriteQueue", // For async image writing (MRQ-style)
 			"CinematicCamera",
 			"Projects", // Support IPluginManager
 			"RHI", // Support low-level RHI operation
@@ -59,7 +60,8 @@ public class UnrealcvBuildConfig
 			"AIModule", // For AI navigation
 			"AssetRegistry", // For MetaHuman asset discovery
 			"HairStrandsCore", // For GroomComponent annotation support
-			"Renderer" // For HairStrands interface functions
+			"Renderer", // For HairStrands interface functions
+			"MovieRenderPipelineCore"
 		});
 
 		EditorPrivateDependencyModuleNames.AddRange(
