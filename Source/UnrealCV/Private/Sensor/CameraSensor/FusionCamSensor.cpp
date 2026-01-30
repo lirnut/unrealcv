@@ -14,6 +14,7 @@
 #include "FlowCamSensor.h"
 #include "ShadowCatcherCamSensor.h"
 #include "StencilMaskCamSensor.h"
+#include "MovieQualityRenderComponent.h"
 
 #include "Utils/UObjectUtils.h"
 #include "Component/AnnotationComponent.h"
@@ -85,6 +86,11 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("LitCamSensor"));
 	LitCamSensor = CreateDefaultSubobject<ULitCamSensor>(*ComponentName);
 	FusionSensors.Add(LitCamSensor);
+
+	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("MovieQualityRenderer"));
+	MovieQualityRenderer = CreateDefaultSubobject<UMovieQualityRenderComponent> (*ComponentName);
+	MovieQualityRenderer->SetupAttachment(this);
+	// FusionSensors.Add(MovieQualityRenderer);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("FlowCamSensor"));
 	FlowCamSensor = CreateDefaultSubobject<UFlowCamSensor>(*ComponentName);
@@ -534,6 +540,9 @@ void UFusionCamSensor::SetFilmSize(int Width, int Height)
 			UE_LOG(LogTemp, Warning, TEXT("SetFilmSize: Sensor %d within FusionCamSensor is invalid."), i);
 		}
 	}
+
+	check(MovieQualityRenderer);
+	MovieQualityRenderer->Initialize(MovieQualityRenderer->GetCaptureSource(), Width, Height);
 }
 
 float UFusionCamSensor::GetSensorFOV()
@@ -551,6 +560,8 @@ void UFusionCamSensor::SetSensorFOV(float fov)
 			Sensor->SetFOV(fov);
 		}
 	}
+	check(MovieQualityRenderer);
+	MovieQualityRenderer->SetFOV(FOV);
 }
 
 TArray<UFusionCamSensor*> UFusionCamSensor::GetComponents(AActor* Actor)

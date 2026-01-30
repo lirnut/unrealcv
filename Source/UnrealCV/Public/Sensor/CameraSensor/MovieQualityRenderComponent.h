@@ -24,33 +24,38 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Quality Render")
-	FIntPoint Resolution;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Quality Render")
-	bool bApplyMovieQualitySettings;
+	FEngineShowFlags ShowFlags;
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
-	void Initialize();
+	void Initialize(ESceneCaptureSource InCaptureSource, int32 ResolutionX, int32 ResolutionY);
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
 	void Shutdown();
 
-	// UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
 	void SaveLitToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
-	void ApplyMovieQualitySettings();
+	TEnumAsByte<ESceneCaptureSource> GetCaptureSource() { return CaptureSource; }
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
-	void RestoreQualitySettings();
+	void SetFOV(float InFOV) { FOV = InFOV; }
+
+	UFUNCTION(BlueprintPure, Category = "Movie Quality Render")
+	float GetFOV() const { return FOV; }
 
 	bool IsInitialized() const { return bIsInitialized; }
 
-	void SetParentSensor(UFusionCamSensor* InSensor) { ParentSensor = InSensor; }
-	UFusionCamSensor* GetParentSensor() const { return ParentSensor; }
+protected:
+	UPROPERTY()
+	TEnumAsByte<ESceneCaptureSource> CaptureSource;
 
-private:
+	UPROPERTY()
+	FIntPoint Resolution;
+
+	UPROPERTY()
+	float FOV;
+
+protected:
 	TSharedPtr<FSceneViewFamilyContext> CreateViewFamily(UTextureRenderTarget2D* RenderTarget);
 	FSceneView* CreateSceneView(FSceneViewFamily* ViewFamily);
 	void SubmitToRenderer(
@@ -62,10 +67,7 @@ private:
 
 	float GetTargetGamma() const;
 
-private:
-	UPROPERTY()
-	UFusionCamSensor* ParentSensor;
-
+protected:
 	bool bIsInitialized;
 	EPixelFormat PixelFormat;
 	bool bForceLinearGamma;
@@ -73,8 +75,6 @@ private:
 	TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> SurfaceQueue;
 	FSceneViewStateReference ViewState;
 	IImageWriteQueue* ImageWriteQueue;
-
-	TMap<FString, float> PreviousQualitySettings;
 
 	UPROPERTY()
 	TMap<FString, UTextureRenderTarget2D*> RenderTargetPool;

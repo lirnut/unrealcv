@@ -38,6 +38,18 @@ void UAutomationBPLib::StartTicking()
 	PushCommand("r.SceneCapture.CubeSinglePass 1");
 	PushCommand("r.SceneCapture.DepthPrepassOptimization 1");
 	PushCommand("r.SceneCapture.EnableLogging 1");
+	// PushCommand("r.TextureStreaming 0");
+	// PushCommand("r.ParticleLODBias -10");
+	// PushCommand("foliage.DitheredLOD 0");
+	// PushCommand("foliage.ForceLOD 0");
+	// PushCommand("r.ShadowQuality 5");
+	// PushCommand("r.Shadow.DistanceScale 10.0");
+	// PushCommand("r.Shadow.RadiusThreshold 0.001");
+	// PushCommand("r.ViewDistanceScale 50.0");
+	// PushCommand("r.VolumetricRenderTarget 1");
+	// PushCommand("r.VolumetricRenderTarget.Mode 3");
+	// PushCommand("r.SkyLight.RealTimeReflectionCapture.TimeSlice 0");
+	// PushCommand("r.PostProcessing.PropagateAlpha 1");
 }
 
 void UAutomationBPLib::StopTicking()

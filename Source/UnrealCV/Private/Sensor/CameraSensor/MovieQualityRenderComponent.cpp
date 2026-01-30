@@ -12,8 +12,6 @@
 #include "ImageWriteQueue.h"
 #include "ImageWriteTask.h"
 #include "Modules/ModuleManager.h"
-#include "Scalability.h"
-#include "HAL/IConsoleManager.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
@@ -21,15 +19,15 @@
 #include "UnrealcvServer.h"
 
 UMovieQualityRenderComponent::UMovieQualityRenderComponent()
-	: Resolution(1920, 1080)
-	, bApplyMovieQualitySettings(true)
-	, ParentSensor(nullptr)
-	, bIsInitialized(false)
-	, PixelFormat(PF_FloatRGBA)
-	, bForceLinearGamma(true)
-	, ImageWriteQueue(nullptr)
 {
+	bIsInitialized = false;
 	PrimaryComponentTick.bCanEverTick = false;
+
+	ShowFlags = FEngineShowFlags(ESFIM_Game);
+	ShowFlags.SetScreenPercentage(true);
+	ShowFlags.SetMotionBlur(true);
+
+	// other properties need to be initialized when BeginPlay
 }
 
 UMovieQualityRenderComponent::~UMovieQualityRenderComponent()
@@ -44,17 +42,23 @@ void UMovieQualityRenderComponent::BeginPlay()
 	AActor* Owner = GetOwner();
 	if (Owner)
 	{
-		ParentSensor = Cast<UFusionCamSensor>(Owner->GetComponentByClass(UFusionCamSensor::StaticClass()));
+		auto* ParentSensor = Cast<UFusionCamSensor>(Owner->GetComponentByClass(UFusionCamSensor::StaticClass()));
 		if (ParentSensor)
 		{
 			UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent: Found parent FusionCamSensor"));
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MovieQualityRenderComponent: can not Found parent FusionCamSensor!"))
+		}
 	}
 
-	if (bApplyMovieQualitySettings)
-	{
-		Initialize();
-	}
+	FServerConfig& Config = FUnrealcvServer::Get().Config;
+	int32 ResWidth = Config.Width == 0 ? 640 : Config.Width;
+	int32 ResHeight = Config.Height == 0 ? 480 : Config.Height;
+	FOV = Config.FOV == 0 ? 90 : Config.FOV;
+
+	Initialize(ESceneCaptureSource::SCS_FinalColorHDR, ResWidth, ResHeight);
 }
 
 void UMovieQualityRenderComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -63,13 +67,8 @@ void UMovieQualityRenderComponent::EndPlay(const EEndPlayReason::Type EndPlayRea
 	Super::EndPlay(EndPlayReason);
 }
 
-void UMovieQualityRenderComponent::Initialize()
+void UMovieQualityRenderComponent::Initialize(ESceneCaptureSource InCaptureSource, int32 ResolutionX, int32 ResolutionY)
 {
-	if (bIsInitialized)
-	{
-		return;
-	}
-
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -77,13 +76,17 @@ void UMovieQualityRenderComponent::Initialize()
 		return;
 	}
 
+	CaptureSource = InCaptureSource;
+	Resolution.X = ResolutionX;
+	Resolution.Y = ResolutionY;
+
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	bool bUseBGRA8 = Config.bLitUseBGRA8;
 
 	if (bUseBGRA8)
 	{
 		PixelFormat = PF_B8G8R8A8;
-		bForceLinearGamma = false;
+		bForceLinearGamma = (CaptureSource == ESceneCaptureSource::SCS_FinalColorLDR);
 	}
 	else
 	{
@@ -102,17 +105,13 @@ void UMovieQualityRenderComponent::Initialize()
 
 	ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
 
-	if (bApplyMovieQualitySettings)
-	{
-		ApplyMovieQualitySettings();
-	}
-
 	bIsInitialized = true;
 
-	UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent initialized at %dx%d, PixelFormat=%s, LinearGamma=%d"),
+	UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent initialized at %dx%d, PixelFormat=%s, LinearGamma=%d, CaptureSource=%d"),
 		Resolution.X, Resolution.Y,
 		PixelFormat == PF_FloatRGBA ? TEXT("FloatRGBA") : TEXT("BGRA8"),
-		bForceLinearGamma);
+		bForceLinearGamma,
+		(int32)CaptureSource);
 }
 
 void UMovieQualityRenderComponent::Shutdown()
@@ -144,72 +143,7 @@ void UMovieQualityRenderComponent::Shutdown()
 	}
 	RenderTargetPool.Empty();
 
-	if (bApplyMovieQualitySettings)
-	{
-		RestoreQualitySettings();
-	}
-
 	bIsInitialized = false;
-}
-
-void UMovieQualityRenderComponent::ApplyMovieQualitySettings()
-{
-	IConsoleManager& ConsoleMgr = IConsoleManager::Get();
-	PreviousQualitySettings.Empty();
-
-	auto SetCVar = [&](const TCHAR* Name, int32 Value)
-	{
-		if (IConsoleVariable* CVar = ConsoleMgr.FindConsoleVariable(Name))
-		{
-			PreviousQualitySettings.Add(Name, CVar->GetInt());
-			CVar->Set(Value);
-		}
-	};
-
-	auto SetCVarFloat = [&](const TCHAR* Name, float Value)
-	{
-		if (IConsoleVariable* CVar = ConsoleMgr.FindConsoleVariable(Name))
-		{
-			PreviousQualitySettings.Add(Name, CVar->GetFloat());
-			CVar->Set(Value);
-		}
-	};
-
-	Scalability::FQualityLevels QualityLevels;
-	QualityLevels.SetFromSingleQualityLevelRelativeToMax(0);
-	Scalability::SetQualityLevels(QualityLevels);
-
-	SetCVar(TEXT("r.TextureStreaming"), 0);
-	SetCVar(TEXT("r.ForceLOD"), 0);
-	SetCVar(TEXT("r.SkeletalMeshLODBias"), -10);
-	SetCVar(TEXT("r.ParticleLODBias"), -10);
-	SetCVar(TEXT("foliage.DitheredLOD"), 0);
-	SetCVar(TEXT("foliage.ForceLOD"), 0);
-	SetCVar(TEXT("r.ShadowQuality"), 5);
-	SetCVarFloat(TEXT("r.Shadow.DistanceScale"), 10.0f);
-	SetCVarFloat(TEXT("r.Shadow.RadiusThreshold"), 0.001f);
-	SetCVarFloat(TEXT("r.ViewDistanceScale"), 50.0f);
-	SetCVar(TEXT("r.VolumetricRenderTarget"), 1);
-	SetCVar(TEXT("r.VolumetricRenderTarget.Mode"), 3);
-	SetCVar(TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice"), 0);
-	SetCVar(TEXT("r.PostProcessing.PropagateAlpha"), 1);
-
-	UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent: Applied Movie Quality Settings"));
-}
-
-void UMovieQualityRenderComponent::RestoreQualitySettings()
-{
-	IConsoleManager& ConsoleMgr = IConsoleManager::Get();
-
-	for (const auto& Pair : PreviousQualitySettings)
-	{
-		if (IConsoleVariable* CVar = ConsoleMgr.FindConsoleVariable(*Pair.Key))
-		{
-			CVar->Set(Pair.Value);
-		}
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent: Restored Previous Quality Settings"));
 }
 
 void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete)
@@ -217,16 +151,6 @@ void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFun
 	if (!bIsInitialized)
 	{
 		UE_LOG(LogTemp, Error, TEXT("MovieQualityRenderComponent: Not initialized"));
-		if (OnComplete)
-		{
-			OnComplete(false);
-		}
-		return;
-	}
-
-	if (!ParentSensor)
-	{
-		UE_LOG(LogTemp, Error, TEXT("MovieQualityRenderComponent: No parent sensor"));
 		if (OnComplete)
 		{
 			OnComplete(false);
@@ -280,22 +204,12 @@ void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFun
 TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFamily(UTextureRenderTarget2D* RenderTarget)
 {
 	UWorld* World = GetWorld();
-	if (!World || !ParentSensor)
+	if (!World)
 	{
 		return nullptr;
 	}
 
 	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
-
-	UBaseCameraSensor* LitSensor = ParentSensor->GetLitCamSensor();
-	if (!LitSensor)
-	{
-		return nullptr;
-	}
-
-	FEngineShowFlags ShowFlags = LitSensor->ShowFlags;
-	ShowFlags.SetScreenPercentage(true);
-	ShowFlags.SetMotionBlur(true);
 
 	TSharedPtr<FSceneViewFamilyContext> ViewFamily = MakeShared<FSceneViewFamilyContext>(
 		FSceneViewFamily::ConstructionValues(
@@ -307,7 +221,7 @@ TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFami
 		.SetRealtimeUpdate(true)
 	);
 
-	ViewFamily->SceneCaptureSource = LitSensor->CaptureSource;
+	ViewFamily->SceneCaptureSource = CaptureSource;
 	ViewFamily->bWorldIsPaused = false;
 	ViewFamily->ViewMode = VMI_Lit;
 	ViewFamily->bOverrideVirtualTextureThrottle = true;
@@ -318,14 +232,8 @@ TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFami
 
 FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* ViewFamily)
 {
-	if (!ParentSensor)
-	{
-		return nullptr;
-	}
-
-	FVector Location = ParentSensor->GetSensorLocation();
-	FRotator Rotation = ParentSensor->GetSensorRotation();
-	float FOV = ParentSensor->GetSensorFOV();
+	FVector Location = GetComponentLocation();
+	FRotator Rotation = GetComponentRotation();
 
 	FSceneViewInitOptions ViewInitOptions;
 	ViewInitOptions.ViewFamily = ViewFamily;
