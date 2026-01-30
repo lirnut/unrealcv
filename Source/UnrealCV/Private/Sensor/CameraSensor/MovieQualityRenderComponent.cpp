@@ -19,6 +19,7 @@
 #include "UnrealcvServer.h"
 
 UMovieQualityRenderComponent::UMovieQualityRenderComponent()
+  : ShowFlags(EShowFlagInitMode::ESFIM_Game)
 {
 	bIsInitialized = false;
 	PrimaryComponentTick.bCanEverTick = false;
