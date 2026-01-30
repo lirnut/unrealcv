@@ -17,6 +17,8 @@
 #include "AnnotationCamSensor.h"
 #include "NormalCamSensor.h"
 #include "FlowCamSensor.h"
+#include "ShadowCatcherCamSensor.h"
+#include "StencilMaskCamSensor.h"
 #include "BPFunctionLib/VisionBPLib.h"
 #include "BPFunctionLib/SerializeBPLib.h"
 #include "BPFunctionLib/RecordingBPLib.h"
@@ -34,7 +36,7 @@
 // static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
 static const float ROTATE_BUFFER_DURATION_SECONDS = 0.0f;
 static const int32 ROTATE_NUM_FRAMES_OVERRIDE = 121;
-static const int32 WARM_UP_FRAMES = 5;
+static const int32 WARM_UP_FRAMES = 45;
 
 AFusionCamCaptureActor::AFusionCamCaptureActor()
 {
@@ -49,6 +51,8 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	bRecordFlow = false;
 	bRecordOneObjectMask = false;
 	bRecordOneObjectLit = false;
+	bRecordShadowCatcher = false;
+	bRecordStencilMask = false;
 	bRecordMetadata = true;
 	bRecordAudio = true;
 	bRecordWithoutTarget = false;
@@ -464,6 +468,20 @@ void AFusionCamCaptureActor::RecordFrame()
 	{
 		FString OneObjLitFilename = MakeFilenameNew("oneobjlit", ".png");
 		TargetSensor->SaveOneObjLitToFile(TargetToHide, OneObjLitFilename);
+	}
+
+	if (bRecordShadowCatcher && IsValid(TargetToHide))
+	{
+		FString ShadowCatcherFilename = MakeFilenameNew("shadowcatcher", ".png");
+		TargetSensor->SaveShadowCatcherToFile(TargetToHide, ShadowCatcherFilename);
+		TargetSensor->GetShadowCatcherCamSensor()->Cleanup(TargetToHide);
+	}
+
+	if (bRecordStencilMask && IsValid(TargetToHide))
+	{
+		FString StencilMaskFilename = MakeFilenameNew("stencilmask", ".png");
+		TargetSensor->SaveStencilMaskToFile(TargetToHide, StencilMaskFilename);
+		TargetSensor->GetStencilMaskCamSensor()->Cleanup(TargetToHide);
 	}
 
 	if (bRecordWithoutTarget && IsValid(TargetToHide))
@@ -988,7 +1006,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 {
 	SetDefaultParamsForTargetCamera();
-	TargetSensor->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
+	// TargetSensor->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
 	// TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, static_cast<float>(FPS));
 	// calculate the range from TargetSensor to Target
 	UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
@@ -1225,12 +1243,14 @@ void AFusionCamCaptureActor::SetDefaultParamsForTargetCamera()
 	// if (CVarDynamicGlobalIlluminationMethod) { CVarDynamicGlobalIlluminationMethod->Set(1); }
 	// if (CVarLumenReflectionsAllow) { CVarLumenReflectionsAllow->Set(1); }
 
-
+	TargetSensor->GetLitCamSensor()->ConfigureMaxQualityLumen();
 	TargetSensor->SetReflectionMethod(EReflectionMethod::Type::Lumen);
     TargetSensor->SetGlobalIlluminationMethod(EDynamicGlobalIlluminationMethod::Type::Lumen);
+	// TargetSensor->SetReflectionMethod(EReflectionMethod::Type::ScreenSpace);
+    // TargetSensor->SetGlobalIlluminationMethod(EDynamicGlobalIlluminationMethod::Type::ScreenSpace);
 
-    // TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Histogram);
-    TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Basic);
+    TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Histogram);
+    // TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Basic);
     // TargetSensor->SetExposureMethod(EAutoExposureMethod::AEM_Manual);
 	// TargetSensor->SetAutoExposureSpeed(0.5f, 0.5f); 
 	// TargetSensor->SetAutoExposureSpeed(5.f, 8.f); 
@@ -1240,9 +1260,10 @@ void AFusionCamCaptureActor::SetDefaultParamsForTargetCamera()
 	TargetSensor->SetProjectionType(ECameraProjectionMode::Type::Perspective);
 
 	// TargetSensor->SetMotionBlurParams(0.5f, 50.0f, 50.0f, 24.0f);
+	TargetSensor->SetMotionBlurParams(0.0f, 0.0f, 0.0f, 0.0f);
 
 	// TargetSensor->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
-	TargetSensor->SetSensorFOV(55.0f);
+	// TargetSensor->SetSensorFOV(55.0f);
 
 	TargetSensor->SetFocalParams(500.0f, 50.0f);
 
@@ -1399,6 +1420,12 @@ void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Traject
 
 FVector AFusionCamCaptureActor::GetTargetLocationWithRandomHeight(AActor* Target)
 {
+	if (!IsValid(Target))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("GetTargetLocationWithRandomHeight: Target actor is invalid"));
+		return FVector::ZeroVector;
+	}
+
 	FVector TargetLocation = Target->GetActorLocation();
 	float RandomHeight = FMath::RandRange(155.0f, 175.0f);
 	TargetLocation.Z += RandomHeight;

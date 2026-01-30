@@ -69,15 +69,22 @@ void FAssetPoolManager::LoadStableAssetsPack()
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_No.AS_No")
 	};
 	TArray<FString> SKMs = {
-		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_Jaket.Man_in_Jaket"),
-		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_Jaket_NoGlass.Man_in_Jaket_NoGlass"),
-		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_ShortGolf.Man_in_ShortGolf"),
-		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_ShortGolf_NoGlass.Man_in_ShortGolf_NoGlass"),
-		TEXT("/Game/HumanCharacter/Businessmen/Man_in_Shirt/Meshes/Man_In_Shirt.Man_In_Shirt"),
-		TEXT("/Game/HumanCharacter/Businessmen/Man_in_Shirt/Meshes/Man_In_Shirt_Suit.Man_In_Shirt_Suit"),
-		TEXT("/Game/HumanCharacter/Businessmen/Man_in_Shirt/Meshes/Man_In_Shirt_Vest.Man_In_Shirt_Vest"),
-		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Polo/Meshes/Man_In_Polo.Man_In_Polo"),
-		TEXT("/Game/HumanCharacter/Businessmen/Man_In_Polo/Meshes/Man_In_Polo_Glasses.Man_In_Polo_Glasses")
+		// TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_Jaket.Man_in_Jaket"),
+		// TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_Jaket_NoGlass.Man_in_Jaket_NoGlass"),
+		// TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_ShortGolf.Man_in_ShortGolf"),
+		// TEXT("/Game/HumanCharacter/Businessmen/Man_In_Suit/Meshes/Man_in_ShortGolf_NoGlass.Man_in_ShortGolf_NoGlass"),
+		// TEXT("/Game/HumanCharacter/Businessmen/Man_in_Shirt/Meshes/Man_In_Shirt.Man_In_Shirt"),
+		// TEXT("/Game/HumanCharacter/Businessmen/Man_in_Shirt/Meshes/Man_In_Shirt_Suit.Man_In_Shirt_Suit"),
+		// TEXT("/Game/HumanCharacter/Businessmen/Man_in_Shirt/Meshes/Man_In_Shirt_Vest.Man_In_Shirt_Vest"),
+		// TEXT("/Game/HumanCharacter/Businessmen/Man_In_Polo/Meshes/Man_In_Polo.Man_In_Polo"),
+		// TEXT("/Game/HumanCharacter/Businessmen/Man_In_Polo/Meshes/Man_In_Polo_Glasses.Man_In_Polo_Glasses"),
+		TEXT("/Game/HumanCharacter/Girl_01/meshes/girl_01_a.girl_01_a"),
+		TEXT("/Game/HumanCharacter/Girl_01/meshes/girl_01_e.girl_01_e"),
+		TEXT("/Game/HumanCharacter/Girl_01/meshes/girl_01_f.girl_01_f"),
+		TEXT("/Game/HumanCharacter/Girl_01/meshes/girl_01_i.girl_01_i"),
+		// TEXT("/Game/HumanCharacter/man/CH_man.CH_man"),
+		// TEXT("/Game/HumanCharacter/man10/swat.swat"),
+		TEXT("/Game/HumanCharacter/walkman/CH_rebel_01_f.CH_rebel_01_f")
 	};
 
 	AssetPools.Add(TEXT("Foreground_Human_SKM"), {});

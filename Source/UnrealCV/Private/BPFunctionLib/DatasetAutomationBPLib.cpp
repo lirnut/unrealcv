@@ -114,9 +114,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	else if (TaskName == "SpeedTest")
 	{
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 8.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 6.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
@@ -845,6 +845,12 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	}
 	else
 	{
+		if (!IsValid(Target))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Target actor became invalid before camera adjustment"));
+			return false;
+		}
+
 		// Adjust camera to roughly aim at the target with ±15 degrees noise
 		FVector CameraToTarget = (CaptureActor->GetTargetLocationWithRandomHeight(Target) - AllocatedCam->GetSensorLocation()).GetSafeNormal();
 		FRotator TargetRotation = CameraToTarget.Rotation();
@@ -867,11 +873,16 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		CaptureActor->bRecordDepth = false;
 		CaptureActor->bRecordFlow = false;
 		CaptureActor->bRecordNormal = false;
-		CaptureActor->bRecordOneObjectMask = true;
+		CaptureActor->bRecordOneObjectMask = false;
 		CaptureActor->bRecordOneObjectLit = true;
+ 		CaptureActor->bRecordShadowCatcher = false;
+ 		CaptureActor->bRecordStencilMask = false;
 		CaptureActor->bRecordMetadata = true;
 		CaptureActor->bRecordWithoutTarget = false;
+		
 		AllocatedCam->SetFilmSize(1920, 1080);
+		// AllocatedCam->SetFilmSize(2560, 1440);
+		AllocatedCam->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
 	}
 	else if (TaskName == "Omnimatte")
 	{
@@ -882,6 +893,9 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		CaptureActor->bRecordFlow = false;
 		CaptureActor->bRecordNormal = false;
 		CaptureActor->bRecordOneObjectMask = true;
+		CaptureActor->bRecordOneObjectLit = false;
+ 		CaptureActor->bRecordShadowCatcher = true;
+ 		CaptureActor->bRecordStencilMask = true;
 		CaptureActor->bRecordMetadata = true;
 		CaptureActor->bRecordWithoutTarget = true;
 		
@@ -891,6 +905,7 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		};
 		const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
 		AllocatedCam->SetFilmSize(ChosenRes.X, ChosenRes.Y);
+		AllocatedCam->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
 	}
 	else if (TaskName == "SpeedTest")
 	{
@@ -900,11 +915,14 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		CaptureActor->bRecordDepth = false;
 		CaptureActor->bRecordFlow = false;
 		CaptureActor->bRecordNormal = false;
-		CaptureActor->bRecordOneObjectMask = false;
-		CaptureActor->bRecordOneObjectLit = false;
+		CaptureActor->bRecordOneObjectMask = true;
+		CaptureActor->bRecordOneObjectLit = true;
+ 		CaptureActor->bRecordShadowCatcher = false;
+ 		CaptureActor->bRecordStencilMask = true;
 		CaptureActor->bRecordMetadata = true;
 		CaptureActor->bRecordWithoutTarget = false;
 		AllocatedCam->SetFilmSize(1920, 1080);
+		AllocatedCam->SetSensorFOV(60.0f);
 	}
 	else
 	{
@@ -952,13 +970,13 @@ bool UDatasetAutomationBPLib::SetMap(UObject* WorldContextObject, const FString&
 
 bool UDatasetAutomationBPLib::SetTaskName(const FString& InTaskName)
 {
-	static const TSet<FString> ValidTaskNames = { TEXT("Trajectory"), TEXT("Omnimatte") };
+	// static const TSet<FString> ValidTaskNames = { TEXT("Trajectory"), TEXT("Omnimatte") };
 
-	if (!ValidTaskNames.Contains(InTaskName))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("SetTaskName: Invalid task name '%s'. Must be 'Trajectory' or 'Omnimatte'"), *InTaskName);
-		return false;
-	}
+	// if (!ValidTaskNames.Contains(InTaskName))
+	// {
+	// 	UE_LOG(LogUnrealCV, Error, TEXT("SetTaskName: Invalid task name '%s'. Must be 'Trajectory' or 'Omnimatte'"), *InTaskName);
+	// 	return false;
+	// }
 
 	TaskName = InTaskName;
 	UE_LOG(LogUnrealCV, Log, TEXT("SetTaskName: Task name set to '%s'"), *TaskName);

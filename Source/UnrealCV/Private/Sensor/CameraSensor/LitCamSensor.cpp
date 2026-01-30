@@ -14,6 +14,7 @@ DECLARE_CYCLE_STAT(TEXT("ULitCamSensor::CaptureLit"), STAT_CaptureLit, STATGROUP
 ULitCamSensor::ULitCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
+	CaptureSource = ESceneCaptureSource::SCS_FinalColorHDR;
 }
 
 // void ULitCamSensor::SetupRenderTarget()
@@ -35,12 +36,15 @@ void ULitCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 	bool bUseBGRA8 = Config.bLitUseBGRA8;
 	if (bUseBGRA8)
 	{
-		InitUInt8TextureTarget(filmWidth, filmHeight, true);
+		bool bUseLinearGamma = CaptureSource == ESceneCaptureSource::SCS_FinalColorLDR;
+		InitUInt8TextureTarget(filmWidth, filmHeight, bUseLinearGamma);
 	}
 	else
 	{
 		InitFloat16TextureTarget(filmWidth, filmHeight);
 	}
+	// TextureTarget->bNoFastClear = true;
+    // TextureTarget->ClearColor = FLinearColor::Black;
 }
 
 void ULitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)

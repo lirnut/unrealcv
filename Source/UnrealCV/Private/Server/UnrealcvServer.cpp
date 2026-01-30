@@ -16,6 +16,7 @@
 #include "Commands/CaptureActorHandler.h"
 #include "Commands/AgentNavHandler.h"
 #include "Commands/DatasetAutomationHandler.h"
+#include "Commands/LightHandler.h"
 #include "WorldController.h"
 #include "UnrealcvLog.h"
 #include "UnrealcvStats.h"
@@ -116,6 +117,7 @@ void FUnrealcvServer::RegisterCommandHandlers()
 	CommandHandlers.Add(new FCaptureActorHandler());
 	CommandHandlers.Add(new FAgentNavHandler());
 	CommandHandlers.Add(new FDatasetAutomationHandler());
+	CommandHandlers.Add(new FLightHandler());
 	for (FCommandHandler* Handler : CommandHandlers)
 	{
 		Handler->CommandDispatcher = CommandDispatcher;

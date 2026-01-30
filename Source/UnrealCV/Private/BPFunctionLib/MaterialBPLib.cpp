@@ -15,7 +15,7 @@ void UMaterialBPLib::EnsureOpaqueMaterialLoaded()
 		OpaqueMaterial = Cast<UMaterial>(StaticLoadObject(
 			UMaterial::StaticClass(),
 			nullptr,
-			TEXT("Material'/UnrealCV/OpaqueMaterial.OpaqueMaterial'")
+			TEXT("Material'/UnrealCV/OpaqueWhiteMaterial.OpaqueWhiteMaterial'")
 		));
 
 		if (!IsValid(OpaqueMaterial))
@@ -97,6 +97,7 @@ void UMaterialBPLib::ReplaceActorMaterials(AActor* Actor)
 
 void UMaterialBPLib::ShowOnlyActorMaterial(AActor* TargetActor, UWorld* World)
 {
+	UE_LOG(LogUnrealCV, Log, TEXT("ShowOnlyActorMaterial: TargetActor=%s"), *GetNameSafe(TargetActor));
 	if (!IsValid(TargetActor))
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("ShowOnlyActorMaterial: Invalid target actor"));
@@ -118,6 +119,7 @@ void UMaterialBPLib::ShowOnlyActorMaterial(AActor* TargetActor, UWorld* World)
 
 	if (!IsValid(OpaqueMaterial))
 	{
+		UE_LOG(LogUnrealCV, Error, TEXT("ShowOnlyActorMaterial: OpaqueMaterial is not valid"));
 		return;
 	}
 

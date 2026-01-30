@@ -119,6 +119,14 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
 	bool bRecordOneObjectLit;
 
+	/** Record shadow catcher (object RGB + shadow) */
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
+	bool bRecordShadowCatcher;
+
+	/** Record stencil mask (using CustomDepth/Stencil) */
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
+	bool bRecordStencilMask;
+
 	/** Record camera metadata (location, rotation, FOV, etc.) */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
 	bool bRecordMetadata;

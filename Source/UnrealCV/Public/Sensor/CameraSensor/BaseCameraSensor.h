@@ -13,6 +13,7 @@
 #include "Materials/Material.h"
 #include "Runtime/CoreUObject/Public/UObject/ConstructorHelpers.h"
 #include "RHIGPUReadback.h"
+#include "MainRendererSceneCaptureComponent2D.h"
 
 #include "BaseCameraSensor.generated.h"
 
@@ -94,6 +95,8 @@ public:
 	virtual void LaunchCapture();
 	void CheckCaptureCache(ECaptureFormat Format);
 	virtual void CopyBackCapture(ECaptureFormat Format);
+
+	void ConfigureMaxQualityLumen();
 	
 public:
 	/** The old version to read TextureBuffer, slow but is sync operation */

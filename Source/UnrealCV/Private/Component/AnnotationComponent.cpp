@@ -751,6 +751,17 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponen
 	UInstancedStaticMeshComponent* InstancedComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent);
 	if (InstancedComponent)
 	{
+		const TSharedPtr<FISMCInstanceDataSceneProxy, ESPMode::ThreadSafe>& InstanceDataProxy =
+			InstancedComponent->GetInstanceDataSceneProxy();
+
+		if (!InstanceDataProxy.IsValid())
+		{
+			UE_LOG(LogUnrealCV, Error,
+				TEXT("Failed to create FInstancedStaticMeshAnnotationSceneProxy for %s: InstanceDataSceneProxy not ready. Component may not be fully registered yet."),
+				*StaticMeshComponent->GetName());
+			return nullptr;
+		}
+
 		UE_LOG(LogUnrealCV, Log, TEXT("Creating FInstancedStaticMeshAnnotationSceneProxy for %s"), *StaticMeshComponent->GetName());
 		FInstancedStaticMeshSceneProxyDesc ProxyDesc(InstancedComponent);
 		FPrimitiveSceneProxy* Proxy = ::new FInstancedStaticMeshAnnotationSceneProxy(ProxyDesc, ProxyMaterial, GetWorld()->GetFeatureLevel());

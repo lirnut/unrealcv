@@ -20,6 +20,7 @@ public:
 	// ~UPlayerViewMode();
 	void Depth();
 	void DepthWorldUnits();
+	void CarlaDepth();
 	void Normal();
 	void Lit();
 	void Unlit();

@@ -12,12 +12,15 @@
 #include "NormalCamSensor.h"
 #include "AnnotationCamSensor.h"
 #include "FlowCamSensor.h"
+#include "ShadowCatcherCamSensor.h"
+#include "StencilMaskCamSensor.h"
 
 #include "Utils/UObjectUtils.h"
 #include "Component/AnnotationComponent.h"
 #include "SL.h"
 #include "Utils/ImageUtil.h"
 #include "SensorBPLib.h"
+#include "MaterialBPLib.h"
 
 static void CollectShowOnlyForActor(
     AActor* Actor, UWorld* World,
@@ -95,11 +98,36 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("OneObjectLitCamSensor"));
 	OneObjectLitCamSensor = CreateDefaultSubobject<ULitCamSensor>(*ComponentName);
 	OneObjectLitCamSensor->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+	OneObjectLitCamSensor->CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
+	// OneObjectLitCamSensor->CaptureSource = ESceneCaptureSource::SCS_FinalColorHDR;
 	// OneObjectLitCamSensor->CaptureSource = ESceneCaptureSource::SCS_BaseColor;
 	// OneObjectLitCamSensor->ShowFlags.SetMaterials(true);
-	// OneObjectLitCamSensor->ShowFlags.SetLighting(true);
+	OneObjectLitCamSensor->ShowFlags.SetLighting(false);
+	OneObjectLitCamSensor->ShowFlags.SetSkyLighting(false);
+	OneObjectLitCamSensor->ShowFlags.SetFog(false);
+	OneObjectLitCamSensor->ShowFlags.SetVolumetricFog(false);
+	OneObjectLitCamSensor->ShowFlags.SetPostProcessing(false);
+	OneObjectLitCamSensor->ShowFlags.SetCloud(false);
+	OneObjectLitCamSensor->ShowFlags.SetAtmosphere(false);
 	// OneObjectLitCamSensor->ShowFlags.SetPostProcessing(true);
+	OneObjectLitCamSensor->ShowFlags.SetLumenGlobalIllumination(false);
+	OneObjectLitCamSensor->ShowFlags.SetGlobalIllumination(false);
+	OneObjectLitCamSensor->ShowFlags.SetLumenReflections(false);
+	OneObjectLitCamSensor->ShowFlags.SetScreenSpaceReflections(false);
+	OneObjectLitCamSensor->ShowFlags.SetScreenSpaceReflections(false);
+	OneObjectLitCamSensor->ShowFlags.SetDistanceFieldAO(false);
+	OneObjectLitCamSensor->ShowFlags.SetScreenSpaceAO(false);
 	FusionSensors.Add(OneObjectLitCamSensor);
+
+	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("ShadowCatcherCamSensor"));
+	ShadowCatcherCamSensor = CreateDefaultSubobject<UShadowCatcherCamSensor>(*ComponentName);
+	ShadowCatcherCamSensor->SetupAttachment(this);
+	FusionSensors.Add(ShadowCatcherCamSensor);
+
+	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("StencilMaskCamSensor"));
+	StencilMaskCamSensor = CreateDefaultSubobject<UStencilMaskCamSensor>(*ComponentName);
+	StencilMaskCamSensor->SetupAttachment(this);
+	FusionSensors.Add(StencilMaskCamSensor);
 
 	// The config loading code should not be placed into the ctor, otherwise it will break the copy behavior
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
@@ -319,7 +347,9 @@ void UFusionCamSensor::GetOneObjLit(AActor* Actor, TArray<FColor>& Data, int& In
 	SL::get().printf("ComponentList Num: %d", ComponentList.Num());
 
 	OneObjectLitCamSensor->ShowOnlyComponents = ComponentList;
+	// UMaterialBPLib::ShowOnlyActorMaterial(Actor, FUnrealcvServer::Get().GetGameWorld());
 	OneObjectLitCamSensor->CaptureLit(Data, InOutWidth, InOutHeight);
+	// UMaterialBPLib::RestoreAllActorMaterials();
 	if (Data.Num() == 0)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("Captured obj lit data is empty."));
@@ -338,7 +368,81 @@ void UFusionCamSensor::SaveOneObjLitToFile(AActor* Actor, const FString& Filenam
 	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
 	CollectAllPrimitiveComponentsForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
 	OneObjectLitCamSensor->ShowOnlyComponents = ComponentList;
+
+	// UMaterialBPLib::ShowOnlyActorMaterial(Actor, FUnrealcvServer::Get().GetGameWorld());
 	OneObjectLitCamSensor->CaptureLitToFile(Filename);
+	// UMaterialBPLib::ShowOnlyActorMaterial(Actor, FUnrealcvServer::Get().GetGameWorld());
+}
+
+
+void UFusionCamSensor::GetShadowCatcher(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
+{
+	SL::get().print("GetShadowCatcher called");
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetShadowCatcher input Actor is not valid"));
+		Data.Empty();
+		InOutWidth = 0;
+		InOutHeight = 0;
+		return;
+	}
+
+	ShadowCatcherCamSensor->SetupForActor(Actor, FUnrealcvServer::Get().GetWorld());
+	ShadowCatcherCamSensor->CaptureShadowCatcher(Data, InOutWidth, InOutHeight);
+
+	if (Data.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Captured shadow catcher data is empty."));
+		return;
+	}
+	SL::get().print("GetShadowCatcher returned");
+}
+
+void UFusionCamSensor::SaveShadowCatcherToFile(AActor* Actor, const FString& Filename)
+{
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::SaveShadowCatcherToFile input Actor is not valid"));
+		return;
+	}
+
+	ShadowCatcherCamSensor->SetupForActor(Actor, FUnrealcvServer::Get().GetWorld());
+	ShadowCatcherCamSensor->CaptureShadowCatcherToFile(Filename);
+}
+
+void UFusionCamSensor::GetStencilMask(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
+{
+	SL::get().print("GetStencilMask called");
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetStencilMask input Actor is not valid"));
+		Data.Empty();
+		InOutWidth = 0;
+		InOutHeight = 0;
+		return;
+	}
+
+	StencilMaskCamSensor->SetupForActor(Actor);
+	StencilMaskCamSensor->CaptureStencilMask(Data, InOutWidth, InOutHeight);
+
+	if (Data.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Captured stencil mask data is empty."));
+		return;
+	}
+	SL::get().print("GetStencilMask returned");
+}
+
+void UFusionCamSensor::SaveStencilMaskToFile(AActor* Actor, const FString& Filename)
+{
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::SaveStencilMaskToFile input Actor is not valid"));
+		return;
+	}
+
+	StencilMaskCamSensor->SetupForActor(Actor);
+	StencilMaskCamSensor->CaptureStencilMaskToFile(Filename);
 }
 
 

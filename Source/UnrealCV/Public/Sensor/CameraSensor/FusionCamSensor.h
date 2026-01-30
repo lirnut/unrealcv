@@ -64,6 +64,15 @@ public:
 	void GetOneObjLit(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
 	void SaveOneObjLitToFile(AActor* Actor, const FString& Filename);
 
+	/** Get shadow catcher data (object RGB + shadow) */
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetShadowCatcher(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
+	void SaveShadowCatcherToFile(AActor* Actor, const FString& Filename);
+
+	UFUNCTION(BlueprintPure, Category = "unrealcv")
+	void GetStencilMask(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
+	void SaveStencilMaskToFile(AActor* Actor, const FString& Filename);
+
 	/** Get rgb data */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void GetLit(TArray<FColor>& LitData, int& InOutWidth, int& InOutHeight, ELitMode LitMode = ELitMode::Lit);
@@ -234,6 +243,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
 	class ULitCamSensor* OneObjectLitCamSensor;
 
+	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
+	class UShadowCatcherCamSensor* ShadowCatcherCamSensor;
+
+	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
+	class UStencilMaskCamSensor* StencilMaskCamSensor;
+
 
 	/** This preview camera is used for UE version < 4.17 which only support UCameraComponent PIP preview
 	See the difference between
@@ -257,6 +272,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	class UFlowCamSensor* GetFlowCamSensor() const { return FlowCamSensor; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	class UShadowCatcherCamSensor* GetShadowCatcherCamSensor() const { return ShadowCatcherCamSensor; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	class UStencilMaskCamSensor* GetStencilMaskCamSensor() const { return StencilMaskCamSensor; }
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	TArray<class UBaseCameraSensor*> GetSensors() const { return FusionSensors; }

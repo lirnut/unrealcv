@@ -35,7 +35,7 @@ FExecStatus FDatasetAutomationHandler::SetTaskName(const TArray<FString>& Args)
 		}
 		else
 		{
-			return FExecStatus::Error(TEXT("Invalid task name. Must be 'Trajectory' or 'Omnimatte'"));
+			return FExecStatus::Error(TEXT("Invalid task name."));
 		}
 	}
 	else

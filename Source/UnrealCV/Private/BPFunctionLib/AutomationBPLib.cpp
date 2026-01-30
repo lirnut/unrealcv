@@ -33,6 +33,11 @@ void UAutomationBPLib::StartTicking()
 	PushCommand("vset /captureactor/spawn_free_cam");
 	PushCommand("r.ForceLOD 0");
 	PushCommand("r.SkeletalMeshLODBias -10");
+	PushCommand("r.HairStrands.Skylighting 0");
+	PushCommand("r.SceneCapture.AllowRenderInMainRenderer 1");
+	PushCommand("r.SceneCapture.CubeSinglePass 1");
+	PushCommand("r.SceneCapture.DepthPrepassOptimization 1");
+	PushCommand("r.SceneCapture.EnableLogging 1");
 }
 
 void UAutomationBPLib::StopTicking()
