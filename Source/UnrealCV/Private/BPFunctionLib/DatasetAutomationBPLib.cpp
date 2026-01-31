@@ -228,14 +228,18 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	}
 	else if (Step.Command == TEXT("record_trajectory"))
 	{
+
+		UE_LOG(LogTemp, Warning, TEXT("-1"));
 		FString TrajectoryType = Step.StringParam;
 		FString OutputPath = GenerateOutputPath(CurrentSceneID, TrajectoryType);
 
+		UE_LOG(LogTemp, Warning, TEXT("-1"));
 		bool RecordingStarted = StartTrajectoryRecording(
 			OutputPath,
 			TrajectoryType
 		);
 
+		UE_LOG(LogTemp, Warning, TEXT("-1"));
 		if (RecordingStarted)
 		{
 			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Fired trajectory recording: %s -> %s"), *TrajectoryType, *OutputPath);
@@ -857,6 +861,7 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	const FString& FileName,
 	const FString& TrajectoryType)
 {
+	UE_LOG(LogTemp, Warning, TEXT("1"));
 	AActor* Target = CurrentScene.ForegroundActor;
 	int32 FPS = CurrentConfig.TrajectoryFPS;
 	float DegreesPerSecond = CurrentConfig.TrajectoryDegreesPerSecond;
@@ -868,11 +873,13 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		return false;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("1"));
 	int32 AllocatedCID = USensorBPLib::GetIndexByAnyID(GetIdleCamera());
 	auto* AllocatedCam = USensorBPLib::GetSensorById(AllocatedCID);
 	check(AllocatedCam);
 	check(AllocatedCID >= 0);
 
+	UE_LOG(LogTemp, Warning, TEXT("1"));
 	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::PrepareRecording(AllocatedCID);
 	if (!IsValid(CaptureActor))
 	{
@@ -880,11 +887,13 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		return false;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("1"));
 	// Crucial
 	CaptureActor->SetSceneHandle(CurrentScene);
 
 
 
+	UE_LOG(LogTemp, Warning, TEXT("1"));
 	int32 PrimaryCameraID = CurrentConfig.SceneParams.CameraID;
 	if (AllocatedCID != PrimaryCameraID)
 	{
@@ -900,18 +909,22 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 			UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Target actor became invalid before camera adjustment"));
 			return false;
 		}
+		UE_LOG(LogTemp, Warning, TEXT("2"));
 
 		// Adjust camera to roughly aim at the target with ±15 degrees noise
 		FVector CameraToTarget = (CaptureActor->GetTargetLocationWithRandomHeight(Target) - AllocatedCam->GetSensorLocation()).GetSafeNormal();
 		FRotator TargetRotation = CameraToTarget.Rotation();
+		UE_LOG(LogTemp, Warning, TEXT("2"));
 
 		// Add ±15 degrees noise to pitch, yaw, and roll
 		float NoisePitch = FMath::RandRange(-4.0f, 4.0f);
 		float NoiseYaw = FMath::RandRange(-1.0f, 1.0f);
 		float NoiseRoll = FMath::RandRange(-4.0f, 4.0f);
+		UE_LOG(LogTemp, Warning, TEXT("2"));
 
 		FRotator NoisyRotation = TargetRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
 		AllocatedCam->SetSensorRotation(NoisyRotation);
+		UE_LOG(LogTemp, Warning, TEXT("2"));
 	}
 
 
@@ -930,9 +943,12 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		CaptureActor->bRecordMetadata = true;
 		CaptureActor->bRecordWithoutTarget = false;
 		
+		UE_LOG(LogTemp, Warning, TEXT("3"));
 		AllocatedCam->SetFilmSize(1920, 1080);
 		// AllocatedCam->SetFilmSize(2560, 1440);
+		UE_LOG(LogTemp, Warning, TEXT("3"));
 		AllocatedCam->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
+		UE_LOG(LogTemp, Warning, TEXT("3"));
 	}
 	else if (TaskName == "Omnimatte")
 	{
@@ -980,6 +996,7 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		return false;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("4"));
 
 	ECameraTrajectoryType TrajectoryEnum;
 	if (!URecordingBPLib::ParseTrajectoryType(TrajectoryType, TrajectoryEnum))

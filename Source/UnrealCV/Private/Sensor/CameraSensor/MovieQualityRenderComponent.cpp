@@ -31,10 +31,21 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
 	ShowFlags.SetScreenPercentage(true);
 	ShowFlags.SetMotionBlur(true);
 
+	ShowFlags.SetHair(true);  
+	ShowFlags.SetDynamicShadows(true);   // 启用动态阴影
+	ShowFlags.SetContactShadows(true);   // 启用contact shadows
+  	ShowFlags.SetCapsuleShadows(true);   // 启用capsule shadows
+
+	ShowFlags.SetPreviewShadowsIndicator(false);
+
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
-	CaptureSource = ESceneCaptureSource::SCS_FinalColorHDR;
-	// CaptureSource = ESceneCaptureSource::SCS_FinalToneCurveHDR;
+	CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 	FOV = Config.FOV == 0 ? 90 : Config.FOV;
+
+	AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
+	// AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
+	// AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;
+
 	// other properties need to be initialized when BeginPlay
 }
 
@@ -114,27 +125,28 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		}
 		else
 		{
-			bForceLinearGamma = true;
-			ForceTargetGamma = 1.0f;
+			bForceLinearGamma = false;
+			ForceTargetGamma = 2.2f;
 		}
 	}
 
-	if (ViewState.GetReference())
+	if (!ViewState.GetReference())
 	{
-		ViewState.Destroy();
+		// ViewState.Destroy();
+		ViewState.Allocate(World->GetFeatureLevel());
 	}
-	ViewState.Allocate(World->GetFeatureLevel());
 
-	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe>(
-		Resolution,
-		PixelFormat,
-		3,
-		true
-	);
-
-	ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
-
-	bIsInitialized = true;
+	if (!bIsInitialized)
+	{
+		SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe>(
+			Resolution,
+			PixelFormat,
+			10,
+			true
+		);
+		ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
+		bIsInitialized = true;
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent initialized at %dx%d, PixelFormat=%s, LinearGamma=%d, CaptureSource=%d"),
 		Resolution.X, Resolution.Y,
@@ -145,23 +157,32 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 
 void UMovieQualityRenderComponent::Shutdown()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() START"));
+
 	if (!bIsInitialized)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - Not initialized, returning"));
 		return;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - Before SurfaceQueue shutdown"));
 	if (SurfaceQueue.IsValid())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - Calling SurfaceQueue->Shutdown()"));
 		SurfaceQueue->Shutdown();
+		UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - SurfaceQueue->Shutdown() completed"));
 		SurfaceQueue.Reset();
+		UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - SurfaceQueue.Reset() completed"));
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - Before ViewState cleanup"));
 	FSceneViewStateInterface* Ref = ViewState.GetReference();
 	if (Ref)
 	{
 		Ref->ClearMIDPool();
 	}
 	ViewState.Destroy();
+	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - ViewState destroyed"));
 
 	for (auto& Pair : RenderTargetPool)
 	{
@@ -173,13 +194,16 @@ void UMovieQualityRenderComponent::Shutdown()
 	RenderTargetPool.Empty();
 
 	bIsInitialized = false;
+	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() END"));
 }
 
 void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete)
 {
+	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile START - Path: %s"), *OutputPath);
+
 	if (!bIsInitialized)
 	{
-		UE_LOG(LogTemp, Error, TEXT("MovieQualityRenderComponent: Not initialized"));
+		UE_LOG(LogTemp, Error, TEXT("[CHECKPOINT] SaveLitToFile - Not initialized, returning"));
 		if (OnComplete)
 		{
 			OnComplete(false);
@@ -187,6 +211,7 @@ void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFun
 		return;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile - Creating RenderTarget"));
 	FString PoolKey = FString::Printf(TEXT("RGB_%dx%d_%s"),
 		Resolution.X, Resolution.Y,
 		PixelFormat == PF_FloatRGBA ? TEXT("Float") : TEXT("BGRA8"));
@@ -208,9 +233,11 @@ void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFun
 		RenderTargetPool.Add(PoolKey, RenderTarget);
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile - Creating ViewFamily"));
 	TSharedPtr<FSceneViewFamilyContext> ViewFamily = CreateViewFamily(RenderTarget);
 	if (!ViewFamily.IsValid())
 	{
+		UE_LOG(LogTemp, Error, TEXT("[CHECKPOINT] SaveLitToFile - ViewFamily creation failed"));
 		if (OnComplete)
 		{
 			OnComplete(false);
@@ -218,9 +245,11 @@ void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFun
 		return;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile - Creating SceneView"));
 	FSceneView* View = CreateSceneView(ViewFamily.Get());
 	if (!View)
 	{
+		UE_LOG(LogTemp, Error, TEXT("[CHECKPOINT] SaveLitToFile - SceneView creation failed"));
 		if (OnComplete)
 		{
 			OnComplete(false);
@@ -228,7 +257,9 @@ void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFun
 		return;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile - Submitting to renderer"));
 	SubmitToRenderer(ViewFamily.Get(), RenderTarget, OutputPath, OnComplete);
+	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile END"));
 }
 
 TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFamily(UTextureRenderTarget2D* RenderTarget)
@@ -295,9 +326,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 
 	View->State = ViewState.GetReference();
 	View->bIsOfflineRender = true;
-	View->AntiAliasingMethod = AAM_TemporalAA;
-	// View->AntiAliasingMethod = AAM_None;
-	// View->AntiAliasingMethod = AAM_FXAA;
+	View->AntiAliasingMethod = AntiAliasingMethod;
 	// View->bSceneCaptureUsesRayTracing = true;
 	// View->bIsReflectionCapture = true;
 
@@ -306,23 +335,23 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 
 	FPostProcessSettings& PPSettings = View->FinalPostProcessSettings;
     PPSettings.bOverride_ReflectionMethod = 1;
-    // PPSettings.ReflectionMethod = EReflectionMethod::Type::Lumen;
-    PPSettings.ReflectionMethod = EReflectionMethod::Type::ScreenSpace;
+    PPSettings.ReflectionMethod = EReflectionMethod::Type::Lumen;
+    // PPSettings.ReflectionMethod = EReflectionMethod::Type::ScreenSpace;
     PPSettings.bOverride_DynamicGlobalIlluminationMethod = 1;
-    // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::Lumen;
-    PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::ScreenSpace;
+    PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::Lumen;
+    // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::ScreenSpace;
 	PPSettings.bOverride_LumenRayLightingMode = 1;
 	PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
-	// PPSettings.bOverride_LumenSceneLightingQuality = 1;
-	// PPSettings.LumenSceneLightingQuality = 2.0f;
-	// PPSettings.bOverride_LumenSceneDetail = 1;
-	// PPSettings.LumenSceneDetail = 4.0f;
+	PPSettings.bOverride_LumenSceneLightingQuality = 1;
+	PPSettings.LumenSceneLightingQuality = 2.0f;
+	PPSettings.bOverride_LumenSceneDetail = 1;
+	PPSettings.LumenSceneDetail = 4.0f;
 	// PPSettings.bOverride_LumenSceneViewDistance = 1;
 	// PPSettings.LumenSceneViewDistance = 2097152.0f;
-	// PPSettings.bOverride_LumenFinalGatherQuality = 1;
-	// PPSettings.LumenFinalGatherQuality = 2.0f;
-	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
-	// PPSettings.LumenFinalGatherScreenTraces = 1;
+	PPSettings.bOverride_LumenFinalGatherQuality = 1;
+	PPSettings.LumenFinalGatherQuality = 2.0f;
+	PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
+	PPSettings.LumenFinalGatherScreenTraces = 1;
 	// PPSettings.bOverride_LumenMaxTraceDistance = 1;
 	// PPSettings.LumenMaxTraceDistance = 2097152.0f;
 	// PPSettings.bOverride_LumenReflectionQuality = 1;
@@ -347,7 +376,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	PPSettings.bOverride_AutoExposureMethod = 1;
 	PPSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Histogram;
 	PPSettings.bOverride_AutoExposureBias = 1;
-	PPSettings.AutoExposureBias = 1.0f;
+	PPSettings.AutoExposureBias = -1.0f;
     PPSettings.bOverride_AutoExposureSpeedDown = 1;
     PPSettings.AutoExposureSpeedDown = 20.0f;
     PPSettings.bOverride_AutoExposureSpeedUp = 1;
@@ -361,6 +390,10 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	PPSettings.MotionBlurMax = 2.0f;  // default 5.0
 	PPSettings.MotionBlurTargetFPS = 24;  // default 30
 	PPSettings.MotionBlurPerObjectSize = 0.f;
+	// PPSettings.MotionBlurAmount = 0.0f;  // default 0.5
+	// PPSettings.MotionBlurMax = 0.f;  // default 5.0
+	// PPSettings.MotionBlurTargetFPS = 24;  // default 30
+	// PPSettings.MotionBlurPerObjectSize = 0.f;
 
 	// View->EndFinalPostprocessSettings(ViewInitOptions);
 
@@ -397,8 +430,8 @@ void UMovieQualityRenderComponent::SubmitToRenderer(
 		TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
 		ImageTask->PixelData = MoveTemp(InPixelData);
 		ImageTask->Filename = OutputPath;
-		// ImageTask->Format = EImageFormat::PNG;
-		ImageTask->Format = EImageFormat::EXR;
+		ImageTask->Format = EImageFormat::PNG;
+		// ImageTask->Format = EImageFormat::EXR;
 		ImageTask->CompressionQuality = 100;
 		ImageTask->bOverwriteFile = true;
 

@@ -52,6 +52,12 @@ void UAutomationBPLib::StartTicking()
 	PushCommand(TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice 0"));
 	PushCommand(TEXT("r.PostProcessing.PropagateAlpha 1"));
 	PushCommand(TEXT("r.RayTracing.SceneCaptures 1"));
+
+	PushCommand(TEXT("r.Shadow.Denoiser 1"));
+	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.12"));
+	PushCommand(TEXT("r.TemporalAA.Quality 3"));
+	PushCommand(TEXT("r.TemporalAAPauseCorrect 1"));
+	PushCommand(TEXT("r.FXAA.Quality 5"));
 }
 
 void UAutomationBPLib::StopTicking()

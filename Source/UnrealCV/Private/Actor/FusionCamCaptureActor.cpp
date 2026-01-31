@@ -38,7 +38,8 @@
 // static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
 static const float ROTATE_BUFFER_DURATION_SECONDS = 0.0f;
 static const int32 ROTATE_NUM_FRAMES_OVERRIDE = 121;
-static const int32 WARM_UP_FRAMES = 45;
+// static const int32 WARM_UP_FRAMES = 45;
+static const int32 WARM_UP_FRAMES = 25;
 
 AFusionCamCaptureActor::AFusionCamCaptureActor()
 {
@@ -230,6 +231,8 @@ void AFusionCamCaptureActor::StopRecord()
 
 void AFusionCamCaptureActor::OnTimerRecord()
 {
+	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] OnTimerRecord START - CurrentTrajectoryIndex: %d, ElapsedSteps: %d"), CurrentTrajectoryIndex, ElapsedSteps);
+
 	if (!IsValid(TargetSensor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: TargetSensor became invalid during recording!"));
@@ -244,6 +247,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		return;
 	}
 
+	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] OnTimerRecord - Before MoveTo lambda"));
 	auto MoveTo = [this] (
 		FVector CurrentLocation,
 		FVector DesiredLocation,
@@ -405,7 +409,10 @@ void AFusionCamCaptureActor::UpdateFocalDistance()
 
 void AFusionCamCaptureActor::RecordFrame()
 {
+	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame START - ElapsedSteps: %d"), ElapsedSteps);
+	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before acquiring RecordCriticalSection lock"));
 	FScopeLock Lock(&RecordCriticalSection);
+	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Lock acquired"));
 
 	auto SaveRGBToFile = [this](UFusionCamSensor *Sensor, const FString& FileName)
 	{
@@ -433,11 +440,17 @@ void AFusionCamCaptureActor::RecordFrame()
 
 	if (bRecordRGB)
 	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Recording RGB"));
 		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
 
 		if (bUseMovieQualityRendering)
 		{
-			TargetSensor->GetMovieQualityRenderer()->SaveLitToFile(
+			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before GetMovieQualityRenderer()"));
+			auto* Renderer = TargetSensor->GetMovieQualityRenderer();
+			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - After GetMovieQualityRenderer(), Renderer=%p"), Renderer);
+
+			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before SaveLitToFile call"));
+			Renderer->SaveLitToFile(
 				FileNameRGB,
 				[](bool bSuccess)
 				{
@@ -447,19 +460,7 @@ void AFusionCamCaptureActor::RecordFrame()
 					}
 				}
 			);
-			// MovieQualityRenderer->CaptureFrame(
-			// 	TargetSensor,
-			// 	FileNameRGB,
-			// 	TEXT("RGB"),
-			// 	ElapsedSteps,
-			// 	[](bool bSuccess)
-			// 	{
-			// 		if (!bSuccess)
-			// 		{
-			// 		UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
-			// 		}
-			// 	}
-			// );
+			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - After SaveLitToFile call"));
 		}
 		else
 		{
@@ -1085,6 +1086,9 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 
 void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS, float DegreesPerSecond, int32 RandomSeed, bool bPauseWorldTime)
 {
+	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] ========== StartTrajectoryRecord START =========="));
+	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] StartTrajectoryRecord - FileName: %s, FPS: %d"), *FileName, FPS);
+
 	if (!IsValid(TargetSensor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: TargetSensor is not set!"));
@@ -1104,18 +1108,18 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 
 	if (MovieQualityRenderer && MovieQualityRenderer->IsInitialized())
 	{
-	MovieQualityRenderer->RestoreQualitySettings();
-	MovieQualityRenderer->Shutdown();
-	MovieQualityRenderer = nullptr;
-	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: MovieQualityRenderer shutdown and quality settings restored"));
+		MovieQualityRenderer->RestoreQualitySettings();
+		MovieQualityRenderer->Shutdown();
+		MovieQualityRenderer = nullptr;
+		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: MovieQualityRenderer shutdown and quality settings restored"));
 	}
-	
+
 
 	if (!MovieQualityRenderer)
 	{
 		MovieQualityRenderer = NewObject<UMovieQualityRenderSubsystem>(this);
 	}
-	
+
 	if (MovieQualityRenderer && !MovieQualityRenderer->IsInitialized())
 	{
 		FIntPoint Resolution(TargetSensor->GetFilmWidth(), TargetSensor->GetFilmHeight());
@@ -1123,14 +1127,6 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 		MovieQualityRenderer->ApplyMovieQualitySettings();
 		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: MovieQualityRenderer initialized at %dx%d"), Resolution.X, Resolution.Y);
 	}
-	
-	// if ((UnifiedTargetLocation - Target->GetActorLocation()).Length() > 1000)
-	// {
-	// 	UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
-	// 	if (TrajectoryType != ECameraTrajectoryType::RenderOnly && TrajectoryType != ECameraTrajectoryType::RenderOnly5S)
-	// 		UE_LOG(LogUnrealCV, Warning, TEXT("Warning, (UnifiedTargetLocation - Target->GetActorLocation()).Length() > 1000, likely not prepared, call PrepareTrajectoryRecord first"));
-	// }
-
 
 	PrepareTrajectoryRecord(Target, FPS);
 

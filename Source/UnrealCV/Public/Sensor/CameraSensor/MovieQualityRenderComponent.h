@@ -18,6 +18,10 @@ class UNREALCV_API UMovieQualityRenderComponent : public USceneComponent
 	GENERATED_BODY()
 
 public:
+	UPROPERTY()
+	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod;
+
+public:
 	UMovieQualityRenderComponent();
 	virtual ~UMovieQualityRenderComponent();
 
@@ -28,6 +32,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
 	void Initialize(int32 ResolutionX, int32 ResolutionY);
+
+	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
+	FIntPoint GetResolution() { return Resolution; };
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
 	void Shutdown();
