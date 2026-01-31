@@ -24,9 +24,17 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
 	bIsInitialized = false;
 	PrimaryComponentTick.bCanEverTick = false;
 
+
+	ShowFlags.SetPostProcessing(true);
+	ShowFlags.SetAntiAliasing(true);
+	ShowFlags.SetTemporalAA(true);
 	ShowFlags.SetScreenPercentage(true);
 	ShowFlags.SetMotionBlur(true);
 
+	FServerConfig& Config = FUnrealcvServer::Get().Config;
+	CaptureSource = ESceneCaptureSource::SCS_FinalColorHDR;
+	// CaptureSource = ESceneCaptureSource::SCS_FinalToneCurveHDR;
+	FOV = Config.FOV == 0 ? 90 : Config.FOV;
 	// other properties need to be initialized when BeginPlay
 }
 
@@ -49,16 +57,15 @@ void UMovieQualityRenderComponent::BeginPlay()
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("MovieQualityRenderComponent: can not Found parent FusionCamSensor!"))
+			UE_LOG(LogTemp, Warning, TEXT("MovieQualityRenderComponent: can not Found parent FusionCamSensor!"));
 		}
 	}
 
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	int32 ResWidth = Config.Width == 0 ? 640 : Config.Width;
 	int32 ResHeight = Config.Height == 0 ? 480 : Config.Height;
-	FOV = Config.FOV == 0 ? 90 : Config.FOV;
 
-	Initialize(ESceneCaptureSource::SCS_FinalColorHDR, ResWidth, ResHeight);
+	Initialize(ResWidth, ResHeight);
 }
 
 void UMovieQualityRenderComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -67,7 +74,7 @@ void UMovieQualityRenderComponent::EndPlay(const EEndPlayReason::Type EndPlayRea
 	Super::EndPlay(EndPlayReason);
 }
 
-void UMovieQualityRenderComponent::Initialize(ESceneCaptureSource InCaptureSource, int32 ResolutionX, int32 ResolutionY)
+void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 ResolutionY)
 {
 	UWorld* World = GetWorld();
 	if (!World)
@@ -76,22 +83,40 @@ void UMovieQualityRenderComponent::Initialize(ESceneCaptureSource InCaptureSourc
 		return;
 	}
 
-	CaptureSource = InCaptureSource;
 	Resolution.X = ResolutionX;
 	Resolution.Y = ResolutionY;
 
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
-	bool bUseBGRA8 = Config.bLitUseBGRA8;
+	// bool bUseBGRA8 = Config.bLitUseBGRA8;
+	bool bUseBGRA8 = false;
 
 	if (bUseBGRA8)
 	{
 		PixelFormat = PF_B8G8R8A8;
-		bForceLinearGamma = (CaptureSource == ESceneCaptureSource::SCS_FinalColorLDR);
+		if (CaptureSource == ESceneCaptureSource::SCS_FinalColorLDR)
+		{
+			bForceLinearGamma = true;
+			ForceTargetGamma = 2.2f;
+		}
+		else
+		{
+			bForceLinearGamma = true;
+			ForceTargetGamma = 2.2f;
+		}
 	}
 	else
 	{
 		PixelFormat = PF_FloatRGBA;
-		bForceLinearGamma = (CaptureSource == ESceneCaptureSource::SCS_FinalColorLDR);
+		if (CaptureSource == ESceneCaptureSource::SCS_FinalColorLDR)
+		{
+			bForceLinearGamma = true;
+			ForceTargetGamma = 2.2f;
+		}
+		else
+		{
+			bForceLinearGamma = true;
+			ForceTargetGamma = 1.0f;
+		}
 	}
 
 	if (ViewState.GetReference())
@@ -176,7 +201,8 @@ void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFun
 	{
 		RenderTarget = NewObject<UTextureRenderTarget2D>(this);
 		RenderTarget->ClearColor = FLinearColor::Black;
-		RenderTarget->TargetGamma = GEngine->GetDisplayGamma();
+		// RenderTarget->TargetGamma = GEngine->GetDisplayGamma();
+		RenderTarget->TargetGamma = ForceTargetGamma;
 		RenderTarget->InitCustomFormat(Resolution.X, Resolution.Y, PixelFormat, bForceLinearGamma);
 		RenderTarget->AddToRoot();
 		RenderTargetPool.Add(PoolKey, RenderTarget);
@@ -270,6 +296,73 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	View->State = ViewState.GetReference();
 	View->bIsOfflineRender = true;
 	View->AntiAliasingMethod = AAM_TemporalAA;
+	// View->AntiAliasingMethod = AAM_None;
+	// View->AntiAliasingMethod = AAM_FXAA;
+	// View->bSceneCaptureUsesRayTracing = true;
+	// View->bIsReflectionCapture = true;
+
+	// View->FinalPostProcessSettings.SetBaseValues();
+	// View->StartFinalPostprocessSettings(ViewInitOptions.ViewOrigin);
+
+	FPostProcessSettings& PPSettings = View->FinalPostProcessSettings;
+    PPSettings.bOverride_ReflectionMethod = 1;
+    // PPSettings.ReflectionMethod = EReflectionMethod::Type::Lumen;
+    PPSettings.ReflectionMethod = EReflectionMethod::Type::ScreenSpace;
+    PPSettings.bOverride_DynamicGlobalIlluminationMethod = 1;
+    // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::Lumen;
+    PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::ScreenSpace;
+	PPSettings.bOverride_LumenRayLightingMode = 1;
+	PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
+	// PPSettings.bOverride_LumenSceneLightingQuality = 1;
+	// PPSettings.LumenSceneLightingQuality = 2.0f;
+	// PPSettings.bOverride_LumenSceneDetail = 1;
+	// PPSettings.LumenSceneDetail = 4.0f;
+	// PPSettings.bOverride_LumenSceneViewDistance = 1;
+	// PPSettings.LumenSceneViewDistance = 2097152.0f;
+	// PPSettings.bOverride_LumenFinalGatherQuality = 1;
+	// PPSettings.LumenFinalGatherQuality = 2.0f;
+	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
+	// PPSettings.LumenFinalGatherScreenTraces = 1;
+	// PPSettings.bOverride_LumenMaxTraceDistance = 1;
+	// PPSettings.LumenMaxTraceDistance = 2097152.0f;
+	// PPSettings.bOverride_LumenReflectionQuality = 1;
+	// PPSettings.LumenReflectionQuality = 2.0f;
+	// PPSettings.bOverride_LumenReflectionsScreenTraces = 1;
+	// PPSettings.LumenReflectionsScreenTraces = 1;
+	// PPSettings.bOverride_LumenFrontLayerTranslucencyReflections = 1;
+	// PPSettings.LumenFrontLayerTranslucencyReflections = 1;
+	// PPSettings.bOverride_LumenMaxRoughnessToTraceReflections = 1;
+	// PPSettings.LumenMaxRoughnessToTraceReflections = 1.0f;
+	// PPSettings.bOverride_LumenMaxReflectionBounces = 1;
+	// PPSettings.LumenMaxReflectionBounces = 8;
+	// PPSettings.bOverride_LumenMaxRefractionBounces = 1;
+	// PPSettings.LumenMaxRefractionBounces = 64;
+	// PPSettings.bOverride_LumenSurfaceCacheResolution = 1;
+	// PPSettings.LumenSurfaceCacheResolution = 1.0f;
+	// PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
+	// PPSettings.LumenSceneLightingUpdateSpeed = 4.0f;
+	// PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
+	// PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
+
+	PPSettings.bOverride_AutoExposureMethod = 1;
+	PPSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Histogram;
+	PPSettings.bOverride_AutoExposureBias = 1;
+	PPSettings.AutoExposureBias = 1.0f;
+    PPSettings.bOverride_AutoExposureSpeedDown = 1;
+    PPSettings.AutoExposureSpeedDown = 20.0f;
+    PPSettings.bOverride_AutoExposureSpeedUp = 1;
+    PPSettings.AutoExposureSpeedUp = 20.0f;
+
+	PPSettings.bOverride_MotionBlurAmount = 1;
+	PPSettings.bOverride_MotionBlurMax = 1;
+	PPSettings.bOverride_MotionBlurTargetFPS = 1;
+	PPSettings.bOverride_MotionBlurPerObjectSize = 1;
+	PPSettings.MotionBlurAmount = 0.05f;  // default 0.5
+	PPSettings.MotionBlurMax = 2.0f;  // default 5.0
+	PPSettings.MotionBlurTargetFPS = 24;  // default 30
+	PPSettings.MotionBlurPerObjectSize = 0.f;
+
+	// View->EndFinalPostprocessSettings(ViewInitOptions);
 
 	ViewFamily->Views.Add(View);
 
@@ -304,7 +397,8 @@ void UMovieQualityRenderComponent::SubmitToRenderer(
 		TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
 		ImageTask->PixelData = MoveTemp(InPixelData);
 		ImageTask->Filename = OutputPath;
-		ImageTask->Format = EImageFormat::PNG;
+		// ImageTask->Format = EImageFormat::PNG;
+		ImageTask->Format = EImageFormat::EXR;
 		ImageTask->CompressionQuality = 100;
 		ImageTask->bOverwriteFile = true;
 

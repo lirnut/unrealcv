@@ -27,7 +27,7 @@ public:
 	FEngineShowFlags ShowFlags;
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
-	void Initialize(ESceneCaptureSource InCaptureSource, int32 ResolutionX, int32 ResolutionY);
+	void Initialize(int32 ResolutionX, int32 ResolutionY);
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
 	void Shutdown();
@@ -71,6 +71,7 @@ protected:
 	bool bIsInitialized;
 	EPixelFormat PixelFormat;
 	bool bForceLinearGamma;
+	float ForceTargetGamma;
 
 	TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> SurfaceQueue;
 	FSceneViewStateReference ViewState;

@@ -25,6 +25,7 @@
 
 #include "CommandDispatcher.h"
 #include "FusionCamSensor.h"
+#include "Sensor/CameraSensor/PawnCamSensor.h"
 #include "Serialization.h"
 #include "Utils/StrFormatter.h"
 #include "PlayerViewMode.h"
@@ -116,7 +117,9 @@ FExecStatus FCameraHandler::SetCameraLocation(const TArray<FString>& Args)
 	float X = FCString::Atof(*Args[1]), Y = FCString::Atof(*Args[2]), Z = FCString::Atof(*Args[3]);
 	FVector Location = FVector(X, Y, Z);
 
-	if (Args[0] == "0")
+	UPawnCamSensor* PawnCamSensor = Cast<UPawnCamSensor>(FusionCamSensor);
+
+	if (PawnCamSensor)
 	{
 		// Note: For camera 0, we want to change the player location
 
@@ -162,8 +165,9 @@ FExecStatus FCameraHandler::SetCameraRotation(const TArray<FString>& Args)
 	float Pitch = FCString::Atof(*Args[1]), Yaw = FCString::Atof(*Args[2]), Roll = FCString::Atof(*Args[3]);
 	FRotator Rotator = FRotator(Pitch, Yaw, Roll);
 
-	// Note: For camera 0, we want to change the player rotation
-	if (Args[0] == "0")
+	UPawnCamSensor* PawnCamSensor = Cast<UPawnCamSensor>(FusionCamSensor);
+
+	if (PawnCamSensor)
 	{
 		APawn* Pawn = FUnrealcvServer::Get().GetPawn();
 		if (!IsValid(Pawn))
@@ -492,9 +496,13 @@ FExecStatus FCameraHandler::MoveTo(const TArray<FString>& Args)
 	{
 		return FExecStatus::GetInvalidArgument();
 	}
-	if (Args[0] != "0")
+	FExecStatus ExecStatus = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) return ExecStatus;
+	UPawnCamSensor* PawnCamSensor = Cast<UPawnCamSensor>(FusionCamSensor);
+	if (!PawnCamSensor)
 	{
-		return FExecStatus::Error("MoveTo only supports the player camera with id 0");
+		return FExecStatus::Error("MoveTo only supports PawnCamSensor");
 	}
 
 	float X = FCString::Atof(*Args[1]), Y = FCString::Atof(*Args[2]), Z = FCString::Atof(*Args[3]);

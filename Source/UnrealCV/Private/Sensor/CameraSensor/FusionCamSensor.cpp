@@ -542,7 +542,7 @@ void UFusionCamSensor::SetFilmSize(int Width, int Height)
 	}
 
 	check(MovieQualityRenderer);
-	MovieQualityRenderer->Initialize(MovieQualityRenderer->GetCaptureSource(), Width, Height);
+	MovieQualityRenderer->Initialize(Width, Height);
 }
 
 float UFusionCamSensor::GetSensorFOV()

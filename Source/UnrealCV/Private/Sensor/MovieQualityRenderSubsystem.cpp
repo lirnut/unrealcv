@@ -179,7 +179,7 @@ void UMovieQualityRenderSubsystem::CaptureFrame(
 		RenderTarget = NewObject<UTextureRenderTarget2D>(this);
 		RenderTarget->ClearColor = FLinearColor::Black;
 		RenderTarget->TargetGamma = UTextureRenderTarget::GetDefaultDisplayGamma();
-		RenderTarget->InitCustomFormat(Resolution.X, Resolution.Y, EPixelFormat::PF_FloatRGBA, true);
+		RenderTarget->InitCustomFormat(Resolution.X, Resolution.Y, EPixelFormat::PF_FloatRGBA, false);
 		RenderTarget->AddToRoot();
 		RenderTargetPool.Add(PoolKey, RenderTarget);
 	}

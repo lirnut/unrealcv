@@ -51,6 +51,7 @@ void UAutomationBPLib::StartTicking()
 	PushCommand(TEXT("r.VolumetricRenderTarget.Mode 3"));
 	PushCommand(TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice 0"));
 	PushCommand(TEXT("r.PostProcessing.PropagateAlpha 1"));
+	PushCommand(TEXT("r.RayTracing.SceneCaptures 1"));
 }
 
 void UAutomationBPLib::StopTicking()

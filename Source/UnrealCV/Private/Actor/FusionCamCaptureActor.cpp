@@ -437,29 +437,29 @@ void AFusionCamCaptureActor::RecordFrame()
 
 		if (bUseMovieQualityRendering)
 		{
-			// TargetSensor->GetMovieQualityRenderer()->SaveLitToFile(
-			// 	FileNameRGB,
-			// 	[](bool bSuccess)
-			// 	{
-			// 		if (!bSuccess)
-			// 		{
-			// 			UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
-			// 		}
-			// 	}
-			// );
-			MovieQualityRenderer->CaptureFrame(
-				TargetSensor,
+			TargetSensor->GetMovieQualityRenderer()->SaveLitToFile(
 				FileNameRGB,
-				TEXT("RGB"),
-				ElapsedSteps,
 				[](bool bSuccess)
 				{
 					if (!bSuccess)
 					{
-					UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
+						UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
 					}
 				}
 			);
+			// MovieQualityRenderer->CaptureFrame(
+			// 	TargetSensor,
+			// 	FileNameRGB,
+			// 	TEXT("RGB"),
+			// 	ElapsedSteps,
+			// 	[](bool bSuccess)
+			// 	{
+			// 		if (!bSuccess)
+			// 		{
+			// 		UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
+			// 		}
+			// 	}
+			// );
 		}
 		else
 		{

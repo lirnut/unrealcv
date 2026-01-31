@@ -87,7 +87,7 @@ bool FPythonExecutor::ExecuteGenvidScript(
 	Params.Args.Add(TEXT("--fps"));
 	Params.Args.Add(FString::FromInt(FPS));
 	Params.Args.Add(TEXT("--time_delay"));
-	Params.Args.Add(TEXT("8.0"));
+	Params.Args.Add(TEXT("12.0"));
 	Params.CondaEnvName = CondaEnvName;
 	Params.bLaunchDetached = true;
 	Params.bLaunchHidden = true;
