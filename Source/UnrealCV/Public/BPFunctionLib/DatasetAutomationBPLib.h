@@ -83,6 +83,13 @@ struct FAutomationStatus
 
 	UPROPERTY(BlueprintReadOnly, Category = "Automation")
 	FString ErrorMessage = TEXT("");
+
+	UPROPERTY(BlueprintReadOnly, Category = "Automation")
+	FIntPoint ChosenRes;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Automation")
+	float ChosenFOV;
+
 };
 
 UCLASS()

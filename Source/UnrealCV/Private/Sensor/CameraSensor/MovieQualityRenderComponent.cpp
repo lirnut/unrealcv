@@ -87,6 +87,7 @@ void UMovieQualityRenderComponent::EndPlay(const EEndPlayReason::Type EndPlayRea
 
 void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 ResolutionY)
 {
+	UE_LOG(LogTemp, Warning, TEXT("5"));
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -94,9 +95,11 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		return;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("5"));
 	Resolution.X = ResolutionX;
 	Resolution.Y = ResolutionY;
 
+	UE_LOG(LogTemp, Warning, TEXT("5"));
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	// bool bUseBGRA8 = Config.bLitUseBGRA8;
 	bool bUseBGRA8 = false;
@@ -130,12 +133,24 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		}
 	}
 
-	if (!ViewState.GetReference() || !bIsInitialized)
+	UE_LOG(LogTemp, Warning, TEXT("5"));
+	if (ViewState.GetReference())
 	{
-		ViewState.Allocate(World->GetFeatureLevel());
+		ViewState.Destroy();
 	}
+	UE_LOG(LogTemp, Warning, TEXT("5"));
+	ViewState.Allocate(World->GetFeatureLevel());
 
-
+	UE_LOG(LogTemp, Warning, TEXT("5"));
+	if (SurfaceQueue.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("8"));
+		SurfaceQueue->Shutdown();
+		UE_LOG(LogTemp, Warning, TEXT("8"));
+		SurfaceQueue.Reset();
+		UE_LOG(LogTemp, Warning, TEXT("8"));
+	}
+	UE_LOG(LogTemp, Warning, TEXT("5"));
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe>(
 		Resolution,
 		PixelFormat,
@@ -143,11 +158,13 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		true
 	);
 
+	UE_LOG(LogTemp, Warning, TEXT("5"));
 	if (!bIsInitialized)
 	{
 		ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("5"));
 	bIsInitialized = true;
 
 	UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent initialized at %dx%d, PixelFormat=%s, LinearGamma=%d, CaptureSource=%d"),

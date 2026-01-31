@@ -221,9 +221,34 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		FString PrimaryCameraID = USensorBPLib::GetSensorNewFormatID(Sensor);
 		ActiveCameraPool.Empty();
 		ActiveCameraPool.Add(PrimaryCameraID);
-
-
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Prepared_record, primary camera is : %s"), *PrimaryCameraID);
+
+		if (TaskName == "Trajectory")
+		{
+			CurrentStatus.ChosenRes = {1920, 1080};
+			CurrentStatus.ChosenFOV = FMath::RandRange(40.0f, 55.0f);
+		}
+		else if (TaskName == "Omnimatte")
+		{
+			const static TArray<FIntPoint> Resolutions = {
+				FIntPoint(640, 480),
+				FIntPoint(480, 640),
+			};
+			CurrentStatus.ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
+			CurrentStatus.ChosenFOV = FMath::RandRange(40.0f, 55.0f);
+		}
+		else if (TaskName == "SpeedTest")
+		{
+			CurrentStatus.ChosenRes = {1920, 1080};
+			CurrentStatus.ChosenFOV = 60.0f;
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Invalid task name '%s'."), *TaskName);
+			CurrentStatus.ErrorMessage = FString::Printf(TEXT("Invalide TaskName: %s"), *TaskName);
+			TransitionToState(EDatasetGenerationState::Error);
+		}
+
 		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("record_trajectory"))
@@ -986,15 +1011,15 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
  		CaptureActor->bRecordShadowCatcher = false;
  		CaptureActor->bRecordStencilMask = false;
 		CaptureActor->bRecordMetadata = true;
-		CaptureActor->bRecordWithoutTarget = false;
-		AllocatedCam->SetFilmSize(1920, 1080);
-		AllocatedCam->SetSensorFOV(60.0f);
+		CaptureActor->bRecordWithoutTarget = false;	
 	}
 	else
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Invalid task name '%s'."), *TaskName);
 		return false;
 	}
+	AllocatedCam->SetFilmSize(CurrentStatus.ChosenRes.X, CurrentStatus.ChosenRes.Y);
+	AllocatedCam->SetSensorFOV(CurrentStatus.ChosenFOV);
 
 	UE_LOG(LogTemp, Warning, TEXT("4"));
 
