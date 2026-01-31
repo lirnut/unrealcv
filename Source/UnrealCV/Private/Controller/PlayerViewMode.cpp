@@ -34,7 +34,7 @@ void UPlayerViewMode::LoadMaterial()
 	MaterialPathMap.Add(TEXT("debug"), TEXT("Material'/UnrealCV/debug.debug'"));
 	MaterialPathMap.Add(TEXT("object_mask"), TEXT("Material'/UnrealCV/VertexColorMaterial.VertexColorMaterial'"));
 	MaterialPathMap.Add(TEXT("normal"), TEXT("Material'/UnrealCV/WorldNormal.WorldNormal'"));
-	// MaterialPathMap.Add(TEXT("optical_flow"), TEXT("Material'/UnrealCV/OpticalFlowMaterial.OpticalFlowMaterial'"));
+	// MaterialPathMap.Add(TEXT("optical_flow"), TEXT("Material'/UnrealCV/OpticalFlowMaterialNative.OpticalFlowMaterialNative'"));
 	MaterialPathMap.Add(TEXT("optical_flow"), TEXT("Material'/UnrealCV/Carla/VelocityMaterial.VelocityMaterial'"));
 	FString OpaqueMaterialName = "Material'/UnrealCV/OpaqueMaterial.OpaqueMaterial'";
 	MaterialPathMap.Add(TEXT("opaque"), OpaqueMaterialName);

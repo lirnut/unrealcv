@@ -6,7 +6,7 @@
 UFlowCamSensor::UFlowCamSensor(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
-	FString OpticalFlowPPMaterialPath = TEXT("Material'/UnrealCV/OpticalFlowMaterial.OpticalFlowMaterial'");
+	FString OpticalFlowPPMaterialPath = TEXT("Material'/UnrealCV/OpticalFlowMaterialNative.OpticalFlowMaterialNative'");
 
 	// Assertion failed: IsInGameThread() [File:D:\build\++UE5\Sync\Engine\Source\Runtime\CoreUObject\Private\Serialization\AsyncLoading.cpp] [Line: 7453] 
 	// LoadPackageAsync is only thread-safe when using the zenloader (i.e. AsyncLoading2).
