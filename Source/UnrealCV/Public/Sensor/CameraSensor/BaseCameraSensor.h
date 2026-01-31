@@ -13,7 +13,6 @@
 #include "Materials/Material.h"
 #include "Runtime/CoreUObject/Public/UObject/ConstructorHelpers.h"
 #include "RHIGPUReadback.h"
-#include "MainRendererSceneCaptureComponent2D.h"
 
 #include "BaseCameraSensor.generated.h"
 
