@@ -32,9 +32,9 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
 	ShowFlags.SetMotionBlur(true);
 
 	ShowFlags.SetHair(true);  
-	ShowFlags.SetDynamicShadows(true);   // 启用动态阴影
-	ShowFlags.SetContactShadows(true);   // 启用contact shadows
-  	ShowFlags.SetCapsuleShadows(true);   // 启用capsule shadows
+	ShowFlags.SetDynamicShadows(true);
+	ShowFlags.SetContactShadows(true); 
+  	ShowFlags.SetCapsuleShadows(true); 
 
 	ShowFlags.SetPreviewShadowsIndicator(false);
 
