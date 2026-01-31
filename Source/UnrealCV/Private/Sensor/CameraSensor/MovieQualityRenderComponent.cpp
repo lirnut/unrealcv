@@ -130,23 +130,25 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		}
 	}
 
-	if (!ViewState.GetReference())
+	if (!ViewState.GetReference() || !bIsInitialized)
 	{
-		// ViewState.Destroy();
 		ViewState.Allocate(World->GetFeatureLevel());
 	}
 
+
+	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe>(
+		Resolution,
+		PixelFormat,
+		10,
+		true
+	);
+
 	if (!bIsInitialized)
 	{
-		SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe>(
-			Resolution,
-			PixelFormat,
-			10,
-			true
-		);
 		ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
-		bIsInitialized = true;
 	}
+
+	bIsInitialized = true;
 
 	UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent initialized at %dx%d, PixelFormat=%s, LinearGamma=%d, CaptureSource=%d"),
 		Resolution.X, Resolution.Y,
