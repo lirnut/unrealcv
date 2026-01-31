@@ -39,8 +39,8 @@ void UAnnotationBPLib::AnnotateActor(AActor* Actor)
 
 void UAnnotationBPLib::AnnotateWorld()
 {
+#if WITH_EDITOR
 	TWeakObjectPtr<AUnrealcvWorldController> WorldController = FUnrealcvServer::Get().WorldController;
-
 	if (!WorldController.IsValid() || !IsValid(FUnrealcvServer::Get().GetWorld()))
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("AnnotateActor: WorldController is not available"));
@@ -54,6 +54,7 @@ void UAnnotationBPLib::AnnotateWorld()
 		FObjectAnnotator::AnnotateWorld(WorldContext.World());
 	}
 	else
+#endif
 	{
 		FObjectAnnotator::AnnotateWorld(FUnrealcvServer::Get().GetWorld());
 	}
@@ -62,6 +63,7 @@ void UAnnotationBPLib::AnnotateWorld()
 
 void UAnnotationBPLib::DeannotateWorld()
 {
+#if WITH_EDITOR
 	TWeakObjectPtr<AUnrealcvWorldController> WorldController = FUnrealcvServer::Get().WorldController;
 
 	if (!WorldController.IsValid() || !IsValid(FUnrealcvServer::Get().GetWorld()))
@@ -77,6 +79,7 @@ void UAnnotationBPLib::DeannotateWorld()
 		FObjectAnnotator::DeannotateWorld(WorldContext.World());
 	}
 	else
+#endif
 	{
 		FObjectAnnotator::DeannotateWorld(FUnrealcvServer::Get().GetWorld());
 	}
