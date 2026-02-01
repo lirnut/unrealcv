@@ -414,11 +414,6 @@ void AFusionCamCaptureActor::RecordFrame()
 	FScopeLock Lock(&RecordCriticalSection);
 	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Lock acquired"));
 
-	if (IsValid(TargetSensor))
-	{
-		TargetSensor->SetAsyncCaptureNextFrame(false);
-	}
-
 	auto SaveRGBToFile = [this](UFusionCamSensor *Sensor, const FString& FileName)
 	{
 		TArray<FColor> ImageData;
@@ -441,6 +436,11 @@ void AFusionCamCaptureActor::RecordFrame()
 		});
 	};
 
+
+	if (bUseMovieQualityRendering)
+	{
+		TargetSensor->SetAsyncCaptureNextFrame(false);
+	}
 
 
 	if (bRecordRGB)
@@ -469,8 +469,8 @@ void AFusionCamCaptureActor::RecordFrame()
 		}
 		else
 		{
-			// TargetSensor->SaveLitToFile(FileNameRGB);
-			SaveRGBToFile(TargetSensor, FileNameRGB);
+			TargetSensor->SaveLitToFile(FileNameRGB);
+			// SaveRGBToFile(TargetSensor, FileNameRGB);
 		}
 	}
 
@@ -541,15 +541,15 @@ void AFusionCamCaptureActor::RecordFrame()
 			if (bRecordRGB)
 			{
 				FString FileNameRGB = MakeFilenameNew("rgb_woTarget", ".png");
-				// BackupSensor->SaveLitToFile(FileNameRGB);
-				SaveRGBToFile(BackupSensor, FileNameRGB);
+				BackupSensor->SaveLitToFile(FileNameRGB);
+				// SaveRGBToFile(BackupSensor, FileNameRGB);
 			}
 
 			if (bRecordMask)
 			{
 				FString FileNameMask = MakeFilenameNew("mask_woTarget", ".png");
-				// BackupSensor->SaveSegToFile(FileNameMask);
-				SaveSegToFile(BackupSensor, FileNameMask);
+				BackupSensor->SaveSegToFile(FileNameMask);
+				// SaveSegToFile(BackupSensor, FileNameMask);
 			}
 
 			if (bRecordDepth)
@@ -1138,6 +1138,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 
 	float DegreesPerFrame = DegreesPerSecond / FPS;
 
+	bUseMovieQualityRendering = true;
 	RecordFileName = FileName;
 	RecordFPS = FPS;
 	ElapsedSteps = 0;
@@ -1201,6 +1202,7 @@ void AFusionCamCaptureActor::StartSimpleRecording(const FString& FileName, int32
 		SimpleTrajectory.Add(Pose);
 	}
 
+	bUseMovieQualityRendering = false;
 	RecordFileName = FileName;
 	RecordFPS = FPS;
 	ElapsedSteps = 0;

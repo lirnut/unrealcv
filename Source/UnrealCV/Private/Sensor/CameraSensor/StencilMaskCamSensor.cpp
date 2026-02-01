@@ -12,6 +12,7 @@ DECLARE_CYCLE_STAT(TEXT("UStencilMaskCamSensor::CaptureStencilMask"), STAT_Captu
 UStencilMaskCamSensor::UStencilMaskCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
+	bRenderInMainRenderer = true;  // optimization
 	CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
 	ShowFlags.SetLighting(false);

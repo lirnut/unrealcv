@@ -6,6 +6,7 @@
 UNormalCamSensor::UNormalCamSensor(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
+	bRenderInMainRenderer = true;  // optimization
 	this->ShowFlags.SetPostProcessing(true);
 	this->ShowFlags.SetPostProcessMaterial(true);
 

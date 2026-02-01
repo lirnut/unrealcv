@@ -12,6 +12,7 @@ DECLARE_CYCLE_STAT(TEXT("UOneObjMaskCamSensor::CaptureOneObjMask"), STAT_Capture
 UOneObjMaskCamSensor::UOneObjMaskCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
+	bRenderInMainRenderer = true;  // optimization
 	CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
 	ShowFlags.SetLighting(false);
