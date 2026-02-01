@@ -40,6 +40,11 @@ TArray<FString> FMetaHumanCacheManager::GetAllMetaHumanPaths()
 
 	for (const FAssetData& AssetData : AssetDataList)
 	{
+		if (!AssetData.IsValid())
+		{
+			continue;
+		}
+
 		FString ObjectPath = AssetData.GetObjectPathString();
 		MetaHumanPaths.Add(ObjectPath);
 	}
