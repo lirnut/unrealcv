@@ -866,10 +866,10 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
-	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for AnnotationComponent: %s, ParentComponent: %s, ParentClass: %s"),
-		*this->GetName(),
-		*ParentComponent->GetName(),
-		*ParentComponent->GetClass()->GetName());
+	// UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for AnnotationComponent: %s, ParentComponent: %s, ParentClass: %s"),
+	// 	*this->GetName(),
+	// 	*ParentComponent->GetName(),
+	// 	*ParentComponent->GetClass()->GetName());
 
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(ParentComponent);
 	USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ParentComponent);
