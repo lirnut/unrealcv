@@ -370,7 +370,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	PPSettings.bOverride_LumenFinalGatherQuality = 1;
 	PPSettings.LumenFinalGatherQuality = 2.0f;
 	PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
-	PPSettings.LumenFinalGatherScreenTraces = 1;
+	PPSettings.LumenFinalGatherScreenTraces = 0;
 	// PPSettings.bOverride_LumenMaxTraceDistance = 1;
 	// PPSettings.LumenMaxTraceDistance = 2097152.0f;
 	// PPSettings.bOverride_LumenReflectionQuality = 1;
@@ -387,15 +387,15 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	// PPSettings.LumenMaxRefractionBounces = 64;
 	// PPSettings.bOverride_LumenSurfaceCacheResolution = 1;
 	// PPSettings.LumenSurfaceCacheResolution = 1.0f;
-	// PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
-	// PPSettings.LumenSceneLightingUpdateSpeed = 4.0f;
-	// PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	// PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
+	PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
+	PPSettings.LumenSceneLightingUpdateSpeed = 10.0f;
+	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
+	PPSettings.LumenFinalGatherLightingUpdateSpeed = 10.0f;
 
 	PPSettings.bOverride_AutoExposureMethod = 1;
 	PPSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Histogram;
 	PPSettings.bOverride_AutoExposureBias = 1;
-	PPSettings.AutoExposureBias = -1.0f;
+	PPSettings.AutoExposureBias = 0.0f;
     PPSettings.bOverride_AutoExposureSpeedDown = 1;
     PPSettings.AutoExposureSpeedDown = 20.0f;
     PPSettings.bOverride_AutoExposureSpeedUp = 1;
