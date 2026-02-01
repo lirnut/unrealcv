@@ -31,7 +31,7 @@ void UAutomationBPLib::StartTicking()
 	UE_LOG(LogUnrealCV, Log, TEXT("AutomationBPLib: Ticking started"));
 
 #if WITH_EDITOR
-	// PushCommand(TEXT("vset /captureactor/spawn_free_cam"));
+	PushCommand(TEXT("vset /captureactor/spawn_free_cam"));
 #endif
 
 	PushCommand(TEXT("r.ForceLOD 0"));
@@ -43,26 +43,26 @@ void UAutomationBPLib::StartTicking()
 	PushCommand(TEXT("r.SceneCapture.EnableLogging 1"));
 
 #if WITH_EDITOR
-	// PushCommand(TEXT("MaxQuality"));
-	// PushCommand(TEXT("r.TextureStreaming 0"));
-	// PushCommand(TEXT("r.ParticleLODBias -10"));
-	// PushCommand(TEXT("foliage.DitheredLOD 0"));
-	// PushCommand(TEXT("foliage.ForceLOD 0"));
-	// PushCommand(TEXT("r.ShadowQuality 5"));
-	// PushCommand(TEXT("r.Shadow.DistanceScale 10.0"));
-	// PushCommand(TEXT("r.Shadow.RadiusThreshold 0.001"));
-	// PushCommand(TEXT("r.ViewDistanceScale 50.0"));
-	// PushCommand(TEXT("r.VolumetricRenderTarget 1"));
-	// PushCommand(TEXT("r.VolumetricRenderTarget.Mode 3"));
-	// PushCommand(TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice 0"));
-	// PushCommand(TEXT("r.PostProcessing.PropagateAlpha 1"));
-	// PushCommand(TEXT("r.RayTracing.SceneCaptures 1"));
+	PushCommand(TEXT("MaxQuality"));
+	PushCommand(TEXT("r.TextureStreaming 0"));
+	PushCommand(TEXT("r.ParticleLODBias -10"));
+	PushCommand(TEXT("foliage.DitheredLOD 0"));
+	PushCommand(TEXT("foliage.ForceLOD 0"));
+	PushCommand(TEXT("r.ShadowQuality 5"));
+	PushCommand(TEXT("r.Shadow.DistanceScale 10.0"));
+	PushCommand(TEXT("r.Shadow.RadiusThreshold 0.001"));
+	PushCommand(TEXT("r.ViewDistanceScale 50.0"));
+	PushCommand(TEXT("r.VolumetricRenderTarget 1"));
+	PushCommand(TEXT("r.VolumetricRenderTarget.Mode 3"));
+	PushCommand(TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice 0"));
+	PushCommand(TEXT("r.PostProcessing.PropagateAlpha 1"));
+	PushCommand(TEXT("r.RayTracing.SceneCaptures 1"));
 
-	// PushCommand(TEXT("r.Shadow.Denoiser 1"));
-	// // PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.12"));
-	// PushCommand(TEXT("r.TemporalAA.Quality 3"));
-	// PushCommand(TEXT("r.TemporalAAPauseCorrect 1"));
-	// PushCommand(TEXT("r.FXAA.Quality 5"));
+	PushCommand(TEXT("r.Shadow.Denoiser 1"));
+	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.12"));
+	PushCommand(TEXT("r.TemporalAA.Quality 3"));
+	PushCommand(TEXT("r.TemporalAAPauseCorrect 1"));
+	PushCommand(TEXT("r.FXAA.Quality 5"));
 #endif
 }
 
