@@ -781,6 +781,22 @@ void UFusionCamSensor::SetUseFastCapture(bool bInUseFast)
 	this->FlowCamSensor->SetUseFastCapture(bInUseFast);
 }
 
+void UFusionCamSensor::SetAsyncCaptureNextFrame(bool bEnabled)
+{
+	for (UBaseCameraSensor* Sensor : FusionSensors)
+	{
+		if (IsValid(Sensor))
+		{
+			Sensor->bAsyncCaptureNextFrame = bEnabled;
+		}
+	}
+	if (IsValid(LitCamSensor)) LitCamSensor->bAsyncCaptureNextFrame = bEnabled;
+	if (IsValid(DepthCamSensor)) DepthCamSensor->bAsyncCaptureNextFrame = bEnabled;
+	if (IsValid(AnnotationCamSensor)) AnnotationCamSensor->bAsyncCaptureNextFrame = bEnabled;
+	if (IsValid(NormalCamSensor)) NormalCamSensor->bAsyncCaptureNextFrame = bEnabled;
+	if (IsValid(FlowCamSensor)) FlowCamSensor->bAsyncCaptureNextFrame = bEnabled;
+}
+
 bool UFusionCamSensor::GetUseFastCapture() const
 {
 	bool bLitFastCapture = this->LitCamSensor->GetUseFastCapture();

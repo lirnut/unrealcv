@@ -414,6 +414,11 @@ void AFusionCamCaptureActor::RecordFrame()
 	FScopeLock Lock(&RecordCriticalSection);
 	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Lock acquired"));
 
+	if (IsValid(TargetSensor))
+	{
+		TargetSensor->SetAsyncCaptureNextFrame(false);
+	}
+
 	auto SaveRGBToFile = [this](UFusionCamSensor *Sensor, const FString& FileName)
 	{
 		TArray<FColor> ImageData;
@@ -919,9 +924,10 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 	float FOVRadians = FMath::DegreesToRadians(FOV);
 	FMatrix RotationMatrix = FRotationMatrix::Make(Rotation);
 
-	float Focal = FMath::Max(Width, Height) / 2.0f / FMath::Tan(FOVRadians / 2.0f);
-	float fx = Focal;
-	float fy = Focal;
+	float AspectRatio = (float)Width / (float)Height;
+	float HalfFOV = FOVRadians / 2.0f;
+	float fx = Width / (2.0f * FMath::Tan(HalfFOV));
+	float fy = Height / (2.0f * FMath::Tan(HalfFOV) * AspectRatio);
 	float cx = Width / 2.0f;
 	float cy = Height / 2.0f;
 	TArray K{

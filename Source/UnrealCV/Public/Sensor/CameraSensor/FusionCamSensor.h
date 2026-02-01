@@ -289,6 +289,9 @@ public:
 	TArray<class UBaseCameraSensor*> GetSensors() const { return FusionSensors; }
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void SetAsyncCaptureNextFrame(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	void SetUseFastCapture(bool bInUseAsync);
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")

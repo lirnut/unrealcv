@@ -61,7 +61,8 @@ public class UnrealcvBuildConfig
 			"AssetRegistry", // For MetaHuman asset discovery
 			"HairStrandsCore", // For GroomComponent annotation support
 			"Renderer", // For HairStrands interface functions
-			"MovieRenderPipelineCore"
+			"MovieRenderPipelineCore",
+			"PakFile" // For runtime pak mounting
 		});
 
 		EditorPrivateDependencyModuleNames.AddRange(
