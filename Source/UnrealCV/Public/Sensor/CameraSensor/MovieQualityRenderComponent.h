@@ -9,7 +9,7 @@
 #include "MovieQualityRenderComponent.generated.h"
 
 struct FMoviePipelineSurfaceQueue;
-class IImageWriteQueue;
+class FImageWriteQueue;
 class UFusionCamSensor;
 
 UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))
@@ -82,7 +82,7 @@ protected:
 
 	TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> SurfaceQueue;
 	FSceneViewStateReference ViewState;
-	IImageWriteQueue* ImageWriteQueue;
+	TSharedPtr<FImageWriteQueue> ImageWriteQueue;
 
 	UPROPERTY()
 	TMap<FString, UTextureRenderTarget2D*> RenderTargetPool;

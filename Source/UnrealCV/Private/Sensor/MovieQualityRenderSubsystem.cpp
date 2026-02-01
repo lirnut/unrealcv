@@ -2,6 +2,7 @@
 #include "FusionCamSensor.h"
 #include "BaseCameraSensor.h"
 #include "LitCamSensor.h"
+#include "ImageWriteQueue.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "Engine/Canvas.h"
@@ -9,8 +10,6 @@
 #include "EngineModule.h"
 #include "RenderingThread.h"
 #include "RHICommandList.h"
-#include "ImageWriteQueue.h"
-#include "ImageWriteTask.h"
 #include "Modules/ModuleManager.h"
 #include "Scalability.h"
 #include "HAL/IConsoleManager.h"
@@ -24,7 +23,6 @@ UMovieQualityRenderSubsystem::UMovieQualityRenderSubsystem()
 	: World(nullptr)
 	, Resolution(1920, 1080)
 	, bIsInitialized(false)
-	, ImageWriteQueue(nullptr)
 {
 }
 
@@ -52,7 +50,7 @@ void UMovieQualityRenderSubsystem::Initialize(UWorld* InWorld, FIntPoint InResol
 		true
 	);
 
-	ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
+	ImageWriteQueue = MakeShared<FImageWriteQueue>();
 
 	bIsInitialized = true;
 
@@ -70,6 +68,12 @@ void UMovieQualityRenderSubsystem::Shutdown()
 	{
 		SurfaceQueue->Shutdown();
 		SurfaceQueue.Reset();
+	}
+
+	if (ImageWriteQueue.IsValid())
+	{
+		ImageWriteQueue->Shutdown();
+		ImageWriteQueue.Reset();
 	}
 
 	FSceneViewStateInterface* Ref = ViewState.GetReference();
@@ -304,12 +308,11 @@ void UMovieQualityRenderSubsystem::SubmitToRenderer(
 
 	auto Callback = [this, OutputPath, PassName, FrameNumber, OnComplete](TUniquePtr<FImagePixelData>&& InPixelData)
 	{
-		TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
+		TUniquePtr<FUnrealCVImageWriteTask> ImageTask = MakeUnique<FUnrealCVImageWriteTask>();
 		ImageTask->PixelData = MoveTemp(InPixelData);
 		ImageTask->Filename = OutputPath;
 		ImageTask->Format = EImageFormat::PNG;
 		ImageTask->CompressionQuality = 100;
-		ImageTask->bOverwriteFile = true;
 
 		ImageTask->OnCompleted = [OnComplete](bool bSuccess)
 		{

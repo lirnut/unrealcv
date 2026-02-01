@@ -1,7 +1,6 @@
 #include "MovieQualityRenderComponent.h"
-#include "FusionCamSensor.h"
-#include "BaseCameraSensor.h"
 #include "LitCamSensor.h"
+#include "ImageWriteQueue.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "Engine/Canvas.h"
@@ -9,8 +8,6 @@
 #include "EngineModule.h"
 #include "RenderingThread.h"
 #include "RHICommandList.h"
-#include "ImageWriteQueue.h"
-#include "ImageWriteTask.h"
 #include "Modules/ModuleManager.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "GameFramework/PlayerController.h"
@@ -58,19 +55,19 @@ void UMovieQualityRenderComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	AActor* Owner = GetOwner();
-	if (Owner)
-	{
-		auto* ParentSensor = Cast<UFusionCamSensor>(Owner->GetComponentByClass(UFusionCamSensor::StaticClass()));
-		if (ParentSensor)
-		{
-			UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent: Found parent FusionCamSensor"));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("MovieQualityRenderComponent: can not Found parent FusionCamSensor!"));
-		}
-	}
+	// AActor* Owner = GetOwner();
+	// if (Owner)
+	// {
+	// 	auto* ParentSensor = Cast<UFusionCamSensor>(Owner->GetComponentByClass(UFusionCamSensor::StaticClass()));
+	// 	if (ParentSensor)
+	// 	{
+	// 		UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent: Found parent FusionCamSensor"));
+	// 	}
+	// 	else
+	// 	{
+	// 		UE_LOG(LogTemp, Warning, TEXT("MovieQualityRenderComponent: can not Found parent FusionCamSensor!"));
+	// 	}
+	// }
 
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	int32 ResWidth = Config.Width == 0 ? 640 : Config.Width;
@@ -161,7 +158,7 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 	UE_LOG(LogTemp, Warning, TEXT("5"));
 	if (!bIsInitialized)
 	{
-		ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
+		ImageWriteQueue = MakeShared<FImageWriteQueue>();
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("5"));
@@ -192,6 +189,12 @@ void UMovieQualityRenderComponent::Shutdown()
 		UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - SurfaceQueue->Shutdown() completed"));
 		SurfaceQueue.Reset();
 		UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - SurfaceQueue.Reset() completed"));
+	}
+
+	if (ImageWriteQueue.IsValid())
+	{
+		ImageWriteQueue->Shutdown();
+		ImageWriteQueue.Reset();
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - Before ViewState cleanup"));
@@ -446,13 +449,11 @@ void UMovieQualityRenderComponent::SubmitToRenderer(
 
 	auto Callback = [this, OutputPath, OnComplete](TUniquePtr<FImagePixelData>&& InPixelData)
 	{
-		TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
+		TUniquePtr<FUnrealCVImageWriteTask> ImageTask = MakeUnique<FUnrealCVImageWriteTask>();
 		ImageTask->PixelData = MoveTemp(InPixelData);
 		ImageTask->Filename = OutputPath;
 		ImageTask->Format = EImageFormat::PNG;
-		// ImageTask->Format = EImageFormat::EXR;
 		ImageTask->CompressionQuality = 100;
-		ImageTask->bOverwriteFile = true;
 
 		ImageTask->OnCompleted = [OnComplete](bool bSuccess)
 		{

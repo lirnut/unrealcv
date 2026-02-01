@@ -5,11 +5,12 @@
 #include "RHI.h"
 #include "RHIResources.h"
 #include "SceneView.h"
+#include "ImageWriteQueue.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MovieQualityRenderSubsystem.generated.h"
 
 struct FMoviePipelineSurfaceQueue;
-class IImageWriteQueue;
+class FImageWriteQueue;
 class UFusionCamSensor;
 
 USTRUCT()
@@ -78,7 +79,7 @@ private:
 
   TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> SurfaceQueue;
   FSceneViewStateReference ViewState;
-  IImageWriteQueue* ImageWriteQueue;
+  TSharedPtr<FImageWriteQueue> ImageWriteQueue;
 
   TMap<FString, float> PreviousQualitySettings;
 
