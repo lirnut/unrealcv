@@ -488,6 +488,17 @@ void AFusionCamCaptureActor::RecordFrame()
 			if (MP4Encoder && MP4Encoder->IsInitialized())
 			{
 				UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Using H.264 encoder"));
+				// FString FileNameRGB = MakeFilenameNew("rgb", ".png");
+				// Renderer->SaveLitToFile(
+				// 	FileNameRGB,
+				// 	[](bool bSuccess)
+				// 	{
+				// 		if (!bSuccess)
+				// 		{
+				// 			UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
+				// 		}
+				// 	}
+				// );
 				Renderer->CaptureFrame([this](TUniquePtr<FImagePixelData>&& InPixelData)
 				{
 					if (!InPixelData.IsValid())
@@ -502,7 +513,7 @@ void AFusionCamCaptureActor::RecordFrame()
 
 					if (RawData && DataSize > 0)
 					{
-						bool bSuccess = MP4Encoder->WriteFrame((const uint8*)RawData, EUnrealCVPixelFormat::Float16);
+						bool bSuccess = MP4Encoder->WriteFrame((const uint8*)RawData, InPixelData->GetType());
 						if (bSuccess)
 						{
 							MP4EncodedFrameCount++;

@@ -1,6 +1,6 @@
 #include "ImageWriteQueue.h"
-#include "ImageUtil.h"
 #include "CameraSensor/SetAlpha.h"
+#include "CameraSensor/RHISurfaceDataConversionOpt.h"
 #include "Async/Async.h"
 #include "Misc/FileHelper.h"
 #include "IImageWrapper.h"
@@ -53,48 +53,24 @@ void FImageWriteQueue::ProcessTask(TUniquePtr<FUnrealCVImageWriteTask> Task)
 	}
 
 	double StartTime = FPlatformTime::Seconds();
+	bool bSuccess = true;
+	FImageView InView = Task->PixelData->GetImageView();
+	InView.GammaSpace = EGammaSpace::Linear;
 
-	TArray<FColor> PixelData;
-	int32 Width = Task->PixelData->GetSize().X;
-	int32 Height = Task->PixelData->GetSize().Y;
+	TArray64<uint8> CompressedData;
+	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+	ImageWrapperModule.CompressImage(CompressedData, Task->Format, InView, Task->CompressionQuality);
 
-	if (Task->PixelData->GetType() == EImagePixelType::Color)
+	if (CompressedData.Num() == 0)
 	{
-		const TImagePixelData<FColor>* ColorData = static_cast<const TImagePixelData<FColor>*>(Task->PixelData.Get());
-		PixelData = TArray<FColor>(ColorData->Pixels.GetData(), ColorData->Pixels.Num());
-	}
-	else if (Task->PixelData->GetType() == EImagePixelType::Float16)
-	{
-		const TImagePixelData<FFloat16Color>* Float16Data = static_cast<const TImagePixelData<FFloat16Color>*>(Task->PixelData.Get());
-		PixelData.SetNum(Float16Data->Pixels.Num());
-		for (int32 i = 0; i < Float16Data->Pixels.Num(); ++i)
-		{
-			FLinearColor LinearColor(
-				Float16Data->Pixels[i].R.GetFloat(),
-				Float16Data->Pixels[i].G.GetFloat(),
-				Float16Data->Pixels[i].B.GetFloat(),
-				Float16Data->Pixels[i].A.GetFloat()
-			);
-			PixelData[i] = LinearColor.ToFColor(false);
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("ImageWriteQueue: Unsupported pixel format"));
-		if (Task->OnCompleted)
-		{
-			Task->OnCompleted(false);
-		}
-		return;
+		UE_LOG(LogTemp, Error, TEXT("ImageWriteQueue: Failed to compress image data"));
+		bSuccess = false;
 	}
 
-	EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
-	if (PixelFormat == EPixelFormat::PF_B8G8R8A8 && PixelData.Num() > 0 && PixelData[0].A == 0)
+	if (bSuccess)
 	{
-		SetAlphaAVX2(PixelData);
+		bSuccess = FFileHelper::SaveArrayToFile(CompressedData, *Task->Filename);
 	}
-
-	bool bSuccess = SaveImage(PixelData, Width, Height, Task->Filename, Task->Format, Task->CompressionQuality);
 
 	double SerializeTime = FPlatformTime::Seconds() - StartTime;
 	if (bSuccess)
@@ -115,30 +91,3 @@ void FImageWriteQueue::ProcessTask(TUniquePtr<FUnrealCVImageWriteTask> Task)
 	}
 }
 
-bool FImageWriteQueue::SaveImage(const TArray<FColor>& PixelData, int32 Width, int32 Height, const FString& Filename, EImageFormat Format, int32 CompressionQuality)
-{
-	if (PixelData.Num() == 0 || PixelData.Num() != Width * Height)
-	{
-		return false;
-	}
-
-	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
-	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(Format);
-
-	if (!ImageWrapper.IsValid())
-	{
-		UE_LOG(LogTemp, Error, TEXT("ImageWriteQueue: Failed to create image wrapper for format %d"), (int32)Format);
-		return false;
-	}
-
-	ImageWrapper->SetRaw(PixelData.GetData(), PixelData.GetAllocatedSize(), Width, Height, ERGBFormat::BGRA, 8);
-	TArray64<uint8> CompressedData = ImageWrapper->GetCompressed(CompressionQuality);
-
-	if (CompressedData.Num() == 0)
-	{
-		UE_LOG(LogTemp, Error, TEXT("ImageWriteQueue: Failed to compress image data"));
-		return false;
-	}
-
-	return FFileHelper::SaveArrayToFile(CompressedData, *Filename);
-}

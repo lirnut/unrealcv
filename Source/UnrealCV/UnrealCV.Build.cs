@@ -47,6 +47,7 @@ public class UnrealcvBuildConfig
 			"SlateCore",
 			"UMG", // For in-game UI widgets
 			"ImageWrapper",
+			"ImageCore", // For ERawImageFormat
 			"ImageWriteQueue", // For async image writing (MRQ-style)
 			"CinematicCamera",
 			"Projects", // Support IPluginManager

@@ -121,7 +121,7 @@ void FUnrealCVMP4Encoder::Finalize()
 	bFinalized = true;
 }
 
-bool FUnrealCVMP4Encoder::WriteFrame(const uint8* InFrameData, EUnrealCVPixelFormat InPixelFormat)
+bool FUnrealCVMP4Encoder::WriteFrame(const uint8* InFrameData, EImagePixelType InPixelFormat)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UnrealCVMP4Encoder_WriteFrame);
 	if (!ensureMsgf(bInitialized && !bFinalized, TEXT("WriteFrame should not be called if not initialized or after finalize! Initialized: %d Finalized: %d"), bInitialized, bFinalized))
@@ -139,7 +139,7 @@ bool FUnrealCVMP4Encoder::WriteFrame(const uint8* InFrameData, EUnrealCVPixelFor
 	TArray<uint8> ConvertedData;
 	ConvertedData.SetNum(BufferSize);
 
-	if (InPixelFormat == EUnrealCVPixelFormat::Float16)
+	if (InPixelFormat == EImagePixelType::Float16)
 	{
 		const uint32 InputStride = Options.Width * 8;
 		ConvertRawR16G16B16A16FDataToFColorOpt(
@@ -151,7 +151,7 @@ bool FUnrealCVMP4Encoder::WriteFrame(const uint8* InFrameData, EUnrealCVPixelFor
 			true
 		);
 	}
-	else if (InPixelFormat == EUnrealCVPixelFormat::Uint8)
+	else if (InPixelFormat == EImagePixelType::Color)
 	{
 		const uint32 InputStride = Options.Width * 4;
 		ConvertRawB8G8R8A8DataToFColorOpt(

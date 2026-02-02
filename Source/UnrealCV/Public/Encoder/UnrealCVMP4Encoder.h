@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Misc/FrameRate.h"
 #include "UnrealCVMP4EncoderCommon.h"
+#include "ImagePixelData.h"
 
 #if PLATFORM_WINDOWS
 
@@ -14,7 +15,7 @@ public:
 
 	bool Initialize();
 	void Finalize();
-	bool WriteFrame(const uint8* InFrameData, EUnrealCVPixelFormat InPixelFormat = EUnrealCVPixelFormat::Float16);
+	bool WriteFrame(const uint8* InFrameData, EImagePixelType InPixelFormat = EImagePixelType::Float16);
 	bool WriteAudioSample(const TArrayView<int16>& InAudioSamples);
 
 	const FUnrealCVMP4EncoderOptions& GetOptions() const { return Options; }
@@ -44,7 +45,7 @@ public:
 
 	bool Initialize() { return false; }
 	void Finalize() {}
-	bool WriteFrame(const uint8* InFrameData) { return false; }
+	bool WriteFrame(const uint8* InFrameData, EImagePixelType InPixelFormat = EImagePixelType::Float16) { return false; }
 	bool WriteAudioSample(const TArrayView<int16>& InAudioSamples) { return false; }
 
 	const FUnrealCVMP4EncoderOptions& GetOptions() const { static FUnrealCVMP4EncoderOptions Dummy; return Dummy; }

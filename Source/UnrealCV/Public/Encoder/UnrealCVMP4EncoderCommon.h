@@ -44,12 +44,6 @@ enum class EUnrealCVMP4EncodeRateControlMode : uint8
 	ConstantBitRate UMETA(Hidden),
 };
 
-enum class EUnrealCVPixelFormat : uint8
-{
-	Float16,
-	Uint8,
-};
-
 struct FUnrealCVMP4EncoderOptions
 {
 	FUnrealCVMP4EncoderOptions()

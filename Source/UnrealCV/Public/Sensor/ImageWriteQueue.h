@@ -27,7 +27,7 @@ public:
 private:
 	void ProcessTask(TUniquePtr<FUnrealCVImageWriteTask> Task);
 
-	bool SaveImage(const TArray<FColor>& PixelData, int32 Width, int32 Height, const FString& Filename, EImageFormat Format, int32 CompressionQuality);
+	// bool SaveImage(const TArray<FColor>& PixelData, int32 Width, int32 Height, const FString& Filename, EImageFormat Format, int32 CompressionQuality);
 
 	FCriticalSection QueueLock;
 	TArray<TUniquePtr<FUnrealCVImageWriteTask>> PendingTasks;
