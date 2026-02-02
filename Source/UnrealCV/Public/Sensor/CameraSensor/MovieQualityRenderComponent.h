@@ -39,7 +39,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
 	void Shutdown();
 
-	void SaveLitToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete = nullptr);
+	void FlushPendingFrames();
+
+	void CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady);
+
+	void CaptureFrameToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete = nullptr);
+
+	void SaveLitToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete = nullptr)
+	{
+		CaptureFrameToFile(OutputPath, OnComplete);
+	}
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
 	TEnumAsByte<ESceneCaptureSource> GetCaptureSource() { return CaptureSource; }
@@ -65,11 +74,11 @@ protected:
 protected:
 	TSharedPtr<FSceneViewFamilyContext> CreateViewFamily(UTextureRenderTarget2D* RenderTarget);
 	FSceneView* CreateSceneView(FSceneViewFamily* ViewFamily);
-	void SubmitToRenderer(
+
+	void SubmitToRendererWithCallback(
 		FSceneViewFamily* ViewFamily,
 		UTextureRenderTarget2D* RenderTarget,
-		const FString& OutputPath,
-		TFunction<void(bool)> OnComplete
+		TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady
 	);
 
 	// float GetTargetGamma() const;

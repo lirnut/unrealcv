@@ -85,10 +85,10 @@ struct FAutomationStatus
 	FString ErrorMessage = TEXT("");
 
 	UPROPERTY(BlueprintReadOnly, Category = "Automation")
-	FIntPoint ChosenRes;
+	FIntPoint ChosenRes = FIntPoint(0, 0);
 
 	UPROPERTY(BlueprintReadOnly, Category = "Automation")
-	float ChosenFOV;
+	float ChosenFOV = 90.0f;
 
 };
 

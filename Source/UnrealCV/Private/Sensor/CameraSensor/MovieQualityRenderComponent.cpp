@@ -219,21 +219,29 @@ void UMovieQualityRenderComponent::Shutdown()
 	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() END"));
 }
 
-void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete)
+void UMovieQualityRenderComponent::FlushPendingFrames()
 {
-	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile START - Path: %s"), *OutputPath);
-
-	if (!bIsInitialized)
+	if (!bIsInitialized || !SurfaceQueue)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[CHECKPOINT] SaveLitToFile - Not initialized, returning"));
-		if (OnComplete)
-		{
-			OnComplete(false);
-		}
+		UE_LOG(LogTemp, Warning, TEXT("FlushPendingFrames - Not initialized or no SurfaceQueue"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile - Creating RenderTarget"));
+	UE_LOG(LogTemp, Log, TEXT("FlushPendingFrames - Starting flush of pending GPU readback frames"));
+
+	SurfaceQueue->Shutdown();
+
+	UE_LOG(LogTemp, Log, TEXT("FlushPendingFrames - Flush completed"));
+}
+
+void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
+{
+	if (!bIsInitialized)
+	{
+		UE_LOG(LogTemp, Error, TEXT("CaptureFrame - Not initialized"));
+		return;
+	}
+
 	FString PoolKey = FString::Printf(TEXT("RGB_%dx%d_%s"),
 		Resolution.X, Resolution.Y,
 		PixelFormat == PF_FloatRGBA ? TEXT("Float") : TEXT("BGRA8"));
@@ -248,40 +256,63 @@ void UMovieQualityRenderComponent::SaveLitToFile(const FString& OutputPath, TFun
 	{
 		RenderTarget = NewObject<UTextureRenderTarget2D>(this);
 		RenderTarget->ClearColor = FLinearColor::Black;
-		// RenderTarget->TargetGamma = GEngine->GetDisplayGamma();
 		RenderTarget->TargetGamma = ForceTargetGamma;
 		RenderTarget->InitCustomFormat(Resolution.X, Resolution.Y, PixelFormat, bForceLinearGamma);
 		RenderTarget->AddToRoot();
 		RenderTargetPool.Add(PoolKey, RenderTarget);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile - Creating ViewFamily"));
 	TSharedPtr<FSceneViewFamilyContext> ViewFamily = CreateViewFamily(RenderTarget);
 	if (!ViewFamily.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[CHECKPOINT] SaveLitToFile - ViewFamily creation failed"));
-		if (OnComplete)
-		{
-			OnComplete(false);
-		}
+		UE_LOG(LogTemp, Error, TEXT("CaptureFrame - ViewFamily creation failed"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile - Creating SceneView"));
 	FSceneView* View = CreateSceneView(ViewFamily.Get());
 	if (!View)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[CHECKPOINT] SaveLitToFile - SceneView creation failed"));
-		if (OnComplete)
-		{
-			OnComplete(false);
-		}
+		UE_LOG(LogTemp, Error, TEXT("CaptureFrame - SceneView creation failed"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile - Submitting to renderer"));
-	SubmitToRenderer(ViewFamily.Get(), RenderTarget, OutputPath, OnComplete);
-	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] SaveLitToFile END"));
+	SubmitToRendererWithCallback(ViewFamily.Get(), RenderTarget, OnPixelDataReady);
+}
+
+void UMovieQualityRenderComponent::CaptureFrameToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete)
+{
+	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] CaptureFrameToFile START - Path: %s"), *OutputPath);
+
+	CaptureFrame([this, OutputPath, OnComplete](TUniquePtr<FImagePixelData>&& InPixelData)
+	{
+		if (!InPixelData.IsValid())
+		{
+			UE_LOG(LogTemp, Error, TEXT("[CHECKPOINT] CaptureFrameToFile - Invalid pixel data"));
+			if (OnComplete)
+			{
+				OnComplete(false);
+			}
+			return;
+		}
+
+		TUniquePtr<FUnrealCVImageWriteTask> ImageTask = MakeUnique<FUnrealCVImageWriteTask>();
+		ImageTask->PixelData = MoveTemp(InPixelData);
+		ImageTask->Filename = OutputPath;
+		ImageTask->Format = EImageFormat::PNG;
+		ImageTask->CompressionQuality = 100;
+
+		ImageTask->OnCompleted = [OnComplete](bool bSuccess)
+		{
+			if (OnComplete)
+			{
+				OnComplete(bSuccess);
+			}
+		};
+
+		ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
+	});
+
+	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] CaptureFrameToFile END"));
 }
 
 TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFamily(UTextureRenderTarget2D* RenderTarget)
@@ -424,19 +455,14 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	return View;
 }
 
-void UMovieQualityRenderComponent::SubmitToRenderer(
+void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 	FSceneViewFamily* ViewFamily,
 	UTextureRenderTarget2D* RenderTarget,
-	const FString& OutputPath,
-	TFunction<void(bool)> OnComplete)
+	TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
 {
 	UWorld* World = GetWorld();
 	if (!World)
 	{
-		if (OnComplete)
-		{
-			OnComplete(false);
-		}
 		return;
 	}
 
@@ -447,32 +473,13 @@ void UMovieQualityRenderComponent::SubmitToRenderer(
 
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 
-	auto Callback = [this, OutputPath, OnComplete](TUniquePtr<FImagePixelData>&& InPixelData)
-	{
-		TUniquePtr<FUnrealCVImageWriteTask> ImageTask = MakeUnique<FUnrealCVImageWriteTask>();
-		ImageTask->PixelData = MoveTemp(InPixelData);
-		ImageTask->Filename = OutputPath;
-		ImageTask->Format = EImageFormat::PNG;
-		ImageTask->CompressionQuality = 100;
-
-		ImageTask->OnCompleted = [OnComplete](bool bSuccess)
-		{
-			if (OnComplete)
-			{
-				OnComplete(bSuccess);
-			}
-		};
-
-		ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
-	};
-
 	ENQUEUE_RENDER_COMMAND(CaptureFrameCommand)(
-		[SurfaceQueue = this->SurfaceQueue, FramePayload, Callback, RenderTargetResource](FRHICommandListImmediate& RHICmdList) mutable
+		[SurfaceQueue = this->SurfaceQueue, FramePayload, OnPixelDataReady, RenderTargetResource](FRHICommandListImmediate& RHICmdList) mutable
 		{
 			SurfaceQueue->OnRenderTargetReady_RenderThread(
 				RenderTargetResource->GetRenderTargetTexture(),
 				FramePayload,
-				MoveTemp(Callback)
+				MoveTemp(OnPixelDataReady)
 			);
 		}
 	);

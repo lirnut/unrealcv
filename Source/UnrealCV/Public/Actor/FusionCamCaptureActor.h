@@ -7,6 +7,7 @@
 #include "JsonObjectBP.h"
 #include "BPFunctionLib\SceneCompositionBPLib.h"
 #include "MovieQualityRenderSubsystem.h"
+#include "Encoder/UnrealCVMP4Encoder.h"
 #include "FusionCamCaptureActor.generated.h"
 
 /**
@@ -179,6 +180,11 @@ public:
 
 protected:
 	UMovieQualityRenderSubsystem* MovieQualityRenderer;
+
+	TUniquePtr<class FUnrealCVMP4Encoder> MP4Encoder;
+	FString MP4OutputPath;
+	int32 MP4EncodedFrameCount;
+	bool bEnableH264Encoding;
 
 	// Recording state
 	float TimeDilationBackUp;

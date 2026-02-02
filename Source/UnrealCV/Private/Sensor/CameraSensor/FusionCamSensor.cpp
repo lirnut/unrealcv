@@ -73,18 +73,22 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("DepthCamSensor"));
 	DepthCamSensor = CreateDefaultSubobject<UDepthCamSensor>(*ComponentName);
+	DepthCamSensor->SetupAttachment(this);
 	FusionSensors.Add(DepthCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("NormalCamSensor"));
 	NormalCamSensor = CreateDefaultSubobject<UNormalCamSensor>(*ComponentName);
+	NormalCamSensor->SetupAttachment(this);
 	FusionSensors.Add(NormalCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("AnnotationCamSensor"));
 	AnnotationCamSensor = CreateDefaultSubobject<UAnnotationCamSensor>(*ComponentName);
+	AnnotationCamSensor->SetupAttachment(this);
 	FusionSensors.Add(AnnotationCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("LitCamSensor"));
 	LitCamSensor = CreateDefaultSubobject<ULitCamSensor>(*ComponentName);
+	LitCamSensor->SetupAttachment(this);
 	FusionSensors.Add(LitCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("MovieQualityRenderer"));
@@ -95,14 +99,17 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("FlowCamSensor"));
 	FlowCamSensor = CreateDefaultSubobject<UFlowCamSensor>(*ComponentName);
 	// FlowCamSensor = NewObject<UFlowCamSensor>(this, UFlowCamSensor::StaticClass()); /*NewObject with empty name can't be used to create default subobjects*/
+	FlowCamSensor->SetupAttachment(this);
 	FusionSensors.Add(FlowCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("OneObjectMaskCamSensor"));
 	OneObjectMaskCamSensor = CreateDefaultSubobject<UAnnotationCamSensor>(*ComponentName);
+	OneObjectMaskCamSensor->SetupAttachment(this);
 	FusionSensors.Add(OneObjectMaskCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("OneObjectLitCamSensor"));
 	OneObjectLitCamSensor = CreateDefaultSubobject<ULitCamSensor>(*ComponentName);
+	OneObjectLitCamSensor->SetupAttachment(this);
 	OneObjectLitCamSensor->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 	OneObjectLitCamSensor->CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
 	// OneObjectLitCamSensor->CaptureSource = ESceneCaptureSource::SCS_FinalColorHDR;
@@ -145,15 +152,7 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 
 	for (UBaseCameraSensor* Sensor : FusionSensors)
 	{
-		if (IsValid(Sensor))
-		{
-			if (Sensor != FlowCamSensor) { Sensor->SetupAttachment(this); }
-		}
-		else
-		{
-			// UE_LOG(LogUnrealCV, Warning, TEXT("Invalid sensor is found in the ctor of FusionCamSensor"));
-			UE_LOG(LogUnrealCV, Error, TEXT("Invalid sensor is found in the ctor of FusionCamSensor"));
-		}
+		check(IsValid(Sensor));
 	}
 	// SetFilmSize(FilmWidth, FilmHeight); // This should not not be done in CTOR.
 	// print pointers in FusionSensors
@@ -175,27 +174,27 @@ void UFusionCamSensor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// LogOutputDevice: Error: Ensure condition failed: false  [File:D:\build\++UE5\Sync\Engine\Source\Runtime\Engine\Private\Components\SceneComponent.cpp] [Line: 2104] 
-	// LogOutputDevice: Error: Template Mismatch during attachment. Attaching instanced component to template component. Parent 'FusionCamSensor_GEN_VARIABLE' (Owner 'None') Self 'FusionCamSensor_GEN_VARIABLE_FlowCamSensor' (Owner 'BP_Drone01_C_1').
-	// So we have to attach FlowCamSensor after the actor is spawned, in BeginPlay.
-	// If we put this in the ctor, I think all the blueprints have to be rebuild to fix this bug.
-	// Howerver, because we put the AttachToComponent here, we can no longger use editor to adjust the FlowCam transform in blueprint.
-	if (IsValid(FlowCamSensor))
-	{
-		// Ensure condition failed: !bRegistered  [File:D:\build\++UE5\Sync\Engine\Source\Runtime\Engine\Private\Components\SceneComponent.cpp] [Line: 1958] 
-		// SetupAttachment should only be used to initialize AttachParent and AttachSocketName for a future AttachToComponent. Once a component is registered you must use AttachToComponent. Owner [/Game/SuburbNeighborhoodHousePack/Maps/SuburbNeighborhood_Day.SuburbNeighborhood_Day:PersistentLevel.BP_Character_C_1], InParent [FusionCamSensor], InSocketName [None]
-		// FlowCamSensor->SetupAttachment(this);
+	// // LogOutputDevice: Error: Ensure condition failed: false  [File:D:\build\++UE5\Sync\Engine\Source\Runtime\Engine\Private\Components\SceneComponent.cpp] [Line: 2104] 
+	// // LogOutputDevice: Error: Template Mismatch during attachment. Attaching instanced component to template component. Parent 'FusionCamSensor_GEN_VARIABLE' (Owner 'None') Self 'FusionCamSensor_GEN_VARIABLE_FlowCamSensor' (Owner 'BP_Drone01_C_1').
+	// // So we have to attach FlowCamSensor after the actor is spawned, in BeginPlay.
+	// // If we put this in the ctor, I think all the blueprints have to be rebuild to fix this bug.
+	// // Howerver, because we put the AttachToComponent here, we can no longger use editor to adjust the FlowCam transform in blueprint.
+	// if (IsValid(FlowCamSensor))
+	// {
+	// 	// Ensure condition failed: !bRegistered  [File:D:\build\++UE5\Sync\Engine\Source\Runtime\Engine\Private\Components\SceneComponent.cpp] [Line: 1958] 
+	// 	// SetupAttachment should only be used to initialize AttachParent and AttachSocketName for a future AttachToComponent. Once a component is registered you must use AttachToComponent. Owner [/Game/SuburbNeighborhoodHousePack/Maps/SuburbNeighborhood_Day.SuburbNeighborhood_Day:PersistentLevel.BP_Character_C_1], InParent [FusionCamSensor], InSocketName [None]
+	// 	// FlowCamSensor->SetupAttachment(this);
 
-		FlowCamSensor->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-	    const FTransform LitTransform = LitCamSensor->GetComponentTransform();
-	    FlowCamSensor->SetWorldTransform(LitTransform);
-		// const FTransform LitRelativeTransform = LitCamSensor->GetRelativeTransform();
-		// FlowCamSensor->SetRelativeTransform(LitRelativeTransform);
-	}
-	else 
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("FlowCamSensor is not initialized. Flow data will be empty."));
-	}
+	// 	FlowCamSensor->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
+	//     const FTransform LitTransform = LitCamSensor->GetComponentTransform();
+	//     FlowCamSensor->SetWorldTransform(LitTransform);
+	// 	// const FTransform LitRelativeTransform = LitCamSensor->GetRelativeTransform();
+	// 	// FlowCamSensor->SetRelativeTransform(LitRelativeTransform);
+	// }
+	// else 
+	// {
+	// 	UE_LOG(LogUnrealCV, Error, TEXT("FlowCamSensor is not initialized. Flow data will be empty."));
+	// }
 
 	SetFilmSize(FilmWidth, FilmHeight);
 	SetSensorFOV(FOV);

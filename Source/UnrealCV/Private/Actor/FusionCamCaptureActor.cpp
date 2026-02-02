@@ -34,6 +34,10 @@
 #include "LineTraceBPlib.h"
 #include "MovieQualityRenderComponent.h"
 #include "MovieQualityRenderSubsystem.h"
+#if PLATFORM_WINDOWS
+#include "Encoder/UnrealCVMP4Encoder.h"
+#include "Encoder/UnrealCVMP4EncoderCommon.h"
+#endif
 
 // static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
 static const float ROTATE_BUFFER_DURATION_SECONDS = 0.0f;
@@ -67,8 +71,6 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	RecordFPS = 0;
 
 	TimeDilation = 0.25f;
-	// TimeDilation = 0.1f;
-	// TimeDilation = 1.0f;
 	TimeDilationBackUp = 1.0f;
 
 	bAutoGenerateVideo = true;
@@ -82,6 +84,13 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 
 	bUseMovieQualityRendering = true;
 	MovieQualityRenderer = nullptr;
+
+	MP4EncodedFrameCount = 0;
+#if PLATFORM_WINDOWS
+	bEnableH264Encoding = true;
+#else
+	bEnableH264Encoding = false;
+#endif
 
 	// OriginalCameraLocation =
 	// OriginalCameraRotation =
@@ -191,6 +200,28 @@ void AFusionCamCaptureActor::StopRecord()
 
 		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded. Real Duration: %.2fs, Real FPS: %.2f"),
 			ElapsedSteps, RealWorldTimeDurationSeconds, RealWorldTimeFPS);
+
+		if (bUseMovieQualityRendering && IsValid(TargetSensor))
+		{
+			auto* Renderer = TargetSensor->GetMovieQualityRenderer();
+			if (Renderer && Renderer->IsInitialized())
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("Flushing pending GPU readback frames..."));
+				Renderer->FlushPendingFrames();
+				UE_LOG(LogUnrealCV, Log, TEXT("GPU readback flush completed"));
+			}
+		}
+
+#if PLATFORM_WINDOWS
+		if (MP4Encoder && MP4Encoder->IsInitialized())
+		{
+			MP4Encoder->Finalize();
+			MP4Encoder.Reset();
+
+			UE_LOG(LogUnrealCV, Log, TEXT("H.264 recording finished: %d frames -> %s"),
+				MP4EncodedFrameCount, *MP4OutputPath);
+		}
+#endif
 
 		if (bRecordAudio)
 		{
@@ -446,7 +477,6 @@ void AFusionCamCaptureActor::RecordFrame()
 	if (bRecordRGB)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Recording RGB"));
-		FString FileNameRGB = MakeFilenameNew("rgb", ".png");
 
 		if (bUseMovieQualityRendering)
 		{
@@ -454,23 +484,58 @@ void AFusionCamCaptureActor::RecordFrame()
 			auto* Renderer = TargetSensor->GetMovieQualityRenderer();
 			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - After GetMovieQualityRenderer(), Renderer=%p"), Renderer);
 
-			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before SaveLitToFile call"));
-			Renderer->SaveLitToFile(
-				FileNameRGB,
-				[](bool bSuccess)
+#if PLATFORM_WINDOWS
+			if (MP4Encoder && MP4Encoder->IsInitialized())
+			{
+				UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Using H.264 encoder"));
+				Renderer->CaptureFrame([this](TUniquePtr<FImagePixelData>&& InPixelData)
 				{
-					if (!bSuccess)
+					if (!InPixelData.IsValid())
 					{
-						UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
+						UE_LOG(LogUnrealCV, Warning, TEXT("H.264: Invalid pixel data"));
+						return;
 					}
-				}
-			);
-			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - After SaveLitToFile call"));
+
+					const void* RawData = nullptr;
+					int64 DataSize;
+					InPixelData->GetRawData(RawData, DataSize);
+
+					if (RawData && DataSize > 0)
+					{
+						bool bSuccess = MP4Encoder->WriteFrame((const uint8*)RawData, EUnrealCVPixelFormat::Float16);
+						if (bSuccess)
+						{
+							MP4EncodedFrameCount++;
+						}
+						else
+						{
+							UE_LOG(LogUnrealCV, Warning, TEXT("H.264: Failed to encode frame %d"), MP4EncodedFrameCount);
+						}
+					}
+				});
+			}
+#endif
+			else
+			{
+				FString FileNameRGB = MakeFilenameNew("rgb", ".png");
+				UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before SaveLitToFile call"));
+				Renderer->SaveLitToFile(
+					FileNameRGB,
+					[](bool bSuccess)
+					{
+						if (!bSuccess)
+						{
+							UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
+						}
+					}
+				);
+				UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - After SaveLitToFile call"));
+			}
 		}
 		else
 		{
+			FString FileNameRGB = MakeFilenameNew("rgb", ".png");
 			TargetSensor->SaveLitToFile(FileNameRGB);
-			// SaveRGBToFile(TargetSensor, FileNameRGB);
 		}
 	}
 
@@ -1156,6 +1221,40 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	CurrentTrajectory = CalculateTrajectory(TrajectoryType, Target, DegreesPerFrame, RandomSeed);
 
 	SaveOverviewMetadata();
+
+#if PLATFORM_WINDOWS
+	if (bEnableH264Encoding && bRecordRGB && bUseMovieQualityRendering)
+	{
+		MP4OutputPath = FPaths::Combine(FPaths::ConvertRelativePathToFull(FinalDataFolder, RecordFileName), TEXT("rgb.mp4"));
+
+		FUnrealCVMP4EncoderOptions Options;
+		Options.OutputFilename = MP4OutputPath;
+		Options.Width = TargetSensor->GetFilmWidth();
+		Options.Height = TargetSensor->GetFilmHeight();
+		Options.FrameRate = FFrameRate(FPS, 1);
+
+		Options.EncodingRateControl = EUnrealCVMP4EncodeRateControlMode::Quality;
+		Options.CommonConstantRateFactor = 18;
+		Options.EncodingProfile = EUnrealCVMP4EncodeProfile::High;
+		Options.EncodingLevel = EUnrealCVMP4EncodeLevel::Auto;
+
+		Options.bIncludeAudio = false;
+
+		MP4Encoder = MakeUnique<FUnrealCVMP4Encoder>(Options);
+
+		if (MP4Encoder->Initialize())
+		{
+			MP4EncodedFrameCount = 0;
+			UE_LOG(LogUnrealCV, Log, TEXT("H.264 Encoder initialized: %s (%dx%d @ %d fps)"),
+				*MP4OutputPath, Options.Width, Options.Height, FPS);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Failed to initialize H.264 encoder"));
+			MP4Encoder.Reset();
+		}
+	}
+#endif
 
 	if (bRecordAudio)
 	{

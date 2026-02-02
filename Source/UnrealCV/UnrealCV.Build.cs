@@ -30,7 +30,8 @@ public class UnrealcvBuildConfig
 				"UnrealCV/Public/Sensor",
 				"UnrealCV/Public/Sensor/CameraSensor",
 				"UnrealCV/Public/Server",
-				"UnrealCV/Public/Utils"
+				"UnrealCV/Public/Utils",
+				"UnrealCV/Public/Encoder"
 			}
 		);
 
@@ -110,7 +111,17 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateDependencyModuleNames = BuildConfig.EditorPrivateDependencyModuleNames;
 			}
+
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				PublicAdditionalLibraries.AddRange(new string[] {
+					"mfuuid.lib",
+					"mfplat.lib",
+					"mf.lib",
+					"mfreadwrite.lib",
+					"wmcodecdspuuid.lib"
+				});
+			}
 		}
 	}
 }
-
