@@ -41,7 +41,7 @@
 
 // static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
 static const float ROTATE_BUFFER_DURATION_SECONDS = 0.0f;
-static const int32 ROTATE_NUM_FRAMES_OVERRIDE = 121;
+static const int32 ROTATE_NUM_FRAMES_OVERRIDE = 1210;
 // static const int32 WARM_UP_FRAMES = 45;
 static const int32 WARM_UP_FRAMES = 25;
 

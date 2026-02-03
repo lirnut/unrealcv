@@ -30,7 +30,7 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
 
 	ShowFlags.SetHair(true);  
 	ShowFlags.SetDynamicShadows(true);
-	ShowFlags.SetContactShadows(true); 
+	ShowFlags.SetContactShadows(false); 
   	ShowFlags.SetCapsuleShadows(true); 
 
 	ShowFlags.SetPreviewShadowsIndicator(false);
@@ -405,7 +405,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	PPSettings.bOverride_LumenFinalGatherQuality = 1;
 	PPSettings.LumenFinalGatherQuality = 2.0f;
 	PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
-	PPSettings.LumenFinalGatherScreenTraces = 0;
+	PPSettings.LumenFinalGatherScreenTraces = 1;
 	// PPSettings.bOverride_LumenMaxTraceDistance = 1;
 	// PPSettings.LumenMaxTraceDistance = 2097152.0f;
 	// PPSettings.bOverride_LumenReflectionQuality = 1;
@@ -423,9 +423,9 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	// PPSettings.bOverride_LumenSurfaceCacheResolution = 1;
 	// PPSettings.LumenSurfaceCacheResolution = 1.0f;
 	PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
-	PPSettings.LumenSceneLightingUpdateSpeed = 10.0f;
+	PPSettings.LumenSceneLightingUpdateSpeed = 0.5f;
 	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	PPSettings.LumenFinalGatherLightingUpdateSpeed = 10.0f;
+	PPSettings.LumenFinalGatherLightingUpdateSpeed = 0.5f;
 
 	PPSettings.bOverride_AutoExposureMethod = 1;
 	PPSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Histogram;
@@ -448,6 +448,56 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	// PPSettings.MotionBlurMax = 0.f;  // default 5.0
 	// PPSettings.MotionBlurTargetFPS = 24;  // default 30
 	// PPSettings.MotionBlurPerObjectSize = 0.f;
+
+	FVector4 Saturation = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+	FVector4 Contrast = FVector4(0.85f, 0.85f, 0.85f, 1.0f);
+	FVector4 Gamma = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+	FVector4 Gain = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+	FVector4 Offset = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+
+	PPSettings.bOverride_ColorSaturation = 1;
+	PPSettings.ColorSaturation = Saturation;
+	PPSettings.bOverride_ColorContrast = 1;
+	PPSettings.ColorContrast = Contrast;
+	PPSettings.bOverride_ColorGamma = 1;
+	PPSettings.ColorGamma = Gamma;
+	PPSettings.bOverride_ColorGain = 1;
+	PPSettings.ColorGain = Gain;
+	PPSettings.bOverride_ColorOffset = 1;
+	PPSettings.ColorOffset = Offset;
+
+	PPSettings.bOverride_ColorSaturationShadows = 1;
+	PPSettings.ColorSaturationShadows = Saturation;
+	PPSettings.bOverride_ColorContrastShadows = 1;
+	PPSettings.ColorContrastShadows = Contrast;
+	PPSettings.bOverride_ColorGammaShadows = 1;
+	PPSettings.ColorGammaShadows = Gamma;
+	PPSettings.bOverride_ColorGainShadows = 1;
+	PPSettings.ColorGainShadows = Gain;
+	PPSettings.bOverride_ColorOffsetShadows = 1;
+	PPSettings.ColorOffsetShadows = Offset;
+
+	PPSettings.bOverride_ColorSaturationMidtones = 1;
+	PPSettings.ColorSaturationMidtones = Saturation;
+	PPSettings.bOverride_ColorContrastMidtones = 1;
+	PPSettings.ColorContrastMidtones = Contrast;
+	PPSettings.bOverride_ColorGammaMidtones = 1;
+	PPSettings.ColorGammaMidtones = Gamma;
+	PPSettings.bOverride_ColorGainMidtones = 1;
+	PPSettings.ColorGainMidtones = Gain;
+	PPSettings.bOverride_ColorOffsetMidtones = 1;
+	PPSettings.ColorOffsetMidtones = Offset;
+
+	PPSettings.bOverride_ColorSaturationHighlights = 1;
+	PPSettings.ColorSaturationHighlights = Saturation;
+	PPSettings.bOverride_ColorContrastHighlights = 1;
+	PPSettings.ColorContrastHighlights = Contrast;
+	PPSettings.bOverride_ColorGammaHighlights = 1;
+	PPSettings.ColorGammaHighlights = Gamma;
+	PPSettings.bOverride_ColorGainHighlights = 1;
+	PPSettings.ColorGainHighlights = Gain;
+	PPSettings.bOverride_ColorOffsetHighlights = 1;
+	PPSettings.ColorOffsetHighlights = Offset;
 
 	// View->EndFinalPostprocessSettings(ViewInitOptions);
 

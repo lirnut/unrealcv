@@ -10,7 +10,9 @@
 AUnrealcvGameMode::AUnrealcvGameMode()
 {
 	DefaultPawnClass = AUnrealcvPawn::StaticClass();
+#ifdef WITH_EDITOR
 	HUDClass = ARecordingHUD::StaticClass();
+#endif
 }
 
 // TODO: Remove the requirement of modifying pawn
