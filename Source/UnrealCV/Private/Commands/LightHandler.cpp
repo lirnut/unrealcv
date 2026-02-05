@@ -28,6 +28,18 @@ void FLightHandler::RegisterCommands()
 		FDispatcherDelegate::CreateRaw(this, &FLightHandler::SetSkyLightIntensity),
 		"Set SkyLight intensity"
 	);
+
+	CommandDispatcher->BindCommand(
+		"vget /light/directional/castdeepshadow",
+		FDispatcherDelegate::CreateRaw(this, &FLightHandler::GetDirectionalLightCastDeepShadow),
+		"Get DirectionalLight cast deep shadow"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vset /light/directional/castdeepshadow [bool]",
+		FDispatcherDelegate::CreateRaw(this, &FLightHandler::SetDirectionalLightCastDeepShadow),
+		"Set DirectionalLight cast deep shadow"
+	);
 }
 
 FExecStatus FLightHandler::GetDirectionalLightIntensity(const TArray<FString>& Args)
@@ -103,5 +115,38 @@ FExecStatus FLightHandler::SetSkyLightIntensity(const TArray<FString>& Args)
 	else
 	{
 		return FExecStatus::Error(TEXT("Failed to set SkyLight intensity"));
+	}
+}
+
+FExecStatus FLightHandler::GetDirectionalLightCastDeepShadow(const TArray<FString>& Args)
+{
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
+	if (!World)
+	{
+		return FExecStatus::Error(TEXT("Cannot get world"));
+	}
+
+	bool bCastDeepShadow = ULightBPLib::GetDirectionalLightCastDeepShadow(World);
+	return FExecStatus::OK(bCastDeepShadow ? TEXT("true") : TEXT("false"));
+}
+
+FExecStatus FLightHandler::SetDirectionalLightCastDeepShadow(const TArray<FString>& Args)
+{
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
+	if (!World)
+	{
+		return FExecStatus::Error(TEXT("Cannot get world"));
+	}
+
+	bool bCastDeepShadow = Args[0].Equals(TEXT("true"), ESearchCase::IgnoreCase) || Args[0].Equals(TEXT("1"));
+	bool bSuccess = ULightBPLib::SetDirectionalLightCastDeepShadow(World, bCastDeepShadow);
+
+	if (bSuccess)
+	{
+		return FExecStatus::OK(FString::Printf(TEXT("Set DirectionalLight cast deep shadow to %s"), bCastDeepShadow ? TEXT("true") : TEXT("false")));
+	}
+	else
+	{
+		return FExecStatus::Error(TEXT("Failed to set DirectionalLight cast deep shadow"));
 	}
 }

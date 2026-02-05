@@ -7,6 +7,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "BPFunctionLib/MetaHumanBPLib.h"
 #include "BPFunctionLib/AnnotationBPLib.h"
+#include "BPFunctionLib/LightBPLib.h"
 
 #define LOCTEXT_NAMESPACE "FUnrealCVEditorModule"
 
@@ -63,6 +64,14 @@ void FUnrealCVEditorModule::RegisterMenus()
 					LOCTEXT("DeannotateWorldTooltip", "DeannotateWorld"),
 					FSlateIcon(),
 					FUIAction(FExecuteAction::CreateStatic(&FUnrealCVEditorModule::OnDeannotateWorld))
+				);
+
+				CacheSection.AddMenuEntry(
+					"EnableDeepShadow",
+					LOCTEXT("EnableDeepShadowLabel", "Enable Deep Shadow"),
+					LOCTEXT("EnableDeepShadowTooltip", "Enable cast deep shadow for directional light"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateStatic(&FUnrealCVEditorModule::OnEnableDeepShadow))
 				);
 
 				CacheSection.AddMenuEntry(
@@ -186,6 +195,44 @@ void FUnrealCVEditorModule::OnCancel()
 {
 	UE_LOG(LogTemp, Log, TEXT("Canceling async operation"));
 	UMetaHumanBPLib::CancelAsyncOperation();
+}
+
+void FUnrealCVEditorModule::OnEnableDeepShadow()
+{
+	UE_LOG(LogTemp, Log, TEXT("=== Enable Cast Deep Shadow ==="));
+
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if (!World)
+	{
+		FString Message = TEXT("Failed to get world context");
+		UE_LOG(LogTemp, Error, TEXT("%s"), *Message);
+
+		FNotificationInfo ErrorInfo(FText::FromString(Message));
+		ErrorInfo.ExpireDuration = 3.0f;
+		FSlateNotificationManager::Get().AddNotification(ErrorInfo);
+		return;
+	}
+
+	bool bSuccess = ULightBPLib::SetDirectionalLightCastDeepShadow(World, true);
+
+	if (bSuccess)
+	{
+		FString Message = TEXT("Enabled cast deep shadow for directional light");
+		UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
+
+		FNotificationInfo SuccessInfo(FText::FromString(Message));
+		SuccessInfo.ExpireDuration = 3.0f;
+		FSlateNotificationManager::Get().AddNotification(SuccessInfo);
+	}
+	else
+	{
+		FString Message = TEXT("Failed to enable cast deep shadow (no directional light found)");
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
+
+		FNotificationInfo WarningInfo(FText::FromString(Message));
+		WarningInfo.ExpireDuration = 3.0f;
+		FSlateNotificationManager::Get().AddNotification(WarningInfo);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

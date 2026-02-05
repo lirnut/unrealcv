@@ -21,6 +21,7 @@ private:
 	static void OnSearchSaveAndSetAnimation();
 	static void OnSearchSaveSetAnimationAndSpawn();
 	static void OnCancel();
+	static void OnEnableDeepShadow();
 
 	TSharedPtr<class FMetaHumanEditorCommands> Commands;
 	TSharedPtr<FUICommandList> PluginCommands;

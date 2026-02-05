@@ -19,4 +19,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Light")
 	static float GetSkyLightIntensity(UObject* WorldContextObject);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Light")
+	static bool SetDirectionalLightCastDeepShadow(UObject* WorldContextObject, bool bCastDeepShadow);
+
+	UFUNCTION(BlueprintPure, Category = "UnrealCV|Light")
+	static bool GetDirectionalLightCastDeepShadow(UObject* WorldContextObject);
 };

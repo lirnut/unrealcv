@@ -101,3 +101,52 @@ float ULightBPLib::GetSkyLightIntensity(UObject* WorldContextObject)
 	UE_LOG(LogUnrealCV, Warning, TEXT("GetSkyLightIntensity: No SkyLight found in world"));
 	return -1.0f;
 }
+
+bool ULightBPLib::SetDirectionalLightCastDeepShadow(UObject* WorldContextObject, bool bCastDeepShadow)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SetDirectionalLightCastDeepShadow: Invalid world context"));
+		return false;
+	}
+
+	for (TActorIterator<ADirectionalLight> It(World); It; ++It)
+	{
+		ADirectionalLight* Light = *It;
+		if (Light && Light->GetLightComponent())
+		{
+			Light->GetLightComponent()->bCastDeepShadow = bCastDeepShadow;
+			Light->GetLightComponent()->MarkRenderStateDirty();
+			UE_LOG(LogUnrealCV, Log, TEXT("SetDirectionalLightCastDeepShadow: Set to %s"), bCastDeepShadow ? TEXT("true") : TEXT("false"));
+			return true;
+		}
+	}
+
+	UE_LOG(LogUnrealCV, Warning, TEXT("SetDirectionalLightCastDeepShadow: No DirectionalLight found in world"));
+	return false;
+}
+
+bool ULightBPLib::GetDirectionalLightCastDeepShadow(UObject* WorldContextObject)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("GetDirectionalLightCastDeepShadow: Invalid world context"));
+		return false;
+	}
+
+	for (TActorIterator<ADirectionalLight> It(World); It; ++It)
+	{
+		ADirectionalLight* Light = *It;
+		if (Light && Light->GetLightComponent())
+		{
+			bool bCastDeepShadow = Light->GetLightComponent()->bCastDeepShadow;
+			UE_LOG(LogUnrealCV, Log, TEXT("GetDirectionalLightCastDeepShadow: Current value is %s"), bCastDeepShadow ? TEXT("true") : TEXT("false"));
+			return bCastDeepShadow;
+		}
+	}
+
+	UE_LOG(LogUnrealCV, Warning, TEXT("GetDirectionalLightCastDeepShadow: No DirectionalLight found in world"));
+	return false;
+}

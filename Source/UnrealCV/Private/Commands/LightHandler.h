@@ -12,4 +12,6 @@ private:
 	FExecStatus SetDirectionalLightIntensity(const TArray<FString>& Args);
 	FExecStatus GetSkyLightIntensity(const TArray<FString>& Args);
 	FExecStatus SetSkyLightIntensity(const TArray<FString>& Args);
+	FExecStatus GetDirectionalLightCastDeepShadow(const TArray<FString>& Args);
+	FExecStatus SetDirectionalLightCastDeepShadow(const TArray<FString>& Args);
 };
