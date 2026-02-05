@@ -10,25 +10,28 @@ UPawnCamSensor::UPawnCamSensor(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
 	this->PrimaryComponentTick.bCanEverTick = true;
-	UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::Constructor: this=%p, bCanEverTick=%d, bStartWithTickEnabled=%d"),
-		this, this->PrimaryComponentTick.bCanEverTick, this->PrimaryComponentTick.bStartWithTickEnabled);
+	// UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::Constructor: this=%p, bCanEverTick=%d, bStartWithTickEnabled=%d"),
+	// 	this, this->PrimaryComponentTick.bCanEverTick, this->PrimaryComponentTick.bStartWithTickEnabled);
 
 	for (UBaseCameraSensor* Sensor : FusionSensors)
 	{
 		if (!IsValid(Sensor))
 		{
-			UE_LOG(LogTemp, Error, TEXT("UPawnCamSensor::UPawnCamSensor: Sensor %p within PawnCamSensor is invalid. this: %p"), Sensor, this);
+			// UE_LOG(LogTemp, Error, TEXT("UPawnCamSensor::UPawnCamSensor: Sensor %p within PawnCamSensor is invalid. this: %p"), Sensor, this);
 		 	continue;
 		}
 		// Sensor->bAbsoluteLocation = true;
 		// Sensor->bAbsoluteRotation = true;
+		Sensor->SetUsingAbsoluteLocation(true);
+		Sensor->SetUsingAbsoluteRotation(true);
+		// UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::Constructor: Set Sensor[%s] to use absolute location/rotation"), *Sensor->GetName());
 	}
 }
 
 void UPawnCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * T)
 {
 	Super::TickComponent(DeltaTime, TickType, T);
-	UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::TickComponent: Called! this=%p, DeltaTime=%f"), this, DeltaTime);
+	// UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::TickComponent: Called! this=%p, DeltaTime=%f"), this, DeltaTime);
 	// Make the world location and view rotation is the same as the Pawn viewpoint
 	FVector EyeLocation;
 	FRotator EyeRotation;
@@ -37,7 +40,7 @@ void UPawnCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FA
 	APawn *Pawn = Cast<APawn>(Owner);
 	if (!IsValid(Pawn))
 	{
-		UE_LOG(LogTemp, Error, TEXT("UPawnCamSensor::TickComponent: Pawn is invalid. this: %p"), this);
+		// UE_LOG(LogTemp, Error, TEXT("UPawnCamSensor::TickComponent: Pawn is invalid. this: %p"), this);
 		return;
 	}
 
@@ -45,8 +48,8 @@ void UPawnCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FA
 	// Note: https://answers.unrealengine.com/questions/5155/getting-editor-viewport-camera.html
 	// GEngine->GameViewport->Viewport
 	Pawn->GetActorEyesViewPoint(EyeLocation, EyeRotation);
-	UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::TickComponent: EyeLocation=%s, EyeRotation=%s"),
-		*EyeLocation.ToString(), *EyeRotation.ToString());
+	// UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::TickComponent: EyeLocation=%s, EyeRotation=%s"),
+	// 	*EyeLocation.ToString(), *EyeRotation.ToString());
 	// GetPlayerViewpoint(EyeLocation, EyeRotation);
 	// FRotator CompRotation = this->GetComponentRotation();
 	// FVector CompLocation = this->GetComponentLocation();
@@ -57,10 +60,10 @@ void UPawnCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FA
 	this->SetWorldLocation(EyeLocation);
 	this->SetWorldRotation(EyeRotation);
 	this->UpdateChildTransforms();
-	FVector ActualLocation = this->GetComponentLocation();
-	FRotator ActualRotation = this->GetComponentRotation();
-	UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::TickComponent: After Set - ActualLocation=%s, ActualRotation=%s"),
-		*ActualLocation.ToString(), *ActualRotation.ToString());
+	// FVector ActualLocation = this->GetComponentLocation();
+	// FRotator ActualRotation = this->GetComponentRotation();
+	// UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::TickComponent: After Set - ActualLocation=%s, ActualRotation=%s"),
+	// 	*ActualLocation.ToString(), *ActualRotation.ToString());
 
 	// USceneComponent* Parent = this->LitCamSensor->GetAttachParent();
 	// if (Parent != this)
@@ -82,8 +85,12 @@ void UPawnCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FA
 			UE_LOG(LogTemp, Error, TEXT("SetSensorLocation: Sensor %p within PawnCamSensor is invalid. this: %p"), Sensor, this);
 		 	continue;
 		}
+		// FVector BeforeLoc = Sensor->GetSensorLocation();
 		Sensor->SetSensorLocation(EyeLocation);
 		Sensor->SetSensorRotation(EyeRotation);
+		// FVector AfterLoc = Sensor->GetSensorLocation();
+		// UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::TickComponent: Sensor[%s] BeforeLoc=%s, AfterLoc=%s"),
+		// 	*Sensor->GetName(), *BeforeLoc.ToString(), *AfterLoc.ToString());
 	}
 	// TODO: check this with a player pawn
 	// if (CompLocation != EyeLocation || CompRotation != EyeRotation)

@@ -16,6 +16,11 @@ ULitCamSensor::ULitCamSensor(const FObjectInitializer& ObjectInitializer) :
 {
 	// CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 	CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
+	this->ShowFlags.SetAntiAliasing(true);
+	this->ShowFlags.SetTemporalAA(false);
+	// this->ShowFlags.SetEyeAdaptation(false); // Eye adaption is a slow temporal procedure, not useful for image capture
+
+
 
 	if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders)
 	{

@@ -29,7 +29,8 @@ FServerConfig::FServerConfig()
 	EnableRightEye = false;
 	UseFastCapture = true;
 	bLitUseBGRA8 = true;
-	OpticalFlowScale = 100.0f;
+	OpticalFlowScale = 500.0f;
+	bIgnoreTransparentObjects = false;
 
 	SupportedModes.Add(TEXT("lit"));
 	SupportedModes.Add(TEXT("depth"));
@@ -56,6 +57,7 @@ FServerConfig::FServerConfig()
 	UE_LOG(LogUnrealCV, Warning, TEXT("UseFastCapture: %s"), *BoolToString(this->UseFastCapture));
 	UE_LOG(LogUnrealCV, Warning, TEXT("bLitUseBGRA8: %s"), *BoolToString(this->bLitUseBGRA8));
 	UE_LOG(LogUnrealCV, Warning, TEXT("OpticalFlowScale: %f"), this->OpticalFlowScale);
+	UE_LOG(LogUnrealCV, Warning, TEXT("bIgnoreTransparentObjects: %s"), *BoolToString(this->bIgnoreTransparentObjects));
 }
 
 void FServerConfig::ParseCmdArgs()
@@ -125,6 +127,7 @@ FString FServerConfig::ToString() {
 	Msg += FString::Printf(TEXT("UseFastCapture: %s\n"), *BoolToString(this->UseFastCapture));
 	Msg += FString::Printf(TEXT("bLitUseBGRA8: %s\n"), *BoolToString(this->bLitUseBGRA8));
 	Msg += FString::Printf(TEXT("OpticalFlowScale: %f\n"), this->OpticalFlowScale);
+	Msg += FString::Printf(TEXT("bIgnoreTransparentObjects: %s\n"), *BoolToString(this->bIgnoreTransparentObjects));
 	return Msg;
 }
 
@@ -145,6 +148,7 @@ bool FServerConfig::Load() {
 	GConfig->GetBool(*CoreSection, TEXT("UseFastCapture"), this->UseFastCapture, this->ConfigFile);
 	GConfig->GetBool(*CoreSection, TEXT("bLitUseBGRA8"), this->bLitUseBGRA8, this->ConfigFile);
 	GConfig->GetFloat(*CoreSection, TEXT("OpticalFlowScale"), this->OpticalFlowScale, this->ConfigFile);
+	GConfig->GetBool(*CoreSection, TEXT("bIgnoreTransparentObjects"), this->bIgnoreTransparentObjects, this->ConfigFile);
 
 	return true;
 }
@@ -165,6 +169,7 @@ bool FServerConfig::Save()
 	GConfig->SetBool(*CoreSection, TEXT("UseFastCapture"), this->UseFastCapture, this->ConfigFile);
 	GConfig->SetBool(*CoreSection, TEXT("bLitUseBGRA8"), this->bLitUseBGRA8, this->ConfigFile);
 	GConfig->SetFloat(*CoreSection, TEXT("OpticalFlowScale"), this->OpticalFlowScale, this->ConfigFile);
+	GConfig->SetBool(*CoreSection, TEXT("bIgnoreTransparentObjects"), this->bIgnoreTransparentObjects, this->ConfigFile);
 
 	bool Read = false;
 	GConfig->Flush(Read, this->ConfigFile);

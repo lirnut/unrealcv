@@ -178,7 +178,8 @@ public:
 
 FPrimitiveViewRelevance FStaticAnnotationSceneProxy::GetViewRelevance(const FSceneView * View) const
 {
-	if ( !View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing )
+	// if ( !View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing )
+	if ( !View->Family->EngineShowFlags.Materials )
 	{
 		return FStaticMeshSceneProxy::GetViewRelevance(View);
 	}
@@ -278,7 +279,8 @@ void FSkeletalAnnotationSceneProxy::GetDynamicMeshElements(
 
 FPrimitiveViewRelevance FSkeletalAnnotationSceneProxy::GetViewRelevance(const FSceneView * View) const
 {
-	if ( !View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing )
+	// if ( !View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing )
+	if ( !View->Family->EngineShowFlags.Materials )
 	{
 		return FSkeletalMeshSceneProxy::GetViewRelevance(View);
 	}
@@ -510,7 +512,8 @@ public:
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
-		if (!View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing)
+		// if (!View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing)
+		if (!View->Family->EngineShowFlags.Materials )
 		{
 // 			FPrimitiveViewRelevance Result;
 // 			if (View->Family->EngineShowFlags.InstancedStaticMeshes)

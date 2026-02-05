@@ -191,7 +191,8 @@ void FGroomAnnotationSceneProxy::GetDynamicMeshElements(
 
 FPrimitiveViewRelevance FGroomAnnotationSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
-	if (!View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing)
+	// if (!View->Family->EngineShowFlags.Materials && !View->Family->EngineShowFlags.PostProcessing)
+	if ( !View->Family->EngineShowFlags.Materials )
 	{
 		FPrimitiveViewRelevance Result;
 		Result.bDrawRelevance = IsShown(View);

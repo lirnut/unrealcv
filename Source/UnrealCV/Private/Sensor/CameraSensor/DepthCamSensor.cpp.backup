@@ -8,27 +8,11 @@
 #include "UnrealcvLog.h"
 #include "RHISurfaceDataConversionOpt.h"
 #include "BPFunctionLib/AnnotationBPLib.h"
-#include "UnrealcvServer.h"
-// #include "ServerConfig.h"
 
 UDepthCamSensor::UDepthCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
-	bRenderInMainRenderer = true;  // optimization
-	this->ShowFlags.SetPostProcessing(true);
-	this->ShowFlags.SetPostProcessMaterial(true);
-
-	FString NormalPPMaterialPath = TEXT("Material'/UnrealCV/SceneDepthNative.SceneDepthNative'");
-	ConstructorHelpers::FObjectFinder<UMaterial> Material(*NormalPPMaterialPath);
-	if (IsValid(Material.Object))
-	{
-		this->DepthPPMaterial = Material.Object;
-		SetPostProcessMaterial(DepthPPMaterial);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load normal post process material: %s"), *NormalPPMaterialPath);
-	}
+	this->CaptureSource = ESceneCaptureSource::SCS_SceneDepth;
 
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	bIgnoreTransparentObjects = Config.bIgnoreTransparentObjects;
@@ -39,7 +23,6 @@ void UDepthCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 	EPixelFormat PixelFormat = EPixelFormat::PF_FloatRGBA;
 	bool bUseLinearGamma = true;
 	TextureTarget->InitCustomFormat(filmWidth, filmHeight, EPixelFormat::PF_FloatRGBA, bUseLinearGamma);
-	SetPostProcessMaterial(DepthPPMaterial);
 }
 
 void UDepthCamSensor::CaptureDepth(TArray<float>& DepthData, int& Width, int& Height)

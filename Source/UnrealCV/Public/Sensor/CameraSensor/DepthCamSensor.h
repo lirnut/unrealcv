@@ -21,4 +21,8 @@ public:
 
 	UPROPERTY(EditInstanceOnly, Category = "unrealcv")
 	bool bIgnoreTransparentObjects;
+
+protected:
+	UPROPERTY()
+	UMaterial* DepthPPMaterial;
 };

@@ -45,8 +45,12 @@ void AUnrealcvWorldController::AttachPawnSensor()
 	PawnCamSensor->AttachToComponent(Pawn->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	// AActor* OwnerActor = FusionCamSensor->GetOwner();
 	PawnCamSensor->RegisterComponent(); // Is this neccessary?
-	UE_LOG(LogUnrealCV, Warning, TEXT("AttachPawnSensor: After Register - IsRegistered=%d, bCanEverTick=%d, IsActive=%d"),
-		PawnCamSensor->IsRegistered(), PawnCamSensor->PrimaryComponentTick.bCanEverTick, PawnCamSensor->IsActive());
+	PawnCamSensor->SetActive(true);
+	PawnCamSensor->SetComponentTickEnabled(true);
+	// UE_LOG(LogUnrealCV, Warning, TEXT("AttachPawnSensor: After Register - IsRegistered=%d, bCanEverTick=%d, IsActive=%d"),
+	// 	PawnCamSensor->IsRegistered(), PawnCamSensor->PrimaryComponentTick.bCanEverTick, PawnCamSensor->IsActive());
+	// UE_LOG(LogUnrealCV, Warning, TEXT("AttachPawnSensor: After Activation - IsActive=%d, IsComponentTickEnabled=%d"),
+	// 	PawnCamSensor->IsActive(), PawnCamSensor->IsComponentTickEnabled());
 	UVisionBPLib::UpdateInput(Pawn, Server.Config.EnableInput);
 }
 

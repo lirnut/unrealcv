@@ -23,6 +23,7 @@ public:
 	bool UseFastCapture;
 	bool bLitUseBGRA8;
 	float OpticalFlowScale;
+	bool bIgnoreTransparentObjects;
 
 	TArray<FString> SupportedModes;
 

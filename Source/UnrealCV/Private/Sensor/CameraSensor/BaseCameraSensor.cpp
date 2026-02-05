@@ -40,8 +40,8 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	bUseRayTracingIfEnabled = true;
 	bAlwaysPersistRenderingState = true;
 
-	this->ShowFlags.SetAntiAliasing(true);
-	this->ShowFlags.SetTemporalAA(true);
+	// this->ShowFlags.SetAntiAliasing(true);
+	// this->ShowFlags.SetTemporalAA(true);
 	// this->ShowFlags.SetEyeAdaptation(false); // Eye adaption is a slow temporal procedure, not useful for image capture
 
     // this->ShowFlags.SetMotionBlur(false);

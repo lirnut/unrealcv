@@ -2264,7 +2264,7 @@ FExecStatus FCameraHandler::SpawnPanoramicCamera(const TArray<FString>& Args)
 		CubemapResolution = FCString::Atoi(*Args[3]);
 	}
 
-	UWorld* World = FWorldController::Get().GetWorld();
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
 	if (!IsValid(World))
 	{
 		return FExecStatus::Error("World not valid");
@@ -2308,7 +2308,7 @@ FExecStatus FCameraHandler::GetCameraPanoramic(const TArray<FString>& Args)
 		EquirectHeight = FCString::Atoi(*Args[2]);
 	}
 
-	UWorld* World = FWorldController::Get().GetWorld();
+	UWorld* World = FUnrealcvServer::Get().GetWorld();
 	if (!IsValid(World))
 	{
 		return FExecStatus::Error("World not valid");
