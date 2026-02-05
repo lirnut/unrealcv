@@ -499,6 +499,11 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	PPSettings.bOverride_ColorOffsetHighlights = 1;
 	PPSettings.ColorOffsetHighlights = Offset;
 
+	PPSettings.bOverride_Sharpen = 1;
+	PPSettings.Sharpen = 0.0f;
+	PPSettings.bOverride_FilmGrainIntensity = 1;
+	PPSettings.FilmGrainIntensity = 0.0f;
+
 	// View->EndFinalPostprocessSettings(ViewInitOptions);
 
 	ViewFamily->Views.Add(View);
