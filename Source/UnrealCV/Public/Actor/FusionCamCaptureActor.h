@@ -224,7 +224,7 @@ protected:
 	FSceneHandle SceneHandle;
 
 	void OnTimerRecord();
-	void RecordFrame();
+	void RecordFrame(bool bWarmUp = false);
 	void UpdateFocalDistance();
 
 	void SetDefaultParamsForTargetCamera();

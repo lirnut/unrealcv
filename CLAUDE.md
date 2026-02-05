@@ -57,9 +57,9 @@ Tests communicate via TCP to UnrealCV server on the running game instance. See `
 ```
 Source/UnrealCV/
 ├── Private/              # Implementation files
-│   ├── BPFunctionLib/    # Blueprint library implementations (11 libraries)
+│   ├── BPFunctionLib/    # Blueprint library implementations
 │   ├── Sensor/           # Camera sensor implementations & async capture
-│   ├── Commands/         # 11 command handlers (ActionHandler, CameraHandler, etc.)
+│   ├── Commands/         # Command handlers (CameraHandler, ObjectHandler, etc.)
 │   ├── Controller/       # WorldController, ObjectAnnotator, PlayerViewMode
 │   ├── Server/           # TCP server, CommandDispatcher, handlers
 │   ├── Actor/            # Recording actors, camera actors, puppeteers
@@ -81,12 +81,12 @@ Source/UnrealCV/
    - Parses incoming "vget"/"vset" commands
    - Dispatches to appropriate handler based on command prefix
 
-3. **11 Command Handlers** - Each handles specific command category:
+3. **Command Handlers** in `Private/Commands/`:
    - `CameraHandler` - `/camera/*` (control, sensors, recording)
    - `ObjectHandler` - `/object/*` (visibility, transform, properties)
    - `ActionHandler` - `/action/*` (pause, level load, keyboard input)
    - `CaptureActorHandler` - `/captureactor/*` (dataset recording)
-   - `AliasHandler`, `AgentNavHandler`, `PluginHandler`, etc.
+   - `AliasHandler`, `AgentNavHandler`, `PluginHandler`
 
 4. **UFusionCamSensor** (FusionCamSensor.h) - Unified multi-pass rendering orchestrator
    - Manages 5 specialized sensor types in single render pass
@@ -98,7 +98,14 @@ Source/UnrealCV/
    - Automatically destroyed when recording stops
    - Writes frame data directly to disk (async file I/O)
 
-**Blueprint Function Libraries** (11 total in BPFunctionLib/):
+**Annotation System**:
+- **FObjectAnnotator** (ObjectAnnotator.h) - Static facade for annotation operations
+- **IAnnotatorImpl** - Interface for annotation strategies
+- **FDirectAnnotator** (DirectAnnotator.h) - Direct per-actor color assignment
+- **FProxyAnnotator** (ProxyAnnotator.h) - Efficient batch annotation via post-process
+- Switch between strategies via `FObjectAnnotator::SetAnnotationMode()`
+
+**Blueprint Function Libraries** (BPFunctionLib/):
 - `URecordingBPLib` - Camera recording control (normal, bullet-time, trajectory modes)
 - `USceneCompositionBPLib` - Automated scene generation from asset pools
 - `UDatasetAutomationBPLib` - High-level batch generation orchestration
@@ -119,15 +126,21 @@ Source/UnrealCV/
 ## Key Patterns & Conventions
 
 ### Command System Pattern
-Each handler in `Private/Server/` implements command processing:
+Each handler in `Private/Server/` registers commands via `RegisterCommands()`:
 ```cpp
-FString HandleCommand(const TArray<FString>& Cmd);  // "vget /camera/0/location" → "100.0 200.0 50.0"
+CommandDispatcher->BindCommand(
+    "vget /object/[str]/location",
+    FDispatcherDelegate::CreateRaw(this, &FObjectHandler::GetLocation),
+    "Get object location [x, y, z]"
+);
 ```
 
-- `vget` = Query (returns data)
-- `vset` = Modify (returns success status)
-- Command format: `vget|vset /handler/subcommand [args]`
-- Return format: Single line string or error message prefixed with "ERROR:"
+Handler implementations return `FExecStatus`:
+- `FExecStatus::OK(result)` - Success with optional string result
+- `FExecStatus::Error(msg)` - Failure
+- `FExecStatus::GetInvalidArgument()` - Argument parsing error
+
+Command format: `vget /handler/subcommand [args]` or `vset /handler/subcommand [args]`
 
 ### Async GPU Readback Pattern (2025-11-12)
 Recording uses 3-phase pipeline to maximize throughput:
@@ -240,12 +253,12 @@ See `test/server/camera_test.py` for examples
 ## Important Implementation Details
 
 ### Camera ID Format
-- **Old format** (integers): 0, 1, 2... (based on creation order, unstable if sensors destroyed)
-- **New format** (CID): `CID-ActorName-UUID` (stable, tied to sensor instance)
-- Both formats supported in command handlers via `ParseCameraID()` utility
+- **Integer format** (legacy): 0, 1, 2... (creation-order based, unstable)
+- **CID format**: `CID-ActorName-UUID` (stable, tied to sensor instance)
+- Both supported via `ParseCameraID()` utility
 
 ### Object Visibility Control
-Use `SetActorHiddenInGame()` for rendering control (affects all camera sensors). For per-sensor filtering, modify UFusionCamSensor visibility modes.
+`SetActorHiddenInGame()` for rendering control (affects all cameras). Per-sensor filtering via UFusionCamSensor visibility modes.
 
 ### Asset Pool System
 `FAssetPoolManager` (Utils/AssetPoolManager.h) manages runtime asset registration:
@@ -253,27 +266,18 @@ Use `SetActorHiddenInGame()` for rendering control (affects all camera sensors).
 - `RegisterAsset(Category, AssetPath)` - Add asset at runtime
 - `GetRandomAsset(Category)` - Random selection for scene generation
 
-### Performance Considerations
+### Color Generation
+`FColorGenerator` (ObjectAnnotator.h) generates deterministic annotation colors from object indices using channel-wise bit patterns.
 
-- **GPU Readback**: Use async `CaptureToFile` for high-throughput recording (30-50% faster)
-- **Multi-threading**: Async file I/O offloads disk writes from game thread
-- **Render Targets**: UFusionCamSensor allocates 5 targets per sensor pair
-- **Build Time**: C++ changes require editor recompile (~17 sec on 16-core system)
+### Async Capture Pipeline
+1. **Render Thread**: `ENQUEUE_RENDER_COMMAND` - GPU readback via `FRHIGPUTextureReadback`
+2. **Game Thread**: `AsyncTask` - PNG encoding and disk write (non-blocking)
+3. **Next Frame**: Readback data available for use or file write
 
-## Async Capture Implementation Details (Advanced)
-
-The async pipeline separates GPU readback from file I/O:
-
-1. **ENQUEUE_RENDER_COMMAND** on render thread - Read GPU texture via FRHIGPUTextureReadback
-2. **AsyncTask(GameThread)** - PNG encoding and disk write (async, non-blocking)
-3. **Next Frame**: Readback data available, can be used or written to file
-
-This allows the game thread to continue while the render thread is busy with GPU operations.
-
-Files involved:
-- `Private/Sensor/AsyncCaptureHelper.h/.cpp` - Low-level async readback pool
-- `Private/Sensor/CameraSensor/BaseCameraSensor.h/.cpp` - CaptureToFile implementations
-- `Private/Actor/FusionCamCaptureActor.cpp` - Records frames using async pipeline
+Key files:
+- `Private/Sensor/AsyncCaptureHelper.h/.cpp`
+- `Private/Sensor/CameraSensor/BaseCameraSensor.h/.cpp`
+- `Private/Actor/FusionCamCaptureActor.cpp`
 
 ## Build Configuration
 
@@ -314,10 +318,6 @@ No manual build steps required - standard UE project build handles everything.
 
 **Architecture**: UE Editor-centric (no external TCP dependency during recording). All scene composition and batch generation via Blueprint Function Libraries + UMG UI.
 
-## Notes
+## Git Workflow
 
-- **No documentation files**: Code is self-documenting through clear naming
-- **Code speaks for itself**: Prefer readable code structure over comments
-- **Iterative development**: Working implementation > perfect design docs
-- **Testing**: Manual testing in UE editor due to UE5 build system complexity
-- **Git workflow**: Branch `shc/dev` for HUAWEI_Project dataset production (UE 5.2-5.6)
+Branch: `shc/dev` for HUAWEI_Project dataset production (UE 5.2-5.6)

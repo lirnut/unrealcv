@@ -24,6 +24,7 @@ public:
 	bool bLitUseBGRA8;
 	float OpticalFlowScale;
 	bool bIgnoreTransparentObjects;
+	bool UseDirectAnnotation;
 
 	TArray<FString> SupportedModes;
 

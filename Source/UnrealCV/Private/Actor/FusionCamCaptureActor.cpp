@@ -41,7 +41,7 @@
 
 // static const float ROTATE_BUFFER_DURATION_SECONDS = 2.0f;
 static const float ROTATE_BUFFER_DURATION_SECONDS = 0.0f;
-static const int32 ROTATE_NUM_FRAMES_OVERRIDE = 1210;
+static const int32 ROTATE_NUM_FRAMES_OVERRIDE = 121;
 // static const int32 WARM_UP_FRAMES = 45;
 static const int32 WARM_UP_FRAMES = 25;
 
@@ -348,10 +348,9 @@ void AFusionCamCaptureActor::OnTimerRecord()
 
 			UpdateFocalDistance();
 
-			RecordFrame();
-
-
-			if (WarmUpElapsedFrames < WarmUpFrames)
+			bool bWarmUp = ( WarmUpElapsedFrames < WarmUpFrames );
+			RecordFrame(bWarmUp);
+			if (bWarmUp)
 			{
 				WarmUpElapsedFrames++;
 			}
@@ -438,7 +437,7 @@ void AFusionCamCaptureActor::UpdateFocalDistance()
 	}
 }
 
-void AFusionCamCaptureActor::RecordFrame()
+void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 {
 	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame START - ElapsedSteps: %d"), ElapsedSteps);
 	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before acquiring RecordCriticalSection lock"));
@@ -499,7 +498,7 @@ void AFusionCamCaptureActor::RecordFrame()
 				// 		}
 				// 	}
 				// );
-				Renderer->CaptureFrame([this](TUniquePtr<FImagePixelData>&& InPixelData)
+				Renderer->CaptureFrame([this, bWarmUp](TUniquePtr<FImagePixelData>&& InPixelData)
 				{
 					if (!InPixelData.IsValid())
 					{
@@ -511,7 +510,7 @@ void AFusionCamCaptureActor::RecordFrame()
 					int64 DataSize;
 					InPixelData->GetRawData(RawData, DataSize);
 
-					if (RawData && DataSize > 0)
+					if (!bWarmUp && RawData && DataSize > 0)
 					{
 						bool bSuccess = MP4Encoder->WriteFrame((const uint8*)RawData, InPixelData->GetType());
 						if (bSuccess)

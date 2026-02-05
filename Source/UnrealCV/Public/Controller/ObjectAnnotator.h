@@ -3,7 +3,8 @@
 
 #include "Runtime/Engine/Classes/GameFramework/Actor.h"
 
-// Generate a color for annotating an object
+class IAnnotatorImpl;
+
 class FColorGenerator
 {
 public:
@@ -14,57 +15,23 @@ private:
 	void GetColors(int32 MaxVal, bool Fix1, bool Fix2, bool Fix3, TArray<FColor>& ColorMap);
 };
 
-/** FObjectAnnotator supports annotate and update the annotation of an object,
-it also keeps tracking of the annotation of each actor
-Annotate each object instance with a unique color, three ways to annotate an object
-1. VertexColor, which is used in unrealcv before v0.4, but not supported by UE4.17+
-2. CustomDepthStencil, which is used in AirSim, but only supports 0 - 255 and needs to modify project setting
-3. AnnotationComponent, which generates a dummy annotation component on the fly, which is used after unrealcv v0.4
-*/
 class UNREALCV_API FObjectAnnotator
 {
 public:
-	// FObjectAnnotator();
+	static void Initialize();
+	static void Shutdown();
 
-	// Annotate all StaticMesh actor in the world
 	static void AnnotateWorld(UWorld* World);
-
-	// Remove all AnnotationComponents from the world
 	static void DeannotateWorld(UWorld* World);
-
-	/** Annotate all MeshComponents in the world */
-	// void AnnotateMeshComponents(UWorld* World);
-
-	// Annotate actor
 	static int32 SetAnnotationColor(AActor* Actor, const FColor& AnnotationColor);
-
-	// Get annotation color for an actor
 	static void GetAnnotationColor(AActor* Actor, FColor& AnnotationColor);
+	static TMap<FString, FColor> GetAnnotationColors();
 
-	static TMap<FString, FColor> GetAnnotationColors() { return AnnotationColors; }
+	static void SetAnnotationMode(bool bUseDirect);
+	static bool IsUsingDirectAnnotation();
 
 private:
+	static TSharedPtr<IAnnotatorImpl> Implementation;
+	static bool bUseDirectAnnotation;
 	static FColorGenerator ColorGenerator;
-
-	// Get all annotable actors in the world
-	static void GetAnnotableActors(UWorld* World, TArray<AActor*>& ActorArray);
-
-	// Annotate with VertexColor
-	// void PaintVertexColor(AActor* Actor, const FColor& AnnotationColor);
-	// Annotate with AnnotationComponent
-	static void CreateAnnotationComponent(AActor* Actor, const FColor& AnnotationColor);
-	// Update existing annotation components with a new color
-	static void UpdateAnnotationComponent(AActor* Actor, const FColor& AnnotationColor);
-
-	// Use AActor* not FString ActorId
-	// void SetObjectStencilId(FString ObjectId, const uint8 StencilId);
-	// void GetObjectStencilId(FString ObjectId, uint8& StencilId);
-	// void SetObjectStencilId(AActor* Actor, const uint8 StencilId);
-
-	/** Assign a unique new color for this object */
-	static FColor GetDefaultColor(AActor* Actor);
-
-private:
-	static TMap<FString, FColor> AnnotationColors; // Store annotation data
-	static TMap<UMeshComponent*, TArray<UMaterialInterface*>> OriginalMaterials; // Store original materials for ISM
 };
