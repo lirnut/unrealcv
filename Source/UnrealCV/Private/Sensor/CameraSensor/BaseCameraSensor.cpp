@@ -508,9 +508,9 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureFast: Copy not launched for UInt8, launch it"));
 		LaunchCapture();
 		CopyBackCapture(ECaptureFormat::UInt8);
-		UE_LOG(LogTemp, Log, "CaptureFast: [X1] fallback start copy !\n");
+		UE_LOG(LogTemp, Log, TEXT("CaptureFast: [X1] fallback start copy !"));
 	}
-	UE_LOG(LogTemp, Log, "CaptureFast: [X1] fallback start copy cost %.3f ms\n", (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
+	UE_LOG(LogTemp, Log, TEXT("CaptureFast: [X1] fallback start copy cost %.3f ms"), (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
 	bCaptureLaunched = false;
 
 	// busy wait
@@ -529,7 +529,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 	}
 	else 
 	{
-		UE_LOG(LogTemp, Log, "CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
+		UE_LOG(LogTemp, Log, TEXT("CaptureFast: [X2] wait cache %.3f ms"), (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
 
 		// TArray<FColor> PixelData;
 		double CopyStartTime = FPlatformTime::Seconds();
@@ -544,7 +544,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 			UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast: CaptureCache size not match, failed"));
 			check(false);
 		}
-		UE_LOG(LogTemp, Log, "CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
+		UE_LOG(LogTemp, Log, TEXT("CaptureFast: [X3] copy cache %.3f ms"), (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
 
 		bCaptureCacheValid = false;
 		CaptureCache = {};
@@ -555,7 +555,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 		double LaunchStartTime = FPlatformTime::Seconds();
 		LaunchCapture();
 		CopyBackCapture(ECaptureFormat::UInt8);
-		UE_LOG(LogTemp, Log, "CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
+		UE_LOG(LogTemp, Log, TEXT("CaptureFast: [X4] launch capture and copy %.3f ms"), (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
 	}
 }
 
@@ -581,9 +581,9 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureFast F16: Copy not launched for F16, launch it"));
 		LaunchCapture();
 		CopyBackCapture(ECaptureFormat::F16);
-		UE_LOG(LogTemp, Log, "CaptureFast: [X1] fallback start copy !\n");
+		UE_LOG(LogTemp, Log, TEXT("CaptureFast: [X1] fallback start copy !\n"));
 	}
-	UE_LOG(LogTemp, Log, "CaptureFast: [X1] fallback start copy cost %.3f ms\n", (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
+	UE_LOG(LogTemp, Log, TEXT("CaptureFast: [X1] fallback start copy cost %.3f ms"), (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
 	bCaptureLaunched = false;
 
 	// busy wait
@@ -597,7 +597,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast F16: CaptureCache not valid, failed"));
 		return;
 	}
-	UE_LOG(LogTemp, Log, "CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
+	UE_LOG(LogTemp, Log, TEXT("CaptureFast: [X2] wait cache %.3f ms"), (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
 
 	double CopyStartTime = FPlatformTime::Seconds();
 	if (CaptureCacheFloat16.Num() == FilmWidth * FilmHeight)
@@ -610,7 +610,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 	{
 		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast F16: CaptureCache size not match, failed"));
 	}
-	UE_LOG(LogTemp, Log, "CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
+	UE_LOG(LogTemp, Log, TEXT("CaptureFast: [X3] copy cache %.3f ms"), (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
 
 	bCaptureCacheValid = false;
 	CaptureCacheFloat16 = {};
@@ -620,7 +620,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 		double LaunchStartTime = FPlatformTime::Seconds();
 		LaunchCapture();
 		CopyBackCapture(ECaptureFormat::F16);
-		UE_LOG(LogTemp, Log, "CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
+		UE_LOG(LogTemp, Log, TEXT("CaptureFast: [X4] launch capture and copy %.3f ms"), (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
 	}
 }
 
@@ -926,19 +926,19 @@ void UBaseCameraSensor::CopyBackCapture(ECaptureFormat Format)
 		{
 			double EnqueueStartTime = FPlatformTime::Seconds();
 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
-			UE_LOG(LogTemp, Log, "[R2] EnqueueCopy time: %.3f ms", (FPlatformTime::Seconds() - EnqueueStartTime) * 1000.0);
+			UE_LOG(LogTemp, Log, TEXT("[R2] EnqueueCopy time: %.3f ms"), (FPlatformTime::Seconds() - EnqueueStartTime) * 1000.0);
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 
 			auto WaitStartTime = FPlatformTime::Seconds();
 			while (!Capture.Readback->IsReady()) {
 				FPlatformProcess::Sleep(0.001f);
 			}
-			UE_LOG(LogTemp, Log, "[R2.5] GPU Wait time: %.3f ms", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
+			UE_LOG(LogTemp, Log, TEXT("[R2.5] GPU Wait time: %.3f ms"), (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
 
 			double LockStartTime = FPlatformTime::Seconds();
 			int32 RowPitchInPixels;
 			const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-			UE_LOG(LogTemp, Log, "[R3] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
+			UE_LOG(LogTemp, Log, TEXT("[R3] Lock time: %.3f ms"), (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
 
 			// Process data immediately on render thread to avoid accessing invalid memory
 
@@ -983,16 +983,16 @@ void UBaseCameraSensor::CopyBackCapture(ECaptureFormat Format)
 				check(0);
 			}
 			*bCaptureCacheValidPtr = true;
-			UE_LOG(LogTemp, Log, "[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
+			UE_LOG(LogTemp, Log, TEXT("[R5] ConvertRAWSurfaceData time: %.3f ms"), (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
 
 			// Unlock the readback data
 			double UnlockStartTime = FPlatformTime::Seconds();
 			Capture.Readback->Unlock();
 			delete Capture.Readback;
-			UE_LOG(LogTemp, Log, "[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
+			UE_LOG(LogTemp, Log, TEXT("[R6] Unlock time: %.3f ms"), (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
 
 			double TotalRenderTime = FPlatformTime::Seconds() - RenderStartTime;
-			UE_LOG(LogTemp, Log, "[R7] Total render thread time: %.3f ms", TotalRenderTime * 1000.0);
+			UE_LOG(LogTemp, Log, TEXT("[R7] Total render thread time: %.3f ms"), TotalRenderTime * 1000.0);
 
 		}
 	);
