@@ -158,7 +158,7 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 	UE_LOG(LogTemp, Warning, TEXT("5"));
 	if (!bIsInitialized)
 	{
-		ImageWriteQueue = MakeShared<FImageWriteQueue>();
+		ImageWriteQueue = MakeShared<FUnrealCVImageWriteQueue>();
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("5"));

@@ -50,7 +50,7 @@ void UMovieQualityRenderSubsystem::Initialize(UWorld* InWorld, FIntPoint InResol
 		true
 	);
 
-	ImageWriteQueue = MakeShared<FImageWriteQueue>();
+	ImageWriteQueue = MakeShared<FUnrealCVImageWriteQueue>();
 
 	bIsInitialized = true;
 

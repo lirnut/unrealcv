@@ -7,17 +7,17 @@
 #include "IImageWrapperModule.h"
 #include "Modules/ModuleManager.h"
 
-FImageWriteQueue::FImageWriteQueue()
+FUnrealCVImageWriteQueue::FUnrealCVImageWriteQueue()
 	: bIsShuttingDown(false)
 {
 }
 
-FImageWriteQueue::~FImageWriteQueue()
+FUnrealCVImageWriteQueue::~FUnrealCVImageWriteQueue()
 {
 	Shutdown();
 }
 
-void FImageWriteQueue::Enqueue(TUniquePtr<FUnrealCVImageWriteTask>&& Task)
+void FUnrealCVImageWriteQueue::Enqueue(TUniquePtr<FUnrealCVImageWriteTask>&& Task)
 {
 	if (bIsShuttingDown)
 	{
@@ -36,12 +36,12 @@ void FImageWriteQueue::Enqueue(TUniquePtr<FUnrealCVImageWriteTask>&& Task)
 	);
 }
 
-void FImageWriteQueue::Shutdown()
+void FUnrealCVImageWriteQueue::Shutdown()
 {
 	bIsShuttingDown = true;
 }
 
-void FImageWriteQueue::ProcessTask(TUniquePtr<FUnrealCVImageWriteTask> Task)
+void FUnrealCVImageWriteQueue::ProcessTask(TUniquePtr<FUnrealCVImageWriteTask> Task)
 {
 	if (!Task || !Task->PixelData.IsValid())
 	{

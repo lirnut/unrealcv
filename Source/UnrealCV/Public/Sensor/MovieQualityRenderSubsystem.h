@@ -9,7 +9,7 @@
 #include "MovieQualityRenderSubsystem.generated.h"
 
 struct FMoviePipelineSurfaceQueue;
-class FImageWriteQueue;
+class FUnrealCVImageWriteQueue;
 class UFusionCamSensor;
 
 USTRUCT()
@@ -78,7 +78,7 @@ private:
 
   TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> SurfaceQueue;
   FSceneViewStateReference ViewState;
-  TSharedPtr<FImageWriteQueue> ImageWriteQueue;
+  TSharedPtr<FUnrealCVImageWriteQueue> ImageWriteQueue;
 
   TMap<FString, float> PreviousQualitySettings;
 
