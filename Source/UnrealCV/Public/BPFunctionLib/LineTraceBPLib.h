@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "LineTraceBPlib.generated.h"
+#include "LineTraceBPLib.generated.h"
 
 UCLASS()
 class ULineTraceBPlib : public UBlueprintFunctionLibrary

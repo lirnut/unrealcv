@@ -36,7 +36,7 @@ void UAutomationBPLib::StartTicking()
 
 	PushCommand(TEXT("r.ForceLOD 0"));
 	PushCommand(TEXT("r.SkeletalMeshLODBias -10"));
-	PushCommand(TEXT("r.HairStrands.Skylighting 0"));
+	// PushCommand(TEXT("r.HairStrands.Skylighting 0"));
 	PushCommand(TEXT("r.SceneCapture.AllowRenderInMainRenderer 1"));
 	PushCommand(TEXT("r.SceneCapture.CubeSinglePass 1"));
 	PushCommand(TEXT("r.SceneCapture.DepthPrepassOptimization 1"));

@@ -32,19 +32,18 @@ DebugGame 控制台中支持的完整命令列表
           - 旧ID: 0, 1, 2... （基于创建顺序，Sensor销毁会导致ID变化）
           - 新ID: CID-[所有者object_name]-[两位uuid] （和Sensor绑定，不会出现Sensor销毁导致ID错位的问题）
 
-
   - vset /cameras/spawn - 生成新摄像机
   - vget /camera/[id]/location - 获取摄像机位置
   - vset /camera/[id]/location [x] [y] [z] - 设置摄像机位置
   - vget /camera/[id]/rotation - 获取摄像机旋转
   - vset /camera/[id]/rotation [pitch] [yaw] [roll] - 设置摄像机旋转
-  - vset /camera/[id]/moveto [x] [y] [z] - 移动摄像机（物理碰撞）
+  - vset /camera/[id]/moveto [x] [y] [z] - 移动摄像机（物理碰撞，有阻挡检测）
   - vget /camera/[id]/lit [filename] - 获取 RGB 图像
   - vget /camera/[id]/depth [filename] - 获取深度数据
   - vget /camera/[id]/normal [filename] - 获取法线图
   - vget /camera/[id]/optical_flow [filename] - 获取光流
   - vget /camera/[id]/object_mask [filename] - 获取物体分割掩码
-  - vget /camera/[id]/oneobjmask [str] [str] - 单个物体分割掩码
+  - vget /camera/[id]/oneobjmask [filename] [object_name] - 单个物体分割掩码
   - vget /camera/[id]/seg [filename] - 获取分割（同上）
   - vget /camera/[id]/fov - 获取 FOV
   - vset /camera/[id]/fov [float] - 设置 FOV
@@ -52,13 +51,16 @@ DebugGame 控制台中支持的完整命令列表
   - vset /camera/[id]/use_fast_capture [uint] - 设置快速捕获模式 (0=disabled, 1=enabled)
   - vget /camera/[id]/size - 获取分辨率
   - vset /camera/[id]/size [width] [height] - 设置分辨率
-  - vset /camera/[id]/projection_type [str] - 设置投影类型
+  - vset /camera/[id]/projection_type [str] - 设置投影类型 (perspective/orthographic)
   - vset /camera/[id]/ortho_width [float] - 设置正交宽度
-  - vset /camera/[id]/lit_source [str] - 设置光照源
+  - vset /camera/[id]/lit_source [str] - 设置光照源 (ftc_hdr/fc_hdr/sc_hdr/scna_hdr/ldr/base/color_depth/scene_depth/device_depth/normal)
   - vset /camera/[id]/reflection [str] - 设置反射方法（None/Lumen/ScreenSpace）
-  - vset /camera/[id]/illumination [str] - 设置全局光照方法
-  - vset /camera/[id]/exposure_method [str] - 设置曝光方法
+  - vset /camera/[id]/illumination [str] - 设置全局光照方法（None/Lumen/ScreenSpace/Plugin）
+  - vset /camera/[id]/exposure_method [str] - 设置曝光方法（Histogram/Basic/Manual）
   - vset /camera/[id]/exposure_bias [float] - 设置曝光偏差
+  - vset /camera/[id]/auto_speed [float] [float] - 设置自动曝光速度（下降，上升）
+  - vset /camera/[id]/auto_brightness [float] [float] - 设置自动曝光亮度范围（最小，最大）
+  - vset /camera/[id]/physical_exposure [uint] - 设置物理相机曝光开关
   - vset /camera/[id]/motion_blur [amount] [max] [per_object] [fps] - 设置运动模糊
   - vset /camera/[id]/focal [distance] [range] - 设置焦点参数
   - vget /screenshot [filename] - 获取截图
@@ -72,7 +74,9 @@ DebugGame 控制台中支持的完整命令列表
      BP_Character_C_1
      ```
   - vset /objects/spawn_cube - 生成测试立方体
+  - vset /objects/spawn_cube [name] - 生成命名测试立方体
   - vset /objects/spawn [classname] - 生成物体
+  - vset /objects/spawn [classname] [name] - 生成命名物体
   - vget /object/[name]/location - 获取物体位置
   - vset /object/[name]/location [x] [y] [z] - 设置物体位置
   - vget /object/[name]/rotation - 获取物体旋转
@@ -81,11 +85,16 @@ DebugGame 控制台中支持的完整命令列表
   - vset /object/[name]/scale [x] [y] [z] - 设置物体缩放
   - vget /object/[name]/color - 获取物体标注颜色
   - vset /object/[name]/color [r] [g] [b] - 设置物体标注颜色
+  - vget /object/[name]/vertex_location - 获取物体顶点位置
+  - vget /object/[name]/mobility - 获取物体移动性 (Static/Movable/Stationary)
+  - vget /object/[name]/uclass_name - 获取UClass名称
+  - vset /object/[name]/name [newname] - 重命名物体
+  - vget /object/[name]/label - [编辑器]获取Actor标签
+  - vset /object/[name]/label [label] - [编辑器]设置Actor标签
   - vset /object/[name]/show - 显示物体
   - vset /object/[name]/hide - 隐藏物体
   - vset /object/[name]/destroy - 销毁物体
   - vget /object/[name]/bounds - 获取物体边界
-  - vget /object/[name]/uclass_name - 获取 UClass 名称
 
   记录命令 (/captureactor/*)
   - vset /captureactor/spawn_free_cam - 生成自由摄像机
@@ -117,3 +126,62 @@ DebugGame 控制台中支持的完整命令列表
 
   - vset /viewmode [mode] - 设置视图模式（lit/normal/depth/object_mask）
   - vget /viewmode - 获取当前视图模式
+
+  Pawn命令 (/pawn/*)
+
+  - vget /pawn/location - 获取玩家Pawn位置
+  - vset /pawn/location [x] [y] [z] - 设置玩家Pawn位置
+  - vget /pawn/rotation - 获取玩家Pawn旋转
+  - vset /pawn/rotation [pitch] [yaw] [roll] - 设置玩家Pawn旋转
+
+  光照命令 (/light/*)
+
+  - vget /light/directional/intensity - 获取方向光强度
+  - vset /light/directional/intensity [float] - 设置方向光强度
+  - vget /light/skylight/intensity - 获取天光强度
+  - vset /light/skylight/intensity [float] - 设置天光强度
+  - vget /light/directional/castdeepshadow - 获取方向光深阴影状态
+  - vset /light/directional/castdeepshadow [bool] - 设置方向光深阴影
+
+  PAK文件命令 (/pak/*)
+
+  - vset /pak/mount [path] [order] - 挂载PAK文件
+  - vset /pak/unmount [path] - 卸载PAK文件
+  - vget /pak/mounted - 获取所有已挂载的PAK文件列表
+  - vget /pak/ismounted [path] - 检查PAK文件是否已挂载
+  - vset /pak/scan [mountpoint] [force_rescan] - 扫描已挂载PAK中的资源
+  - vget /pak/load [assetpath] - 从PAK加载资源
+  - vget /pak/assets [packagepath] - 获取路径下所有资源
+  - vset /pak/register [path] [category] - 注册PAK资源到AssetPool
+
+  数据集自动化命令 (/datasetautomation/*)
+
+  - vget /datasetautomation/task_name - 获取当前任务名称
+  - vset /datasetautomation/task_name [name] - 设置任务名称 (Trajectory/Omnimatte)
+
+  全景相机命令 (/panoramic/*)
+
+  - vget /panoramic/spawn [x] [y] [z] - 在指定位置生成全景相机
+  - vget /panoramic/spawn [x] [y] [z] [resolution] - 生成全景相机并设置立方体贴图分辨率
+  - vget /panoramic/capture [filename] - 捕获全景等距柱状图图像到文件
+  - vget /panoramic/capture [filename] [width] [height] - 自定义分辨率捕获全景图像
+
+  别名命令
+
+  - vrun [cmd] - 运行UE内置控制台命令
+  - vrun [cmd] [arg1] ... - 带参数运行控制台命令
+  - vexec [actor_id] [funcname] - 调用Actor的BP函数
+  - vexec [actor_id] [funcname] [param1] ... - 带参数调用BP函数
+  - vbp [actor_id] [funcname] - 调用BP函数并获取输出参数
+  - vbp [actor_id] [funcname] [param1] ... - 带参数调用并获取输出
+  - vget /persistent_level/id - 获取持久关卡ID
+  - vget /persistent_level/level_script_actor/id - 获取关卡脚本Actor ID
+
+  插件命令 (/unrealcv/* /level/*)
+
+  - vget /unrealcv/status - 获取插件状态
+  - vget /unrealcv/help - 获取所有命令帮助
+  - vget /unrealcv/version - 获取插件版本
+  - vget /unrealcv/echo [str] - [调试]回显消息
+  - vget /scene/name - 获取场景名称
+  - vget /level/name - 获取当前关卡名称

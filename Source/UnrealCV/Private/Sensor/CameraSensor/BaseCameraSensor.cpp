@@ -443,7 +443,7 @@ void UBaseCameraSensor::CaptureFastToFile(const FString& Filename)
 
 									if (PixelFormat == EPixelFormat::PF_B8G8R8A8 && PixelData[0].A == 0)
 									{
-										SetAlphaAVX2(PixelData);
+										SetAlpha(PixelData);
 									}
 									
 									AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask,

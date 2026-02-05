@@ -62,7 +62,7 @@ void UAnnotationCamSensor::CaptureSeg(TArray<FColor>& ImageData, int& Width, int
 	{
 		if (Width > 0 && Height > 0 && static_cast<uint32>(Width * Height) == ImageData.Num())
 		{
-			SetAlphaAVX2(ImageData);
+			SetAlpha(ImageData);
 		}
 		else
 		{
@@ -149,7 +149,7 @@ void UAnnotationCamSensor::CaptureSegToFile(const FString& Filename)
 					);
 					FMemory::Free(RawDataCopy);
 
-					SetAlphaAVX2(PixelData);
+					SetAlpha(PixelData);
 
 					double SerializeStartTime = FPlatformTime::Seconds();
 					SerializeData(PixelData, Width, Height, OutputPath);
