@@ -7,7 +7,6 @@
 
 #include "Runtime/Engine/Classes/Engine/Engine.h"
 #include "TextureResource.h"
-#include "SL.h"
 
 DECLARE_CYCLE_STAT(TEXT("ULitCamSensor::CaptureLit"), STAT_CaptureLit, STATGROUP_UnrealCV);
 

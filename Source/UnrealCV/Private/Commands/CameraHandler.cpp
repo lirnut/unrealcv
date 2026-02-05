@@ -14,14 +14,12 @@
 // #include "Misc/FileHelper.h"
 // #include "Misc/Paths.h"
 // #include <Serialization/BufferArchive.h>
-#include "SL.h"
-#include "ST.h"
 #include "Utils/UObjectUtils.h"
 #include "Controller/ActorController.h"
 #include "AnnotationCamSensor.h"
 #include "LitCamSensor.h"
 #include "Misc/FileHelper.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 
 #include "CommandDispatcher.h"
 #include "FusionCamSensor.h"
@@ -1257,7 +1255,6 @@ FExecStatus FCameraHandler::SetCameraAudioRecord(const TArray<FString>& Args)
 
 FExecStatus FCameraHandler::GetCameraOneObjMask(const TArray<FString>& Args)
 {
-	SL::get().print("FCameraHandler::GetCameraObjMask called");
 	FExecStatus ExecStatus = FExecStatus::OK();
 	if (Args.Num() != 3) {
 		FString Msg = TEXT("Invalid command length.");
@@ -1867,7 +1864,6 @@ void FCameraHandler::RegisterCommands()
 	// 	UE_LOG(LogTemp, Warning, TEXT("Failed to open saved log file, falling back to default: %s"), ANSI_TO_TCHAR(e.what()));
 	// 	SL::get("x.txt", false);
 	// }
-	SL::get("x.txt", false);
 
 
 	auto BindCommandDualCameraID = [this](

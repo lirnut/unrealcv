@@ -15,7 +15,6 @@
 #include "RHISurfaceDataConversionOpt.h"
 #include "SetAlpha.h"
 #include "BPFunctionLib/AnnotationBPLib.h"
-#include "SL.h"
 
 DECLARE_CYCLE_STAT(TEXT("ReadBuffer"), STAT_ReadBuffer, STATGROUP_UnrealCV);
 DECLARE_CYCLE_STAT(TEXT("ReadBufferFast"), STAT_ReadBufferFast, STATGROUP_UnrealCV);
@@ -509,9 +508,9 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureFast: Copy not launched for UInt8, launch it"));
 		LaunchCapture();
 		CopyBackCapture(ECaptureFormat::UInt8);
-		SL::get().printf("CaptureFast: [X1] fallback start copy !\n");
+		UE_LOG(LogTemp, Log, "CaptureFast: [X1] fallback start copy !\n");
 	}
-	SL::get().printf("CaptureFast: [X1] fallback start copy cost %.3f ms\n", (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
+	UE_LOG(LogTemp, Log, "CaptureFast: [X1] fallback start copy cost %.3f ms\n", (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
 	bCaptureLaunched = false;
 
 	// busy wait
@@ -530,7 +529,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 	}
 	else 
 	{
-		SL::get().printf("CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
+		UE_LOG(LogTemp, Log, "CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
 
 		// TArray<FColor> PixelData;
 		double CopyStartTime = FPlatformTime::Seconds();
@@ -545,7 +544,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 			UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast: CaptureCache size not match, failed"));
 			check(false);
 		}
-		SL::get().printf("CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
+		UE_LOG(LogTemp, Log, "CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
 
 		bCaptureCacheValid = false;
 		CaptureCache = {};
@@ -556,7 +555,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& 
 		double LaunchStartTime = FPlatformTime::Seconds();
 		LaunchCapture();
 		CopyBackCapture(ECaptureFormat::UInt8);
-		SL::get().printf("CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
+		UE_LOG(LogTemp, Log, "CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
 	}
 }
 
@@ -582,9 +581,9 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 		UE_LOG(LogTemp, Warning, TEXT("UBaseCameraSensor::CaptureFast F16: Copy not launched for F16, launch it"));
 		LaunchCapture();
 		CopyBackCapture(ECaptureFormat::F16);
-		SL::get().printf("CaptureFast: [X1] fallback start copy !\n");
+		UE_LOG(LogTemp, Log, "CaptureFast: [X1] fallback start copy !\n");
 	}
-	SL::get().printf("CaptureFast: [X1] fallback start copy cost %.3f ms\n", (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
+	UE_LOG(LogTemp, Log, "CaptureFast: [X1] fallback start copy cost %.3f ms\n", (FPlatformTime::Seconds() - CaptureFastStartTime) * 1000.0);
 	bCaptureLaunched = false;
 
 	// busy wait
@@ -598,7 +597,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast F16: CaptureCache not valid, failed"));
 		return;
 	}
-	SL::get().printf("CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
+	UE_LOG(LogTemp, Log, "CaptureFast: [X2] wait cache %.3f ms\n", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
 
 	double CopyStartTime = FPlatformTime::Seconds();
 	if (CaptureCacheFloat16.Num() == FilmWidth * FilmHeight)
@@ -611,7 +610,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 	{
 		UE_LOG(LogTemp, Error, TEXT("UBaseCameraSensor::CaptureFast F16: CaptureCache size not match, failed"));
 	}
-	SL::get().printf("CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
+	UE_LOG(LogTemp, Log, "CaptureFast: [X3] copy cache %.3f ms\n", (FPlatformTime::Seconds() - CopyStartTime) * 1000.0);
 
 	bCaptureCacheValid = false;
 	CaptureCacheFloat16 = {};
@@ -621,7 +620,7 @@ void UBaseCameraSensor::CaptureFast(TArray<FFloat16Color>& ImageData, int& Width
 		double LaunchStartTime = FPlatformTime::Seconds();
 		LaunchCapture();
 		CopyBackCapture(ECaptureFormat::F16);
-		SL::get().printf("CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
+		UE_LOG(LogTemp, Log, "CaptureFast: [X4] launch capture and copy %.3f ms\n", (FPlatformTime::Seconds() - LaunchStartTime) * 1000.0);
 	}
 }
 
@@ -800,12 +799,12 @@ void UBaseCameraSensor::LaunchCapture()
 // 	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
 // 		[RenderTargetResource, Readback = Capture.Readback, RenderStartTime](FRHICommandListImmediate& RHICmdList) mutable
 // 		{
-// 			SL::get().printf("[R0] Start time: %.3f ms", (FPlatformTime::Seconds() - RenderStartTime) * 1000.0);
+// 			UE_LOG(LogTemp, Log, "[R0] Start time: %.3f ms", (FPlatformTime::Seconds() - RenderStartTime) * 1000.0);
 
 // 			double EnqueueStartTime = FPlatformTime::Seconds();
 // 			Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
 // 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-// 			SL::get().printf("[R2] EnqueueCopy time: %.3f ms", (FPlatformTime::Seconds() - EnqueueStartTime) * 1000.0);
+// 			UE_LOG(LogTemp, Log, "[R2] EnqueueCopy time: %.3f ms", (FPlatformTime::Seconds() - EnqueueStartTime) * 1000.0);
 // 		}
 // 	);
 
@@ -814,12 +813,12 @@ void UBaseCameraSensor::LaunchCapture()
 // 	while (!Capture.Readback->IsReady()) {
 // 		FPlatformProcess::Sleep(0.001f);
 // 	}
-// 	SL::get().printf("[R3] GPU Wait time: %.3f ms", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
+// 	UE_LOG(LogTemp, Log, "[R3] GPU Wait time: %.3f ms", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
 
 // 	double LockStartTime = FPlatformTime::Seconds();
 // 	int32 RowPitchInPixels;
 // 	const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-// 	SL::get().printf("[R4] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
+// 	UE_LOG(LogTemp, Log, "[R4] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
 
 // 	// Process data immediately on render thread to avoid accessing invalid memory
 
@@ -864,16 +863,16 @@ void UBaseCameraSensor::LaunchCapture()
 // 		check(0);
 // 	}
 // 	bCaptureCacheValid = true;
-// 	SL::get().printf("[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
+// 	UE_LOG(LogTemp, Log, "[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
 
 // 	// Unlock the readback data
 // 	double UnlockStartTime = FPlatformTime::Seconds();
 // 	Capture.Readback->Unlock();
 // 	delete Capture.Readback;
-// 	SL::get().printf("[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
+// 	UE_LOG(LogTemp, Log, "[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
 
 // 	double TotalTime = FPlatformTime::Seconds() - RenderStartTime;
-// 	SL::get().printf("[R7] Total time: %.3f ms", TotalTime * 1000.0);
+// 	UE_LOG(LogTemp, Log, "[R7] Total time: %.3f ms", TotalTime * 1000.0);
 
 // 	CopyFormat = Format;
 // }
@@ -927,19 +926,19 @@ void UBaseCameraSensor::CopyBackCapture(ECaptureFormat Format)
 		{
 			double EnqueueStartTime = FPlatformTime::Seconds();
 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
-			SL::get().printf("[R2] EnqueueCopy time: %.3f ms", (FPlatformTime::Seconds() - EnqueueStartTime) * 1000.0);
+			UE_LOG(LogTemp, Log, "[R2] EnqueueCopy time: %.3f ms", (FPlatformTime::Seconds() - EnqueueStartTime) * 1000.0);
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 
 			auto WaitStartTime = FPlatformTime::Seconds();
 			while (!Capture.Readback->IsReady()) {
 				FPlatformProcess::Sleep(0.001f);
 			}
-			SL::get().printf("[R2.5] GPU Wait time: %.3f ms", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
+			UE_LOG(LogTemp, Log, "[R2.5] GPU Wait time: %.3f ms", (FPlatformTime::Seconds() - WaitStartTime) * 1000.0);
 
 			double LockStartTime = FPlatformTime::Seconds();
 			int32 RowPitchInPixels;
 			const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-			SL::get().printf("[R3] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
+			UE_LOG(LogTemp, Log, "[R3] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
 
 			// Process data immediately on render thread to avoid accessing invalid memory
 
@@ -984,16 +983,16 @@ void UBaseCameraSensor::CopyBackCapture(ECaptureFormat Format)
 				check(0);
 			}
 			*bCaptureCacheValidPtr = true;
-			SL::get().printf("[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
+			UE_LOG(LogTemp, Log, "[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
 
 			// Unlock the readback data
 			double UnlockStartTime = FPlatformTime::Seconds();
 			Capture.Readback->Unlock();
 			delete Capture.Readback;
-			SL::get().printf("[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
+			UE_LOG(LogTemp, Log, "[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
 
 			double TotalRenderTime = FPlatformTime::Seconds() - RenderStartTime;
-			SL::get().printf("[R7] Total render thread time: %.3f ms", TotalRenderTime * 1000.0);
+			UE_LOG(LogTemp, Log, "[R7] Total render thread time: %.3f ms", TotalRenderTime * 1000.0);
 
 		}
 	);
@@ -1061,13 +1060,13 @@ void UBaseCameraSensor::CheckCaptureCache(ECaptureFormat Format)
 // 	double LockStartTime = FPlatformTime::Seconds();
 // 	int32 RowPitchInPixels;
 // 	const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-// 	SL::get().printf("[R3] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
+// 	UE_LOG(LogTemp, Log, "[R3] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
 
 // 	// Process data immediately on render thread to avoid accessing invalid memory
 // 	double AllocStartTime = FPlatformTime::Seconds();
 // 	OutPixelData.Empty();
 // 	OutPixelData.AddUninitialized(Capture.Width * Capture.Height);
-// 	SL::get().printf("[R4] PixelData allocation time: %.3f ms", (FPlatformTime::Seconds() - AllocStartTime) * 1000.0);
+// 	UE_LOG(LogTemp, Log, "[R4] PixelData allocation time: %.3f ms", (FPlatformTime::Seconds() - AllocStartTime) * 1000.0);
 
 // 	FReadSurfaceDataFlags ReadFlags;
 // 	ReadFlags.SetLinearToGamma(false);
@@ -1084,12 +1083,12 @@ void UBaseCameraSensor::CheckCaptureCache(ECaptureFormat Format)
 // 		OutPixelData.GetData(),
 // 		ReadFlags
 // 	);
-// 	SL::get().printf("[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
+// 	UE_LOG(LogTemp, Log, "[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
 	
 // 	// Unlock the readback data
 // 	double UnlockStartTime = FPlatformTime::Seconds();
 // 	Capture.Readback->Unlock();
-// 	SL::get().printf("[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
+// 	UE_LOG(LogTemp, Log, "[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
 
 // 	OutWidth = Capture.Width;
 // 	OutHeight = Capture.Height;
@@ -1129,25 +1128,25 @@ void UBaseCameraSensor::CheckCaptureCache(ECaptureFormat Format)
 // 	ENQUEUE_RENDER_COMMAND(EnqueueGPUCopy)(
 // 		[RenderTargetResource, Capture = MoveTemp(NewCapture), RenderStartTime](FRHICommandListImmediate& RHICmdList)
 // 		{
-// 			SL::get().printf("[R0] Start time: %.3f ms", (FPlatformTime::Seconds() - RenderStartTime) * 1000.0);
+// 			UE_LOG(LogTemp, Log, "[R0] Start time: %.3f ms", (FPlatformTime::Seconds() - RenderStartTime) * 1000.0);
 // 			double FlushStartTime = FPlatformTime::Seconds();
 // 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-// 			SL::get().printf("[R1] Flush time: %.3f ms", (FPlatformTime::Seconds() - FlushStartTime) * 1000.0);
+// 			UE_LOG(LogTemp, Log, "[R1] Flush time: %.3f ms", (FPlatformTime::Seconds() - FlushStartTime) * 1000.0);
 
 // 			double EnqueueStartTime = FPlatformTime::Seconds();
 // 			Capture.Readback->EnqueueCopy(RHICmdList, RenderTargetResource->GetRenderTargetTexture());
-// 			SL::get().printf("[R2] EnqueueCopy time: %.3f ms", (FPlatformTime::Seconds() - EnqueueStartTime) * 1000.0);
+// 			UE_LOG(LogTemp, Log, "[R2] EnqueueCopy time: %.3f ms", (FPlatformTime::Seconds() - EnqueueStartTime) * 1000.0);
 
 // 			double LockStartTime = FPlatformTime::Seconds();
 // 			int32 RowPitchInPixels;
 // 			const void* RawData = Capture.Readback->Lock(RowPitchInPixels);
-// 			SL::get().printf("[R3] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
+// 			UE_LOG(LogTemp, Log, "[R3] Lock time: %.3f ms", (FPlatformTime::Seconds() - LockStartTime) * 1000.0);
 
 // 			// Process data immediately on render thread to avoid accessing invalid memory
 // 			double AllocStartTime = FPlatformTime::Seconds();
 // 			TArray<FColor> PixelData;
 // 			PixelData.AddUninitialized(Capture.Width * Capture.Height);
-// 			SL::get().printf("[R4] PixelData allocation time: %.3f ms", (FPlatformTime::Seconds() - AllocStartTime) * 1000.0);
+// 			UE_LOG(LogTemp, Log, "[R4] PixelData allocation time: %.3f ms", (FPlatformTime::Seconds() - AllocStartTime) * 1000.0);
 
 // 			FReadSurfaceDataFlags ReadFlags;
 // 			ReadFlags.SetLinearToGamma(false);
@@ -1164,15 +1163,15 @@ void UBaseCameraSensor::CheckCaptureCache(ECaptureFormat Format)
 // 				PixelData.GetData(),
 // 				ReadFlags
 // 			);
-// 			SL::get().printf("[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
+// 			UE_LOG(LogTemp, Log, "[R5] ConvertRAWSurfaceData time: %.3f ms", (FPlatformTime::Seconds() - ConvertStartTime) * 1000.0);
 
 // 			// Unlock the readback data
 // 			double UnlockStartTime = FPlatformTime::Seconds();
 // 			Capture.Readback->Unlock();
-// 			SL::get().printf("[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
+// 			UE_LOG(LogTemp, Log, "[R6] Unlock time: %.3f ms", (FPlatformTime::Seconds() - UnlockStartTime) * 1000.0);
 
 // 			double TotalRenderTime = FPlatformTime::Seconds() - RenderStartTime;
-// 			SL::get().printf("[R7] Total render thread time: %.3f ms", TotalRenderTime * 1000.0);
+// 			UE_LOG(LogTemp, Log, "[R7] Total render thread time: %.3f ms", TotalRenderTime * 1000.0);
 
 // 			// Move to game thread for file I/O
 // 			AsyncTask(ENamedThreads::AnyThread,
@@ -1183,12 +1182,12 @@ void UBaseCameraSensor::CheckCaptureCache(ECaptureFormat Format)
 // 					if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
 // 					{
 // 						double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
-// 						SL::get().printf("[A1] Saved %s in %.3f ms",
+// 						UE_LOG(LogTemp, Log, "[A1] Saved %s in %.3f ms",
 // 							TCHAR_TO_UTF8(*OutputPath), SerializeTime * 1000.0);
 // 					}
 // 					else
 // 					{
-// 						SL::get().printf("[A1] Failed to save %s", TCHAR_TO_UTF8(*OutputPath));
+// 						UE_LOG(LogTemp, Log, "[A1] Failed to save %s", TCHAR_TO_UTF8(*OutputPath));
 // 					}
 // 				});
 // 		}
@@ -1345,12 +1344,12 @@ void UBaseCameraSensor::CheckCaptureCache(ECaptureFormat Format)
 // 					if (SerializeData(PixelData, Width, Height, OutputPath) == FExecStatusType::OK)
 // 					{
 // 						double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
-// 						SL::get().printf("[PERF] Saved %s in %.3f ms",
+// 						UE_LOG(LogTemp, Log, "[PERF] Saved %s in %.3f ms",
 // 							TCHAR_TO_UTF8(*OutputPath), SerializeTime * 1000.0);
 // 					}
 // 					else
 // 					{
-// 						SL::get().printf("[ERROR] Failed to save %s", TCHAR_TO_UTF8(*OutputPath));
+// 						UE_LOG(LogTemp, Log, "[ERROR] Failed to save %s", TCHAR_TO_UTF8(*OutputPath));
 // 					}
 // 				});
 // 			}
@@ -1358,18 +1357,18 @@ void UBaseCameraSensor::CheckCaptureCache(ECaptureFormat Format)
 // 			double RenderThreadTotalTime = FPlatformTime::Seconds() - RenderThreadStartTime;
 // 			double GameThreadTotalTime = FPlatformTime::Seconds() - FlushStartTime;
 
-// 			SL::get().printf("[PERF SUMMARY] FlushCapturesToDisk: %d captures", NumCaptures);
-// 			SL::get().printf("[PERF] Total game thread time: %.3f ms (%.3f ms/frame)",
+// 			UE_LOG(LogTemp, Log, "[PERF SUMMARY] FlushCapturesToDisk: %d captures", NumCaptures);
+// 			UE_LOG(LogTemp, Log, "[PERF] Total game thread time: %.3f ms (%.3f ms/frame)",
 // 				GameThreadTotalTime * 1000.0, (GameThreadTotalTime * 1000.0) / NumCaptures);
-// 			SL::get().printf("[PERF] Total render thread time: %.3f ms (%.3f ms/frame)",
+// 			UE_LOG(LogTemp, Log, "[PERF] Total render thread time: %.3f ms (%.3f ms/frame)",
 // 				RenderThreadTotalTime * 1000.0, (RenderThreadTotalTime * 1000.0) / NumCaptures);
-// 			SL::get().printf("[PERF] GPU wait time: %.3f ms (%.3f ms/frame) - %d frames blocked",
+// 			UE_LOG(LogTemp, Log, "[PERF] GPU wait time: %.3f ms (%.3f ms/frame) - %d frames blocked",
 // 				TotalWaitTime * 1000.0, NumBlocked > 0 ? (TotalWaitTime * 1000.0) / NumBlocked : 0.0, NumBlocked);
-// 			SL::get().printf("[PERF] Lock time (GPU->CPU DMA): %.3f ms (%.3f ms/frame)",
+// 			UE_LOG(LogTemp, Log, "[PERF] Lock time (GPU->CPU DMA): %.3f ms (%.3f ms/frame)",
 // 				TotalLockTime * 1000.0, (TotalLockTime * 1000.0) / NumCaptures);
-// 			SL::get().printf("[PERF] Pixel conversion time (ParallelFor): %.3f ms (%.3f ms/frame)",
+// 			UE_LOG(LogTemp, Log, "[PERF] Pixel conversion time (ParallelFor): %.3f ms (%.3f ms/frame)",
 // 				TotalConversionTime * 1000.0, (TotalConversionTime * 1000.0) / NumCaptures);
-// 			SL::get().printf("[PERF] Theoretical speedup: %.2fx (serial: %.3f ms -> parallel: %.3f ms)",
+// 			UE_LOG(LogTemp, Log, "[PERF] Theoretical speedup: %.2fx (serial: %.3f ms -> parallel: %.3f ms)",
 // 				(TotalLockTime + 7401.0) / (TotalLockTime + TotalConversionTime),
 // 				7401.0, TotalConversionTime * 1000.0);
 // 		}

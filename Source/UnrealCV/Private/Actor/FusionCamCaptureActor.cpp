@@ -31,7 +31,7 @@
 #include "Utils/PythonExecutor.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/BufferArchive.h"
-#include "LineTraceBPlib.h"
+#include "BPFunctionLib/LineTraceBPLib.h"
 #include "MovieQualityRenderComponent.h"
 #include "MovieQualityRenderSubsystem.h"
 #if PLATFORM_WINDOWS
@@ -477,27 +477,15 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Recording RGB"));
 
+#if PLATFORM_WINDOWS
 		if (bUseMovieQualityRendering)
 		{
 			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before GetMovieQualityRenderer()"));
 			auto* Renderer = TargetSensor->GetMovieQualityRenderer();
 			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - After GetMovieQualityRenderer(), Renderer=%p"), Renderer);
-
-#if PLATFORM_WINDOWS
 			if (MP4Encoder && MP4Encoder->IsInitialized())
 			{
 				UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Using H.264 encoder"));
-				// FString FileNameRGB = MakeFilenameNew("rgb", ".png");
-				// Renderer->SaveLitToFile(
-				// 	FileNameRGB,
-				// 	[](bool bSuccess)
-				// 	{
-				// 		if (!bSuccess)
-				// 		{
-				// 			UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityRenderer: RGB capture failed"));
-				// 		}
-				// 	}
-				// );
 				Renderer->CaptureFrame([this, bWarmUp](TUniquePtr<FImagePixelData>&& InPixelData)
 				{
 					if (!InPixelData.IsValid())
@@ -524,7 +512,6 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 					}
 				});
 			}
-#endif
 			else
 			{
 				FString FileNameRGB = MakeFilenameNew("rgb", ".png");
@@ -543,6 +530,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 			}
 		}
 		else
+#endif
 		{
 			FString FileNameRGB = MakeFilenameNew("rgb", ".png");
 			TargetSensor->SaveLitToFile(FileNameRGB);

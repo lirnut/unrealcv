@@ -18,7 +18,6 @@
 
 #include "Utils/UObjectUtils.h"
 #include "Component/AnnotationComponent.h"
-#include "SL.h"
 #include "Utils/ImageUtil.h"
 #include "SensorBPLib.h"
 #include "MaterialBPLib.h"
@@ -245,7 +244,7 @@ bool UFusionCamSensor::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& V
 // 	if (!LitCamSensor->CheckTextureTarget()) {
 // 		LitCamSensor->InitTextureTarget(this->FilmWidth, this->FilmHeight);
 // 		if (!LitCamSensor->CheckTextureTarget()) {
-// 			SL::get().print("LitCamSensor InitTextureTarget failed.");
+// 			UE_LOG(LogUnrealCV, Log, "LitCamSensor InitTextureTarget failed.");
 // 			UE_LOG(LogUnrealCV, Error, TEXT("No TextureTarget."));
 // 			return;
 // 		}
@@ -253,7 +252,7 @@ bool UFusionCamSensor::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& V
 // 	if (!AnnotationCamSensor->CheckTextureTarget()) {
 // 		AnnotationCamSensor->InitTextureTarget(this->FilmWidth, this->FilmHeight);
 // 		if (!AnnotationCamSensor->CheckTextureTarget()) {
-// 			SL::get().print("AnnotationCamSensor InitTextureTarget failed.");
+// 			UE_LOG(LogUnrealCV, Log, "AnnotationCamSensor InitTextureTarget failed.");
 // 			UE_LOG(LogUnrealCV, Error, TEXT("No TextureTarget."));
 // 			return;
 // 		}
@@ -274,12 +273,12 @@ bool UFusionCamSensor::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& V
 // 	int32 SegW = AnnotationCamSensor->GetFilmWidth();
 // 	int32 SegH = AnnotationCamSensor->GetFilmHeight();
 
-// 	// SL::get().printf("UFusionCamSensor::GetLitSeg DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
-// 	// SL::get().printf("UFusionCamSensor::GetLitSeg DataSeg size: %d, width: %d, height: %d", DataSeg.Num(), SegW, SegH);
+// 	// UE_LOG(LogTemp, Log, "UFusionCamSensor::GetLitSeg DataRGB size: %d, width: %d, height: %d", DataRGB.Num(), LitW, LitH);
+// 	// UE_LOG(LogTemp, Log, "UFusionCamSensor::GetLitSeg DataSeg size: %d, width: %d, height: %d", DataSeg.Num(), SegW, SegH);
 
 // 	if (!((LitW == SegW) && (LitH == SegH)))
 // 	{
-// 		SL::get().print("ERROR: Rendered frame size does not match.");
+// 		UE_LOG(LogUnrealCV, Log, "ERROR: Rendered frame size does not match.");
 // 		UE_LOG(LogUnrealCV, Error, TEXT("Rendered frame size does not match."));
 // 		DataRGB.Empty();
 // 		DataSeg.Empty();
@@ -292,7 +291,7 @@ bool UFusionCamSensor::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& V
 
 void UFusionCamSensor::GetOneObjMask(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
 {
-	SL::get().print("GetOneObjMask called");
+	UE_LOG(LogUnrealCV, Log, "GetOneObjMask called");
 	if (!IsValid(Actor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetOneObjMask input Actor is not valid"));
@@ -304,7 +303,7 @@ void UFusionCamSensor::GetOneObjMask(AActor* Actor, TArray<FColor>& Data, int& I
 	
 	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
 	CollectShowOnlyForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
-	SL::get().printf("ComponentList Num: %d", ComponentList.Num());
+	UE_LOG(LogTemp, Log, "ComponentList Num: %d", ComponentList.Num());
 
 	OneObjectMaskCamSensor->bUseShowOnlyComponentsOverride = true;
 	OneObjectMaskCamSensor->ShowOnlyComponentsOverride = ComponentList;
@@ -319,7 +318,7 @@ void UFusionCamSensor::GetOneObjMask(AActor* Actor, TArray<FColor>& Data, int& I
 		UE_LOG(LogUnrealCV, Warning, TEXT("Captured obj mask data is empty."));
 		return;
 	}
-	SL::get().print("GetOneObjMask returned");
+	UE_LOG(LogUnrealCV, Log, "GetOneObjMask returned");
 }
 void UFusionCamSensor::SaveOneObjMaskToFile(AActor* Actor, const FString& Filename)
 {
@@ -337,7 +336,7 @@ void UFusionCamSensor::SaveOneObjMaskToFile(AActor* Actor, const FString& Filena
 
 void UFusionCamSensor::GetOneObjLit(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
 {
-	SL::get().print("GetOneObjLit called");
+	UE_LOG(LogUnrealCV, Log, "GetOneObjLit called");
 	if (!IsValid(Actor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetOneObjLit input Actor is not valid"));
@@ -349,7 +348,7 @@ void UFusionCamSensor::GetOneObjLit(AActor* Actor, TArray<FColor>& Data, int& In
 
 	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
 	CollectAllPrimitiveComponentsForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
-	SL::get().printf("ComponentList Num: %d", ComponentList.Num());
+	UE_LOG(LogTemp, Log, "ComponentList Num: %d", ComponentList.Num());
 
 	OneObjectLitCamSensor->ShowOnlyComponents = ComponentList;
 	// UMaterialBPLib::ShowOnlyActorMaterial(Actor, FUnrealcvServer::Get().GetGameWorld());
@@ -360,7 +359,7 @@ void UFusionCamSensor::GetOneObjLit(AActor* Actor, TArray<FColor>& Data, int& In
 		UE_LOG(LogUnrealCV, Warning, TEXT("Captured obj lit data is empty."));
 		return;
 	}
-	SL::get().print("GetOneObjLit returned");
+	UE_LOG(LogUnrealCV, Log, "GetOneObjLit returned");
 }
 
 void UFusionCamSensor::SaveOneObjLitToFile(AActor* Actor, const FString& Filename)
@@ -382,7 +381,7 @@ void UFusionCamSensor::SaveOneObjLitToFile(AActor* Actor, const FString& Filenam
 
 void UFusionCamSensor::GetShadowCatcher(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
 {
-	SL::get().print("GetShadowCatcher called");
+	UE_LOG(LogUnrealCV, Log, "GetShadowCatcher called");
 	if (!IsValid(Actor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetShadowCatcher input Actor is not valid"));
@@ -400,7 +399,7 @@ void UFusionCamSensor::GetShadowCatcher(AActor* Actor, TArray<FColor>& Data, int
 		UE_LOG(LogUnrealCV, Warning, TEXT("Captured shadow catcher data is empty."));
 		return;
 	}
-	SL::get().print("GetShadowCatcher returned");
+	UE_LOG(LogUnrealCV, Log, "GetShadowCatcher returned");
 }
 
 void UFusionCamSensor::SaveShadowCatcherToFile(AActor* Actor, const FString& Filename)
@@ -417,7 +416,7 @@ void UFusionCamSensor::SaveShadowCatcherToFile(AActor* Actor, const FString& Fil
 
 void UFusionCamSensor::GetStencilMask(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
 {
-	SL::get().print("GetStencilMask called");
+	UE_LOG(LogUnrealCV, Log, "GetStencilMask called");
 	if (!IsValid(Actor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::GetStencilMask input Actor is not valid"));
@@ -435,7 +434,7 @@ void UFusionCamSensor::GetStencilMask(AActor* Actor, TArray<FColor>& Data, int& 
 		UE_LOG(LogUnrealCV, Warning, TEXT("Captured stencil mask data is empty."));
 		return;
 	}
-	SL::get().print("GetStencilMask returned");
+	UE_LOG(LogUnrealCV, Log, "GetStencilMask returned");
 }
 
 void UFusionCamSensor::SaveStencilMaskToFile(AActor* Actor, const FString& Filename)
