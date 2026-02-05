@@ -5,7 +5,6 @@
 #include "RHI.h"
 #include "RHIResources.h"
 #include "SceneView.h"
-#include "ImageWriteQueue.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MovieQualityRenderSubsystem.generated.h"
 
