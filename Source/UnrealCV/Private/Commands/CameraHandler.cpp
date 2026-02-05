@@ -26,6 +26,7 @@
 #include "CommandDispatcher.h"
 #include "FusionCamSensor.h"
 #include "Sensor/CameraSensor/PawnCamSensor.h"
+#include "Sensor/CameraSensor/PanoramicCamSensor.h"
 #include "Serialization.h"
 #include "Utils/StrFormatter.h"
 #include "PlayerViewMode.h"
@@ -2219,4 +2220,116 @@ void FCameraHandler::RegisterCommands()
 	// 	FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraMotionProgress),
 	// 	"Get camera motion progress (0.0 to 1.0)"
 	// );
+
+	CommandDispatcher->BindCommand(
+		"vget /panoramic/spawn [float] [float] [float]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SpawnPanoramicCamera),
+		"Spawn panoramic camera at location [x, y, z]"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /panoramic/spawn [float] [float] [float] [uint]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SpawnPanoramicCamera),
+		"Spawn panoramic camera at location [x, y, z] with cubemap resolution"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /panoramic/capture [str]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraPanoramic),
+		"Capture panoramic equirectangular image to file"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /panoramic/capture [str] [uint] [uint]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetCameraPanoramic),
+		"Capture panoramic equirectangular image with custom resolution [width, height]"
+	);
+}
+
+FExecStatus FCameraHandler::SpawnPanoramicCamera(const TArray<FString>& Args)
+{
+	if (Args.Num() < 3)
+	{
+		return FExecStatus::Error("Need at least location [x, y, z]");
+	}
+
+	float X = FCString::Atof(*Args[0]);
+	float Y = FCString::Atof(*Args[1]);
+	float Z = FCString::Atof(*Args[2]);
+	FVector Location(X, Y, Z);
+
+	int32 CubemapResolution = 1024;
+	if (Args.Num() >= 4)
+	{
+		CubemapResolution = FCString::Atoi(*Args[3]);
+	}
+
+	UWorld* World = FWorldController::Get().GetWorld();
+	if (!IsValid(World))
+	{
+		return FExecStatus::Error("World not valid");
+	}
+
+	AActor* PanoActor = World->SpawnActor<AActor>(AActor::StaticClass(), Location, FRotator::ZeroRotator);
+	if (!IsValid(PanoActor))
+	{
+		return FExecStatus::Error("Failed to spawn panoramic camera actor");
+	}
+
+	UPanoramicCamSensor* PanoSensor = NewObject<UPanoramicCamSensor>(PanoActor);
+	PanoSensor->RegisterComponent();
+	PanoSensor->SetCubemapResolution(CubemapResolution);
+	PanoSensor->InitCubemapTarget(CubemapResolution);
+
+	PanoActor->SetRootComponent(PanoSensor);
+
+	FString ActorName = PanoActor->GetName();
+	UE_LOG(LogUnrealCV, Log, TEXT("SpawnPanoramicCamera: Created actor %s at %s with resolution %d"),
+		*ActorName, *Location.ToString(), CubemapResolution);
+
+	return FExecStatus::OK(ActorName);
+}
+
+FExecStatus FCameraHandler::GetCameraPanoramic(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Filename required");
+	}
+
+	FString Filename = Args[0];
+
+	int32 EquirectWidth = 4096;
+	int32 EquirectHeight = 2048;
+
+	if (Args.Num() >= 3)
+	{
+		EquirectWidth = FCString::Atoi(*Args[1]);
+		EquirectHeight = FCString::Atoi(*Args[2]);
+	}
+
+	UWorld* World = FWorldController::Get().GetWorld();
+	if (!IsValid(World))
+	{
+		return FExecStatus::Error("World not valid");
+	}
+
+	UPanoramicCamSensor* PanoSensor = nullptr;
+	for (TObjectIterator<UPanoramicCamSensor> It; It; ++It)
+	{
+		if (It->GetWorld() == World)
+		{
+			PanoSensor = *It;
+			break;
+		}
+	}
+
+	if (!IsValid(PanoSensor))
+	{
+		return FExecStatus::Error("No panoramic camera found. Use 'vget /panoramic/spawn' first");
+	}
+
+	PanoSensor->CaptureEquirectangularToFile(Filename, EquirectWidth, EquirectHeight);
+
+	return FExecStatus::OK(Filename);
 }
