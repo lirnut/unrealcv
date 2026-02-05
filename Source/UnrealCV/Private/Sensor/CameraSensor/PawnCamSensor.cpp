@@ -10,6 +10,8 @@ UPawnCamSensor::UPawnCamSensor(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
 	this->PrimaryComponentTick.bCanEverTick = true;
+	UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::Constructor: this=%p, bCanEverTick=%d, bStartWithTickEnabled=%d"),
+		this, this->PrimaryComponentTick.bCanEverTick, this->PrimaryComponentTick.bStartWithTickEnabled);
 
 	for (UBaseCameraSensor* Sensor : FusionSensors)
 	{
@@ -26,6 +28,7 @@ UPawnCamSensor::UPawnCamSensor(const FObjectInitializer& ObjectInitializer)
 void UPawnCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * T)
 {
 	Super::TickComponent(DeltaTime, TickType, T);
+	UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::TickComponent: Called! this=%p, DeltaTime=%f"), this, DeltaTime);
 	// Make the world location and view rotation is the same as the Pawn viewpoint
 	FVector EyeLocation;
 	FRotator EyeRotation;
@@ -42,6 +45,8 @@ void UPawnCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FA
 	// Note: https://answers.unrealengine.com/questions/5155/getting-editor-viewport-camera.html
 	// GEngine->GameViewport->Viewport
 	Pawn->GetActorEyesViewPoint(EyeLocation, EyeRotation);
+	UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::TickComponent: EyeLocation=%s, EyeRotation=%s"),
+		*EyeLocation.ToString(), *EyeRotation.ToString());
 	// GetPlayerViewpoint(EyeLocation, EyeRotation);
 	// FRotator CompRotation = this->GetComponentRotation();
 	// FVector CompLocation = this->GetComponentLocation();
@@ -52,6 +57,10 @@ void UPawnCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FA
 	this->SetWorldLocation(EyeLocation);
 	this->SetWorldRotation(EyeRotation);
 	this->UpdateChildTransforms();
+	FVector ActualLocation = this->GetComponentLocation();
+	FRotator ActualRotation = this->GetComponentRotation();
+	UE_LOG(LogTemp, Warning, TEXT("UPawnCamSensor::TickComponent: After Set - ActualLocation=%s, ActualRotation=%s"),
+		*ActualLocation.ToString(), *ActualRotation.ToString());
 
 	// USceneComponent* Parent = this->LitCamSensor->GetAttachParent();
 	// if (Parent != this)

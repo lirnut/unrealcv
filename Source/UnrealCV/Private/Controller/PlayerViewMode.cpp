@@ -30,12 +30,13 @@ void UPlayerViewMode::LoadMaterial()
 	MaterialPathMap.Add(TEXT("depth"), TEXT("Material'/UnrealCV/SceneDepthWorldUnits.SceneDepthWorldUnits'"));
 	MaterialPathMap.Add(TEXT("plane_depth"), TEXT("Material'/UnrealCV/ScenePlaneDepthWorldUnits.ScenePlaneDepthWorldUnits'"));
 	MaterialPathMap.Add(TEXT("vis_depth"), TEXT("Material'/UnrealCV/SceneDepth.SceneDepth'"));
-	MaterialPathMap.Add(TEXT("carla_depth"), TEXT("Material'/UnrealCV/Carla/DepthEffectMaterial.DepthEffectMaterial'"));
+	// MaterialPathMap.Add(TEXT("carla_depth"), TEXT("Material'/UnrealCV/Carla/DepthEffectMaterial.DepthEffectMaterial'"));
 	MaterialPathMap.Add(TEXT("debug"), TEXT("Material'/UnrealCV/debug.debug'"));
 	MaterialPathMap.Add(TEXT("object_mask"), TEXT("Material'/UnrealCV/VertexColorMaterial.VertexColorMaterial'"));
 	MaterialPathMap.Add(TEXT("normal"), TEXT("Material'/UnrealCV/WorldNormal.WorldNormal'"));
 	// MaterialPathMap.Add(TEXT("optical_flow"), TEXT("Material'/UnrealCV/OpticalFlowMaterialNative.OpticalFlowMaterialNative'"));
-	MaterialPathMap.Add(TEXT("optical_flow"), TEXT("Material'/UnrealCV/Carla/VelocityMaterial.VelocityMaterial'"));
+	// MaterialPathMap.Add(TEXT("optical_flow"), TEXT("Material'/UnrealCV/Carla/VelocityMaterial.VelocityMaterial'"));
+	MaterialPathMap.Add(TEXT("optical_flow"), TEXT("Material'/UnrealCV/OpticalFlowMaterialNative.OpticalFlowMaterialNative'"));
 	FString OpaqueMaterialName = "Material'/UnrealCV/OpaqueMaterial.OpaqueMaterial'";
 	MaterialPathMap.Add(TEXT("opaque"), OpaqueMaterialName);
 
@@ -139,11 +140,11 @@ void UPlayerViewMode::Depth()
 	this->ApplyPostProcess("vis_depth");
 }
 
-void UPlayerViewMode::CarlaDepth()
-{
-	FUnrealcvServer::Get().GetWorld()->GetGameViewport()->SetViewMode(VMI_Lit);
-	this->ApplyPostProcess("carla_depth");
-}
+// void UPlayerViewMode::CarlaDepth()
+// {
+// 	FUnrealcvServer::Get().GetWorld()->GetGameViewport()->SetViewMode(VMI_Lit);
+// 	this->ApplyPostProcess("carla_depth");
+// }
 
 void UPlayerViewMode::Normal()
 {
@@ -251,7 +252,7 @@ FExecStatus UPlayerViewMode::SetMode(const TArray<FString>& Args) // Check input
 	{
 		ViewModeHandlers = new TMap<FString, ViewModeFunc>();
 		ViewModeHandlers->Add(TEXT("depth"), ViewModeFunc::CreateUObject(this, &UPlayerViewMode::Depth));
-		ViewModeHandlers->Add(TEXT("carla_depth"), ViewModeFunc::CreateUObject(this, &UPlayerViewMode::CarlaDepth));
+		// ViewModeHandlers->Add(TEXT("carla_depth"), ViewModeFunc::CreateUObject(this, &UPlayerViewMode::CarlaDepth));
 		ViewModeHandlers->Add(TEXT("normal"), ViewModeFunc::CreateUObject(this, &UPlayerViewMode::Normal));
 		ViewModeHandlers->Add(TEXT("optical_flow"), ViewModeFunc::CreateUObject(this, &UPlayerViewMode::OpticalFlow));
 		ViewModeHandlers->Add(TEXT("object_mask"), ViewModeFunc::CreateUObject(this, &UPlayerViewMode::Object));

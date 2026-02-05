@@ -12,7 +12,9 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Ticker.h"
 #include "Engine/World.h"
+#if WITH_EDITOR
 #include "FileHelpers.h"
+#endif
 
 int32 UMetaHumanBPLib::BatchSize = 4;
 TUniquePtr<FBatchContext> UMetaHumanBPLib::GBatchContext = nullptr;
@@ -125,6 +127,7 @@ void UMetaHumanBPLib::ProcessBatch(FBatchContext* Context)
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		UE_LOG(LogTemp, Log, TEXT("MetaHumanAsync: GC triggered at index %d/%d"), Context->CurrentIndex, Context->AllPaths.Num());
 	}
+#if WITH_EDITOR
 	bool bPromptUserToSave = false;
 	bool bSaveMapPackages = true;
 	bool bSaveContentPackages = true;
@@ -146,6 +149,7 @@ void UMetaHumanBPLib::ProcessBatch(FBatchContext* Context)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Failed to save some packages, but character was assembled"));
 	}
+#endif
 }
 
 

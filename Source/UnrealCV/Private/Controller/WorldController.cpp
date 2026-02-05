@@ -32,6 +32,8 @@ void AUnrealcvWorldController::AttachPawnSensor()
 	UE_LOG(LogUnrealCV, Display, TEXT("Attach a UnrealcvSensor to the pawn"));
 	// Make sure this is the first one.
 	UPawnCamSensor* PawnCamSensor = NewObject<UPawnCamSensor>(Pawn, TEXT("PawnSensor")); // Make Pawn as the owner of the component
+	UE_LOG(LogUnrealCV, Warning, TEXT("AttachPawnSensor: Created PawnCamSensor=%p, Owner=%p(%s)"),
+		PawnCamSensor, Pawn, *Pawn->GetName());
 	// UFusionCamSensor* FusionCamSensor = ConstructObject<UFusionCamSensor>(UFusionCamSensor::StaticClass(), Pawn);
 
 	UWorld *PawnWorld = Pawn->GetWorld();
@@ -43,6 +45,8 @@ void AUnrealcvWorldController::AttachPawnSensor()
 	PawnCamSensor->AttachToComponent(Pawn->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	// AActor* OwnerActor = FusionCamSensor->GetOwner();
 	PawnCamSensor->RegisterComponent(); // Is this neccessary?
+	UE_LOG(LogUnrealCV, Warning, TEXT("AttachPawnSensor: After Register - IsRegistered=%d, bCanEverTick=%d, IsActive=%d"),
+		PawnCamSensor->IsRegistered(), PawnCamSensor->PrimaryComponentTick.bCanEverTick, PawnCamSensor->IsActive());
 	UVisionBPLib::UpdateInput(Pawn, Server.Config.EnableInput);
 }
 
