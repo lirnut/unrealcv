@@ -92,7 +92,8 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("MovieQualityRenderer"));
 	MovieQualityRenderer = CreateDefaultSubobject<UMovieQualityRenderComponent> (*ComponentName);
-	MovieQualityRenderer->SetupAttachment(this);
+	// BUG FIX: MovieQualityRenderer also causes template mismatch during cook
+	// MovieQualityRenderer->SetupAttachment(this);
 	// FusionSensors.Add(MovieQualityRenderer);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("FlowCamSensor"));
@@ -205,6 +206,12 @@ void UFusionCamSensor::BeginPlay()
 	{
 		StencilMaskCamSensor->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
 		FusionSensors.Add(StencilMaskCamSensor);
+	}
+
+	// BUG FIX: MovieQualityRenderer also causes template mismatch during cook
+	if (IsValid(MovieQualityRenderer))
+	{
+		MovieQualityRenderer->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
 	}
 
 	SetFilmSize(FilmWidth, FilmHeight);
