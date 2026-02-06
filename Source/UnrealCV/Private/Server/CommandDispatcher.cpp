@@ -16,10 +16,11 @@ DECLARE_CYCLE_STAT(TEXT("FCommandDispatcher::Exec"), STAT_Exec, STATGROUP_Unreal
 
 FCommandDispatcher::FCommandDispatcher()
 {
-	FString Str = "([^ ]*)", UInt = "(\\d*)", Float = "([-+]?\\d*[.]?\\d+)"; // Each type will be considered as a group
+	FString Str = "([^ ]*)", UInt = "(\\d*)", Float = "([-+]?\\d*[.]?\\d+)", Bool = "(true|false|\\d+)"; // Each type will be considered as a group
 	TypeRegexp.Emplace("str", Str);
 	TypeRegexp.Emplace("uint", UInt);
 	TypeRegexp.Emplace("float", Float);
+	TypeRegexp.Emplace("bool", Bool);
 
 	FDispatcherDelegate Cmd = FDispatcherDelegate::CreateRaw(this, &FCommandDispatcher::AliasHelper);
 	FString Uri = FString::Printf(TEXT("vrun [str]"));
