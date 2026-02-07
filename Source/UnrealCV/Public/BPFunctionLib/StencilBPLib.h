@@ -28,13 +28,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Stencil")
 	static int32 GetCustomDepthStencilValue(AActor* TargetActor);
 
-private:
-	struct FStencilBackup
-	{
-		TWeakObjectPtr<UPrimitiveComponent> Component;
-		bool bOriginalRenderCustomDepth;
-		int32 OriginalStencilValue;
-	};
+// private:
+	// struct FStencilBackup
+	// {
+	// 	TWeakObjectPtr<UPrimitiveComponent> Component;
+	// 	bool bOriginalRenderCustomDepth;
+	// 	int32 OriginalStencilValue;
+	// };
 
-	static TArray<FStencilBackup> StencilBackups;
+	// static TArray<FStencilBackup> StencilBackups;
 };

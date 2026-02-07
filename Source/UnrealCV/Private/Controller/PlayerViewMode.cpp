@@ -12,6 +12,7 @@
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
 #include "BPFunctionLib/AnnotationBPLib.h"
+#include "Controller/ObjectAnnotator.h"
 
 DECLARE_DELEGATE(ViewModeFunc)
 
@@ -39,6 +40,9 @@ void UPlayerViewMode::LoadMaterial()
 	MaterialPathMap.Add(TEXT("optical_flow"), TEXT("Material'/UnrealCV/OpticalFlowMaterialNative.OpticalFlowMaterialNative'"));
 	FString OpaqueMaterialName = "Material'/UnrealCV/OpaqueMaterial.OpaqueMaterial'";
 	MaterialPathMap.Add(TEXT("opaque"), OpaqueMaterialName);
+
+	FString GTMaterialPath = "Material'/UnrealCV/Carla/GTMaterial.GTMaterial'";
+	MaterialPathMap.Add(TEXT("gt_material"), GTMaterialPath);
 
 	PPMaterialMap = {};
 	for (auto& Elem : MaterialPathMap)
@@ -202,10 +206,18 @@ void UPlayerViewMode::Object()
 {
 	UWorld* World = FUnrealcvServer::Get().GetWorld();
 	auto Viewport = World->GetGameViewport();
-	Viewport->SetViewMode(VMI_Lit);
-	FViewMode::VertexColor(Viewport->EngineShowFlags);
-	this->ClearPostProcess();
-	// ApplyPostProcess("object_mask");
+
+	if (FObjectAnnotator::IsUsingDirectAnnotation())
+	{
+		Viewport->SetViewMode(VMI_Lit);
+		ApplyPostProcess("gt_material");
+	}
+	else
+	{
+		Viewport->SetViewMode(VMI_Lit);
+		FViewMode::VertexColor(Viewport->EngineShowFlags);
+		this->ClearPostProcess();
+	}
 }
 
 void UPlayerViewMode::ClearPostProcess()

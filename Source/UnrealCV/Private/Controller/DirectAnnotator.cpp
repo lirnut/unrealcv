@@ -1,11 +1,9 @@
 #include "Controller/DirectAnnotator.h"
 #include "Runtime/Engine/Public/EngineUtils.h"
 #include "Runtime/Engine/Classes/Components/PrimitiveComponent.h"
-#include "Runtime/Engine/Classes/Components/StaticMeshComponent.h"
-#include "Runtime/Engine/Classes/Components/SkeletalMeshComponent.h"
-#include "Runtime/Engine/Classes/Components/InstancedStaticMeshComponent.h"
 #include "UnrealcvLog.h"
 #include "Controller/ObjectAnnotator.h"
+#include "BPFunctionLib/StencilBPLib.h"
 
 FDirectAnnotator::FDirectAnnotator()
 {
@@ -39,6 +37,7 @@ void FDirectAnnotator::AnnotateWorld(UWorld* World)
 
 		FColor AnnotationColor = GetDefaultColor(Actor);
 		SetAnnotationColor(Actor, AnnotationColor);
+		UStencilBPLib::EnableCustomDepthForActor(Actor, Actor->GetUniqueID());
 	}
 
 	UE_LOG(LogUnrealCV, Log, TEXT("[DirectAnnotator] Annotated %d actors, %d unique colors"),
@@ -75,6 +74,8 @@ void FDirectAnnotator::DeannotateWorld(UWorld* World)
 				++ClearedCount;
 			}
 		}
+
+		// UStencilBPLib::DisableCustomDepthForActor(Actor);
 	}
 
 	AnnotationColors.Empty();
@@ -97,15 +98,7 @@ int32 FDirectAnnotator::SetAnnotationColor(AActor* Actor, const FColor& Annotati
 
 	for (UPrimitiveComponent* Primitive : PrimitiveComponents)
 	{
-		if (!IsValid(Primitive))
-		{
-			continue;
-		}
-
-		UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(Primitive);
-		USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(Primitive);
-
-		if (StaticMeshComp || SkeletalMeshComp)
+		if (IsValid(Primitive))
 		{
 			SetPrimitiveAnnotationData(Primitive, AnnotationColor, ActorID);
 			++AnnotatedCount;
@@ -193,6 +186,6 @@ void FDirectAnnotator::SetPrimitiveAnnotationData(UPrimitiveComponent* Primitive
 
 	Primitive->SetCustomPrimitiveDataVector4(4, AnnotationData);
 
-	UE_LOG(LogUnrealCV, Verbose, TEXT("[DirectAnnotator] Set annotation data for %s: R=%d G=%d B=%d ActorID=%d"),
+	UE_LOG(LogUnrealCV, Log, TEXT("[DirectAnnotator] Set annotation data for %s: R=%d G=%d B=%d ActorID=%d"),
 		*Primitive->GetName(), AnnotationColor.R, AnnotationColor.G, AnnotationColor.B, ActorID);
 }

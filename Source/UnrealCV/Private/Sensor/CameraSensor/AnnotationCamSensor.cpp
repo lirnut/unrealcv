@@ -1,4 +1,3 @@
-// Weichao Qiu @ 2017
 #include "AnnotationCamSensor.h"
 #include "Runtime/Engine/Classes/Engine/TextureRenderTarget2D.h"
 #include "Runtime/Engine/Classes/Engine/World.h"
@@ -12,6 +11,10 @@
 #include "RHISurfaceDataConversionOpt.h"
 #include "SetAlpha.h"
 #include "BPFunctionLib/AnnotationBPLib.h"
+#include "Controller/ObjectAnnotator.h"
+
+static const FString GTMaterialPath = TEXT("Material'/UnrealCV/Carla/GTMaterial.GTMaterial'");
+static const FString GTMaterialPathAlt = TEXT("Material'/UnrealCV/GTMaterial.GTMaterial'");
 
 UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
@@ -21,9 +24,7 @@ UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectIniti
 	this->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 	this->HiddenComponents.Reset();
 
-	this->ShowFlags.SetMaterials(false);
 	this->ShowFlags.SetLighting(false);
-	this->ShowFlags.SetPostProcessing(false);
 	this->ShowFlags.SetColorGrading(false);
 	this->ShowFlags.SetTonemapper(false);
 	this->ShowFlags.SetAtmosphere(false);
@@ -32,7 +33,33 @@ UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectIniti
 	this->PostProcessSettings.bOverride_AutoExposureBias = true;
 	this->PostProcessSettings.AutoExposureBias = 0;
 
-	bRenderInMainRenderer = true;  // optimization
+	if (FObjectAnnotator::IsUsingDirectAnnotation())
+	{
+		this->ShowFlags.SetPostProcessing(true);
+		this->ShowFlags.SetMaterials(true);
+		UMaterialInterface* GTMaterial = LoadObject<UMaterialInterface>(nullptr, *GTMaterialPath);
+		if (!GTMaterial)
+		{
+			GTMaterial = LoadObject<UMaterialInterface>(nullptr, *GTMaterialPathAlt);
+		}
+		if (GTMaterial)
+		{
+			SetPostProcessMaterial(GTMaterial);
+			UE_LOG(LogUnrealCV, Log, TEXT("[AnnotationCamSensor] DirectAnnotation mode - GTMaterial loaded"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("[AnnotationCamSensor] Failed to load GTMaterial for DirectAnnotation"));
+		}
+	}
+	else
+	{
+		this->ShowFlags.SetPostProcessing(false);
+		this->ShowFlags.SetMaterials(false);
+		UE_LOG(LogUnrealCV, Log, TEXT("[AnnotationCamSensor] ProxyAnnotation mode - PostProcessing disabled"));
+	}
+
+	bRenderInMainRenderer = true;
 }
 
 

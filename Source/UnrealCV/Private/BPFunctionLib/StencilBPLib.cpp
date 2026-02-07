@@ -6,7 +6,7 @@
 #include "GroomComponent.h"
 #include "UnrealcvLog.h"
 
-TArray<UStencilBPLib::FStencilBackup> UStencilBPLib::StencilBackups;
+// TArray<UStencilBPLib::FStencilBackup> UStencilBPLib::StencilBackups;
 
 void UStencilBPLib::EnableCustomDepthForActor(AActor* TargetActor, int32 StencilValue)
 {
@@ -27,15 +27,15 @@ void UStencilBPLib::EnableCustomDepthForActor(AActor* TargetActor, int32 Stencil
 			continue;
 		}
 
-		FStencilBackup Backup;
-		Backup.Component = PrimComp;
-		Backup.bOriginalRenderCustomDepth = PrimComp->bRenderCustomDepth;
-		Backup.OriginalStencilValue = PrimComp->CustomDepthStencilValue;
+		// FStencilBackup Backup;
+		// Backup.Component = PrimComp;
+		// Backup.bOriginalRenderCustomDepth = PrimComp->bRenderCustomDepth;
+		// Backup.OriginalStencilValue = PrimComp->CustomDepthStencilValue;
 
 		PrimComp->SetRenderCustomDepth(true);
 		PrimComp->SetCustomDepthStencilValue(StencilValue);
 
-		StencilBackups.Add(Backup);
+		// StencilBackups.Add(Backup);
 
 		UE_LOG(LogUnrealCV, Log, TEXT("EnableCustomDepth: %s (Stencil=%d)"),
 			*PrimComp->GetName(), StencilValue);
@@ -64,16 +64,17 @@ void UStencilBPLib::DisableCustomDepthForActor(AActor* TargetActor)
 			continue;
 		}
 
-		for (int32 i = StencilBackups.Num() - 1; i >= 0; --i)
-		{
-			if (StencilBackups[i].Component == PrimComp)
-			{
-				PrimComp->SetRenderCustomDepth(StencilBackups[i].bOriginalRenderCustomDepth);
-				PrimComp->SetCustomDepthStencilValue(StencilBackups[i].OriginalStencilValue);
-				StencilBackups.RemoveAt(i);
-				break;
-			}
-		}
+		PrimComp->SetRenderCustomDepth(false);
+		// for (int32 i = StencilBackups.Num() - 1; i >= 0; --i)
+		// {
+		// 	if (StencilBackups[i].Component == PrimComp)
+		// 	{
+		// 		PrimComp->SetRenderCustomDepth(StencilBackups[i].bOriginalRenderCustomDepth);
+		// 		PrimComp->SetCustomDepthStencilValue(StencilBackups[i].OriginalStencilValue);
+		// 		StencilBackups.RemoveAt(i);
+		// 		break;
+		// 	}
+		// }
 	}
 
 	UE_LOG(LogUnrealCV, Log, TEXT("DisableCustomDepthForActor: Restored components for %s"),
