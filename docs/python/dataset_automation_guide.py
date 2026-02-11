@@ -359,9 +359,47 @@ record_trajectory 命令可用的轨迹类型：
   vset /datasetautomation/stop              - 停止自动化
   vget /datasetautomation/status             - 获取当前状态
 
-动画命令（在序列中使用）：
-  set_animation_bp [ABP_Path]  - 设置动画蓝图（复杂程序化动画）
-  set_animation_seq [Seq_Path]- 设置动画序列（循环动画）
+"""
+
+
+#   ------------------------------------------------------------------------------
+#   sequence序列支持的命令列表 (cmd)
+#   ------------------------------------------------------------------------------
+"""
+🎥 摄像机控制
+    random_fov             随机/固定FOV
+    random_resolution      随机选择分辨率
+    sync_pawn_to_primary_camera    同步Pawn到主摄像机
+    sync_secondary_cameras 等待副摄像机录制完成
+    sync_all_cameras       等待所有摄像机录制完成
+
+🎬 动画设置
+    set_animation_bp       设置动画蓝图
+    set_animation_seq      设置动画序列
+    record_trajectory      开始轨迹录制
+
+🌍 场景管理
+    create_scene           创建随机场景
+    clear_scene            清除当前场景
+    load_level             加载指定关卡
+    load_random_level_every_n_scenes    每N场景随机换图
+    annotate_world         标注世界物体
+
+⏯️ 录制控制
+    prepare_record         准备录制
+    prepare_groom          准备毛发渲染(Matting)
+    record_nav_track       录制导航轨迹
+    save_videos            保存所有视频
+    special_wait           等待录制到指定帧
+
+🔄 流程控制
+    increment_counter      场景计数器+1
+    check_completion       检查场景完成度
+    delay                  等待指定秒数
+    set_pause              暂停/恢复游戏
+    set_time_dilation      设置时间膨胀
+    vrun                   执行UE控制台命令
+
 """
 
 
