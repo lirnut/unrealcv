@@ -59,6 +59,10 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/spawn_free_cam")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.ForceLOD 0")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.SkeletalMeshLODBias -10")));
+		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("250 400")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
@@ -117,6 +121,10 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	}
 	if (TaskName == TEXT("Matting"))
 	{
+		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("75 100")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		// CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Script/Engine.AnimBlueprint'/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement'")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C")));
@@ -139,6 +147,10 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	}
 	else if (TaskName == TEXT("Omnimatte"))
 	{
+		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("250 400")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("640x480 480x640")));
@@ -156,6 +168,10 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	}
 	else if (TaskName == "SpeedTest")
 	{
+		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("250 400")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("8.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
@@ -224,36 +240,6 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	{
 		CurrentSceneID = GenerateSceneID(CurrentSceneCounter);
 
-		if (CurrentConfig.bLoadSceneParamsFromJson)
-		{
-			FString JsonFilePath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
-			if (!USceneCompositionBPLib::CreateSceneParamsFromJson(WorldContext, JsonFilePath, CurrentConfig.SceneParams))
-			{
-				UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Failed to load scene params from JSON"));
-				TransitionToState(EDatasetGenerationState::Error);
-				return;
-			}
-		}
-
-		if (CurrentConfig.SceneParams.bAutoPositionCamera)
-		{
-			float CameraHeight = FMath::RandRange(160.0f, 175.0f);
-			float CameraAngleOffset = FMath::RandRange(-15.0f, 15.0f);
-			float Distance;
-			if (TaskName == "Matting")
-			{
-				Distance = FMath::RandRange(100.0f, 200.0f);
-			}
-			else
-			{
-				Distance = FMath::RandRange(250.0f, 400.0f);
-			}
-
-			CurrentConfig.SceneParams.AutoPositionCameraHeight = CameraHeight;
-			CurrentConfig.SceneParams.AutoPositionCameraAngleOffset = CameraAngleOffset;
-			CurrentConfig.SceneParams.AutoPositionCameraDistance = Distance;
-		}
-
 		bool Success = USceneCompositionBPLib::GenerateRandomScene(
 			WorldContext,
 			CurrentConfig.SceneParams,
@@ -272,6 +258,83 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
 		}
 	}
+	else if (Step.Command == TEXT("load_scene_param_json"))
+	{
+		FString JsonFilePath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
+		if (!USceneCompositionBPLib::CreateSceneParamsFromJson(WorldContext, JsonFilePath, CurrentConfig.SceneParams))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Failed to load scene params from JSON"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Loaded scene params from JSON"));
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("random_scene_param_camera_height"))
+	{
+		TArray<FString> Args;
+		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
+		if (Args.Num() >= 2)
+		{
+			float Min = FCString::Atof(*Args[0]);
+			float Max = FCString::Atof(*Args[1]);
+			CurrentConfig.SceneParams.AutoPositionCameraHeight = FMath::RandRange(Min, Max);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Invalid Argument"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Random camera height: %.1f"), CurrentConfig.SceneParams.AutoPositionCameraHeight);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("random_scene_param_camera_angle_offset"))
+	{
+		TArray<FString> Args;
+		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
+		if (Args.Num() >= 2)
+		{
+			float Min = FCString::Atof(*Args[0]);
+			float Max = FCString::Atof(*Args[1]);
+			CurrentConfig.SceneParams.AutoPositionCameraAngleOffset = FMath::RandRange(Min, Max);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Invalid Argument"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Random camera angle offset: %.1f"), CurrentConfig.SceneParams.AutoPositionCameraAngleOffset);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("random_scene_param_camera_distance"))
+	{
+		float Distance;
+		TArray<FString> Args;
+		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
+		if (Args.Num() >= 2)
+		{
+			float Min = FCString::Atof(*Args[0]);
+			float Max = FCString::Atof(*Args[1]);
+			Distance = FMath::RandRange(Min, Max);
+		}
+		else if (Args.Num() == 1)
+		{
+			Distance = FCString::Atof(*Args[0]);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Invalid Argument"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		CurrentConfig.SceneParams.AutoPositionCameraDistance = Distance;
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Random camera distance: %.1f"), CurrentConfig.SceneParams.AutoPositionCameraDistance);
+		ExecuteNextCommand();
+	}
 	else if (Step.Command == TEXT("random_fov"))
 	{
 		TArray<FString> Args;
@@ -285,6 +348,12 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		else if (Args.Num() == 1)
 		{
 			CurrentStatus.ChosenFOV = FCString::Atof(*Args[0]);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Invalid Argument"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
 		}
 		UE_LOG(LogUnrealCV, Log, TEXT("random_fov: %.1f"), CurrentStatus.ChosenFOV);
 		ExecuteNextCommand();
