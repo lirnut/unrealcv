@@ -654,6 +654,54 @@ bool USceneCompositionBPLib::CreateSceneParamsFromJson(
 		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: ForegroundYaw not found in config '%s', using default"), *MatchedKey);
 	}
 
+	// Parse AutoPositionCameraHeight
+	if (MatchingConfig->HasField(TEXT("AutoPositionCameraHeight")))
+	{
+		double Value = 167.5;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("AutoPositionCameraHeight"));
+		if (FJsonConfigHelper::ParseJsonNumber(Val, Value))
+		{
+			OutParams.AutoPositionCameraHeight = Value;
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: AutoPositionCameraHeight parsed: %f"), Value);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse AutoPositionCameraHeight, using default"));
+		}
+	}
+
+	// Parse AutoPositionCameraDistance
+	if (MatchingConfig->HasField(TEXT("AutoPositionCameraDistance")))
+	{
+		double Value = 325.0;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("AutoPositionCameraDistance"));
+		if (FJsonConfigHelper::ParseJsonNumber(Val, Value))
+		{
+			OutParams.AutoPositionCameraDistance = Value;
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: AutoPositionCameraDistance parsed: %f"), Value);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse AutoPositionCameraDistance, using default"));
+		}
+	}
+
+	// Parse AutoPositionCameraAngleOffset
+	if (MatchingConfig->HasField(TEXT("AutoPositionCameraAngleOffset")))
+	{
+		double Value = 0.0;
+		TSharedPtr<FJsonValue> Val = MatchingConfig->TryGetField(TEXT("AutoPositionCameraAngleOffset"));
+		if (FJsonConfigHelper::ParseJsonNumber(Val, Value))
+		{
+			OutParams.AutoPositionCameraAngleOffset = Value;
+			UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: AutoPositionCameraAngleOffset parsed: %f"), Value);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: Failed to parse AutoPositionCameraAngleOffset, using default"));
+		}
+	}
+
 	if (MatchingConfig->HasField(TEXT("SafePoints")))
 	{
 		const TArray<TSharedPtr<FJsonValue>>* SafePointsArray = nullptr;
@@ -827,10 +875,10 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	if (Params.bAutoPositionCamera)
 	{
 		auto NewPosition = OutSceneHandle.ForegroundActor->GetActorLocation();
-		float CameraHeight = FMath::RandRange(160.0f, 175.0f);
-		float Distance = FMath::RandRange(250.0f, 400.0f);
+		float CameraHeight = Params.AutoPositionCameraHeight;
+		float Distance = Params.AutoPositionCameraDistance;
 
-		float CameraAngleOffset = FMath::RandRange(-15.0f, 15.0f);
+		float CameraAngleOffset = Params.AutoPositionCameraAngleOffset;
 		float HorizontalAngle = Yaw + CameraAngleOffset;
 
 		FVector CameraPosition;

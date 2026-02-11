@@ -67,6 +67,15 @@ struct FSceneGenerationParams
 	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
 	TArray<FVector> SafePoints;
 
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	float AutoPositionCameraHeight;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	float AutoPositionCameraDistance;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UnrealCV|SceneComposition")
+	float AutoPositionCameraAngleOffset;
+
 	FSceneGenerationParams()
 		: SpawnAreaMin(0.0f, 0.0f)
 		, SpawnAreaMax(1000.0f, 1000.0f)
@@ -80,6 +89,9 @@ struct FSceneGenerationParams
 		, bAutoPositionCamera(true)
 		, ForegroundYaw(-1.0f)
 		, SafePoints({})
+		, AutoPositionCameraHeight(167.5f)
+		, AutoPositionCameraDistance(325.0f)
+		, AutoPositionCameraAngleOffset(0.0f)
 	{
 	}
 
@@ -97,6 +109,9 @@ struct FSceneGenerationParams
 		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: bAutoPositionCamera: %s"), bAutoPositionCamera ? TEXT("true") : TEXT("false"));
 		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: ForegroundYaw: %f"), ForegroundYaw);
 		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: SafePoints count: %d"), SafePoints.Num());
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: AutoPositionCameraHeight: %f"), AutoPositionCameraHeight);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: AutoPositionCameraDistance: %f"), AutoPositionCameraDistance);
+		UE_LOG(LogUnrealCV, Log, TEXT("SceneGenerationParams: AutoPositionCameraAngleOffset: %f"), AutoPositionCameraAngleOffset);
 	}
 };
 

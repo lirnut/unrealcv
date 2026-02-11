@@ -56,7 +56,7 @@ public:
 
 	// ========== Recording Control (Neo Unified System) ==========
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
-	void StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS = 30, float DegreesPerSecond = 36.0f, int32 RandomSeed = -1, bool bPauseWorldTime = false);
+	void StartTrajectoryRecord(const FString& FileName, ECameraTrajectoryType TrajectoryType, AActor* Target, int32 FPS = 30, int32 InNumFrames = 121, int32 RandomSeed = -1, bool bPauseWorldTime = false);
 
 	// ========== Simple Recording (No Camera Movement) ==========
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
@@ -230,24 +230,24 @@ protected:
 	void SetDefaultParamsForTargetCamera();
 
 	// ========== Trajectory Calculation Functions (Separated from Rendering) ==========
-	TArray<FCameraPose> CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, float DegreesPerFrame, int32 RandomSeed);
+	TArray<FCameraPose> CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, int32 InNumFrames, int32 RandomSeed);
 	void RenderTrajectory(const TArray<FCameraPose>& Trajectory, bool bPauseWorldTime);
 
 	// Individual trajectory calculation functions
-	TArray<FCameraPose> CalculateRotateLeft(AActor* Target, float DegreesPerFrame, float RotationDegs);
-	// TArray<FCameraPose> CalculateRotateLeft45(AActor* Target, float DegreesPerFrame);
-	// TArray<FCameraPose> CalculateRotateLeft30(AActor* Target, float DegreesPerFrame);
-	TArray<FCameraPose> CalculateRotateRight(AActor* Target, float DegreesPerFrame, float RotationDegs);
-	// TArray<FCameraPose> CalculateRotateRight45(AActor* Target, float DegreesPerFrame);
-	// TArray<FCameraPose> CalculateRotateRight30(AActor* Target, float DegreesPerFrame);
-	TArray<FCameraPose> CalculateRotateUp(AActor* Target, float DegreesPerFrame, float RotationDegs);
-	// TArray<FCameraPose> CalculateRotateUp45(AActor* Target, float DegreesPerFrame);
-	// TArray<FCameraPose> CalculateRotateUp30(AActor* Target, float DegreesPerFrame);
-	TArray<FCameraPose> CalculateRotate360(AActor* Target, float DegreesPerFrame);
-	TArray<FCameraPose> CalculateZoomIn(AActor* Target, float DegreesPerFrame);
-	TArray<FCameraPose> CalculateZoomOut(AActor* Target, float DegreesPerFrame);
-	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, float DegreesPerFrame, int32 RandomSeed);
-	TArray<FCameraPose> CalculateRenderOnly(float Time);
+	TArray<FCameraPose> CalculateRotateLeft(AActor* Target, int32 InNumFrames, float RotationDegs);
+	// TArray<FCameraPose> CalculateRotateLeft45(AActor* Target, int32 InNumFrames);
+	// TArray<FCameraPose> CalculateRotateLeft30(AActor* Target, int32 InNumFrames);
+	TArray<FCameraPose> CalculateRotateRight(AActor* Target, int32 InNumFrames, float RotationDegs);
+	// TArray<FCameraPose> CalculateRotateRight45(AActor* Target, int32 InNumFrames);
+	// TArray<FCameraPose> CalculateRotateRight30(AActor* Target, int32 InNumFrames);
+	TArray<FCameraPose> CalculateRotateUp(AActor* Target, int32 InNumFrames, float RotationDegs);
+	// TArray<FCameraPose> CalculateRotateUp45(AActor* Target, int32 InNumFrames);
+	// TArray<FCameraPose> CalculateRotateUp30(AActor* Target, int32 InNumFrames);
+	TArray<FCameraPose> CalculateRotate360(AActor* Target, int32 InNumFrames);
+	TArray<FCameraPose> CalculateZoomIn(AActor* Target, int32 InNumFrames);
+	TArray<FCameraPose> CalculateZoomOut(AActor* Target, int32 InNumFrames);
+	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, int32 InNumFrames, int32 RandomSeed);
+	TArray<FCameraPose> CalculateRenderOnly(int32 InNumFrames);
 	TArray<FCameraPose> AddRotateBufferFrames(const TArray<FCameraPose>& CoreTrajectory);
 	TArray<FCameraPose> AddHandheldShake(const TArray<FCameraPose>& InputTrajectory);
 

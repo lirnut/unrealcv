@@ -26,14 +26,13 @@ struct FAutomationStep
 
 	FString Command;
 	FString StringParam;
-	float FloatParam;
 
 	FAutomationStep()
-		: Command(TEXT("")), StringParam(TEXT("")), FloatParam(0.0f)
+		: Command(TEXT("")), StringParam(TEXT(""))
 	{}
 
-	FAutomationStep(const FString& InCommand, const FString& InStringParam = TEXT(""), float InFloatParam = 0.0f)
-		: Command(InCommand), StringParam(InStringParam), FloatParam(InFloatParam)
+	FAutomationStep(const FString& InCommand, const FString& InStringParam = TEXT(""))
+		: Command(InCommand), StringParam(InStringParam)
 	{}
 };
 
@@ -59,6 +58,9 @@ struct FAutomationConfig
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	float TrajectoryDegreesPerSecond = 36.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	int32 NumFrames = 121;
 };
 
 USTRUCT(BlueprintType)
@@ -125,10 +127,21 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Automation")
 	static FString GetTaskName();
 
-private:
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation")
+	static bool SetExternalCommandSequence(const TArray<FAutomationStep>& Sequence);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation")
+	static bool ParseCommandSequenceJson(const FString& JsonContent, FString& OutErrorMessage);
+
+	UFUNCTION(BlueprintPure, Category = "UnrealCV|Automation")
+	static FString GetCommandQueueSummary();
+
+public:
 	static FAutomationConfig CurrentConfig;
 	static FAutomationStatus CurrentStatus;
 	static FSceneHandle CurrentScene;
+
+private:
 	static UWorld* WorldContext;
 
 	// static FString PrimaryCameraID;
@@ -142,6 +155,8 @@ private:
 	static FString TaskName;
 	static double DelayStartTime;
 	static double DelayDuration;
+
+	static TArray<FAutomationStep> ExternalCommandQueue;
 
 	static FGenericTickableObject* TickableObject;
 

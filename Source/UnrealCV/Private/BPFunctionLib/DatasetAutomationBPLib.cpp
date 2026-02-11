@@ -1,6 +1,7 @@
 // Copyright 2025 UnrealCV Team. All Rights Reserved.
 #include "DatasetAutomationBPLib.h"
 #include "Utils/GenericTickableObject.h"
+#include "Utils/UObjectUtils.h"
 #include "SceneCompositionBPLib.h"
 #include "RecordingBPLib.h"
 #include "SensorBPLib.h"
@@ -40,8 +41,18 @@ double UDatasetAutomationBPLib::DelayStartTime = 0.0;
 double UDatasetAutomationBPLib::DelayDuration = 0.0;
 FGenericTickableObject* UDatasetAutomationBPLib::TickableObject = nullptr;
 
+TArray<FAutomationStep> UDatasetAutomationBPLib::ExternalCommandQueue;
+
 void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 {
+	CommandQueue.Empty();
+
+	if (ExternalCommandQueue.Num() > 0)
+	{
+		CommandQueue = ExternalCommandQueue;
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Using external command sequence with %d commands"), CommandQueue.Num());
+		return;
+	}
 	CommandQueue.Empty();
 	if (TaskName == TEXT("Trajectory"))
 	{
@@ -49,56 +60,56 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.ForceLOD 0")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.SkeletalMeshLODBias -10")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
 		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only_5s")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 		// CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
-		CommandQueue.Add(FAutomationStep(TEXT("special_wait"), TEXT(""), FMath::RandRange(50.f, 70.f)));
+		CommandQueue.Add(FAutomationStep(TEXT("special_wait"), TEXT("50")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_30")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_30")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_360")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
-		
+
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
-		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT(""), 1.0f));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("1.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
-		
+
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
-		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT(""), 1.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
-		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT(""), 1.0f));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("1.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 		// CommandQueue.Add(FAutomationStep(TEXT("save_videos")));
 
 		// CommandQueue.Add(FAutomationStep(TEXT("record_nav_track")));
 		// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 
 		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("0.5")));
 		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
-		// CommandQueue.Add(FAutomationStep(TEXT("load_random_level_every_n_scenes"), TEXT(""), 1));
+		// CommandQueue.Add(FAutomationStep(TEXT("load_random_level_every_n_scenes"), TEXT("1")));
 		CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
 	}
 	if (TaskName == TEXT("Matting"))
@@ -108,46 +119,46 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_groom")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("0.5")));
 		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
-		// CommandQueue.Add(FAutomationStep(TEXT("load_random_level_every_n_scenes"), TEXT(""), 1));
+		// CommandQueue.Add(FAutomationStep(TEXT("load_random_level_every_n_scenes"), TEXT("1")));
 		CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
 	}
 	else if (TaskName == TEXT("Omnimatte"))
 	{
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("0.5")));
 		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
 		CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
 	}
 	else if (TaskName == "SpeedTest")
 	{
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 8.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("8.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 6.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("6.0")));
 		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 		// CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("0.5")));
 		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
 		CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
 	}
@@ -196,6 +207,9 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 {
 	TransitionToState(EDatasetGenerationState::ExecutingCommand);
 
+	// I know this huge if-else is really ugly,
+	// but it's not performance sensitive,
+	// so I'd rather keep it
 	if (Step.Command == TEXT("create_scene"))
 	{
 		CurrentSceneID = GenerateSceneID(CurrentSceneCounter);
@@ -209,6 +223,25 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 				TransitionToState(EDatasetGenerationState::Error);
 				return;
 			}
+		}
+
+		if (CurrentConfig.SceneParams.bAutoPositionCamera)
+		{
+			float CameraHeight = FMath::RandRange(160.0f, 175.0f);
+			float CameraAngleOffset = FMath::RandRange(-15.0f, 15.0f);
+			float Distance;
+			if (TaskName == "Matting")
+			{
+				Distance = FMath::RandRange(100.0f, 200.0f);
+			}
+			else
+			{
+				Distance = FMath::RandRange(250.0f, 400.0f);
+			}
+
+			CurrentConfig.SceneParams.AutoPositionCameraHeight = CameraHeight;
+			CurrentConfig.SceneParams.AutoPositionCameraAngleOffset = CameraAngleOffset;
+			CurrentConfig.SceneParams.AutoPositionCameraDistance = Distance;
 		}
 
 		bool Success = USceneCompositionBPLib::GenerateRandomScene(
@@ -229,6 +262,43 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
 		}
 	}
+	else if (Step.Command == TEXT("random_fov"))
+	{
+		TArray<FString> Args;
+		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
+		if (Args.Num() >= 2)
+		{
+			float Min = FCString::Atof(*Args[0]);
+			float Max = FCString::Atof(*Args[1]);
+			CurrentStatus.ChosenFOV = FMath::RandRange(Min, Max);
+		}
+		else if (Args.Num() == 1)
+		{
+			CurrentStatus.ChosenFOV = FCString::Atof(*Args[0]);
+		}
+		UE_LOG(LogUnrealCV, Log, TEXT("random_fov: %.1f"), CurrentStatus.ChosenFOV);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("random_resolution"))
+	{
+		TArray<FString> Args;
+		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
+		int32 OptionIndex = 0;
+		if (Args.Num() >= 2)
+		{
+			OptionIndex = FMath::RandRange(0, Args.Num() - 1);
+		}
+		FString Wh = Args[OptionIndex];
+		TArray<FString> Parts;
+		Wh.ParseIntoArray(Parts, TEXT("x"));
+		if (Parts.Num() == 2)
+		{
+			CurrentStatus.ChosenRes.X = FCString::Atoi(*Parts[0]);
+			CurrentStatus.ChosenRes.Y = FCString::Atoi(*Parts[1]);
+		}
+		UE_LOG(LogUnrealCV, Log, TEXT("random_resolution: %dx%d"), CurrentStatus.ChosenRes.X, CurrentStatus.ChosenRes.Y);
+		ExecuteNextCommand();
+	}
 	else if (Step.Command == TEXT("prepare_record"))
 	{
 		int32 CameraID = CurrentConfig.SceneParams.CameraID;
@@ -245,31 +315,34 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		ActiveCameraPool.Add(PrimaryCameraID);
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Prepared_record, primary camera is : %s"), *PrimaryCameraID);
 
-		if (TaskName == "Trajectory" || TaskName == "Matting")
-		{
-			CurrentStatus.ChosenRes = {1920, 1080};
-			CurrentStatus.ChosenFOV = FMath::RandRange(40.0f, 55.0f);
-		}
-		else if (TaskName == "Omnimatte")
-		{
-			const static TArray<FIntPoint> Resolutions = {
-				FIntPoint(640, 480),
-				FIntPoint(480, 640),
-			};
-			CurrentStatus.ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
-			CurrentStatus.ChosenFOV = FMath::RandRange(40.0f, 55.0f);
-		}
-		else if (TaskName == "SpeedTest")
-		{
-			CurrentStatus.ChosenRes = {1920, 1080};
-			CurrentStatus.ChosenFOV = 60.0f;
-		}
-		else
-		{
-			UE_LOG(LogUnrealCV, Error, TEXT("Invalid task name '%s'."), *TaskName);
-			CurrentStatus.ErrorMessage = FString::Printf(TEXT("Invalide TaskName: %s"), *TaskName);
-			TransitionToState(EDatasetGenerationState::Error);
-		}
+		// NOTE: ChosenRes and ChosenFOV are now set by random_fov/random_resolution commands
+		// before prepare_record. See command sequence examples in cmd.md.
+		//
+		// if (TaskName == "Trajectory" || TaskName == "Matting")
+		// {
+		// 	CurrentStatus.ChosenRes = {1920, 1080};
+		// 	CurrentStatus.ChosenFOV = FMath::RandRange(40.0f, 55.0f);
+		// }
+		// else if (TaskName == "Omnimatte")
+		// {
+		// 	const static TArray<FIntPoint> Resolutions = {
+		// 		FIntPoint(640, 480),
+		// 		FIntPoint(480, 640),
+		// 	};
+		// 	CurrentStatus.ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
+		// 	CurrentStatus.ChosenFOV = FMath::RandRange(40.0f, 55.0f);
+		// }
+		// else if (TaskName == "SpeedTest")
+		// {
+		// 	CurrentStatus.ChosenRes = {1920, 1080};
+		// 	CurrentStatus.ChosenFOV = 60.0f;
+		// }
+		// else
+		// {
+		// 	UE_LOG(LogUnrealCV, Error, TEXT("Invalid task name '%s'."), *TaskName);
+		// 	CurrentStatus.ErrorMessage = FString::Printf(TEXT("Invalide TaskName: %s"), *TaskName);
+		// 	TransitionToState(EDatasetGenerationState::Error);
+		// }
 
 		ExecuteNextCommand();
 	}
@@ -307,7 +380,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		auto* PriCaptureActor = URecordingBPLib::GetCaptureActor(USensorBPLib::GetSensorNewFormatID(PriamaryCam));
 		check(PriCaptureActor);
 		
-		float TriggerIndex = Step.FloatParam;
+		float TriggerIndex = FCString::Atof(*Step.StringParam);
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Special wait for trajectory index: %f, current pri cam traj index: %d"), TriggerIndex, PriCaptureActor->GetCurrentTrajectoryIndex());
 		if (PriCaptureActor->GetCurrentTrajectoryIndex() >= static_cast<int32>(TriggerIndex))
 		{
@@ -414,7 +487,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	else if (Step.Command == TEXT("delay"))
 	{
 		DelayStartTime = FPlatformTime::Seconds();
-		DelayDuration = Step.FloatParam;
+		DelayDuration = FCString::Atof(*Step.StringParam);
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Delaying %.1f seconds"), DelayDuration);
 		TransitionToState(EDatasetGenerationState::WaitingAsync);
 	}
@@ -446,8 +519,9 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		auto* World = FUnrealcvServer::Get().GetGameWorld();
 		if (IsValid(World))
 		{
-			World->GetWorldSettings()->SetTimeDilation(Step.FloatParam);
-			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set time dilation to %.2f"), Step.FloatParam);
+			float Dilation = FCString::Atof(*Step.StringParam);
+			World->GetWorldSettings()->SetTimeDilation(Dilation);
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set time dilation to %.2f"), Dilation);
 		}
 		else
 		{
@@ -541,6 +615,34 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set animation blueprint '%s' for ForegroundActor"), *AnimBPPath);
 		ExecuteNextCommand();
 	}
+	else if (Step.Command == TEXT("set_animation_seq"))
+	{
+		FString SequencePath = Step.StringParam;
+		if (SequencePath.IsEmpty())
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: set_animation_seq requires SequencePath"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		if (!IsValid(CurrentScene.ForegroundActor))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: set_animation_seq - ForegroundActor is null"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		bool bSuccess = UAnimationBPLib::SetActorAnimationSequence(CurrentScene.ForegroundActor, SequencePath);
+		if (!bSuccess)
+		{
+			CurrentStatus.ErrorMessage = FString::Printf(TEXT("Failed to set animation sequence '%s' for ForegroundActor"), *SequencePath);
+			TransitionToState(EDatasetGenerationState::Error);
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
+			return;
+		}
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set animation sequence '%s' for ForegroundActor (looping)"), *SequencePath);
+		ExecuteNextCommand();
+	}
 	else if (Step.Command == TEXT("prepare_groom"))
 	{
 		if (!IsValid(CurrentScene.ForegroundActor))
@@ -568,7 +670,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	}
 	else if (Step.Command == TEXT("load_random_level_every_n_scenes"))
 	{
-		int32 N = static_cast<int32>(Step.FloatParam);
+		int32 N = FCString::Atoi(*Step.StringParam);
 		if (N <= 0)
 		{
 			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: load_random_level_every_n_scenes requires N > 0"));
@@ -964,7 +1066,7 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	UE_LOG(LogTemp, Warning, TEXT("1"));
 	AActor* Target = CurrentScene.ForegroundActor;
 	int32 FPS = CurrentConfig.TrajectoryFPS;
-	float DegreesPerSecond = CurrentConfig.TrajectoryDegreesPerSecond;
+	int32 NumFrames = CurrentConfig.NumFrames;
 	int32 RandomSeed = -1;
 
 	if (!IsValid(Target))
@@ -1071,7 +1173,7 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
  		CaptureActor->bRecordShadowCatcher = false;
  		CaptureActor->bRecordStencilMask = false;
 		CaptureActor->bRecordMetadata = true;
-		CaptureActor->bRecordWithoutTarget = false;	
+		CaptureActor->bRecordWithoutTarget = false;
 	}
 	else
 	{
@@ -1089,12 +1191,12 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		return false;
 	}
 
-	UE_LOG(LogUnrealCV, Log, TEXT("StartTrajectoryRecording: Camera %d, File: %s, Type: %s, FPS: %d, Deg/s: %.2f, Target: %s"),
-		AllocatedCID, *FileName, *TrajectoryType, FPS, DegreesPerSecond, *Target->GetName());
+	UE_LOG(LogUnrealCV, Log, TEXT("StartTrajectoryRecording: Camera %d, File: %s, Type: %s, FPS: %d, NumFrames: %d, Target: %s"),
+		AllocatedCID, *FileName, *TrajectoryType, FPS, NumFrames, *Target->GetName());
 	check(Target);
 	check(FPS > 0);
-	check(DegreesPerSecond > 0);
-	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, FPS, DegreesPerSecond, RandomSeed, false);
+	check(NumFrames > 0);
+	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, FPS, NumFrames, RandomSeed, false);
 	return true;
 }
 
@@ -1221,5 +1323,91 @@ bool UDatasetAutomationBPLib::ParseVector3D(const FString& Str, FVector& OutVect
 
 	OutVector = FVector(X, Y, Z);
 	return true;
+}
+
+bool UDatasetAutomationBPLib::SetExternalCommandSequence(const TArray<FAutomationStep>& Sequence)
+{
+	ExternalCommandQueue = Sequence;
+	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set external command sequence with %d commands"), ExternalCommandQueue.Num());
+	return true;
+}
+
+bool UDatasetAutomationBPLib::ParseCommandSequenceJson(const FString& JsonContent, FString& OutErrorMessage)
+{
+	OutErrorMessage.Empty();
+	ExternalCommandQueue.Empty();
+
+	TSharedPtr<FJsonObject> JsonRoot;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonContent);
+
+	if (!FJsonSerializer::Deserialize(Reader, JsonRoot) || !JsonRoot.IsValid())
+	{
+		OutErrorMessage = TEXT("Invalid JSON format");
+		UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Invalid JSON format"));
+		return false;
+	}
+
+	if (JsonRoot->HasField(TEXT("task")))
+	{
+		FString TaskStr = JsonRoot->GetStringField(TEXT("task"));
+		TaskName = TaskStr;
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Parsed task name from JSON: %s"), *TaskName);
+	}
+
+	if (!JsonRoot->HasField(TEXT("commands")))
+	{
+		OutErrorMessage = TEXT("Missing 'commands' field");
+		UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Missing 'commands' field"));
+		return false;
+	}
+
+	TArray<TSharedPtr<FJsonValue>> Commands = JsonRoot->GetArrayField(TEXT("commands"));
+
+	for (const auto& CmdValue : Commands)
+	{
+		if (CmdValue->Type != EJson::Object)
+		{
+			OutErrorMessage = TEXT("Command element is not an object");
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Command element is not an object"));
+			return false;
+		}
+
+		TSharedPtr<FJsonObject> CmdJson = CmdValue->AsObject();
+
+		if (!CmdJson->HasField(TEXT("cmd")))
+		{
+			OutErrorMessage = TEXT("Command object missing 'cmd' field");
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Command object missing 'cmd' field"));
+			return false;
+		}
+
+		FString CmdName = CmdJson->GetStringField(TEXT("cmd"));
+		FString Params = CmdJson->HasField(TEXT("params")) ? CmdJson->GetStringField(TEXT("params")) : TEXT("");
+
+		ExternalCommandQueue.Add(FAutomationStep(CmdName, Params));
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Parsed %d commands from JSON"), ExternalCommandQueue.Num());
+	return true;
+}
+
+FString UDatasetAutomationBPLib::GetCommandQueueSummary()
+{
+	const TArray<FAutomationStep>& Queue = ExternalCommandQueue;
+	FString Summary = FString::Printf(TEXT("Queue: %d commands (external)\n"), Queue.Num());
+
+	for (int32 i = 0; i < Queue.Num(); i++)
+	{
+		const FAutomationStep& Step = Queue[i];
+		if (!Step.StringParam.IsEmpty())
+		{
+			Summary += FString::Printf(TEXT("%d: %s %s\n"), i, *Step.Command, *Step.StringParam);
+		}
+		else
+		{
+			Summary += FString::Printf(TEXT("%d: %s\n"), i, *Step.Command);
+		}
+	}
+	return Summary;
 }
 

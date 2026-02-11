@@ -32,4 +32,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Animation")
 	static UAnimInstance* GetCurrentAnimInstance(USkeletalMeshComponent* SkeletalMeshComponent);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Animation")
+	static bool SetActorAnimationSequence(AActor* Actor, FString SequencePath);
 };

@@ -156,8 +156,267 @@ DebugGame 控制台中支持的完整命令列表
 
   数据集自动化命令 (/datasetautomation/*)
 
+  Task:
   - vget /datasetautomation/task_name - 获取当前任务名称
   - vset /datasetautomation/task_name [name] - 设置任务名称 (Trajectory/Omnimatte)
+
+  CurrentScene:
+  - vset /datasetautomation/currentscene/foreground_actor [name] - 设置前景物体名称
+  - vset /datasetautomation/currentscene/primary_camera [id] - 设置主摄像机ID
+  - vset /datasetautomation/currentscene/scene_category [category] - 设置场景类别
+  - vset /datasetautomation/currentscene/foreground_subcategory [subcategory] - 设置前景子类别
+  - vset /datasetautomation/currentscene/occluder_category [category] - 设置遮挡物类别
+
+  Config:
+  - vset /datasetautomation/config/total_scenes [N] - 设置总场景数
+  - vset /datasetautomation/config/output_directory [path] - 设置输出目录
+  - vset /datasetautomation/config/trajectory_fps [fps] - 设置录制FPS
+  - vset /datasetautomation/config/trajectory_degrees_per_second [deg] - 设置角速度
+  - vset /datasetautomation/config/b_load_scene_params_from_json [true/false] - 是否从JSON加载参数
+
+  Control:
+  - vset /datasetautomation/start - 启动自动化（使用当前Config）
+  - vset /datasetautomation/stop - 停止自动化
+  - vget /datasetautomation/status - 获取自动化状态
+
+  动态命令队列自动化命令 (/automation/*)
+
+  - vset /automation/sequence [str] - 设置命令序列 (JSON格式)
+  - vget /automation/sequence - 获取当前命令序列
+  - vset /automation/start - 启动自动化（使用 Config 中的参数）
+  - vset /automation/stop - 停止自动化
+  - vget /automation/status - 获取自动化状态
+
+  ================================================================================
+  数据集自动化命令序列 (JSON格式)
+  ================================================================================
+
+  命令序列模板：
+
+  **Trajectory / Matting:**
+  ```json
+  {
+    "task": "Trajectory",
+    "commands": [
+      {"cmd": "random_fov", "params": "40 55"},
+      {"cmd": "random_resolution", "params": "1920x1080"},
+      {"cmd": "create_scene"},
+      {"cmd": "sync_pawn_to_primary_camera"},
+      {"cmd": "delay", "params": "5.0"},
+      {"cmd": "prepare_record"},
+      {"cmd": "delay", "params": "10.0"},
+      {"cmd": "record_trajectory", "params": "render_only"},
+      {"cmd": "sync_all_cameras"},
+      {"cmd": "delay", "params": "1.0"},
+      {"cmd": "clear_scene"},
+      {"cmd": "delay", "params": "0.5"},
+      {"cmd": "increment_counter"},
+      {"cmd": "check_completion"}
+    ]
+  }
+  ```
+
+  **Omnimatte:**
+  ```json
+  {
+    "task": "Omnimatte",
+    "commands": [
+      {"cmd": "random_fov", "params": "40 55"},
+      {"cmd": "random_resolution", "params": "640x480 480x640"},
+      {"cmd": "create_scene"},
+      {"cmd": "sync_pawn_to_primary_camera"},
+      {"cmd": "delay", "params": "5.0"},
+      {"cmd": "prepare_record"},
+      {"cmd": "delay", "params": "10.0"},
+      {"cmd": "record_trajectory", "params": "render_only"},
+      {"cmd": "sync_all_cameras"},
+      {"cmd": "delay", "params": "1.0"},
+      {"cmd": "clear_scene"},
+      {"cmd": "delay", "params": "0.5"},
+      {"cmd": "increment_counter"},
+      {"cmd": "check_completion"}
+    ]
+  }
+  ```
+
+  **SpeedTest:**
+  ```json
+  {
+    "task": "SpeedTest",
+    "commands": [
+      {"cmd": "random_fov", "params": "60"},
+      {"cmd": "random_resolution", "params": "1920x1080"},
+      {"cmd": "create_scene"},
+      {"cmd": "sync_pawn_to_primary_camera"},
+      {"cmd": "delay", "params": "5.0"},
+      {"cmd": "prepare_record"},
+      {"cmd": "delay", "params": "10.0"},
+      {"cmd": "record_trajectory", "params": "render_only"},
+      {"cmd": "sync_all_cameras"},
+      {"cmd": "delay", "params": "1.0"},
+      {"cmd": "clear_scene"},
+      {"cmd": "delay", "params": "0.5"},
+      {"cmd": "increment_counter"},
+      {"cmd": "check_completion"}
+    ]
+  }
+  ```
+
+  ------------------------------------------------------------------------------
+  支持的命令列表 (cmd)
+  ------------------------------------------------------------------------------
+
+  | 命令 | params | 说明 |
+  |------|--------|------|
+  | random_fov | [min] [max] 或 [value] | 随机/固定 FOV |
+  | random_resolution | [WxH] [WxH] ... | 随机选择分辨率 |
+  | set_animation_bp | [ABP_Path] | 设置 Animation Blueprint |
+  | set_animation_seq | [Seq_Path] | 设置 Animation Sequence (循环播放) |
+  | create_scene | - | 创建随机场景 |
+  | clear_scene | - | 清除当前场景 |
+  | sync_pawn_to_primary_camera | - | 同步 Pawn 到主摄像机位置 |
+  | prepare_record | - | 准备录制 |
+  | prepare_groom | - | 准备毛发渲染 (Matting 任务) |
+  | increment_counter | - | 场景计数器 +1 |
+  | check_completion | - | 检查是否完成所有场景 |
+  | sync_secondary_cameras | - | 等待副摄像机录制完成 |
+  | sync_all_cameras | - | 等待所有摄像机录制完成 |
+  | save_videos | - | 保存所有视频 |
+  | annotate_world | - | 标注世界物体 |
+  | delay | 秒数 | 等待指定秒数 |
+  | set_pause | true/false | 暂停/恢复游戏 |
+  | set_time_dilation | 数值 | 设置时间膨胀 (0.1-10.0) |
+  | load_level | 关卡名 | 加载指定关卡 |
+  | load_random_level_every_n_scenes | N | 每 N 个场景随机换图 |
+  | special_wait | 轨迹索引 | 等待录制达到指定轨迹索引 |
+  | set_animation_bp | AnimBP路径 | 设置前景物体动画蓝图 |
+  | record_nav_track | - | 录制导航轨迹 |
+  | vrun | 控制台命令 | 执行 UE 控制台命令 |
+  | random_fov | 最小 最大 | 随机设置 FOV (范围) |
+  | random_fov | 数值 | 设置固定 FOV |
+  | random_resolution | WxH WxH... | 随机选择分辨率 |
+  | record_trajectory | 轨迹类型 | 开始轨迹录制 |
+
+  ------------------------------------------------------------------------------
+  轨迹类型 (record_trajectory params)
+  ------------------------------------------------------------------------------
+
+  | 轨迹类型 | 说明 |
+  |---------|------|
+  | rotate_left_30 | 左转 30 度 |
+  | rotate_left_45 | 左转 45 度 |
+  | rotate_right_30 | 右转 30 度 |
+  | rotate_right_45 | 右转 45 度 |
+  | rotate_up_30 | 上转 30 度 |
+  | rotate_up_45 | 上转 45 度 |
+  | rotate_360 | 360 度旋转 |
+  | zoom_in | 推进拍摄 |
+  | zoom_out | 拉远拍摄 |
+  | random_1 ~ random_4 | 随机轨迹 1-4 |
+  | render_only | 仅录制 (不移动相机) |
+  | render_only_5s | 仅录制 5 秒 |
+
+  ------------------------------------------------------------------------------
+  完整示例：Trajectory 任务
+  ------------------------------------------------------------------------------
+
+      ```json
+      {
+        "task": "Trajectory",
+        "commands": [
+          {"cmd": "vrun", "params": "vset /captureactor/spawn_free_cam"},
+          {"cmd": "vrun", "params": "r.ForceLOD 0"},
+          {"cmd": "vrun", "params": "r.SkeletalMeshLODBias -10"},
+          {"cmd": "create_scene"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "prepare_record"},
+          {"cmd": "sync_pawn_to_primary_camera"},
+          {"cmd": "delay", "params": "10.0"},
+          {"cmd": "record_trajectory", "params": "render_only"},
+          {"cmd": "special_wait", "params": "50"},
+          {"cmd": "set_pause", "params": "true"},
+          {"cmd": "record_trajectory", "params": "rotate_left_30"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "record_trajectory", "params": "rotate_right_30"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "record_trajectory", "params": "rotate_up_30"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "record_trajectory", "params": "rotate_360"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "record_trajectory", "params": "zoom_in"},
+          {"cmd": "sync_secondary_cameras"},
+          {"cmd": "set_time_dilation", "params": "1.0"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "record_trajectory", "params": "zoom_out"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "record_trajectory", "params": "random_1"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "record_trajectory", "params": "random_2"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "record_trajectory", "params": "random_3"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "record_trajectory", "params": "random_4"},
+          {"cmd": "sync_secondary_cameras"},
+          {"cmd": "set_pause", "params": "false"},
+          {"cmd": "set_time_dilation", "params": "1.0"},
+          {"cmd": "sync_all_cameras"},
+          {"cmd": "delay", "params": "1.0"},
+          {"cmd": "clear_scene"},
+          {"cmd": "delay", "params": "0.5"},
+          {"cmd": "increment_counter"},
+          {"cmd": "check_completion"}
+        ]
+      }
+      ```
+
+  ------------------------------------------------------------------------------
+  完整示例：Matting 任务
+  ------------------------------------------------------------------------------
+
+      ```json
+      {
+        "task": "Matting",
+        "commands": [
+          {"cmd": "create_scene"},
+          {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C"},
+          {"cmd": "prepare_groom"},
+          {"cmd": "sync_pawn_to_primary_camera"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "prepare_record"},
+          {"cmd": "delay", "params": "10.0"},
+          {"cmd": "record_trajectory", "params": "render_only"},
+          {"cmd": "sync_all_cameras"},
+          {"cmd": "delay", "params": "1.0"},
+          {"cmd": "clear_scene"},
+          {"cmd": "delay", "params": "0.5"},
+          {"cmd": "increment_counter"},
+          {"cmd": "check_completion"}
+        ]
+      }
+      ```
+
+  ------------------------------------------------------------------------------
+  完整示例：Omnimatte 任务
+  ------------------------------------------------------------------------------
+
+      ```json
+      {
+        "task": "Omnimatte",
+        "commands": [
+          {"cmd": "create_scene"},
+          {"cmd": "delay", "params": "5.0"},
+          {"cmd": "prepare_record"},
+          {"cmd": "sync_pawn_to_primary_camera"},
+          {"cmd": "delay", "params": "10.0"},
+          {"cmd": "record_trajectory", "params": "render_only"},
+          {"cmd": "sync_all_cameras"},
+          {"cmd": "clear_scene"},
+          {"cmd": "delay", "params": "0.5"},
+          {"cmd": "increment_counter"},
+          {"cmd": "check_completion"}
+        ]
+      }
+      ```
 
   全景相机命令 (/panoramic/*)
 

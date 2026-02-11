@@ -172,3 +172,35 @@ bool UAnimationBPLib::SetActorAnimationBlueprint(AActor* Actor, FString AnimBlue
 
 	return SetSkeletalMeshAnimationBlueprint(SkeletalMeshComponent, AnimBlueprintPath);
 }
+
+bool UAnimationBPLib::SetActorAnimationSequence(AActor* Actor, FString SequencePath)
+{
+	if (!IsValid(Actor))
+	{
+		return false;
+	}
+
+	USkeletalMeshComponent* SkeletalMeshComponent = FindSkeletalMeshComponentInActor(Actor);
+	if (!IsValid(SkeletalMeshComponent))
+	{
+		return false;
+	}
+
+	if (SequencePath.IsEmpty())
+	{
+		return false;
+	}
+
+	UAnimSequence* Sequence = LoadObject<UAnimSequence>(nullptr, *SequencePath);
+	if (!IsValid(Sequence))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load Animation Sequence: %s"), *SequencePath);
+		return false;
+	}
+
+	SkeletalMeshComponent->SetAnimationMode(EAnimationMode::Type::AnimationSingleNode);
+	SkeletalMeshComponent->SetAnimation(Sequence);
+	SkeletalMeshComponent->SetLooping(true);
+
+	return true;
+}
