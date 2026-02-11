@@ -69,7 +69,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		// CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
-		CommandQueue.Add(FAutomationStep(TEXT("special_wait"), TEXT("50")));
+		float SyncFrame = FMath::RandRange(50.f, 70.f);
+		CommandQueue.Add(FAutomationStep(TEXT("special_wait"), FString::SanitizeFloat(SyncFrame)));
 		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));

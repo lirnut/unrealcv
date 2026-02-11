@@ -172,6 +172,7 @@ DebugGame 控制台中支持的完整命令列表
   - vset /datasetautomation/config/output_directory [path] - 设置输出目录
   - vset /datasetautomation/config/trajectory_fps [fps] - 设置录制FPS
   - vset /datasetautomation/config/trajectory_degrees_per_second [deg] - 设置角速度
+  - vset /datasetautomation/config/num_frames [N] - 设置轨迹录制帧数
   - vset /datasetautomation/config/b_load_scene_params_from_json [true/false] - 是否从JSON加载参数
 
   Control:
@@ -179,13 +180,13 @@ DebugGame 控制台中支持的完整命令列表
   - vset /datasetautomation/stop - 停止自动化
   - vget /datasetautomation/status - 获取自动化状态
 
-  动态命令队列自动化命令 (/automation/*)
+  动态命令队列自动化命令 (/datasetautomation/*)
 
-  - vset /automation/sequence [str] - 设置命令序列 (JSON格式)
-  - vget /automation/sequence - 获取当前命令序列
-  - vset /automation/start - 启动自动化（使用 Config 中的参数）
-  - vset /automation/stop - 停止自动化
-  - vget /automation/status - 获取自动化状态
+  - vset /datasetautomation/sequence [str] - 设置命令序列 (JSON格式)
+  - vget /datasetautomation/sequence - 获取当前命令序列
+  - vset /datasetautomation/start - 启动自动化（使用 Config 中的参数）
+  - vset /datasetautomation/stop - 停止自动化
+  - vget /datasetautomation/status - 获取自动化状态
 
   ================================================================================
   数据集自动化命令序列 (JSON格式)

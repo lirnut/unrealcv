@@ -19,23 +19,23 @@ void FDatasetAutomationHandler::RegisterCommands()
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetSequence);
 	Help = "Set command sequence from JSON";
-	CommandDispatcher->BindCommand(TEXT("vset /automation/sequence [str]"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/sequence [str]"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::GetSequence);
 	Help = "Get current command sequence";
-	CommandDispatcher->BindCommand(TEXT("vget /automation/sequence"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vget /datasetautomation/sequence"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::StartAutomation);
 	Help = "Start automation with current configuration";
-	CommandDispatcher->BindCommand(TEXT("vset /automation/start [str]"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/start [str]"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::StopAutomation);
 	Help = "Stop automation";
-	CommandDispatcher->BindCommand(TEXT("vset /automation/stop"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/stop"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::GetStatus);
 	Help = "Get automation status";
-	CommandDispatcher->BindCommand(TEXT("vget /automation/status"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vget /datasetautomation/status"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetCurrentSceneForegroundActor);
 	Help = "Set current scene foreground actor by name";
