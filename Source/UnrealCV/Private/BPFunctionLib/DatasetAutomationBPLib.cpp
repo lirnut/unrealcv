@@ -61,6 +61,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.SkeletalMeshLODBias -10")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
@@ -121,6 +123,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_groom")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
+		// CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1080x1920")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
@@ -136,6 +141,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	{
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("640x480 480x640")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
@@ -151,6 +158,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	{
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("8.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("60")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("6.0")));
