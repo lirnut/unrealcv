@@ -46,10 +46,6 @@ def example_create_scene_approach():
     client.client.request('vset /datasetautomation/config/trajectory_fps 30')
     client.client.request('vset /datasetautomation/config/num_frames 121')
 
-    # 设置场景元数据
-    client.client.request('vset /datasetautomation/currentscene/scene_category outdoor')
-    client.client.request('vset /datasetautomation/currentscene/foreground_category Foreground_Human')
-    client.client.request('vset /datasetautomation/currentscene/occluder_category Occluder_All')
 
     # 设置任务类型
     client.client.request('vset /datasetautomation/task_name Trajectory')
