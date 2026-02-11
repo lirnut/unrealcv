@@ -200,7 +200,7 @@ bool UAnimationBPLib::SetActorAnimationSequence(AActor* Actor, FString SequenceP
 
 	SkeletalMeshComponent->SetAnimationMode(EAnimationMode::Type::AnimationSingleNode);
 	SkeletalMeshComponent->SetAnimation(Sequence);
-	SkeletalMeshComponent->SetLooping(true);
+	SkeletalMeshComponent->Play(true);
 
 	return true;
 }

@@ -127,7 +127,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Automation")
 	static FString GetTaskName();
 
-	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation")
 	static bool SetExternalCommandSequence(const TArray<FAutomationStep>& Sequence);
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation")
