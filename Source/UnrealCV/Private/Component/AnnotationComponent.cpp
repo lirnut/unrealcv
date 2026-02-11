@@ -829,11 +829,11 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UGroomComponent* Gr
 {
 	UMaterialInterface* ProxyMaterial = GroomAnnotationMID;
 
-	UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for GroomComponent: %s, Owner: %s, GroomAnnotationMID=%p, AnnotationColor=%s"),
-		*GroomComponent->GetName(),
-		GroomComponent->GetOwner() ? *GroomComponent->GetOwner()->GetName() : TEXT("None"),
-		GroomAnnotationMID,
-		*AnnotationColor.ToString());
+	// UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneProxy for GroomComponent: %s, Owner: %s, GroomAnnotationMID=%p, AnnotationColor=%s"),
+	// 	*GroomComponent->GetName(),
+	// 	GroomComponent->GetOwner() ? *GroomComponent->GetOwner()->GetName() : TEXT("None"),
+	// 	GroomAnnotationMID,
+	// 	*AnnotationColor.ToString());
 
 	if (!GroomComponent->GroomAsset || GroomComponent->GroomAsset->GetNumHairGroups() == 0)
 	{
@@ -848,7 +848,7 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UGroomComponent* Gr
 	}
 
 	FPrimitiveSceneProxy* Proxy = ::new FGroomAnnotationSceneProxy(GroomComponent, ProxyMaterial);
-	UE_LOG(LogUnrealCV, Log, TEXT("Created FGroomAnnotationSceneProxy for %s, Proxy=%p"), *GroomComponent->GetName(), Proxy);
+	// UE_LOG(LogUnrealCV, Log, TEXT("Created FGroomAnnotationSceneProxy for %s, Proxy=%p"), *GroomComponent->GetName(), Proxy);
 	return Proxy;
 }
 

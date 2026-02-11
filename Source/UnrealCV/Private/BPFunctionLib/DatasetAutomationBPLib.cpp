@@ -5,6 +5,8 @@
 #include "RecordingBPLib.h"
 #include "SensorBPLib.h"
 #include "AnnotationBPLib.h"
+#include "AnimationBPLib.h"
+#include "GroomBPLib.h"
 #include "FusionCameraActor.h"
 #include "NavAgentController.h"
 #include "Engine/World.h"
@@ -31,7 +33,8 @@ TArray<FAutomationStep> UDatasetAutomationBPLib::CommandQueue;
 int32 UDatasetAutomationBPLib::CurrentCommandIndex = -1;
 int32 UDatasetAutomationBPLib::CurrentSceneCounter = 0;
 FString UDatasetAutomationBPLib::CurrentSceneID = TEXT("");
-FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
+// FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
+FString UDatasetAutomationBPLib::TaskName = TEXT("Matting");
 // FString UDatasetAutomationBPLib::TaskName = TEXT("SpeedTest");
 double UDatasetAutomationBPLib::DelayStartTime = 0.0;
 double UDatasetAutomationBPLib::DelayDuration = 0.0;
@@ -92,6 +95,25 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		// CommandQueue.Add(FAutomationStep(TEXT("record_nav_track")));
 		// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 2.0f));
 
+		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
+		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
+		// CommandQueue.Add(FAutomationStep(TEXT("load_random_level_every_n_scenes"), TEXT(""), 1));
+		CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
+	}
+	if (TaskName == TEXT("Matting"))
+	{
+		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
+		// CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Script/Engine.AnimBlueprint'/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement'")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C")));
+		CommandQueue.Add(FAutomationStep(TEXT("prepare_groom")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 5.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 10.0f));
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 1.0f));
 		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT(""), 0.5f));
 		CommandQueue.Add(FAutomationStep(TEXT("increment_counter")));
@@ -223,7 +245,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		ActiveCameraPool.Add(PrimaryCameraID);
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Prepared_record, primary camera is : %s"), *PrimaryCameraID);
 
-		if (TaskName == "Trajectory")
+		if (TaskName == "Trajectory" || TaskName == "Matting")
 		{
 			CurrentStatus.ChosenRes = {1920, 1080};
 			CurrentStatus.ChosenFOV = FMath::RandRange(40.0f, 55.0f);
@@ -489,6 +511,59 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	{
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Annotating world: %s"), *CurrentSceneID);
 		UAnnotationBPLib::AnnotateWorld();
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("set_animation_bp"))
+	{
+		FString AnimBPPath = Step.StringParam;
+		if (AnimBPPath.IsEmpty())
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: set_animation_bp requires AnimBP path"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		if (!IsValid(CurrentScene.ForegroundActor))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: set_animation_bp - ForegroundActor is null"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		bool bSuccess = UAnimationBPLib::SetActorAnimationBlueprint(CurrentScene.ForegroundActor, AnimBPPath);
+		if (!bSuccess)
+		{
+			CurrentStatus.ErrorMessage = FString::Printf(TEXT("Failed to set animation blueprint '%s' for ForegroundActor"), *AnimBPPath);
+			TransitionToState(EDatasetGenerationState::Error);
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: %s"), *CurrentStatus.ErrorMessage);
+			return;
+		}
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set animation blueprint '%s' for ForegroundActor"), *AnimBPPath);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("prepare_groom"))
+	{
+		if (!IsValid(CurrentScene.ForegroundActor))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: prepare_groom - ForegroundActor is null"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		if (TaskName == TEXT("Matting"))
+		{
+			// UGroomBPLib::SetHairAirVelocity(CurrentScene.ForegroundActor, FVector(0, 0, 200));
+			UGroomBPLib::SetHairBendDamping(CurrentScene.ForegroundActor, 0.000001f);
+			UGroomBPLib::SetHairBendStiffness(CurrentScene.ForegroundActor, 0.01f);
+			// UGroomBPLib::SetHairAirDrag(CurrentScene.ForegroundActor, 0.5f);
+			UGroomBPLib::SetHairGravity(CurrentScene.ForegroundActor, {0.0f, 0.0f, 100.0f});
+			UGroomBPLib::SetHairStrandsViscosity(CurrentScene.ForegroundActor, 0.4f);
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Prepared groom for Matting (AirVelocity=(0,0,200), BendDamping=0, BendStiffness=0.1, AirDrag=0.5)"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Skipped groom preparation for task '%s'"), *TaskName);
+		}
 		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("load_random_level_every_n_scenes"))
@@ -953,7 +1028,7 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	}
 
 
-	if (TaskName == "Trajectory")
+	if (TaskName == "Trajectory" || TaskName == "Matting")
 	{
 		CaptureActor->bRecordAudio = false;
 		CaptureActor->bRecordRGB = true;
@@ -967,13 +1042,6 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
  		CaptureActor->bRecordStencilMask = false;
 		CaptureActor->bRecordMetadata = true;
 		CaptureActor->bRecordWithoutTarget = false;
-		
-		UE_LOG(LogTemp, Warning, TEXT("3"));
-		AllocatedCam->SetFilmSize(1920, 1080);
-		// AllocatedCam->SetFilmSize(2560, 1440);
-		UE_LOG(LogTemp, Warning, TEXT("3"));
-		AllocatedCam->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
-		UE_LOG(LogTemp, Warning, TEXT("3"));
 	}
 	else if (TaskName == "Omnimatte")
 	{
@@ -989,14 +1057,6 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
  		CaptureActor->bRecordStencilMask = true;
 		CaptureActor->bRecordMetadata = true;
 		CaptureActor->bRecordWithoutTarget = true;
-		
-		const TArray<FIntPoint> Resolutions = {
-			FIntPoint(640, 480),
-			FIntPoint(480, 640),
-		};
-		const FIntPoint& ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
-		AllocatedCam->SetFilmSize(ChosenRes.X, ChosenRes.Y);
-		AllocatedCam->SetSensorFOV(FMath::RandRange(40.0f, 55.0f));
 	}
 	else if (TaskName == "SpeedTest")
 	{
@@ -1139,6 +1199,27 @@ bool UDatasetAutomationBPLib::AreAllCamerasIdle()
 			return false;
 		}
 	}
+	return true;
+}
+
+bool UDatasetAutomationBPLib::ParseVector3D(const FString& Str, FVector& OutVector)
+{
+	TArray<FString> Parts;
+	Str.ParseIntoArray(Parts, TEXT(","));
+	if (Parts.Num() != 3)
+	{
+		return false;
+	}
+
+	float X, Y, Z;
+	if (!LexTryParseString(X, *Parts[0]) ||
+		!LexTryParseString(Y, *Parts[1]) ||
+		!LexTryParseString(Z, *Parts[2]))
+	{
+		return false;
+	}
+
+	OutVector = FVector(X, Y, Z);
 	return true;
 }
 

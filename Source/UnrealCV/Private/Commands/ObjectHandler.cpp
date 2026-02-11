@@ -13,6 +13,7 @@
 #include "VisionBPLib.h"
 #include "CubeActor.h"
 #include "CommandInterface.h"
+#include "BPFunctionLib/GroomBPLib.h"
 
 FExecStatus SetActorName(AActor* Actor, FString NewName)
 {
@@ -188,6 +189,24 @@ void FObjectHandler::RegisterCommands()
 		"vget /object/[str]/bounds",
 		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::GetBounds),
 		"Return the bounds in the world coordinate, formate is [minx, y, z, maxx, y, z]"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vset /object/[str]/hair_gravity [float] [float] [float]",
+		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::SetHairGravity),
+		"Set hair gravity for an actor with Groom component [x, y, z]"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vset /object/[str]/hair_airdrag [float]",
+		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::SetHairAirDrag),
+		"Set hair air drag for an actor with Groom component [0-1]"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vset /object/[str]/reset_hair_simulation",
+		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::ResetHairSimulation),
+		"Reset hair simulation for an actor with Groom component"
 	);
 }
 
@@ -543,11 +562,78 @@ FExecStatus FObjectHandler::GetBounds(const TArray<FString>& Args)
 
 	bool bOnlyCollidingComponents = false;
 	FVector Origin, BoundsExtent;
-	Actor->GetActorBounds(bOnlyCollidingComponents, Origin, BoundsExtent);  
+	Actor->GetActorBounds(bOnlyCollidingComponents, Origin, BoundsExtent);
 	FVector Min = Origin - BoundsExtent, Max = Origin + BoundsExtent;
 
-	FString Res = FString::Printf(TEXT("%.2f %.2f %.2f %.2f %.2f %.2f"), 
+	FString Res = FString::Printf(TEXT("%.2f %.2f %.2f %.2f %.2f %.2f"),
 		Min.X, Min.Y, Min.Z, Max.X, Max.Y, Max.Z);
 
 	return FExecStatus::OK(Res);
+}
+
+FExecStatus FObjectHandler::SetHairGravity(const TArray<FString>& Args)
+{
+	AActor* Actor = GetActor(Args);
+	if (!IsValid(Actor)) return FExecStatus::Error("Can not find object");
+
+	if (Args.Num() != 4)
+	{
+		return FExecStatus::Error("Expected 3 float arguments: x y z");
+	}
+
+	float X, Y, Z;
+	if (!LexTryParseString(X, *Args[1]) ||
+		!LexTryParseString(Y, *Args[2]) ||
+		!LexTryParseString(Z, *Args[3]))
+	{
+		return FExecStatus::Error("Invalid float arguments");
+	}
+
+	FVector Gravity(X, Y, Z);
+	bool bSuccess = UGroomBPLib::SetHairGravity(Actor, Gravity);
+	if (!bSuccess)
+	{
+		return FExecStatus::Error("Failed to set hair gravity (no Groom component found)");
+	}
+
+	return FExecStatus::OK(FString::Printf(TEXT("Set hair gravity to (%.2f, %.2f, %.2f)"), X, Y, Z));
+}
+
+FExecStatus FObjectHandler::SetHairAirDrag(const TArray<FString>& Args)
+{
+	AActor* Actor = GetActor(Args);
+	if (!IsValid(Actor)) return FExecStatus::Error("Can not find object");
+
+	if (Args.Num() != 2)
+	{
+		return FExecStatus::Error("Expected 1 float argument: air_drag");
+	}
+
+	float AirDrag;
+	if (!LexTryParseString(AirDrag, *Args[1]))
+	{
+		return FExecStatus::Error("Invalid float argument");
+	}
+
+	bool bSuccess = UGroomBPLib::SetHairAirDrag(Actor, AirDrag);
+	if (!bSuccess)
+	{
+		return FExecStatus::Error("Failed to set hair air drag (no Groom component found)");
+	}
+
+	return FExecStatus::OK(FString::Printf(TEXT("Set hair air drag to %.2f"), AirDrag));
+}
+
+FExecStatus FObjectHandler::ResetHairSimulation(const TArray<FString>& Args)
+{
+	AActor* Actor = GetActor(Args);
+	if (!IsValid(Actor)) return FExecStatus::Error("Can not find object");
+
+	bool bSuccess = UGroomBPLib::ResetHairSimulation(Actor);
+	if (!bSuccess)
+	{
+		return FExecStatus::Error("Failed to reset hair simulation (no Groom component found)");
+	}
+
+	return FExecStatus::OK("Hair simulation reset");
 }

@@ -4,6 +4,10 @@
 #include "Runtime/Engine/Classes/Kismet/BlueprintFunctionLibrary.h"
 #include "AnimationBPLib.generated.h"
 
+class AActor;
+class UAnimInstance;
+class USkeletalMeshComponent;
+
 /** A static BP library to control the animation in UE4 */
 UCLASS()
 class UNREALCV_API UAnimationBPLib : public UBlueprintFunctionLibrary
@@ -20,6 +24,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	static TArray<UAnimSequence*> GetAllAnimationSequenceOfSkeleton(USkeleton* Skeleton);
 
-	// UFUNCTION(BlueprintCallable, Category = "unrealcv")
-	// static void PlayAnimationToEnd(USkeletalMeshComponent* SkeletalMeshComponent, UAnimationAsset* AnimtationAsset);
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Animation")
+	static bool SetActorAnimationBlueprint(AActor* Actor, FString AnimBlueprintPath);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Animation")
+	static bool SetSkeletalMeshAnimationBlueprint(USkeletalMeshComponent* SkeletalMeshComponent, FString AnimBlueprintPath);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Animation")
+	static UAnimInstance* GetCurrentAnimInstance(USkeletalMeshComponent* SkeletalMeshComponent);
 };

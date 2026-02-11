@@ -383,9 +383,9 @@ void AFusionCamCaptureActor::OnTimerRecord()
 
 		UpdateFocalDistance();
 
-		RecordFrame();
-
-		if (WarmUpElapsedFrames < WarmUpFrames)
+		bool bWarmUp = ( WarmUpElapsedFrames < WarmUpFrames );
+		RecordFrame(bWarmUp);
+		if (bWarmUp)
 		{
 			WarmUpElapsedFrames++;
 		}

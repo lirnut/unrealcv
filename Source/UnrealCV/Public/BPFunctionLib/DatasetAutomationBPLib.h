@@ -159,5 +159,6 @@ private:
 	static FString GetIdleCamera();
 	static bool AreAllCamerasIdle();
 	static bool StartTrajectoryRecording(const FString& FileName, const FString& TrajectoryType);
+	static bool ParseVector3D(const FString& Str, FVector& OutVector);
 };
 

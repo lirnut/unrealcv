@@ -67,4 +67,10 @@ private:
 	FExecStatus SetScale(const TArray<FString>& Args);
 
 	FExecStatus GetBounds(const TArray<FString>& Args);
+
+	FExecStatus SetHairGravity(const TArray<FString>& Args);
+
+	FExecStatus SetHairAirDrag(const TArray<FString>& Args);
+
+	FExecStatus ResetHairSimulation(const TArray<FString>& Args);
 };
