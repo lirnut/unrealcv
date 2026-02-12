@@ -1130,7 +1130,7 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 {
 	SetDefaultParamsForTargetCamera();
 
-	UnifiedTargetLocation = GetTargetLocationWithRandomHeight(Target);
+	UnifiedTargetLocation = GetTargetLocationWithOffset(Target);
 	FVector SensorLocation = TargetSensor->GetSensorLocation();
 	float Distance = (UnifiedTargetLocation - SensorLocation).Size();
 	const float FocalRegion = 1 * 100;
