@@ -360,7 +360,7 @@ FExecStatus FDatasetAutomationHandler::SetConfigForegroundMoveAngleOffset(const 
 
 FExecStatus FDatasetAutomationHandler::GetCommandHistory(const TArray<FString>& Args)
 {
-	const auto& History = UDatasetAutomationBPLib::CommandHistory;
+	const auto& History = UDatasetAutomationBPLib::GetCommandHistory();
 	TArray<FString> Results;
 
 	for (int32 i = 0; i < History.Num(); i++)

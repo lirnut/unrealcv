@@ -133,7 +133,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.ForegroundMoveAngleOffset = 90.0f;
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("120 175")));
-		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-60 60")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("75 100")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		// CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Script/Engine.AnimBlueprint'/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement'")));
@@ -1573,5 +1573,10 @@ FString UDatasetAutomationBPLib::GetCommandQueueSummary()
 		}
 	}
 	return Summary;
+}
+
+const TArray<FCompletedCommand>& UDatasetAutomationBPLib::GetCommandHistory()
+{
+	return CommandHistory;
 }
 

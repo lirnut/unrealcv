@@ -19,12 +19,15 @@ enum class EDatasetGenerationState : uint8
 	Error
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FAutomationStep
 {
 	GENERATED_BODY()
 
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	FString Command;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	FString StringParam;
 
 	FAutomationStep()
@@ -155,6 +158,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Automation")
 	static FString GetCommandQueueSummary();
+
+	UFUNCTION(BlueprintPure, Category = "UnrealCV|Automation")
+	static const TArray<FCompletedCommand>& GetCommandHistory();
 
 public:
 	static FAutomationConfig CurrentConfig;
