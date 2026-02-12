@@ -37,6 +37,18 @@ struct FAutomationStep
 };
 
 USTRUCT(BlueprintType)
+struct FCompletedCommand
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	FAutomationStep Step;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	FDateTime Timestamp;
+};
+
+USTRUCT(BlueprintType)
 struct FAutomationConfig
 {
 	GENERATED_BODY()
@@ -157,6 +169,7 @@ private:
 	// static TMap<FString, bool> CameraRecordingState;
 
 	static TArray<FAutomationStep> CommandQueue;
+	static TArray<FCompletedCommand> CommandHistory;
 	static int32 CurrentCommandIndex;
 	static int32 CurrentSceneCounter;
 	static FString CurrentSceneID;

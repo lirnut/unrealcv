@@ -181,6 +181,7 @@ DebugGame 控制台中支持的完整命令列表
   - vset /datasetautomation/start - 启动自动化（使用当前Config）
   - vset /datasetautomation/stop - 停止自动化
   - vget /datasetautomation/status - 获取自动化状态
+  - vget /datasetautomation/history - 获取命令执行历史记录
 
   动态命令队列自动化命令 (/datasetautomation/*)
 

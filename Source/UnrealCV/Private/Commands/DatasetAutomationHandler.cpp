@@ -88,6 +88,10 @@ void FDatasetAutomationHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigForegroundMoveAngleOffset);
 	Help = "Set foreground movement angle offset in degrees (0=forward, 90=right, -90=left, 180=backward)";
 	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/foreground_move_angle_offset [float]"), Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::GetCommandHistory);
+	Help = "Get command execution history";
+	CommandDispatcher->BindCommand(TEXT("vget /datasetautomation/history"), Cmd, Help);
 }
 
 FExecStatus FDatasetAutomationHandler::GetTaskName(const TArray<FString>& Args)
@@ -352,4 +356,23 @@ FExecStatus FDatasetAutomationHandler::SetConfigForegroundMoveAngleOffset(const 
 	float Value = FCString::Atof(*Args[0]);
 	UDatasetAutomationBPLib::CurrentConfig.ForegroundMoveAngleOffset = Value;
 	return FExecStatus::OK(FString::Printf(TEXT("Config.ForegroundMoveAngleOffset = %.2f degrees"), Value));
+}
+
+FExecStatus FDatasetAutomationHandler::GetCommandHistory(const TArray<FString>& Args)
+{
+	const auto& History = UDatasetAutomationBPLib::CommandHistory;
+	TArray<FString> Results;
+
+	for (int32 i = 0; i < History.Num(); i++)
+	{
+		const auto& Cmd = History[i];
+		FString Line = FString::Printf(TEXT("[%d] %s %s %s"),
+			i,
+			*Cmd.Timestamp.ToString(),
+			*Cmd.Step.Command,
+			*Cmd.Step.StringParam);
+		Results.Add(Line);
+	}
+
+	return FExecStatus::OK(FString::Join(Results, TEXT("\n")));
 }

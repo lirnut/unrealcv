@@ -32,4 +32,5 @@ public:
 	FExecStatus SetConfigBLoadSceneParamsFromJson(const TArray<FString>& Args);
 	FExecStatus SetConfigForegroundMoveSpeed(const TArray<FString>& Args);
 	FExecStatus SetConfigForegroundMoveAngleOffset(const TArray<FString>& Args);
+	FExecStatus GetCommandHistory(const TArray<FString>& Args);
 };
