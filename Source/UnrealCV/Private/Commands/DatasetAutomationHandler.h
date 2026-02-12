@@ -30,4 +30,6 @@ public:
 	FExecStatus SetConfigTrajectoryDegreesPerSecond(const TArray<FString>& Args);
 	FExecStatus SetConfigNumFrames(const TArray<FString>& Args);
 	FExecStatus SetConfigBLoadSceneParamsFromJson(const TArray<FString>& Args);
+	FExecStatus SetConfigForegroundMoveSpeed(const TArray<FString>& Args);
+	FExecStatus SetConfigForegroundMoveAngleOffset(const TArray<FString>& Args);
 };

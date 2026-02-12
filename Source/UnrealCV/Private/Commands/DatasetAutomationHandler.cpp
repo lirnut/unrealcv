@@ -80,6 +80,14 @@ void FDatasetAutomationHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigBLoadSceneParamsFromJson);
 	Help = "Set config bLoadSceneParamsFromJson";
 	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/b_load_scene_params_from_json [bool]"), Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigForegroundMoveSpeed);
+	Help = "Set foreground movement speed in cm/s";
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/foreground_move_speed [float]"), Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigForegroundMoveAngleOffset);
+	Help = "Set foreground movement angle offset in degrees (0=forward, 90=right, -90=left, 180=backward)";
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/foreground_move_angle_offset [float]"), Cmd, Help);
 }
 
 FExecStatus FDatasetAutomationHandler::GetTaskName(const TArray<FString>& Args)
@@ -320,4 +328,28 @@ FExecStatus FDatasetAutomationHandler::SetConfigBLoadSceneParamsFromJson(const T
 	bool Value = Args[0].ToLower() == TEXT("true") || Args[0] == TEXT("1");
 	UDatasetAutomationBPLib::CurrentConfig.bLoadSceneParamsFromJson = Value;
 	return FExecStatus::OK(FString::Printf(TEXT("Config.bLoadSceneParamsFromJson = %s"), Value ? TEXT("true") : TEXT("false")));
+}
+
+FExecStatus FDatasetAutomationHandler::SetConfigForegroundMoveSpeed(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		return FExecStatus::Error(TEXT("Usage: vset /datasetautomation/config/foreground_move_speed [Speed]"));
+	}
+
+	float Value = FCString::Atof(*Args[0]);
+	UDatasetAutomationBPLib::CurrentConfig.ForegroundMoveSpeed = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("Config.ForegroundMoveSpeed = %.2f cm/s"), Value));
+}
+
+FExecStatus FDatasetAutomationHandler::SetConfigForegroundMoveAngleOffset(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		return FExecStatus::Error(TEXT("Usage: vset /datasetautomation/config/foreground_move_angle_offset [Angle]"));
+	}
+
+	float Value = FCString::Atof(*Args[0]);
+	UDatasetAutomationBPLib::CurrentConfig.ForegroundMoveAngleOffset = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("Config.ForegroundMoveAngleOffset = %.2f degrees"), Value));
 }

@@ -99,6 +99,18 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
 	bool bAddTimestamp;
 
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
+	bool bTrackForegroundMovement;
+
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
+	float ForegroundMoveSpeed;
+
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
+	float ForegroundMoveAngleOffset;
+
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
+	float TargetHeightOffset;
+
 	/** Record RGB images */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
 	bool bRecordRGB;
@@ -171,7 +183,7 @@ public:
 	FString CondaEnvName;
 
 
-	static FVector GetTargetLocationWithRandomHeight(AActor* Target);
+	FVector GetTargetLocationWithOffset(AActor* Target);
 
 	static void CopySensorSettings(UFusionCamSensor* Source, UFusionCamSensor* Target);
 
@@ -195,7 +207,7 @@ protected:
 	FString RecordFileName;
 	FString FinalDataFolder;
 	int32 RecordFPS;
-	AActor* TargetToHide;
+	AActor* TargetForeground;
 	int32 NumFrames;
 
 	FDateTime RealWorldTimeRecordingStart;
@@ -222,6 +234,9 @@ protected:
 	int32 WarmUpElapsedFrames;
 
 	FSceneHandle SceneHandle;
+
+	/** Foreground actor position at recording start (for moving foreground tracking) */
+	FVector ForegroundStartPos;
 
 	void OnTimerRecord();
 	void RecordFrame(bool bWarmUp = false);

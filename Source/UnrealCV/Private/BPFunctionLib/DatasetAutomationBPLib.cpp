@@ -56,6 +56,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	CommandQueue.Empty();
 	if (TaskName == TEXT("Trajectory"))
 	{
+		CurrentConfig.NumFrames = 121;
+		CurrentConfig.TrajectoryFPS = 30;
+ 		CurrentConfig.ForegroundMoveSpeed = 0.0f;
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/spawn_free_cam")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.ForceLOD 0")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.SkeletalMeshLODBias -10")));
@@ -67,6 +70,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
+		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("145 155")));
+		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 1.0 4.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
@@ -121,8 +126,12 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	}
 	if (TaskName == TEXT("Matting"))
 	{
+		CurrentConfig.NumFrames = 90;
+		CurrentConfig.TrajectoryFPS = 30;
+ 		CurrentConfig.ForegroundMoveSpeed = 50.0f;
+		CurrentConfig.ForegroundMoveAngleOffset = 90.0f;
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
-		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("120 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("75 100")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
@@ -134,6 +143,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		// CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1080x1920")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
+		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("145 155")));
+		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 1.0 4.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
@@ -147,6 +158,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	}
 	else if (TaskName == TEXT("Omnimatte"))
 	{
+		CurrentConfig.NumFrames = 240;
+		CurrentConfig.TrajectoryFPS = 24;
+ 		CurrentConfig.ForegroundMoveSpeed = 0.0f;
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
@@ -155,6 +169,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("640x480 480x640")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
+		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("145 155")));
+		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 1.0 4.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
@@ -168,6 +184,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	}
 	else if (TaskName == "SpeedTest")
 	{
+		CurrentConfig.NumFrames = 240;
+		CurrentConfig.TrajectoryFPS = 60;
+ 		CurrentConfig.ForegroundMoveSpeed = 0.0f;
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
@@ -176,6 +195,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("8.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("60")));
+		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("145 155")));
+		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 1.0 4.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("6.0")));
@@ -376,6 +397,64 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			CurrentStatus.ChosenRes.Y = FCString::Atoi(*Parts[1]);
 		}
 		UE_LOG(LogUnrealCV, Log, TEXT("random_resolution: %dx%d"), CurrentStatus.ChosenRes.X, CurrentStatus.ChosenRes.Y);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("aim_camera_at_foreground"))
+	{
+		TArray<FString> Args;
+		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
+		if (Args.Num() >= 2)
+		{
+			float MinHeight = FCString::Atof(*Args[0]);
+			float MaxHeight = FCString::Atof(*Args[1]);
+			CurrentStatus.RandomTargetHeight = FMath::RandRange(MinHeight, MaxHeight);
+
+			UE_LOG(LogUnrealCV, Log, TEXT("aim_camera_at_foreground: Height range [%.1f, %.1f], chosen %.1f"),
+				MinHeight, MaxHeight, CurrentStatus.RandomTargetHeight);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("aim_camera_at_foreground: Invalid arguments, expected 'MinHeight MaxHeight'"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("add_camera_rotation_noise"))
+	{
+		TArray<FString> Args;
+		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
+		if (Args.Num() >= 3)
+		{
+			float PitchRange = FCString::Atof(*Args[0]);
+			float YawRange = FCString::Atof(*Args[1]);
+			float RollRange = FCString::Atof(*Args[2]);
+
+			int32 PrimaryCameraID = CurrentConfig.SceneParams.CameraID;
+			UFusionCamSensor* PrimaryCam = USensorBPLib::GetSensorById(PrimaryCameraID);
+			if (!IsValid(PrimaryCam))
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("add_camera_rotation_noise: Primary camera not found"));
+				TransitionToState(EDatasetGenerationState::Error);
+				return;
+			}
+
+			FRotator CurrentRotation = PrimaryCam->GetSensorRotation();
+			float NoisePitch = FMath::RandRange(-PitchRange, PitchRange);
+			float NoiseYaw = FMath::RandRange(-YawRange, YawRange);
+			float NoiseRoll = FMath::RandRange(-RollRange, RollRange);
+			FRotator NoisyRotation = CurrentRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
+			PrimaryCam->SetSensorRotation(NoisyRotation);
+
+			UE_LOG(LogUnrealCV, Log, TEXT("add_camera_rotation_noise: Applied Pitch=%.2f, Yaw=%.2f, Roll=%.2f"),
+				NoisePitch, NoiseYaw, NoiseRoll);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("add_camera_rotation_noise: Invalid arguments, expected 'PitchRange YawRange RollRange'"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
 		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("prepare_record"))
@@ -1192,19 +1271,11 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		}
 		UE_LOG(LogTemp, Warning, TEXT("2"));
 
-		// Adjust camera to roughly aim at the target with ±15 degrees noise
-		FVector CameraToTarget = (CaptureActor->GetTargetLocationWithRandomHeight(Target) - AllocatedCam->GetSensorLocation()).GetSafeNormal();
+		CaptureActor->TargetHeightOffset = CurrentStatus.RandomTargetHeight;
+
+		FVector CameraToTarget = (CaptureActor->GetTargetLocationWithOffset(Target) - AllocatedCam->GetSensorLocation()).GetSafeNormal();
 		FRotator TargetRotation = CameraToTarget.Rotation();
-		UE_LOG(LogTemp, Warning, TEXT("2"));
-
-		// Add ±15 degrees noise to pitch, yaw, and roll
-		float NoisePitch = FMath::RandRange(-4.0f, 4.0f);
-		float NoiseYaw = FMath::RandRange(-1.0f, 1.0f);
-		float NoiseRoll = FMath::RandRange(-4.0f, 4.0f);
-		UE_LOG(LogTemp, Warning, TEXT("2"));
-
-		FRotator NoisyRotation = TargetRotation + FRotator(NoisePitch, NoiseYaw, NoiseRoll);
-		AllocatedCam->SetSensorRotation(NoisyRotation);
+		AllocatedCam->SetSensorRotation(TargetRotation);
 		UE_LOG(LogTemp, Warning, TEXT("2"));
 	}
 
@@ -1275,6 +1346,11 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	check(Target);
 	check(FPS > 0);
 	check(NumFrames > 0);
+
+	// FixMe: while mult-cam recording, the forground offset can be tick multiple times
+	CaptureActor->ForegroundMoveSpeed = CurrentConfig.ForegroundMoveSpeed;
+	CaptureActor->ForegroundMoveAngleOffset = CurrentConfig.ForegroundMoveAngleOffset;
+
 	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, FPS, NumFrames, RandomSeed, false);
 	return true;
 }

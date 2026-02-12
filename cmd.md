@@ -174,6 +174,8 @@ DebugGame 控制台中支持的完整命令列表
   - vset /datasetautomation/config/trajectory_degrees_per_second [deg] - 设置角速度
   - vset /datasetautomation/config/num_frames [N] - 设置轨迹录制帧数
   - vset /datasetautomation/config/b_load_scene_params_from_json [true/false] - 是否从JSON加载参数
+  - vset /datasetautomation/config/foreground_move_speed [float] - 设置前景移动速度(cm/s)
+  - vset /datasetautomation/config/foreground_move_angle_offset [float] - 设置前景移动角度偏移(度, 0=前进, 90=右, -90=左, 180=后退)
 
   Control:
   - vset /datasetautomation/start - 启动自动化（使用当前Config）

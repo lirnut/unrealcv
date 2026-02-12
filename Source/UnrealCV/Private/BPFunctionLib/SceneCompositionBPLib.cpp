@@ -884,11 +884,10 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		FVector CameraPosition;
 		CameraPosition.X = NewPosition.X + Distance * FMath::Cos(FMath::DegreesToRadians(HorizontalAngle));
 		CameraPosition.Y = NewPosition.Y + Distance * FMath::Sin(FMath::DegreesToRadians(HorizontalAngle));
-		CameraPosition.Z = CameraHeight + NewPosition.Z + 100.0f;
+		CameraPosition.Z = CameraHeight + NewPosition.Z;
 
 		// float LandHeight = GetLandHeight(World, CameraPosition.X, CameraPosition.Y, CameraPosition.Z);
 		// CameraPosition.Z = LandHeight + CameraHeight;
-		CameraPosition.Z = OutSceneHandle.ForegroundActor->GetActorLocation().Z + CameraHeight;
 
 		FRotator CameraRotation = (NewPosition - CameraPosition).Rotation();
 

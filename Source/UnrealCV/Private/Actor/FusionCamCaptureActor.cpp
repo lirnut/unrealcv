@@ -63,8 +63,10 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	bRecordMetadata = true;
 	bRecordAudio = true;
 	bRecordWithoutTarget = false;
+	bTrackForegroundMovement = true;
+	ForegroundMoveSpeed = 0.0f;
 	ElapsedSteps = 0;
-	TargetToHide = nullptr;
+	TargetForeground = nullptr;
 	BackupSensor = nullptr;
 	BackupCameraID = -1;
 	NumFrames = 0;
@@ -75,6 +77,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 
 	bAutoGenerateVideo = true;
 	CondaEnvName = TEXT("uezoo");
+	TargetHeightOffset = 0.0f;
 	VideoGenScriptPath = TEXT("");
 
 	CurrentTrajectoryIndex = 0;
@@ -124,6 +127,23 @@ void AFusionCamCaptureActor::BeginPlay()
 void AFusionCamCaptureActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	// Move foreground actor if movement is enabled
+	if (bTrackForegroundMovement && ForegroundMoveSpeed > 0 && IsValid(TargetForeground))
+	{
+		// float DeltaTime = 1.0f / RecordFPS;
+
+		// Calculate direction based on actor forward + angle offset
+		FRotator OffsetRotator(0, ForegroundMoveAngleOffset, 0);
+		FVector LocalDir = OffsetRotator.RotateVector(FVector::ForwardVector);
+		// FVector WorldOffset = TargetForeground->GetActorRotation().RotateVector(LocalDir);
+
+		// FVector NewPos = TargetForeground->GetActorLocation() +
+		//                  WorldOffset * ForegroundMoveSpeed * DeltaTime;
+		// TargetForeground->SetActorLocation(NewPos, true);  // sweep=true to prevent clipping
+		// TargetForeground->SetActorLocation(NewPos, false);
+      	FVector Delta = LocalDir * ForegroundMoveSpeed * DeltaTime;
+      	TargetForeground->AddActorLocalOffset(Delta);
+	}
 }
 
 void AFusionCamCaptureActor::SetSceneHandle(const FSceneHandle& InSceneHandle)
@@ -228,9 +248,11 @@ void AFusionCamCaptureActor::StopRecord()
 			StopAudioRecord();
 		}
 
+		ForegroundMoveSpeed = 0.0f;
+
 		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_Record);
 		bIsRecording = false;
-		TargetToHide = nullptr;
+		TargetForeground = nullptr;
 		CurrentTrajectory.Empty();
 		CurrentTrajectoryIndex = 0;
 
@@ -279,38 +301,23 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	}
 
 	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] OnTimerRecord - Before MoveTo lambda"));
-	auto MoveTo = [this] (
+
+	// Calculate foreground displacement for moving foreground tracking
+	FVector ForegroundDisplacement = FVector::ZeroVector;
+	if (bTrackForegroundMovement && IsValid(TargetForeground))
+	{
+		ForegroundDisplacement = TargetForeground->GetActorLocation() - ForegroundStartPos;
+	}
+
+	auto MoveTo = [this, ForegroundDisplacement] (
 		FVector CurrentLocation,
-		FVector DesiredLocation,
+		FVector TrajectoryLocation,
 		FRotator Rotation
 	)
 	{
-		// FVector CurrentLocation = TargetSensor->GetSensorLocation();
-		// FVector DesiredLocation = CurrentTrajectory[CurrentTrajectoryIndex].Location;
-
-		// bool Hit = false;
-		// FHitResult HitResult;
-		// const float CameraRadius = 5.f;
-		// const ECollisionChannel TraceChannel = ECC_WorldStatic;
-		// // const ECollisionChannel TraceChannel = ECC_WorldStatic |ECC_WorldDynamic;
-
-		// FVector SafeLocation = ULineTraceBPlib::SolveCameraSweepSlide(
-		// 	this,                // WorldContextObject
-		// 	CurrentLocation,     // Start
-		// 	DesiredLocation,     // End
-		// 	CameraRadius,
-		// 	TraceChannel,
-		// 	Hit,
-		// 	HitResult
-		// );
-
-		// TargetSensor->SetSensorLocation(SafeLocation);
-		// if (!Hit)
-		// {
-		// 	TargetSensor->SetSensorRotation(Rotation);
-		// }
-
-		TargetSensor->SetSensorLocation(DesiredLocation);
+		// Apply foreground displacement to trajectory position
+		FVector FinalLocation = TrajectoryLocation + ForegroundDisplacement;
+		TargetSensor->SetSensorLocation(FinalLocation);
 		TargetSensor->SetSensorRotation(Rotation);
 	};
 
@@ -425,7 +432,14 @@ void AFusionCamCaptureActor::UpdateFocalDistance()
 		return;
 	}
 
-	float Distance = (UnifiedTargetLocation - TargetSensor->GetSensorLocation()).Size();
+	FVector ForegroundPos = UnifiedTargetLocation;
+	if (bTrackForegroundMovement && IsValid(TargetForeground))
+	{
+		FVector ForegroundDisplacement = TargetForeground->GetActorLocation() - ForegroundStartPos;
+		ForegroundPos = UnifiedTargetLocation + ForegroundDisplacement;
+	}
+
+	float Distance = (ForegroundPos - TargetSensor->GetSensorLocation()).Size();
 	const float FocalRegion = 1 * 100;
 	float FocalDistance = FMath::Max(Distance - FocalRegion/2, 100.0f);
 
@@ -562,44 +576,44 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 		TargetSensor->SaveFlowToFile(FlowFilename);
 	}
 
-	if (bRecordOneObjectMask && IsValid(TargetToHide))
+	if (bRecordOneObjectMask && IsValid(TargetForeground))
 	{
 		FString OneObjFilename = MakeFilenameNew("oneobjmask", ".png");
-		TargetSensor->SaveOneObjMaskToFile(TargetToHide, OneObjFilename);
+		TargetSensor->SaveOneObjMaskToFile(TargetForeground, OneObjFilename);
 	}
 
-	if (bRecordOneObjectLit && IsValid(TargetToHide))
+	if (bRecordOneObjectLit && IsValid(TargetForeground))
 	{
 		FString OneObjLitFilename = MakeFilenameNew("oneobjlit", ".png");
-		TargetSensor->SaveOneObjLitToFile(TargetToHide, OneObjLitFilename);
+		TargetSensor->SaveOneObjLitToFile(TargetForeground, OneObjLitFilename);
 	}
 
-	if (bRecordShadowCatcher && IsValid(TargetToHide))
+	if (bRecordShadowCatcher && IsValid(TargetForeground))
 	{
 		FString ShadowCatcherFilename = MakeFilenameNew("shadowcatcher", ".png");
-		TargetSensor->SaveShadowCatcherToFile(TargetToHide, ShadowCatcherFilename);
-		TargetSensor->GetShadowCatcherCamSensor()->Cleanup(TargetToHide);
+		TargetSensor->SaveShadowCatcherToFile(TargetForeground, ShadowCatcherFilename);
+		TargetSensor->GetShadowCatcherCamSensor()->Cleanup(TargetForeground);
 	}
 
-	if (bRecordStencilMask && IsValid(TargetToHide))
+	if (bRecordStencilMask && IsValid(TargetForeground))
 	{
 		FString StencilMaskFilename = MakeFilenameNew("stencilmask", ".png");
-		TargetSensor->SaveStencilMaskToFile(TargetToHide, StencilMaskFilename);
-		TargetSensor->GetStencilMaskCamSensor()->Cleanup(TargetToHide);
+		TargetSensor->SaveStencilMaskToFile(TargetForeground, StencilMaskFilename);
+		TargetSensor->GetStencilMaskCamSensor()->Cleanup(TargetForeground);
 	}
 
-	if (bRecordWithoutTarget && IsValid(TargetToHide))
+	if (bRecordWithoutTarget && IsValid(TargetForeground))
 	{
 		if (IsValid(BackupSensor))
 		{
 			BackupSensor->SetSensorLocation(TargetSensor->GetSensorLocation());
 			BackupSensor->SetSensorRotation(TargetSensor->GetSensorRotation());
 
-			if (bRecordRGB) BackupSensor->GetLitCamSensor()->HideActor(TargetToHide);
-			if (bRecordMask) BackupSensor->GetAnnotationCamSensor()->HideActor(TargetToHide);
-			if (bRecordDepth) BackupSensor->GetDepthCamSensor()->HideActor(TargetToHide);
-			if (bRecordNormal) BackupSensor->GetNormalCamSensor()->HideActor(TargetToHide);
-			if (bRecordFlow) BackupSensor->GetFlowCamSensor()->HideActor(TargetToHide);
+			if (bRecordRGB) BackupSensor->GetLitCamSensor()->HideActor(TargetForeground);
+			if (bRecordMask) BackupSensor->GetAnnotationCamSensor()->HideActor(TargetForeground);
+			if (bRecordDepth) BackupSensor->GetDepthCamSensor()->HideActor(TargetForeground);
+			if (bRecordNormal) BackupSensor->GetNormalCamSensor()->HideActor(TargetForeground);
+			if (bRecordFlow) BackupSensor->GetFlowCamSensor()->HideActor(TargetForeground);
 
 			if (bRecordRGB)
 			{
@@ -1208,7 +1222,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	RecordFPS = FPS;
 	ElapsedSteps = 0;
 	bIsRecording = true;
-	TargetToHide = Target;
+	TargetForeground = Target;
 	bPauseWorldDuringRecord = bPauseWorldTime;
 	WarmUpElapsedFrames = 0;
 	WarmUpFrames = WARM_UP_FRAMES;
@@ -1218,7 +1232,13 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	OriginalCameraLocation = TargetSensor->GetSensorLocation();
 	OriginalCameraRotation = TargetSensor->GetSensorRotation();
 
+	// Record foreground start position for moving foreground tracking
+	ForegroundStartPos = TargetForeground->GetActorLocation();
+
+	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Recording foreground start position: (%.2f, %.2f, %.2f)"),
+		ForegroundStartPos.X, ForegroundStartPos.Y, ForegroundStartPos.Z);
 	CurrentTrajectory = CalculateTrajectory(TrajectoryType, Target, InNumFrames, RandomSeed);
+
 
 	SaveOverviewMetadata();
 
@@ -1306,7 +1326,7 @@ void AFusionCamCaptureActor::StartSimpleRecording(const FString& FileName, int32
 	RecordFPS = FPS;
 	ElapsedSteps = 0;
 	bIsRecording = true;
-	TargetToHide = nullptr;
+	TargetForeground = nullptr;
 	bPauseWorldDuringRecord = false;
 	WarmUpElapsedFrames = 0;
 	WarmUpFrames = 0;
@@ -1525,7 +1545,7 @@ void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Traject
 	// 	TriggerVideoGeneration();
 
 	// 	bIsRecording = false;
-	// 	TargetToHide = nullptr;
+	// 	TargetForeground = nullptr;
 	// 	CurrentTrajectory.Empty();
 	// 	CurrentTrajectoryIndex = 0;
 	// }
@@ -1550,17 +1570,16 @@ void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Traject
 
 // ========== Individual Trajectory Calculation Functions ==========
 
-FVector AFusionCamCaptureActor::GetTargetLocationWithRandomHeight(AActor* Target)
+FVector AFusionCamCaptureActor::GetTargetLocationWithOffset(AActor* Target)
 {
 	if (!IsValid(Target))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("GetTargetLocationWithRandomHeight: Target actor is invalid"));
+		UE_LOG(LogUnrealCV, Error, TEXT("GetTargetLocationWithOffset: Target actor is invalid"));
 		return FVector::ZeroVector;
 	}
 
 	FVector TargetLocation = Target->GetActorLocation();
-	float RandomHeight = FMath::RandRange(155.0f, 175.0f);
-	TargetLocation.Z += RandomHeight;
+	TargetLocation.Z += TargetHeightOffset;
 	return TargetLocation;
 }
 

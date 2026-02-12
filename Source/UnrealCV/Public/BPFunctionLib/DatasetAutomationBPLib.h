@@ -61,6 +61,12 @@ struct FAutomationConfig
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	int32 NumFrames = 121;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	float ForegroundMoveSpeed = 0.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	float ForegroundMoveAngleOffset = 0.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -91,6 +97,9 @@ struct FAutomationStatus
 
 	UPROPERTY(BlueprintReadOnly, Category = "Automation")
 	float ChosenFOV = 90.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Automation")
+	float RandomTargetHeight = 0.0f;
 
 };
 
