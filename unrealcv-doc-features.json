@@ -367,7 +367,7 @@
         "Source/UnrealCV/Public/Sensor/CameraSensor/NormalCamSensor.h"
       ],
       "doc_locations": [
-        "docs/reference/data-formats.md (NEW)"
+        "docs/reference/sensor-data-formats.rst (NEW)"
       ],
       "verification_steps": [
         "Read each sensor's pixel format",
@@ -377,7 +377,9 @@
         "Document segmentation color mapping",
         "Add decoding examples in Python"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 1,
       "blocking": []
     },
     {
