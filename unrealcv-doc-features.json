@@ -392,7 +392,7 @@
         "Source/UnrealCV/Private/Actor/FusionCamCaptureActor.cpp (WriteMetadata)"
       ],
       "doc_locations": [
-        "docs/reference/metadata-schema.md (NEW)"
+        "docs/reference/metadata-schema.rst (NEW)"
       ],
       "verification_steps": [
         "Read FusionCamCaptureActor::WriteMetadata",
@@ -401,7 +401,9 @@
         "Document occlusion_ratio calculation",
         "Add example metadata JSON"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 1,
       "blocking": ["DOC-012"]
     },
     {
