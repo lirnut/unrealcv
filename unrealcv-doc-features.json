@@ -65,8 +65,7 @@
         "Source/UnrealCV/Private/Commands/DatasetAutomationHandler.cpp"
       ],
       "doc_locations": [
-        "docs/reference/commands.rst",
-        "docs/guides/dataset-automation.md (NEW)"
+        "docs/reference/dataset-automation-commands.rst (NEW)"
       ],
       "verification_steps": [
         "Read DatasetAutomationHandler.cpp RegisterCommands()",
@@ -75,7 +74,8 @@
         "Link to SceneCompositionBPLib workflow",
         "Verify against CLAUDE.md mission context"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "estimated_commands": 28,
       "blocking": []
     },
