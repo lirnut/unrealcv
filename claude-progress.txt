@@ -57,6 +57,12 @@ Document created:
 - docs/tutorials/blueprint-vs-tcp.md (comparison guide, examples, workflow patterns)
 
 ## 2026-02-13 - DOC-019
+- DOC-019: Camera Trajectory Recording Tutorial - docs/tutorials/trajectory-recording.md (NEW)
+
+Document created:
+- docs/tutorials/trajectory-recording.md (15 trajectory types, API, examples)
+
+## 2026-02-13 - DOC-020
 
 ### SubAgents Launched (18 tasks)
 

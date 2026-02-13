@@ -477,7 +477,8 @@
         "Add visual examples if possible",
         "Link to FusionCamCaptureActor"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": ["DOC-006"]
     },
     {
