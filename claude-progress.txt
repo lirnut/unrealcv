@@ -63,6 +63,12 @@ Document created:
 - docs/tutorials/trajectory-recording.md (15 trajectory types, API, examples)
 
 ## 2026-02-13 - DOC-020
+- DOC-020: Pak File Workflow Tutorial - docs/tutorials/pak-workflow.md (NEW)
+
+Document created:
+- docs/tutorials/pak-workflow.md (mount, scan, load, register workflow)
+
+## 2026-02-13 - DOC-021
 
 ### SubAgents Launched (18 tasks)
 
