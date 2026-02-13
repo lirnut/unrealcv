@@ -113,14 +113,15 @@
         "Source/UnrealCV/Private/Commands/AgentNavHandler.cpp"
       ],
       "doc_locations": [
-        "docs/reference/commands.rst"
+        "docs/reference/agent-nav-commands.rst (NEW)"
       ],
       "verification_steps": [
         "Read AgentNavHandler.cpp",
         "Document nav/start, nav/goto, nav/stop, nav/status",
         "Add usage examples with agent IDs"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "estimated_commands": 4,
       "blocking": []
     },
