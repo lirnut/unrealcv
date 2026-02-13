@@ -1,45 +1,99 @@
-The development of UnrealCV is supported by a set of test to ensure the correctness.
+The development of UnrealCV is supported by tests to ensure correctness.
 
-## How to run test
+## How to run tests
 
-After downloading a game binary or installing the plugin, it is recommended to run some basic tests first to ensure UnrealCV works correctly.
+After setting up UnrealCV (game binary or editor), run basic tests to verify functionality.
 
-Install dependencies first, `pip install -r requirements.txt`, then run the elementary test with `pytest . -x`
+**Install dependencies:**
 
-If you want to run a single test, use `pytest [filename].py`, or more specifically `pytest filename::test_name`.
+.. code-block:: bash
 
-Other tips of pytest: `pytest -x`, the `-x` parameter will stop when encounter the first error. Use `pytest -v` if you prefer a verbose output. Show more diagnositic information, try `pytest -s .` Use ipdb module in pytest.
+   pip install -r test/requirements.txt
 
-Make sure either 1. The game binary is started. or 2. The editor has UnrealCV installed, and is in `Play` mode.
+**Run all tests:**
 
-## File Structure of the test folder
+.. code-block:: bash
 
-The test scripts usually ended with a suffix '\_test.py'
+   pytest test/ -x
 
-```
-# Core test
-- client/                   # Test the python client code with a dummy python socket server,
-                            # No need for user to run this, it is for travis.
+**Run specific test file:**
 
-# Utility
-- benchmark_report.py       # Show some speed benchmark of UnrealCV.
-- docker_util.py            # Support automatic nvidia-docker execution.
-- conftest.py               # Test configuration file for pytest.
-- requirements.txt          # Requirements to run test scripts
+.. code-block:: bash
 
-# Test
-- connection_test.py        # Make sure the client can successfully connect to the UnrealCV server, also include throughput test
--
-```
+   pytest test/server/camera_test.py
 
-## Docker
+**Run specific test function:**
 
-It is also possible to use docker to run the test automatically. The docker makes our CI system run smoothly without the requirement to launch game binary manually. The docker image is produced by [qiuwch/unrealcv-docker-images](https://github.com/qiuwch/unrealcv-docker-images)
+.. code-block:: bash
 
-Test whether the docker image can be successfully run, `python docker_util.py`.
+   pytest test/server/camera_test.py::test_camera_control
 
-Use `pytest --docker` if you want to run the virtual environment in docker. UnrealCV docker requires nvidia-docker, since we need the computation power of GPU. Right now only Linux can support nvidia-docker.
+**Pytest options:**
 
-## Wishlist
-TODO: Add tox to support test of python3.
-TODO: Verify whether pytest runs tests simultaneously or serially.
+- ``-x`` - Stop on first failure
+- ``-v`` - Verbose output
+- ``-s`` - Show print statements
+
+**Requirements:**
+
+- Game binary running, OR
+- UE Editor with UnrealCV plugin in Play mode
+
+## Test File Structure
+
+Test scripts end with '\_test.py' suffix.
+
+**Server tests** (``test/server/``):
+
++---------------------------+----------------------------------------+
+| File                      | Description                            |
++---------------------------+----------------------------------------+
+| ``camera_test.py``        | Camera control, sensors, recording     |
+| ``object_test.py``        | Object manipulation, visibility        |
+| ``connection_test.py``    | TCP connection, throughput             |
+| ``stereo_test.py``        | Stereo camera tests                   |
+| ``rr_test.py``            | RealisticRendering demo tests         |
+| ``test_api.py``           | General API tests                     |
+| ``conftest.py``           | Pytest configuration                  |
++---------------------------+----------------------------------------+
+
+**Client tests** (``test/client/``):
+
++---------------------------+----------------------------------------+
+| File                      | Description                            |
++---------------------------+----------------------------------------+
+| ``test_client.py``        | Python client library tests            |
+| ``test_dev_server.py``    | Development server tests               |
++---------------------------+----------------------------------------+
+
+**Root test files:**
+
++---------------------------+----------------------------------------+
+| File                      | Description                            |
++---------------------------+----------------------------------------+
+| ``quick_test.py``         | Quick sanity checks                   |
+| ``test_connect.py``       | Connection verification               |
+| ``run_test.py``           | Test runner                           |
+| ``closed_loop_test.py``   | Closed-loop automation tests           |
+| ``conftest.py``           | Pytest configuration                  |
+| ``requirements.txt``      | Test dependencies                     |
++---------------------------+----------------------------------------+
+
+## Best Practices
+
+1. Run ``quick_test.py`` first for fast verification
+2. Use ``connection_test.py`` to verify TCP connectivity
+3. Run camera tests before recording tests
+4. Check ``-s`` output for debug information
+
+## Docker Support
+
+Docker can run tests automatically without manual game launch. See [unrealcv-docker-images](https://github.com/qiuwch/unrealcv-docker-images).
+
+.. code-block:: bash
+
+   # Verify docker setup
+   python docker_util.py
+
+   # Run with docker (requires nvidia-docker on Linux)
+   pytest --docker

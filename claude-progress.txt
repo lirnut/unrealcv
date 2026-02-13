@@ -94,6 +94,16 @@ Updated README.md New Features:
 - Added camera trajectory recording
 
 ## 2026-02-13 - DOC-024
+- DOC-024: Update test/README.md
+
+Updated test/README.md:
+- Listed all test files in server/, client/, and root
+- Added description for each test file
+- Added pytest best practices
+- Reformatted with Markdown tables
+- Updated Docker support information
+
+## 2026-02-13 - DOC-025
 
 ### SubAgents Launched (18 tasks)
 
