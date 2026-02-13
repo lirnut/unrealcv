@@ -428,6 +428,29 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			float MaxHeight = FCString::Atof(*Args[1]);
 			CurrentStatus.RandomTargetHeight = FMath::RandRange(MinHeight, MaxHeight);
 
+			int32 PrimaryCameraID = CurrentConfig.SceneParams.CameraID;
+			UFusionCamSensor* PrimaryCam = USensorBPLib::GetSensorById(PrimaryCameraID);
+			if (!IsValid(PrimaryCam))
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("Primary camera not found"));
+				TransitionToState(EDatasetGenerationState::Error);
+				return;
+			}
+
+			if (!IsValid(CurrentScene.ForegroundActor))
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: ForegroundActor is null"));
+				TransitionToState(EDatasetGenerationState::Error);
+				return;
+			}
+
+			FVector TargetLocation = CurrentScene.ForegroundActor->GetActorLocation();
+			TargetLocation.Z += CurrentStatus.RandomTargetHeight;
+
+			FVector CameraToTarget = (TargetLocation - PrimaryCam->GetSensorLocation()).GetSafeNormal();
+			FRotator TargetRotation = CameraToTarget.Rotation();
+			PrimaryCam->SetSensorRotation(TargetRotation);
+
 			UE_LOG(LogUnrealCV, Log, TEXT("aim_camera_at_foreground: Height range [%.1f, %.1f], chosen %.1f"),
 				MinHeight, MaxHeight, CurrentStatus.RandomTargetHeight);
 		}
@@ -1281,23 +1304,8 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		AllocatedCam->SetSensorLocation(PrimaryCam->GetSensorLocation());
 		AllocatedCam->SetSensorRotation(PrimaryCam->GetSensorRotation());
 	}
-	else
-	{
-		if (!IsValid(Target))
-		{
-			UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Target actor became invalid before camera adjustment"));
-			return false;
-		}
-		UE_LOG(LogTemp, Warning, TEXT("2"));
 
-		CaptureActor->TargetHeightOffset = CurrentStatus.RandomTargetHeight;
-
-		FVector CameraToTarget = (CaptureActor->GetTargetLocationWithOffset(Target) - AllocatedCam->GetSensorLocation()).GetSafeNormal();
-		FRotator TargetRotation = CameraToTarget.Rotation();
-		AllocatedCam->SetSensorRotation(TargetRotation);
-		UE_LOG(LogTemp, Warning, TEXT("2"));
-	}
-
+	CaptureActor->TargetHeightOffset = CurrentStatus.RandomTargetHeight;
 
 	if (TaskName == "Trajectory" || TaskName == "Matting")
 	{

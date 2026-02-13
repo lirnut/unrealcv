@@ -806,7 +806,7 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 	OutSceneHandle.ForegroundCategory = ResolvedForegroundCategory;
 
 	FVector ForegroundPosition;
-	if (Params.SafePoints.Num() > 0 && FMath::RandRange(0.0f, 1.0f) < 0.8f)
+	if (Params.SafePoints.Num() > 0)
 	{
 		int32 RandomIndex = FMath::RandRange(0, Params.SafePoints.Num() - 1);
 		ForegroundPosition = Params.SafePoints[RandomIndex];
