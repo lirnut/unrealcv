@@ -35,8 +35,8 @@ TArray<FCompletedCommand> UDatasetAutomationBPLib::CommandHistory;
 int32 UDatasetAutomationBPLib::CurrentCommandIndex = -1;
 int32 UDatasetAutomationBPLib::CurrentSceneCounter = 0;
 FString UDatasetAutomationBPLib::CurrentSceneID = TEXT("");
-// FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
-FString UDatasetAutomationBPLib::TaskName = TEXT("Matting");
+FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
+// FString UDatasetAutomationBPLib::TaskName = TEXT("Matting");
 // FString UDatasetAutomationBPLib::TaskName = TEXT("SpeedTest");
 double UDatasetAutomationBPLib::DelayStartTime = 0.0;
 double UDatasetAutomationBPLib::DelayDuration = 0.0;
@@ -125,7 +125,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		// CommandQueue.Add(FAutomationStep(TEXT("load_random_level_every_n_scenes"), TEXT("1")));
 		CommandQueue.Add(FAutomationStep(TEXT("check_completion")));
 	}
-	if (TaskName == TEXT("Matting"))
+	else if (TaskName == TEXT("Matting"))
 	{
 		CurrentConfig.NumFrames = 90;
 		CurrentConfig.TrajectoryFPS = 30;
