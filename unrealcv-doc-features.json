@@ -316,7 +316,7 @@
         "Source/UnrealCV/Public/Sensor/CameraSensor/BaseCameraSensor.h"
       ],
       "doc_locations": [
-        "docs/architecture/sensor-system.md (NEW)"
+        "docs/architecture/sensor-system.rst (NEW)"
       ],
       "verification_steps": [
         "Read FusionCamSensor orchestrator",
@@ -326,7 +326,9 @@
         "Add multi-pass rendering explanation",
         "Link to recording system"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 1,
       "blocking": []
     },
     {
