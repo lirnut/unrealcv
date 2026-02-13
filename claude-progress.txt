@@ -1,0 +1,14 @@
+## 2026-02-13 - Session 1
+- Completed: DOC-001 - Camera Commands Reference (2024-2026 Additions)
+  - Created: docs/reference/camera-commands-new.rst
+  - Documented 35+ new camera commands from CameraHandler.cpp
+  - Sections: Camera ID Format, Capture Commands, Pose Commands,
+    Settings, Rendering Quality, Exposure, Effects, Panoramic, ViewMode
+- Next feature: DOC-002 (Critical) - Pak Management Commands
+
+## Completed This Session
+- [x] Created unrealcv-doc-features.json (35 features tracked)
+- [x] Created claude-progress.txt (progress tracking)
+- [x] Created init.bat (environment check)
+- [x] Created .claude/doc-session-protocol.md
+- [x] Created docs/reference/camera-commands-new.rst (35+ commands documented)

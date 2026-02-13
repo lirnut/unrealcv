@@ -1,0 +1,806 @@
+{
+  "meta": {
+    "created": "2026-02-13",
+    "purpose": "Track documentation updates for UnrealCV UE5.2+ (2020-2026 gap closure)",
+    "total_features": 35,
+    "estimation": "~60% of features added since 2020 are undocumented"
+  },
+  "features": [
+    {
+      "id": "DOC-001",
+      "category": "command_reference",
+      "priority": "critical",
+      "title": "Update TCP Command Reference - Camera Commands",
+      "description": "Add 40+ missing camera commands from CameraHandler to docs/reference/commands.rst",
+      "code_locations": [
+        "Source/UnrealCV/Private/Commands/CameraHandler.cpp"
+      ],
+      "doc_locations": [
+        "docs/reference/camera-commands-new.rst (NEW)"
+      ],
+      "verification_steps": [
+        "Read CameraHandler.cpp RegisterCommands()",
+        "Extract all BindCommand calls",
+        "Compare against existing commands.rst",
+        "Write missing commands with syntax + description",
+        "Verify every command in code has doc entry"
+      ],
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 42,
+      "blocking": []
+    },
+    {
+      "id": "DOC-002",
+      "category": "command_reference",
+      "priority": "critical",
+      "title": "Document Pak Management Commands",
+      "description": "Add complete PakHandler command reference (8 commands)",
+      "code_locations": [
+        "Source/UnrealCV/Private/Commands/PakHandler.cpp",
+        "Source/UnrealCV/Public/BPFunctionLib/PakMountBPLib.h"
+      ],
+      "doc_locations": [
+        "docs/reference/commands.rst",
+        "docs/api/pak-system.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read PakHandler.cpp for all vget/vset commands",
+        "Read PakMountBPLib.h for Blueprint API",
+        "Document mount/unmount/scan/register workflow",
+        "Add usage examples with AssetPoolManager integration",
+        "Verify against test/server/pak_test.py if exists"
+      ],
+      "status": "pending",
+      "estimated_commands": 8,
+      "blocking": []
+    },
+    {
+      "id": "DOC-003",
+      "category": "command_reference",
+      "priority": "critical",
+      "title": "Document DatasetAutomation Commands",
+      "description": "Add DatasetAutomationHandler commands (28 commands)",
+      "code_locations": [
+        "Source/UnrealCV/Private/Commands/DatasetAutomationHandler.cpp"
+      ],
+      "doc_locations": [
+        "docs/reference/commands.rst",
+        "docs/guides/dataset-automation.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read DatasetAutomationHandler.cpp RegisterCommands()",
+        "Extract task management, config, scene metadata commands",
+        "Document JSON sequence format",
+        "Link to SceneCompositionBPLib workflow",
+        "Verify against CLAUDE.md mission context"
+      ],
+      "status": "pending",
+      "estimated_commands": 28,
+      "blocking": []
+    },
+    {
+      "id": "DOC-004",
+      "category": "command_reference",
+      "priority": "high",
+      "title": "Document Light Control Commands",
+      "description": "Add LightHandler commands (6 commands)",
+      "code_locations": [
+        "Source/UnrealCV/Private/Commands/LightHandler.cpp",
+        "Source/UnrealCV/Public/BPFunctionLib/LightBPLib.h"
+      ],
+      "doc_locations": [
+        "docs/reference/commands.rst"
+      ],
+      "verification_steps": [
+        "Read LightHandler.cpp",
+        "Document directional/skylight intensity control",
+        "Document deep shadow casting toggle",
+        "Add ULightBPLib function reference"
+      ],
+      "status": "pending",
+      "estimated_commands": 6,
+      "blocking": []
+    },
+    {
+      "id": "DOC-005",
+      "category": "command_reference",
+      "priority": "high",
+      "title": "Document Agent Navigation Commands",
+      "description": "Add AgentNavHandler commands (4 commands)",
+      "code_locations": [
+        "Source/UnrealCV/Private/Commands/AgentNavHandler.cpp"
+      ],
+      "doc_locations": [
+        "docs/reference/commands.rst"
+      ],
+      "verification_steps": [
+        "Read AgentNavHandler.cpp",
+        "Document nav/start, nav/goto, nav/stop, nav/status",
+        "Add usage examples with agent IDs"
+      ],
+      "status": "pending",
+      "estimated_commands": 4,
+      "blocking": []
+    },
+    {
+      "id": "DOC-006",
+      "category": "api_reference",
+      "priority": "critical",
+      "title": "Document RecordingBPLib API",
+      "description": "Complete reference for URecordingBPLib (trajectory recording)",
+      "code_locations": [
+        "Source/UnrealCV/Public/BPFunctionLib/RecordingBPLib.h",
+        "Source/UnrealCV/Private/BPFunctionLib/RecordingBPLib.cpp"
+      ],
+      "doc_locations": [
+        "docs/api/blueprint-libraries.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read RecordingBPLib.h UFUNCTION declarations",
+        "Document all BlueprintCallable functions",
+        "Explain 15 trajectory types",
+        "Document bullet-time vs normal recording",
+        "Add CID camera ID format explanation",
+        "Link to FusionCamCaptureActor lifecycle"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-007",
+      "category": "api_reference",
+      "priority": "critical",
+      "title": "Document SceneCompositionBPLib API",
+      "description": "Complete reference for automated scene generation",
+      "code_locations": [
+        "Source/UnrealCV/Public/BPFunctionLib/SceneCompositionBPLib.h",
+        "Source/UnrealCV/Private/BPFunctionLib/SceneCompositionBPLib.cpp"
+      ],
+      "doc_locations": [
+        "docs/api/blueprint-libraries.md",
+        "docs/guides/scene-composition.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read SceneCompositionBPLib.h",
+        "Document SpawnRandomForeground/Occluder",
+        "Document asset pool integration",
+        "Document safe point navigation",
+        "Add workflow diagram for scene lifecycle",
+        "Verify against AssetPoolManager.h"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-010"]
+    },
+    {
+      "id": "DOC-008",
+      "category": "api_reference",
+      "priority": "critical",
+      "title": "Document DatasetAutomationBPLib API",
+      "description": "High-level batch generation orchestration API",
+      "code_locations": [
+        "Source/UnrealCV/Public/BPFunctionLib/DatasetAutomationBPLib.h",
+        "Source/UnrealCV/Private/BPFunctionLib/DatasetAutomationBPLib.cpp"
+      ],
+      "doc_locations": [
+        "docs/api/blueprint-libraries.md",
+        "docs/guides/dataset-automation.md"
+      ],
+      "verification_steps": [
+        "Read DatasetAutomationBPLib.h",
+        "Document task management functions",
+        "Document command sequence execution",
+        "Link to SOW-基于CG的音视频分层数据生产-latest.md",
+        "Add complete workflow example"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-003", "DOC-007"]
+    },
+    {
+      "id": "DOC-009",
+      "category": "api_reference",
+      "priority": "high",
+      "title": "Document MetaHumanBPLib API",
+      "description": "MetaHuman batch operations and animation control",
+      "code_locations": [
+        "Source/UnrealCV/Public/BPFunctionLib/MetaHumanBPLib.h"
+      ],
+      "doc_locations": [
+        "docs/api/blueprint-libraries.md"
+      ],
+      "verification_steps": [
+        "Read MetaHumanBPLib.h",
+        "Document batch animation setup",
+        "Document filter/spawning functions",
+        "Add MetaHuman-specific workflow guide"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-010",
+      "category": "system_architecture",
+      "priority": "critical",
+      "title": "Document Asset Pool System",
+      "description": "Complete AssetPoolManager architecture and usage",
+      "code_locations": [
+        "Source/UnrealCV/Public/Utils/AssetPoolManager.h",
+        "Source/UnrealCV/Private/Utils/AssetPoolManager.cpp"
+      ],
+      "doc_locations": [
+        "docs/architecture/asset-pool.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read AssetPoolManager.h/cpp",
+        "Document registration API",
+        "Document category system",
+        "Document metadata structure",
+        "Explain StaticMesh vs Blueprint vs AnimSeq types",
+        "Add integration with /pak/register command",
+        "Verify against SceneCompositionBPLib usage"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-011",
+      "category": "system_architecture",
+      "priority": "high",
+      "title": "Document Annotation System Architecture",
+      "description": "ObjectAnnotator, DirectAnnotator, ProxyAnnotator patterns",
+      "code_locations": [
+        "Source/UnrealCV/Public/Controller/ObjectAnnotator.h",
+        "Source/UnrealCV/Private/Controller/DirectAnnotator.h",
+        "Source/UnrealCV/Private/Controller/ProxyAnnotator.h"
+      ],
+      "doc_locations": [
+        "docs/architecture/annotation-system.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read ObjectAnnotator.h static facade",
+        "Document Direct vs Proxy modes",
+        "Document performance tradeoffs",
+        "Document ColorGenerator algorithm",
+        "Add decision tree for mode selection",
+        "Verify against FusionCamSensor usage"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-012",
+      "category": "system_architecture",
+      "priority": "critical",
+      "title": "Document Recording System Architecture",
+      "description": "FusionCamCaptureActor, async pipeline, multi-layer recording",
+      "code_locations": [
+        "Source/UnrealCV/Public/Actor/FusionCamCaptureActor.h",
+        "Source/UnrealCV/Public/Sensor/CameraSensor/FusionCamSensor.h",
+        "Source/UnrealCV/Private/Sensor/AsyncCaptureHelper.h"
+      ],
+      "doc_locations": [
+        "docs/architecture/recording-pipeline.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read FusionCamCaptureActor.h lifecycle",
+        "Document 9 simultaneous data types",
+        "Document async 3-phase GPU readback",
+        "Document MP4 encoding integration",
+        "Add pipeline diagram (Sensor → Actor → Encoder)",
+        "Explain CameraRecordingActors map in CameraHandler",
+        "Verify against CLAUDE.md async pipeline section"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-013",
+      "category": "system_architecture",
+      "priority": "high",
+      "title": "Document Sensor System Architecture",
+      "description": "UFusionCamSensor, specialized sensors, capture pipeline",
+      "code_locations": [
+        "Source/UnrealCV/Public/Sensor/CameraSensor/FusionCamSensor.h",
+        "Source/UnrealCV/Public/Sensor/CameraSensor/BaseCameraSensor.h"
+      ],
+      "doc_locations": [
+        "docs/architecture/sensor-system.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read FusionCamSensor orchestrator",
+        "Document 5 specialized sensors",
+        "Document visibility/lighting modes",
+        "Document sync vs async capture",
+        "Add multi-pass rendering explanation",
+        "Link to recording system"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-014",
+      "category": "migration_guide",
+      "priority": "high",
+      "title": "Camera ID Migration Guide (Integer → CID)",
+      "description": "Document old vs new camera ID formats",
+      "code_locations": [
+        "Source/UnrealCV/Private/Commands/CameraHandler.cpp (ParseCameraID)"
+      ],
+      "doc_locations": [
+        "docs/migration/camera-id-format.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read ParseCameraID implementation",
+        "Document CID-ActorName-UUID format",
+        "Document backward compatibility",
+        "Add migration examples",
+        "Update all command examples to use CID format"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-015",
+      "category": "data_format",
+      "priority": "high",
+      "title": "Document Sensor Data Formats",
+      "description": "Depth, flow, normal, segmentation data encoding",
+      "code_locations": [
+        "Source/UnrealCV/Public/Sensor/CameraSensor/DepthCamSensor.h",
+        "Source/UnrealCV/Public/Sensor/CameraSensor/FlowCamSensor.h",
+        "Source/UnrealCV/Public/Sensor/CameraSensor/NormalCamSensor.h"
+      ],
+      "doc_locations": [
+        "docs/reference/data-formats.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read each sensor's pixel format",
+        "Document depth encoding (PlaneDepth vs DistToCamCenter)",
+        "Document flow RGB encoding",
+        "Document normal map encoding",
+        "Document segmentation color mapping",
+        "Add decoding examples in Python"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-016",
+      "category": "data_format",
+      "priority": "high",
+      "title": "Document Recording Metadata JSON Schema",
+      "description": "Layered video metadata structure",
+      "code_locations": [
+        "Source/UnrealCV/Private/Actor/FusionCamCaptureActor.cpp (WriteMetadata)"
+      ],
+      "doc_locations": [
+        "docs/reference/metadata-schema.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read FusionCamCaptureActor::WriteMetadata",
+        "Extract JSON schema",
+        "Document object_id, resolution, frames, categories",
+        "Document occlusion_ratio calculation",
+        "Add example metadata JSON"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-012"]
+    },
+    {
+      "id": "DOC-017",
+      "category": "tutorial",
+      "priority": "critical",
+      "title": "Tutorial: Dataset Generation Workflow",
+      "description": "Complete SOW project workflow guide",
+      "code_locations": [
+        "Source/UnrealCV/Public/BPFunctionLib/DatasetAutomationBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/SceneCompositionBPLib.h"
+      ],
+      "doc_locations": [
+        "docs/tutorials/dataset-generation.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read SOW-基于CG的音视频分层数据生产-latest.md",
+        "Document end-to-end workflow",
+        "Add asset pool setup",
+        "Add scene composition example",
+        "Add batch automation example",
+        "Document 5-layer output format",
+        "Link to all relevant APIs"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-006", "DOC-007", "DOC-008", "DOC-010"]
+    },
+    {
+      "id": "DOC-018",
+      "category": "tutorial",
+      "priority": "high",
+      "title": "Tutorial: Blueprint vs TCP API Usage",
+      "description": "When to use Blueprint libraries vs TCP commands",
+      "code_locations": [
+        "Source/UnrealCV/Public/BPFunctionLib/",
+        "Source/UnrealCV/Private/Commands/"
+      ],
+      "doc_locations": [
+        "docs/tutorials/blueprint-vs-tcp.md (NEW)"
+      ],
+      "verification_steps": [
+        "Document Blueprint use cases (editor, UMG, automation)",
+        "Document TCP use cases (external programs, Python client)",
+        "Add comparison table",
+        "Add example workflows for each",
+        "Link to vbp command for hybrid approach"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-019",
+      "category": "tutorial",
+      "priority": "high",
+      "title": "Tutorial: Camera Trajectory Recording",
+      "description": "Explain 15 trajectory types and usage",
+      "code_locations": [
+        "Source/UnrealCV/Private/BPFunctionLib/RecordingBPLib.cpp",
+        "docs/tutorials/camera_traj.json"
+      ],
+      "doc_locations": [
+        "docs/tutorials/trajectory-recording.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read camera_traj.json definitions",
+        "Document each trajectory type",
+        "Add RecordingBPLib API usage",
+        "Add visual examples if possible",
+        "Link to FusionCamCaptureActor"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-006"]
+    },
+    {
+      "id": "DOC-020",
+      "category": "tutorial",
+      "priority": "medium",
+      "title": "Tutorial: Pak File Workflow",
+      "description": "Dynamic asset loading at runtime",
+      "code_locations": [
+        "Source/UnrealCV/Private/Commands/PakHandler.cpp",
+        "Source/UnrealCV/Public/BPFunctionLib/PakMountBPLib.h"
+      ],
+      "doc_locations": [
+        "docs/tutorials/pak-workflow.md (NEW)"
+      ],
+      "verification_steps": [
+        "Document pak creation with UE packaging",
+        "Document mount/unmount workflow",
+        "Document asset scanning and loading",
+        "Document AssetPoolManager integration",
+        "Add complete example"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-002", "DOC-010"]
+    },
+    {
+      "id": "DOC-021",
+      "category": "api_reference",
+      "priority": "medium",
+      "title": "Document Remaining Blueprint Libraries (10 libraries)",
+      "description": "AnimationBPLib, GroomBPLib, StencilBPLib, etc.",
+      "code_locations": [
+        "Source/UnrealCV/Public/BPFunctionLib/AnimationBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/GroomBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/StencilBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/MaterialBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/PanoramicBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/LineTraceBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/AutomationBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/PawnBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/SensorBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/NavigationBPLib.h"
+      ],
+      "doc_locations": [
+        "docs/api/blueprint-libraries.md"
+      ],
+      "verification_steps": [
+        "Read each BPLib header",
+        "Extract UFUNCTION signatures",
+        "Document parameters and return types",
+        "Add brief usage examples",
+        "Group by category"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-022",
+      "category": "update_existing",
+      "priority": "critical",
+      "title": "Update docs/index.md (UE4 → UE5)",
+      "description": "Fix outdated UE4 references and Caffe mention",
+      "code_locations": [],
+      "doc_locations": [
+        "docs/index.md"
+      ],
+      "verification_steps": [
+        "Replace 'Unreal Engine 4 (UE4)' with 'Unreal Engine 5.2+' or 'UE5'",
+        "Replace 'Caffe' with 'PyTorch/TensorFlow'",
+        "Update feature list to mention UE5.5 support",
+        "Add RPC communication mention",
+        "Update example images if outdated"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-023",
+      "category": "update_existing",
+      "priority": "high",
+      "title": "Update README.md Feature List",
+      "description": "Expand new features section with 2024-2025 additions",
+      "code_locations": [],
+      "doc_locations": [
+        "README.md"
+      ],
+      "verification_steps": [
+        "Add Pak file management feature",
+        "Add Dataset automation system",
+        "Add Blueprint function libraries mention",
+        "Add MetaHuman integration",
+        "Add async GPU readback mention",
+        "Update installation instructions if needed"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-024",
+      "category": "update_existing",
+      "priority": "medium",
+      "title": "Update test/README.md",
+      "description": "Add missing test documentation",
+      "code_locations": [
+        "test/"
+      ],
+      "doc_locations": [
+        "test/README.md"
+      ],
+      "verification_steps": [
+        "List all test files in test/server/",
+        "Document what each test covers",
+        "Update file structure section",
+        "Add pytest best practices",
+        "Remove outdated Docker/travis references if obsolete"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-025",
+      "category": "performance",
+      "priority": "medium",
+      "title": "Document Performance Optimization Guide",
+      "description": "Fast capture, async readback, annotation modes",
+      "code_locations": [
+        "Source/UnrealCV/Private/Sensor/AsyncCaptureHelper.h",
+        "Source/UnrealCV/Public/Sensor/CameraSensor/BaseCameraSensor.h"
+      ],
+      "doc_locations": [
+        "docs/guides/performance-optimization.md (NEW)"
+      ],
+      "verification_steps": [
+        "Document fast capture mode",
+        "Document async vs sync capture tradeoffs",
+        "Document Direct vs Proxy annotation performance",
+        "Add benchmarks from CLAUDE.md (30-50% improvement)",
+        "Add best practices for 400K dataset generation"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-011", "DOC-012"]
+    },
+    {
+      "id": "DOC-026",
+      "category": "diagram",
+      "priority": "high",
+      "title": "Create Dataset Generation Pipeline Diagram",
+      "description": "Visual workflow from scene composition to video output",
+      "code_locations": [],
+      "doc_locations": [
+        "docs/diagrams/dataset-pipeline.md (NEW)"
+      ],
+      "verification_steps": [
+        "Design ASCII or mermaid diagram",
+        "Show: Asset Pool → Scene Composition → Recording → Encoding → 5-layer output",
+        "Integrate with DOC-017 tutorial",
+        "Add component interactions"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-008", "DOC-010", "DOC-012"]
+    },
+    {
+      "id": "DOC-027",
+      "category": "diagram",
+      "priority": "high",
+      "title": "Create Recording System Architecture Diagram",
+      "description": "FusionCamSensor → CaptureActor → Encoder flow",
+      "code_locations": [],
+      "doc_locations": [
+        "docs/diagrams/recording-architecture.md (NEW)"
+      ],
+      "verification_steps": [
+        "Design component diagram",
+        "Show 3-phase async pipeline",
+        "Show multi-sensor orchestration",
+        "Integrate with DOC-012"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-012", "DOC-013"]
+    },
+    {
+      "id": "DOC-028",
+      "category": "diagram",
+      "priority": "medium",
+      "title": "Create Annotation System Decision Tree",
+      "description": "When to use Direct vs Proxy annotator",
+      "code_locations": [],
+      "doc_locations": [
+        "docs/diagrams/annotation-decision.md (NEW)"
+      ],
+      "verification_steps": [
+        "Create decision flowchart",
+        "Add performance criteria",
+        "Add use case examples",
+        "Integrate with DOC-011"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-011"]
+    },
+    {
+      "id": "DOC-029",
+      "category": "diagram",
+      "priority": "medium",
+      "title": "Create Command Dispatch Flow Diagram",
+      "description": "TCP → Handler → Blueprint/C++ flow",
+      "code_locations": [
+        "Source/UnrealCV/Private/Server/CommandDispatcher.cpp"
+      ],
+      "doc_locations": [
+        "docs/diagrams/command-dispatch.md (NEW)"
+      ],
+      "verification_steps": [
+        "Read CommandDispatcher.cpp",
+        "Show TCP connection → Parse → Dispatch → Handler → Result",
+        "Show handler registration pattern",
+        "Add vbp command special case"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-030",
+      "category": "ue5_features",
+      "priority": "medium",
+      "title": "Document UE5-Specific Features",
+      "description": "Lumen, Nanite, Groom integration",
+      "code_locations": [
+        "Source/UnrealCV/Public/BPFunctionLib/GroomBPLib.h"
+      ],
+      "doc_locations": [
+        "docs/ue5-features.md (NEW)"
+      ],
+      "verification_steps": [
+        "Document Lumen GI method commands",
+        "Document Groom physics control (GroomBPLib)",
+        "Document reflection method options",
+        "Add UE5 migration notes",
+        "Link to camera commands for Lumen/SSR"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-031",
+      "category": "api_reference",
+      "priority": "low",
+      "title": "Document Legacy APIs (VisionBPLib, SerializeBPLib)",
+      "description": "Complete coverage of utility libraries",
+      "code_locations": [
+        "Source/UnrealCV/Public/BPFunctionLib/VisionBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/SerializeBPLib.h",
+        "Source/UnrealCV/Public/BPFunctionLib/JsonObjectBP.h"
+      ],
+      "doc_locations": [
+        "docs/api/blueprint-libraries.md"
+      ],
+      "verification_steps": [
+        "Read each library header",
+        "Document JSON serialization functions",
+        "Document vision utilities",
+        "Add to comprehensive API reference"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-032",
+      "category": "integration",
+      "priority": "low",
+      "title": "Document Python Client Updates",
+      "description": "Sync Python client docs with new commands",
+      "code_locations": [
+        "client/python/"
+      ],
+      "doc_locations": [
+        "client/python/README.md"
+      ],
+      "verification_steps": [
+        "Check if Python client supports new commands",
+        "Update client README with new features",
+        "Add examples for pak, light, dataset commands",
+        "Verify version compatibility"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-001", "DOC-002", "DOC-003"]
+    },
+    {
+      "id": "DOC-033",
+      "category": "cleanup",
+      "priority": "low",
+      "title": "Archive or Update Legacy Gym-UnrealCV Docs",
+      "description": "Handle Source/uezoo/ documentation",
+      "code_locations": [
+        "Source/uezoo/"
+      ],
+      "doc_locations": [
+        "Source/uezoo/README.md",
+        "Source/uezoo/doc/"
+      ],
+      "verification_steps": [
+        "Determine if gym-unrealcv is still maintained",
+        "Update or mark as archived",
+        "Add deprecation notice if needed"
+      ],
+      "status": "pending",
+      "blocking": []
+    },
+    {
+      "id": "DOC-034",
+      "category": "faq",
+      "priority": "medium",
+      "title": "Create FAQ for Common Issues",
+      "description": "Build issues, camera ID confusion, performance tips",
+      "code_locations": [],
+      "doc_locations": [
+        "docs/faq.md (NEW)"
+      ],
+      "verification_steps": [
+        "Compile common GitHub issues",
+        "Add Visual Studio version compatibility",
+        "Add camera ID format confusion",
+        "Add async capture troubleshooting",
+        "Add UE version compatibility matrix"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-014"]
+    },
+    {
+      "id": "DOC-035",
+      "category": "index",
+      "priority": "high",
+      "title": "Create Master Documentation Index",
+      "description": "Organize all new docs with clear navigation",
+      "code_locations": [],
+      "doc_locations": [
+        "docs/README.md (NEW)"
+      ],
+      "verification_steps": [
+        "List all documentation files",
+        "Group by category (API, Guides, Tutorials, Architecture)",
+        "Add quick links",
+        "Add getting started path",
+        "Update mkdocs.yml or equivalent if exists"
+      ],
+      "status": "pending",
+      "blocking": ["DOC-001 through DOC-034"]
+    }
+  ]
+}
