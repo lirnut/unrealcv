@@ -533,7 +533,8 @@
         "Add brief usage examples",
         "Group by category"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": []
     },
     {

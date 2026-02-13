@@ -69,6 +69,12 @@ Document created:
 - docs/tutorials/pak-workflow.md (mount, scan, load, register workflow)
 
 ## 2026-02-13 - DOC-021
+- DOC-021: Document Remaining Blueprint Libraries - docs/api/blueprint-libraries.md (NEW)
+
+Document created:
+- docs/api/blueprint-libraries.md (10 libraries: Animation, Groom, Stencil, Material, Panoramic, LineTrace, Automation, Pawn, Sensor, Navigation)
+
+## 2026-02-13 - DOC-022
 
 ### SubAgents Launched (18 tasks)
 
