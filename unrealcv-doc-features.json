@@ -41,8 +41,7 @@
         "Source/UnrealCV/Public/BPFunctionLib/PakMountBPLib.h"
       ],
       "doc_locations": [
-        "docs/reference/commands.rst",
-        "docs/api/pak-system.md (NEW)"
+        "docs/reference/pak-commands.rst (NEW)"
       ],
       "verification_steps": [
         "Read PakHandler.cpp for all vget/vset commands",
@@ -51,7 +50,8 @@
         "Add usage examples with AssetPoolManager integration",
         "Verify against test/server/pak_test.py if exists"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "estimated_commands": 8,
       "blocking": []
     },
