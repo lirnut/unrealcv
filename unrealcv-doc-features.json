@@ -576,7 +576,8 @@
         "Add async GPU readback mention",
         "Update installation instructions if needed"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": []
     },
     {

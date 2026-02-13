@@ -82,6 +82,18 @@ Updated docs/index.md:
 - Changed "Caffe" to "PyTorch or TensorFlow"
 
 ## 2026-02-13 - DOC-023
+- DOC-023: Update README.md Feature List
+
+Updated README.md New Features:
+- Added Pak file management
+- Added Dataset automation system
+- Added Blueprint function libraries (20+)
+- Added MetaHuman integration
+- Added async GPU readback
+- Added layered video capture
+- Added camera trajectory recording
+
+## 2026-02-13 - DOC-024
 
 ### SubAgents Launched (18 tasks)
 

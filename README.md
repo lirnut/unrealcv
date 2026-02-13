@@ -23,10 +23,17 @@ Images generated from the technical demo <a href="http://docs.unrealcv.org/en/ma
 </center>
 
 ## New Features
- - Support Unreal Engine 5.5.
+ - Support Unreal Engine 5.2 - 5.6.
  - Call any Blueprint function from Python by `vbp [obj_name] [func_name] [arg1] [arg2] ...` command.
  - Support RPC communication between Server and Client in Linux, higher FPS and more reliable.
  - A set of new commands for camera control and object manipulation, please refer to [command system](https://docs.unrealcv.org/en/latest/reference/commands.html) for more details.
+ - **Pak file management** - Dynamic asset loading at runtime via Pak files.
+ - **Dataset automation system** - High-level batch generation orchestration.
+ - **Blueprint Function Libraries** - 20+ libraries for recording, scene composition, annotation, lighting, animation, navigation, and more.
+ - **MetaHuman integration** - Batch MetaHuman animation and control.
+ - **Async GPU readback** - 30-50% performance improvement for high-throughput recording.
+ - **Layered video capture** - Simultaneous RGB, depth, normal, flow, and segmentation masks.
+ - **Camera trajectory recording** - 15 automated camera movement patterns.
 
 ## How to install UnrealCV
 To install the UnrealCV `Server`, you need:
