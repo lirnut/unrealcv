@@ -441,7 +441,7 @@ void AFusionCamCaptureActor::UpdateFocalDistance()
 
 	float Distance = (ForegroundPos - TargetSensor->GetSensorLocation()).Size();
 	const float FocalRegion = 1 * 100;
-	float FocalDistance = FMath::Max(Distance - FocalRegion/2, 100.0f);
+	float FocalDistance = FMath::Max(Distance - FocalRegion/2, 10.0f);
 
 	TargetSensor->SetFocalParams(FocalDistance, FocalRegion);
 

@@ -2,6 +2,7 @@
 #include "AssetPoolManager.h"
 #include "UnrealcvLog.h"
 #include "BPFunctionLib/MetaHumanBPLib.h"
+#include "Utils/MetaHumanCacheManager.h"
 
 FAssetPoolManager& FAssetPoolManager::Get()
 {
@@ -41,7 +42,8 @@ void FAssetPoolManager::LoadStableAssetsPack()
 		// {{"Path", TEXT("/Game/Assets/Characters/Human_Infant_01")}, {"Type", TEXT("Blueprint")}},
 	});
 	// TArray<FString> MetaHumanPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
-	TArray<FString> MetaHumanPaths = UMetaHumanBPLib::GetAllMetaHumanBlueprintPaths();
+	// TArray<FString> MetaHumanPaths = UMetaHumanBPLib::GetAllMetaHumanBlueprintPaths();
+	TArray<FString> MetaHumanPaths = FMetaHumanCacheManager::Get().LoadCacheFromFile();
 	for (const FString& MetaHumanPath : MetaHumanPaths)
 	{
 		AssetPools[TEXT("Foreground_Human")].Add({

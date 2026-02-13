@@ -129,7 +129,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	{
 		CurrentConfig.NumFrames = 90;
 		CurrentConfig.TrajectoryFPS = 30;
- 		CurrentConfig.ForegroundMoveSpeed = 50.0f;
+ 		CurrentConfig.ForegroundMoveSpeed = 70.0f;
 		CurrentConfig.ForegroundMoveAngleOffset = 90.0f;
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("120 175")));
@@ -138,14 +138,24 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		// CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Script/Engine.AnimBlueprint'/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement'")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_Run.ABP_Run_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_groom")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
-		// CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
-		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1080x1920")));
-		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
+		
+		if(FMath::RandRange(0.0f, 100.0f) < 50.0f)
+		{
+			CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1080x1920")));
+			CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
+		}
+		else
+		{
+			CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
+			CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("60 80")));
+		}
+		
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("125 175")));
-		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 1.0 4.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 0.5 2.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
