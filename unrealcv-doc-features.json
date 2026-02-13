@@ -338,19 +338,21 @@
       "title": "Camera ID Migration Guide (Integer → CID)",
       "description": "Document old vs new camera ID formats",
       "code_locations": [
-        "Source/UnrealCV/Private/Commands/CameraHandler.cpp (ParseCameraID)"
+        "Source/UnrealCV/Private/BPFunctionLib/SensorBPLib.cpp"
       ],
       "doc_locations": [
-        "docs/migration/camera-id-format.md (NEW)"
+        "docs/migration/camera-id-format.rst (NEW)"
       ],
       "verification_steps": [
-        "Read ParseCameraID implementation",
+        "Read FCameraIDManager implementation",
         "Document CID-ActorName-UUID format",
         "Document backward compatibility",
         "Add migration examples",
         "Update all command examples to use CID format"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 1,
       "blocking": []
     },
     {
