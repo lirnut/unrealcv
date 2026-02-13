@@ -262,7 +262,7 @@
         "Source/UnrealCV/Private/Controller/ProxyAnnotator.h"
       ],
       "doc_locations": [
-        "docs/architecture/annotation-system.md (NEW)"
+        "docs/architecture/annotation-system.rst (NEW)"
       ],
       "verification_steps": [
         "Read ObjectAnnotator.h static facade",
@@ -272,7 +272,9 @@
         "Add decision tree for mode selection",
         "Verify against FusionCamSensor usage"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 1,
       "blocking": []
     },
     {
