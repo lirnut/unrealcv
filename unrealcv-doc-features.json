@@ -90,7 +90,7 @@
         "Source/UnrealCV/Public/BPFunctionLib/LightBPLib.h"
       ],
       "doc_locations": [
-        "docs/reference/commands.rst"
+        "docs/reference/light-commands.rst (NEW)"
       ],
       "verification_steps": [
         "Read LightHandler.cpp",
@@ -98,7 +98,8 @@
         "Document deep shadow casting toggle",
         "Add ULightBPLib function reference"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "estimated_commands": 6,
       "blocking": []
     },
