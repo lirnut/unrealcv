@@ -554,7 +554,8 @@
         "Add RPC communication mention",
         "Update example images if outdated"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": []
     },
     {

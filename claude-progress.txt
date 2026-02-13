@@ -75,6 +75,13 @@ Document created:
 - docs/api/blueprint-libraries.md (10 libraries: Animation, Groom, Stencil, Material, Panoramic, LineTrace, Automation, Pawn, Sensor, Navigation)
 
 ## 2026-02-13 - DOC-022
+- DOC-022: Update docs/index.md (UE4 → UE5)
+
+Updated docs/index.md:
+- Changed "Unreal Engine 4 (UE4)" to "Unreal Engine 5 (UE5.2+)"
+- Changed "Caffe" to "PyTorch or TensorFlow"
+
+## 2026-02-13 - DOC-023
 
 ### SubAgents Launched (18 tasks)
 

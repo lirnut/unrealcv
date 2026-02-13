@@ -6,12 +6,12 @@
 
 <!-- [![Build Status](https://travis-ci.org/unrealcv/unrealcv.svg?branch=master)](https://travis-ci.org/unrealcv/unrealcv) -->
 
-UnrealCV is a project to help computer vision researchers build virtual worlds using Unreal Engine 4 (UE4). It extends UE4 with a plugin by providing:
+UnrealCV is a project to help computer vision researchers build virtual worlds using Unreal Engine 5 (UE5.2+). It extends UE5 with a plugin by providing:
 
 1. A set of UnrealCV commands to interact with the virtual world.
-2. Communication between UE4 and an external program, such as Caffe.
+2. Communication between UE5 and external programs, such as PyTorch or TensorFlow.
 
-UnrealCV can be used in two ways. The first one is using a compiled game binary with UnrealCV embedded. This is as simple as running a game, no knowledge of Unreal Engine is required. The second is installing UnrealCV plugin to Unreal Engine 4 (UE4) and use the editor of UE4 to build a new virtual world.
+UnrealCV can be used in two ways. The first one is using a compiled game binary with UnrealCV embedded. This is as simple as running a game, no knowledge of Unreal Engine is required. The second is installing UnrealCV plugin to Unreal Engine 5 (UE5) and use the editor of UE5 to build a new virtual world.
 
 
 Please read [Tutorial: Getting Started](http://unrealcv.github.io/tutorial/getting_started.html) to learn using UnrealCV.
