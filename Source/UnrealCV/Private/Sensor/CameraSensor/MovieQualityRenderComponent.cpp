@@ -19,6 +19,7 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
   : ShowFlags(EShowFlagInitMode::ESFIM_Game)
 {
 	bIsInitialized = false;
+	FrameCounter = 0;
 	PrimaryComponentTick.bCanEverTick = false;
 
 
@@ -383,6 +384,13 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	View->AntiAliasingMethod = AntiAliasingMethod;
 	// View->bSceneCaptureUsesRayTracing = true;
 	// View->bIsReflectionCapture = true;
+	// View->bIsSceneCapture = false;
+	// View->bIsSceneCaptureCube = false;
+	// View->bIsGameView = true;
+
+	// Solve Lumen Ghosting: ensure view continuity for temporal accumulation
+	View->OverrideFrameIndexValue = FrameCounter++;
+	// View->bAllowTemporalJitter = false;
 
 	// View->FinalPostProcessSettings.SetBaseValues();
 	// View->StartFinalPostprocessSettings(ViewInitOptions.ViewOrigin);
@@ -453,8 +461,8 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
     PPSettings.bOverride_DynamicGlobalIlluminationMethod = 1;
     PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::Lumen;
     // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::ScreenSpace;
-	PPSettings.bOverride_LumenRayLightingMode = 1;
-	PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
+	// PPSettings.bOverride_LumenRayLightingMode = 1;
+	// PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
 	PPSettings.bOverride_LumenSceneLightingQuality = 1;
 	PPSettings.LumenSceneLightingQuality = 2.0f;
 	PPSettings.bOverride_LumenSceneDetail = 1;
@@ -483,14 +491,14 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.LumenSurfaceCacheResolution = 1.0f;
 
 	/////////////////////////////////////////////////////////
-	// solve ghosting issue
+	// reduce ghosting phenomenon
 	// https://www.reddit.com/r/UnrealEngine5/comments/182y8br/lumen_ghosting_on_moving_objects_please_help/
 	// https://forums.unrealengine.com/t/desperate-for-a-definitve-answer-on-lumen-ghosting-issue/661853
-	// 
-	// PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
-	// PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
-	// PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	// PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
+	// https://dev.epicgames.com/community/learning/tutorials/mjo7/unreal-engine-temporal-quality-guide
+	PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
+	PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
+	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
+	PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
 	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
 	// PPSettings.LumenFinalGatherScreenTraces = 0;
 	// PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;
@@ -520,7 +528,7 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.MotionBlurPerObjectSize = 0.f;
 
 	FVector4 Saturation = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-	FVector4 Contrast = FVector4(0.85f, 0.85f, 0.85f, 1.0f);
+	FVector4 Contrast = FVector4(0.80f, 0.80f, 0.80f, 1.0f);
 	FVector4 Gamma = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 	FVector4 Gain = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 	FVector4 Offset = FVector4(0.0f, 0.0f, 0.0f, 0.0f);

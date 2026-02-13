@@ -1889,7 +1889,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 
 	FVector Offset = OriginalLocation - TargetLocation;
 	float OriginalDistance = Offset.Size();
-	float MaxDistance = OriginalDistance * 2.0f;
+	float MaxDistance = OriginalDistance * 1.4f;
 
 	NumFrames = InNumFrames;
 

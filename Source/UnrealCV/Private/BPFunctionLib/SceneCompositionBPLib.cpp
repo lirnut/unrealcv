@@ -25,6 +25,7 @@
 #include "NavAgentController.h"
 #include "MetaHumanBPLib.h"
 #include "AnnotationBPLib.h"
+#include "RuntimeActorSetterBPLib.h"
 #include "DrawDebugHelpers.h"
 #include "UnrealcvGameMode.h"
 #include "EngineUtils.h"
@@ -1264,7 +1265,10 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 
 
 	
+	URuntimeActorSetterBPLib::SetAffectDistanceFieldLighting(SpawnedActor, false);
 	SpawnedActor->RegisterAllComponents();
+	URuntimeActorSetterBPLib::SetAffectDistanceFieldLighting(SpawnedActor, false);
+
 	World->GetTimerManager().SetTimerForNextTick([SpawnedActor]() {
 		UAnnotationBPLib::AnnotateActor(SpawnedActor);
 	});

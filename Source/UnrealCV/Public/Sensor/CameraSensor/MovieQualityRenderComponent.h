@@ -93,6 +93,7 @@ protected:
 	EPixelFormat PixelFormat;
 	bool bForceLinearGamma;
 	float ForceTargetGamma;
+	uint32 FrameCounter;
 
 	TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> SurfaceQueue;
 	FSceneViewStateReference ViewState;

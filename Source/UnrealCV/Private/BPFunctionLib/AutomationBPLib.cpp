@@ -30,13 +30,24 @@ void UAutomationBPLib::StartTicking()
 	TickableObject->Activate();
 	UE_LOG(LogUnrealCV, Log, TEXT("AutomationBPLib: Ticking started"));
 
+
 #if WITH_EDITOR
 	PushCommand(TEXT("vset /captureactor/spawn_free_cam"));
 #endif
 
 	PushCommand(TEXT("r.ForceLOD 0"));
 	PushCommand(TEXT("r.SkeletalMeshLODBias -10"));
-	PushCommand(TEXT("r.HairStrands.Skylighting 0"));
+
+	// https://dev.epicgames.com/community/learning/tutorials/Ya6o/unreal-engine-rendering-hair-fur
+	// https://www.reddit.com/r/unrealengine/comments/154wry8/why_default_skylight_adds_too_much_noise_to_the/
+	// PushCommand(TEXT("r.HairStrands.Skylighting 0"));
+	PushCommand(TEXT("r.HairStrands.SkyLighting.SampleCount 256"));
+	PushCommand(TEXT("r.HairStrands.Voxelization.Virtual.VoxelWorldSize 0.1"));
+	PushCommand(TEXT("r.HairStrands.RasterizationScale 0.5"));
+	PushCommand(TEXT("r.HairStrands.Voxelization.Raymarching.SteppingScale 1.15"));
+	// PushCommand(TEXT("r.HairStrands.Visibility.PPLL 1 "));
+	// PushCommand(TEXT("r.HairStrands.DeepShadow.SuperSampling 1"));
+
 	PushCommand(TEXT("r.SceneCapture.AllowRenderInMainRenderer 1"));
 	PushCommand(TEXT("r.SceneCapture.CubeSinglePass 1"));
 	PushCommand(TEXT("r.SceneCapture.DepthPrepassOptimization 1"));
@@ -63,6 +74,15 @@ void UAutomationBPLib::StartTicking()
 	PushCommand(TEXT("r.TemporalAA.Quality 3"));
 	PushCommand(TEXT("r.TemporalAAPauseCorrect 1"));
 	PushCommand(TEXT("r.FXAA.Quality 5"));
+
+	// Lumen Temporal Filter for Ghosting Fix
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal 1"));
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 25"));
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.DistanceThreshold 0.01"));
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.NormalThreshold 10"));
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.FastUpdateModeUseNeighborhoodClamp 1"));
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.RejectBasedOnNormal 1"));
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.HairStrands.ScreenTrace 1"));
 #endif
 }
 
