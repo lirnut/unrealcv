@@ -453,7 +453,8 @@
         "Add example workflows for each",
         "Link to vbp command for hybrid approach"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": []
     },
     {
