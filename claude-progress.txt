@@ -114,7 +114,19 @@ Document created:
 - 400K dataset generation best practices
 - Benchmark results table
 
-## 2026-02-13 - DOC-026
+## 2026-02-13 - DOC-026, 027, 028, 029 (Diagram Batch)
+- DOC-026: Dataset Generation Pipeline Diagram - docs/diagrams/dataset-pipeline.md (NEW)
+- DOC-027: Recording Architecture Diagram - docs/diagrams/recording-architecture.md (NEW)
+- DOC-028: Annotation Decision Diagram - docs/diagrams/annotation-decision.md (NEW)
+- DOC-029: Command Dispatch Diagram - docs/diagrams/command-dispatch.md (NEW)
+
+Documents created:
+- docs/diagrams/dataset-pipeline.md (ASCII pipeline flow)
+- docs/diagrams/recording-architecture.md (3-phase async pipeline)
+- docs/diagrams/annotation-decision.md (Direct vs Proxy decision tree)
+- docs/diagrams/command-dispatch.md (TCP command flow)
+
+## 2026-02-13 - DOC-030
 
 ### SubAgents Launched (18 tasks)
 

@@ -643,7 +643,8 @@
         "Integrate with DOC-017 tutorial",
         "Add component interactions"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": ["DOC-008", "DOC-010", "DOC-012"]
     },
     {
@@ -662,7 +663,8 @@
         "Show multi-sensor orchestration",
         "Integrate with DOC-012"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": ["DOC-012", "DOC-013"]
     },
     {
@@ -681,7 +683,8 @@
         "Add use case examples",
         "Integrate with DOC-011"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": ["DOC-011"]
     },
     {
@@ -702,7 +705,8 @@
         "Show handler registration pattern",
         "Add vbp command special case"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": []
     },
     {
