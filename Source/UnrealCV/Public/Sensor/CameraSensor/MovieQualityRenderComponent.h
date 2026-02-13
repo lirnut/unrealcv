@@ -83,6 +83,11 @@ protected:
 
 	// float GetTargetGamma() const;
 
+	virtual void SetPostProcessSettings(FPostProcessSettings& PPSettings);
+
+private:
+	void SetDefaultPostProcessSettings(FPostProcessSettings& PPSettings);
+
 protected:
 	bool bIsInitialized;
 	EPixelFormat PixelFormat;

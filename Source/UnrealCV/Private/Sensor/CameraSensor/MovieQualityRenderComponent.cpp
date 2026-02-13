@@ -387,7 +387,66 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	// View->FinalPostProcessSettings.SetBaseValues();
 	// View->StartFinalPostprocessSettings(ViewInitOptions.ViewOrigin);
 
-	FPostProcessSettings& PPSettings = View->FinalPostProcessSettings;
+	// FPostProcessSettings& PPSettings = View->FinalPostProcessSettings;
+	SetPostProcessSettings(View->FinalPostProcessSettings);
+
+	// View->EndFinalPostprocessSettings(ViewInitOptions);
+
+	ViewFamily->Views.Add(View);
+
+	return View;
+}
+
+void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
+	FSceneViewFamily* ViewFamily,
+	UTextureRenderTarget2D* RenderTarget,
+	TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+
+	FCanvas Canvas(RenderTargetResource, nullptr, World, ViewFamily->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
+	GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily);
+
+	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
+
+	ENQUEUE_RENDER_COMMAND(CaptureFrameCommand)(
+		[SurfaceQueue = this->SurfaceQueue, FramePayload, OnPixelDataReady, RenderTargetResource](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			SurfaceQueue->OnRenderTargetReady_RenderThread(
+				RenderTargetResource->GetRenderTargetTexture(),
+				FramePayload,
+				MoveTemp(OnPixelDataReady)
+			);
+		}
+	);
+}
+
+// float UMovieQualityRenderComponent::GetTargetGamma() const
+// {
+// 	// if (bForceLinearGamma)
+// 	// {
+// 	// 	return 1.0f;
+// 	// }
+// 	// else
+// 	// {
+// 		return UTextureRenderTarget::GetDefaultDisplayGamma();
+// 	// }
+// }
+
+
+void UMovieQualityRenderComponent::SetPostProcessSettings(FPostProcessSettings& PPSettings)
+{
+	SetDefaultPostProcessSettings(PPSettings);
+}
+
+void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSettings& PPSettings)
+{
     PPSettings.bOverride_ReflectionMethod = 1;
     PPSettings.ReflectionMethod = EReflectionMethod::Type::Lumen;
     // PPSettings.ReflectionMethod = EReflectionMethod::Type::ScreenSpace;
@@ -422,10 +481,18 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	// PPSettings.LumenMaxRefractionBounces = 64;
 	// PPSettings.bOverride_LumenSurfaceCacheResolution = 1;
 	// PPSettings.LumenSurfaceCacheResolution = 1.0f;
+
+	/////////////////////////////////////////////////////////
+	// solve ghosting issue
 	PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
-	PPSettings.LumenSceneLightingUpdateSpeed = 0.5f;
+	PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
 	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	PPSettings.LumenFinalGatherLightingUpdateSpeed = 0.5f;
+	PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
+	PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
+	PPSettings.LumenFinalGatherScreenTraces = 0;
+	PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;
+	PPSettings.AmbientOcclusionTemporalBlendWeight = 0.0f;
+	/////////////////////////////////////////////////////////
 
 	PPSettings.bOverride_AutoExposureMethod = 1;
 	PPSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Histogram;
@@ -503,52 +570,149 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	PPSettings.Sharpen = 0.0f;
 	PPSettings.bOverride_FilmGrainIntensity = 1;
 	PPSettings.FilmGrainIntensity = 0.0f;
-
-	// View->EndFinalPostprocessSettings(ViewInitOptions);
-
-	ViewFamily->Views.Add(View);
-
-	return View;
 }
 
-void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
-	FSceneViewFamily* ViewFamily,
-	UTextureRenderTarget2D* RenderTarget,
-	TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
+/*
 
-	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+● Based on my search through Scene.h, here is a comprehensive list of all shadow, global illumination, and Lumen-related settings in FPostProcessSettings:
 
-	FCanvas Canvas(RenderTargetResource, nullptr, World, ViewFamily->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
-	GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily);
+  Global Illumination
 
-	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
+  Method & Basic GI
+  ┌─────────────────────────────────┬────────────────────────────────────────┬─────────────────────┐
+  │             Setting             │                  Type                  │      Category       │
+  ├─────────────────────────────────┼────────────────────────────────────────┼─────────────────────┤
+  │ DynamicGlobalIlluminationMethod │ EDynamicGlobalIlluminationMethod::Type │ Global Illumination │
+  ├─────────────────────────────────┼────────────────────────────────────────┼─────────────────────┤
+  │ IndirectLightingColor           │ FLinearColor                           │ Global Illumination │
+  ├─────────────────────────────────┼────────────────────────────────────────┼─────────────────────┤
+  │ IndirectLightingIntensity       │ float                                  │ Global Illumination │
+  └─────────────────────────────────┴────────────────────────────────────────┴─────────────────────┘
+  Lumen Global Illumination
+  ┌─────────────────────────────────────┬───────────────────────────────┬───────────────────────────────────────────────┐
+  │               Setting               │             Type              │                   Category                    │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenRayLightingMode                │ ELumenRayLightingModeOverride │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenSceneLightingQuality           │ float (0.25-2)                │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenSceneDetail                    │ float (0.25-4)                │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenSceneViewDistance              │ float (1-2097152)             │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenSceneLightingUpdateSpeed       │ float (0.5-4)                 │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenFinalGatherQuality             │ float (0.25-2)                │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenFinalGatherLightingUpdateSpeed │ float (0.5-4)                 │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenFinalGatherScreenTraces        │ uint8 (bool)                  │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenMaxTraceDistance               │ float (1-2097152)             │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenDiffuseColorBoost              │ float (0.01-4)                │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenSkylightLeaking                │ float (0-0.02)                │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenSkylightLeakingTint            │ FLinearColor                  │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenFullSkylightLeakingDistance    │ float (0.1-2000)              │ Global Illumination|Lumen Global Illumination │
+  ├─────────────────────────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+  │ LumenSurfaceCacheResolution         │ float (0.5-1)                 │ Global Illumination|Lumen Global Illumination │
+  └─────────────────────────────────────┴───────────────────────────────┴───────────────────────────────────────────────┘
+  Ray Tracing GI (Overrides exist but properties may be deprecated in UE 5.6)
 
-	ENQUEUE_RENDER_COMMAND(CaptureFrameCommand)(
-		[SurfaceQueue = this->SurfaceQueue, FramePayload, OnPixelDataReady, RenderTargetResource](FRHICommandListImmediate& RHICmdList) mutable
-		{
-			SurfaceQueue->OnRenderTargetReady_RenderThread(
-				RenderTargetResource->GetRenderTargetTexture(),
-				FramePayload,
-				MoveTemp(OnPixelDataReady)
-			);
-		}
-	);
-}
+  Reflections
 
-// float UMovieQualityRenderComponent::GetTargetGamma() const
-// {
-// 	// if (bForceLinearGamma)
-// 	// {
-// 	// 	return 1.0f;
-// 	// }
-// 	// else
-// 	// {
-// 		return UTextureRenderTarget::GetDefaultDisplayGamma();
-// 	// }
-// }
+  Method
+  ┌──────────────────┬─────────────────────────┬─────────────┐
+  │     Setting      │          Type           │  Category   │
+  ├──────────────────┼─────────────────────────┼─────────────┤
+  │ ReflectionMethod │ EReflectionMethod::Type │ Reflections │
+  └──────────────────┴─────────────────────────┴─────────────┘
+  Lumen Reflections
+  ┌────────────────────────────────────────┬────────────────┬───────────────────────────────┐
+  │                Setting                 │      Type      │           Category            │
+  ├────────────────────────────────────────┼────────────────┼───────────────────────────────┤
+  │ LumenReflectionQuality                 │ float (0.25-2) │ Reflections|Lumen Reflections │
+  ├────────────────────────────────────────┼────────────────┼───────────────────────────────┤
+  │ LumenReflectionsScreenTraces           │ uint8 (bool)   │ Reflections|Lumen Reflections │
+  ├────────────────────────────────────────┼────────────────┼───────────────────────────────┤
+  │ LumenFrontLayerTranslucencyReflections │ uint8 (bool)   │ Reflections|Lumen Reflections │
+  ├────────────────────────────────────────┼────────────────┼───────────────────────────────┤
+  │ LumenMaxRoughnessToTraceReflections    │ float (0-1)    │ Reflections|Lumen Reflections │
+  ├────────────────────────────────────────┼────────────────┼───────────────────────────────┤
+  │ LumenMaxReflectionBounces              │ int32 (1-8)    │ Reflections|Lumen Reflections │
+  ├────────────────────────────────────────┼────────────────┼───────────────────────────────┤
+  │ LumenMaxRefractionBounces              │ int32 (0-64)   │ Reflections|Lumen Reflections │
+  └────────────────────────────────────────┴────────────────┴───────────────────────────────┘
+  Screen Space Reflections
+  ┌───────────────────────────────────┬────────────────┬──────────────────────────────────────┐
+  │              Setting              │      Type      │               Category               │
+  ├───────────────────────────────────┼────────────────┼──────────────────────────────────────┤
+  │ ScreenSpaceReflectionIntensity    │ float (0-100)  │ Reflections|Screen Space Reflections │
+  ├───────────────────────────────────┼────────────────┼──────────────────────────────────────┤
+  │ ScreenSpaceReflectionQuality      │ float (0-100)  │ Reflections|Screen Space Reflections │
+  ├───────────────────────────────────┼────────────────┼──────────────────────────────────────┤
+  │ ScreenSpaceReflectionMaxRoughness │ float (0.01-1) │ Reflections|Screen Space Reflections │
+  └───────────────────────────────────┴────────────────┴──────────────────────────────────────┘
+  Ambient Occlusion
+  ┌─────────────────────────────────────┬─────────────────┬──────────────────────────────────────┐
+  │               Setting               │      Type       │               Category               │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionIntensity           │ float (0-1)     │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionStaticFraction      │ float (0-1)     │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionRadius              │ float (0.1-500) │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionRadiusInWS          │ uint32 (bool)   │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionFadeDistance        │ float (0-20000) │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionFadeRadius          │ float (0-20000) │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionPower               │ float (0.1-8)   │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionBias                │ float (0-10)    │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionQuality             │ float (0-100)   │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionMipBlend            │ float (0.1-1)   │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionMipScale            │ float (0.5-4)   │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionMipThreshold        │ float (0-0.1)   │ Rendering Features|Ambient Occlusion │
+  ├─────────────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+  │ AmbientOcclusionTemporalBlendWeight │ float (0-0.5)   │ Rendering Features|Ambient Occlusion │
+  └─────────────────────────────────────┴─────────────────┴──────────────────────────────────────┘
+  Ray Tracing Ambient Occlusion
+  ┌─────────────────────────────┬─────────────────┬──────────────────────────────────────────────────┐
+  │           Setting           │      Type       │                     Category                     │
+  ├─────────────────────────────┼─────────────────┼──────────────────────────────────────────────────┤
+  │ RayTracingAO                │ uint32 (bool)   │ Rendering Features|Ray Tracing Ambient Occlusion │
+  ├─────────────────────────────┼─────────────────┼──────────────────────────────────────────────────┤
+  │ RayTracingAOSamplesPerPixel │ int32 (1-65536) │ Rendering Features|Ray Tracing Ambient Occlusion │
+  ├─────────────────────────────┼─────────────────┼──────────────────────────────────────────────────┤
+  │ RayTracingAOIntensity       │ float (0-1)     │ Rendering Features|Ray Tracing Ambient Occlusion │
+  ├─────────────────────────────┼─────────────────┼──────────────────────────────────────────────────┤
+  │ RayTracingAORadius          │ float (0-10000) │ Rendering Features|Ray Tracing Ambient Occlusion │
+  └─────────────────────────────┴─────────────────┴──────────────────────────────────────────────────┘
+  Ray Tracing Translucency (Shadows)
+  ┌───────────────────────────────┬────────────────────────────────────────┬─────────────────────────────────┐
+  │            Setting            │                  Type                  │            Category             │
+  ├───────────────────────────────┼────────────────────────────────────────┼─────────────────────────────────┤
+  │ RayTracingTranslucencyShadows │ EReflectedAndRefractedRayTracedShadows │ Rendering Features|Translucency │
+  └───────────────────────────────┴────────────────────────────────────────┴─────────────────────────────────┘
+  MegaLights
+  ┌─────────────┬──────────────┬────────────────────┐
+  │   Setting   │     Type     │      Category      │
+  ├─────────────┼──────────────┼────────────────────┤
+  │ bMegaLights │ uint8 (bool) │ Rendering Features │
+  └─────────────┴──────────────┴────────────────────┘
+  ---
+  Note: Direct shadow settings (Shadow Maps, Distance Field Shadows) are typically controlled via Light actors, not PostProcessSettings. The settings above are what you can control through Post
+   Process Volumes for shadows/GI/Lumen effects.
+
+
+*/
