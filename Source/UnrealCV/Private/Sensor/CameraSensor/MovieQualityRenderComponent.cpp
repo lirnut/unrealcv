@@ -484,14 +484,17 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 
 	/////////////////////////////////////////////////////////
 	// solve ghosting issue
-	PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
-	PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
-	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
-	PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
-	PPSettings.LumenFinalGatherScreenTraces = 0;
-	PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;
-	PPSettings.AmbientOcclusionTemporalBlendWeight = 0.0f;
+	// https://www.reddit.com/r/UnrealEngine5/comments/182y8br/lumen_ghosting_on_moving_objects_please_help/
+	// https://forums.unrealengine.com/t/desperate-for-a-definitve-answer-on-lumen-ghosting-issue/661853
+	// 
+	// PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
+	// PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
+	// PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
+	// PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
+	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
+	// PPSettings.LumenFinalGatherScreenTraces = 0;
+	// PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;
+	// PPSettings.AmbientOcclusionTemporalBlendWeight = 0.0f;
 	/////////////////////////////////////////////////////////
 
 	PPSettings.bOverride_AutoExposureMethod = 1;
