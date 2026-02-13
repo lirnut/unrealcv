@@ -104,6 +104,17 @@ Updated test/README.md:
 - Updated Docker support information
 
 ## 2026-02-13 - DOC-025
+- DOC-025: Performance Optimization Guide - docs/guides/performance-optimization.md (NEW)
+
+Document created:
+- docs/guides/performance-optimization.md
+- Async GPU readback pipeline (30-50% improvement)
+- Capture modes (sync, fast, async)
+- Annotation mode performance (Direct vs Proxy)
+- 400K dataset generation best practices
+- Benchmark results table
+
+## 2026-02-13 - DOC-026
 
 ### SubAgents Launched (18 tasks)
 
