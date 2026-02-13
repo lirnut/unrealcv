@@ -136,7 +136,7 @@
         "Source/UnrealCV/Private/BPFunctionLib/RecordingBPLib.cpp"
       ],
       "doc_locations": [
-        "docs/api/blueprint-libraries.md (NEW)"
+        "docs/api/recording-bplib.rst (NEW)"
       ],
       "verification_steps": [
         "Read RecordingBPLib.h UFUNCTION declarations",
@@ -146,7 +146,9 @@
         "Add CID camera ID format explanation",
         "Link to FusionCamCaptureActor lifecycle"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 18,
       "blocking": []
     },
     {
@@ -160,8 +162,7 @@
         "Source/UnrealCV/Private/BPFunctionLib/SceneCompositionBPLib.cpp"
       ],
       "doc_locations": [
-        "docs/api/blueprint-libraries.md",
-        "docs/guides/scene-composition.md (NEW)"
+        "docs/api/scene-composition-bplib.rst (NEW)"
       ],
       "verification_steps": [
         "Read SceneCompositionBPLib.h",
@@ -171,7 +172,9 @@
         "Add workflow diagram for scene lifecycle",
         "Verify against AssetPoolManager.h"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 20,
       "blocking": ["DOC-010"]
     },
     {
@@ -185,8 +188,7 @@
         "Source/UnrealCV/Private/BPFunctionLib/DatasetAutomationBPLib.cpp"
       ],
       "doc_locations": [
-        "docs/api/blueprint-libraries.md",
-        "docs/guides/dataset-automation.md"
+        "docs/api/dataset-automation-bplib.rst (NEW)"
       ],
       "verification_steps": [
         "Read DatasetAutomationBPLib.h",
@@ -195,7 +197,9 @@
         "Link to SOW-基于CG的音视频分层数据生产-latest.md",
         "Add complete workflow example"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 15,
       "blocking": ["DOC-003", "DOC-007"]
     },
     {
@@ -230,7 +234,7 @@
         "Source/UnrealCV/Private/Utils/AssetPoolManager.cpp"
       ],
       "doc_locations": [
-        "docs/architecture/asset-pool.md (NEW)"
+        "docs/architecture/asset-pool.rst (NEW)"
       ],
       "verification_steps": [
         "Read AssetPoolManager.h/cpp",
@@ -241,7 +245,9 @@
         "Add integration with /pak/register command",
         "Verify against SceneCompositionBPLib usage"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 15,
       "blocking": []
     },
     {
@@ -281,18 +287,20 @@
         "Source/UnrealCV/Private/Sensor/AsyncCaptureHelper.h"
       ],
       "doc_locations": [
-        "docs/architecture/recording-pipeline.md (NEW)"
+        "docs/architecture/recording-pipeline.rst (NEW)"
       ],
       "verification_steps": [
         "Read FusionCamCaptureActor.h lifecycle",
         "Document 9 simultaneous data types",
         "Document async 3-phase GPU readback",
         "Document MP4 encoding integration",
-        "Add pipeline diagram (Sensor → Actor → Encoder)",
+        "Add pipeline diagram (Sensor -> Actor -> Encoder)",
         "Explain CameraRecordingActors map in CameraHandler",
         "Verify against CLAUDE.md async pipeline section"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 15,
       "blocking": []
     },
     {
@@ -399,7 +407,7 @@
         "Source/UnrealCV/Public/BPFunctionLib/SceneCompositionBPLib.h"
       ],
       "doc_locations": [
-        "docs/tutorials/dataset-generation.md (NEW)"
+        "docs/tutorials/dataset-generation.rst (NEW)"
       ],
       "verification_steps": [
         "Read SOW-基于CG的音视频分层数据生产-latest.md",
@@ -410,7 +418,9 @@
         "Document 5-layer output format",
         "Link to all relevant APIs"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
+      "estimated_commands": 1,
       "blocking": ["DOC-006", "DOC-007", "DOC-008", "DOC-010"]
     },
     {
