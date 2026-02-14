@@ -461,8 +461,8 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
     PPSettings.bOverride_DynamicGlobalIlluminationMethod = 1;
     PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::Lumen;
     // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::ScreenSpace;
-	// PPSettings.bOverride_LumenRayLightingMode = 1;
-	// PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
+	PPSettings.bOverride_LumenRayLightingMode = 1;
+	PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
 	PPSettings.bOverride_LumenSceneLightingQuality = 1;
 	PPSettings.LumenSceneLightingQuality = 2.0f;
 	PPSettings.bOverride_LumenSceneDetail = 1;
@@ -495,10 +495,10 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// https://www.reddit.com/r/UnrealEngine5/comments/182y8br/lumen_ghosting_on_moving_objects_please_help/
 	// https://forums.unrealengine.com/t/desperate-for-a-definitve-answer-on-lumen-ghosting-issue/661853
 	// https://dev.epicgames.com/community/learning/tutorials/mjo7/unreal-engine-temporal-quality-guide
-	PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
-	PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
-	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
+	// PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
+	// PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
+	// PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
+	// PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
 	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
 	// PPSettings.LumenFinalGatherScreenTraces = 0;
 	// PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;
