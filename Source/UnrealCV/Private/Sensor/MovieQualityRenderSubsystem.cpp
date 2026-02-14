@@ -299,6 +299,13 @@ void UMovieQualityRenderSubsystem::SubmitToRenderer(
 	int32 FrameNumber,
 	TFunction<void(bool)> OnComplete)
 {
+	if (!World)
+	{
+		return;
+	}
+
+	World->SendAllEndOfFrameUpdates();
+
 	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
 	FCanvas Canvas(RenderTargetResource, nullptr, World, ViewFamily->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);

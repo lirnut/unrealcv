@@ -415,6 +415,9 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 		return;
 	}
 
+	// We must push any deferred render state recreations before causing any rendering to happen, to make sure that deleted resource references are updated
+	World->SendAllEndOfFrameUpdates();
+
 	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
 	FCanvas Canvas(RenderTargetResource, nullptr, World, ViewFamily->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
