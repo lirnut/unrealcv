@@ -43,7 +43,7 @@ void FDatasetAutomationHandler::RegisterCommands()
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetCurrentScenePrimaryCamera);
 	Help = "Set current scene primary camera ID";
-	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/currentscene/primary_camera [int32]"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/currentscene/primary_camera [uint]"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetCurrentSceneSceneCategory);
 	Help = "Set current scene category";
@@ -59,7 +59,7 @@ void FDatasetAutomationHandler::RegisterCommands()
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigTotalScenes);
 	Help = "Set config total scenes";
-	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/total_scenes [int32]"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/total_scenes [uint]"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigOutputDirectory);
 	Help = "Set config output directory";
@@ -67,7 +67,7 @@ void FDatasetAutomationHandler::RegisterCommands()
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigTrajectoryFPS);
 	Help = "Set config trajectory FPS";
-	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/trajectory_fps [int32]"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/trajectory_fps [uint]"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigTrajectoryDegreesPerSecond);
 	Help = "Set config trajectory degrees per second";
@@ -75,7 +75,7 @@ void FDatasetAutomationHandler::RegisterCommands()
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigNumFrames);
 	Help = "Set config number of frames for trajectory recording";
-	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/num_frames [int32]"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/num_frames [uint]"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigBLoadSceneParamsFromJson);
 	Help = "Set config bLoadSceneParamsFromJson";
