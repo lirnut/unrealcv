@@ -158,6 +158,15 @@ Created client/python/README.md:
 - Message decoder documentation
 
 ## 2026-02-13 - DOC-033
+- DOC-033: gym-unrealcv Documentation - docs/integration/gym-unrealcv.md (NEW)
+
+Created docs/integration/gym-unrealcv.md:
+- gym-unrealcv package overview
+- Environment naming convention
+- Available maps (UE4/UE5)
+- Installation instructions
+- Links to external resources
+- UnrealZoo project citation
 
 ### SubAgents Launched (18 tasks)
 
