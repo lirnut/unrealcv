@@ -168,6 +168,43 @@ Created docs/integration/gym-unrealcv.md:
 - Links to external resources
 - UnrealZoo project citation
 
+## 2026-02-13 - DOC-034
+- DOC-034: FAQ Document - docs/faq.md (NEW)
+
+Created docs/faq.md:
+- Installation issues (VS version, pip install)
+- Connection problems (port, timeout)
+- Camera issues (ID, sensors)
+- Recording problems (slow, no output)
+- Object manipulation
+- Annotation issues
+- Pak file troubleshooting
+- UE5 specific questions
+- Glossary of terms
+
+## 2026-02-13 - DOC-035
+- DOC-035: Master Documentation Index - docs/README.md (NEW)
+
+Created docs/README.md:
+- Complete documentation index
+- Grouped by category (Reference, Architecture, Tutorials, etc.)
+- Use case navigation (Dataset Generation, New Commands, etc.)
+- Version compatibility matrix
+- External resource links
+
+## Phase 3 Complete Summary
+
+This session completed 18 documentation tasks:
+- Tutorials: Blueprint vs TCP, Trajectory, Pak Workflow, Dataset Generation
+- Architecture: Recording Pipeline, Sensor System, Annotation System, Asset Pool
+- Reference: Commands, Data Formats, Metadata Schema, Blueprint Libraries
+- Migration: Camera ID Format
+- UE5 Features: Lumen, Groom, Nanite
+- Guides: Performance Optimization
+- Diagrams: Dataset Pipeline, Recording Architecture, Annotation Decision, Command Dispatch
+- Integration: Python Client, gym-unrealcv
+- FAQ and Index
+
 ### SubAgents Launched (18 tasks)
 
 **Batch 1 (High Priority):**

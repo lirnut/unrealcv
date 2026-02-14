@@ -817,7 +817,8 @@
         "Add async capture troubleshooting",
         "Add UE version compatibility matrix"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": ["DOC-014"]
     },
     {
@@ -837,7 +838,8 @@
         "Add getting started path",
         "Update mkdocs.yml or equivalent if exists"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": ["DOC-001 through DOC-034"]
     }
   ]
