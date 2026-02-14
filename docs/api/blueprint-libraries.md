@@ -385,6 +385,160 @@ NavMesh-based agent navigation control.
        FVector(500, 500, 0)
    );
 
+Legacy APIs (VisionBPLib, SerializeBPLib)
+=========================================
+
+VisionBPLib
+-----------
+
+**Category:** ``unrealcv``
+
+Computer vision utilities for image I/O and data extraction.
+
+**Functions:**
+
++----------------------------+-----------------------------------+
+| Function                   | Description                       |
++----------------------------+-----------------------------------+
+| ``FrameNumber``           | Get current UE frame number      |
+| ``CreateFile``           | Create a new file               |
+| ``SaveData``             | Save string data to file         |
+| ``AppendData``           | Append data to existing file    |
+| ``SendMessageBP``        | Send message via Blueprint      |
+| ``SavePng``              | Save FColor array as PNG        |
+| ``SaveNpy``              | Save float array as NumPy       |
+| ``GetBoneTransform``     | Get bone transforms (array)      |
+| ``GetBoneTransformJson`` | Get bone transforms as JSON      |
+| ``GetVertexArray``       | Get mesh vertex positions       |
+| ``UpdateInput``          | Enable/disable pawn input       |
+| ``GetActorList``         | Get all actors in level         |
+| ``GetAnnotationColor``   | Get actor's annotation color    |
+| ``AnnotateWorld``        | Annotate all actors            |
+| ``LoadTexture2D_FromFile`` | Load texture from image file  |
++----------------------------+-----------------------------------+
+
+**File Format Enums:**
+
+.. code-block:: cpp
+
+   enum class EFileFormat { Png, Npy };
+   enum class EJoyImageFormats { JPG, PNG, BMP, ICO, EXR, ICNS };
+
+**Example - Save PNG:**
+
+.. code-block:: cpp
+
+   UTexture2D* Texture = ...;
+   TArray<FColor> PixelData = ...;
+   UVisionBPLib::SavePng(PixelData, Width, Height, TEXT("output.png"));
+
+**Example - Load Texture:**
+
+.. code-block:: cpp
+
+   bool bIsValid = false;
+   int32 Width, Height;
+   UTexture2D* Texture = UVisionBPLib::LoadTexture2D_FromFile(
+       TEXT("D:/images/input.png"),
+       EJoyImageFormats::PNG,
+       bIsValid,
+       Width,
+       Height
+   );
+
+**Example - Bone Data Extraction:**
+
+.. code-block:: cpp
+
+   TArray<FString> BoneNames;
+   TArray<FTransform> BoneTransforms;
+   UVisionBPLib::GetBoneTransform(
+       SkeletalMeshComponent,
+       { TEXT("Root"), TEXT("Spine"), TEXT("Head") },
+       BoneNames,
+       BoneTransforms,
+       true  // World space
+   );
+
+SerializeBPLib
+--------------
+
+**Category:** ``unrealcv``
+
+JSON serialization for Blueprint types.
+
+**Functions:**
+
++----------------------------+-----------------------------------+
+| Function                   | Description                       |
++----------------------------+-----------------------------------+
+| ``FloatToJson``           | Convert float to JSON             |
+| ``IntToJson``            | Convert int to JSON              |
+| ``StringToJson``          | Convert string to JSON           |
+| ``VectorToJson``          | Convert FVector to JSON         |
+| ``RotatorToJson``         | Convert FRotator to JSON        |
+| ``ColorToJson``           | Convert FColor to JSON          |
+| ``TransformToJson``       | Convert FTransform to JSON      |
+| ``ArrayToJson``           | Convert array to JSON           |
+| ``TMapToJson``           | Convert keys/values to JSON      |
+| ``StringMapToJson``       | Convert string map to JSON      |
+| ``JsonToStr``            | Convert JSON to string          |
++----------------------------+-----------------------------------+
+
+**Example - Serialize Vector:**
+
+.. code-block:: cpp
+
+   FVector Location = Actor->GetActorLocation();
+   FJsonObjectBP JsonVec = USerializeBPLib::VectorToJson(Location);
+   FString JsonString = USerializeBPLib::JsonToStr(JsonVec);
+   // Result: "{\"X\":100,\"Y\":200,\"Z\":50}"
+
+**Example - Serialize Array:**
+
+.. code-block:: cpp
+
+   TArray<FJsonObjectBP> JsonArray;
+   for (AActor* Actor : Actors)
+   {
+       FJsonObjectBP JsonObj = USerializeBPLib::VectorToJson(Actor->GetActorLocation());
+       JsonArray.Add(JsonObj);
+   }
+
+   FJsonObjectBP ArrayWrapper = USerializeBPLib::ArrayToJson(JsonArray);
+
+FJsonObjectBP
+-------------
+
+**Blueprint Type:** ``FJsonObjectBP``
+
+Wrapper for UE's JSON types for Blueprint accessibility.
+
+**Constructors:**
+
++----------------------------+-----------------------------------+
+| Constructor                | Description                       |
++----------------------------+-----------------------------------+
+| ``FJsonObjectBP(float)``  | Create from float                |
+| ``FJsonObjectBP(int)``    | Create from int                  |
+| ``FJsonObjectBP(FString)``| Create from string              |
+| ``FJsonObjectBP(FVector)``| Create from vector              |
+| ``FJsonObjectBP(FRotator)``| Create from rotator            |
+| ``FJsonObjectBP(FColor)`` | Create from color                |
+| ``FJsonObjectBP(FTransform)``| Create from transform         |
+| ``FJsonObjectBP(TArray)`` | Create from array                |
+| ``FJsonObjectBP(TMap)``   | Create from map                  |
++----------------------------+-----------------------------------+
+
+**Methods:**
+
++----------------------------+-----------------------------------+
+| Method                    | Description                       |
++----------------------------+-----------------------------------+
+| ``ToJsonValue()``        | Convert to FJsonValue            |
+| ``ToString()``           | Convert to JSON string           |
++----------------------------+-----------------------------------+
+
 Summary Table
 -------------
 
@@ -401,4 +555,6 @@ Summary Table
 | PawnBPLib          | UnrealCV|Pawn     | Player control            |
 | SensorBPLib        | unrealcv         | Camera ID management      |
 | NavigationBPLib    | UnrealCV|Navigation| NavMesh navigation       |
+| VisionBPLib        | unrealcv         | CV utilities, image I/O   |
+| SerializeBPLib     | unrealcv         | JSON serialization        |
 +--------------------+-------------------+---------------------------+

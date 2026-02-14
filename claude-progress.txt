@@ -138,6 +138,15 @@ Document created:
 - UE4 to UE5 migration guide
 
 ## 2026-02-13 - DOC-031
+- DOC-031: Document Legacy APIs - docs/api/blueprint-libraries.md (UPDATED)
+
+Updated docs/api/blueprint-libraries.md:
+- Added VisionBPLib (image I/O, bone extraction, texture loading)
+- Added SerializeBPLib (JSON serialization)
+- Added FJsonObjectBP (JSON wrapper type)
+- Extended summary table to 12 libraries
+
+## 2026-02-13 - DOC-032
 
 ### SubAgents Launched (18 tasks)
 
