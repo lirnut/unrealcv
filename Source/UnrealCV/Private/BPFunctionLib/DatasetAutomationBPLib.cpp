@@ -60,6 +60,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.NumFrames = 121;
 		CurrentConfig.TrajectoryFPS = 30;
  		CurrentConfig.ForegroundMoveSpeed = 0.0f;
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.8f")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/spawn_free_cam")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.ForceLOD 0")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.SkeletalMeshLODBias -10")));
@@ -131,6 +132,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.TrajectoryFPS = 30;
  		CurrentConfig.ForegroundMoveSpeed = 70.0f;
 		CurrentConfig.ForegroundMoveAngleOffset = 90.0f;
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.5f")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("120 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-60 60")));
@@ -172,6 +174,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.NumFrames = 240;
 		CurrentConfig.TrajectoryFPS = 24;
  		CurrentConfig.ForegroundMoveSpeed = 0.0f;
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.8f")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));

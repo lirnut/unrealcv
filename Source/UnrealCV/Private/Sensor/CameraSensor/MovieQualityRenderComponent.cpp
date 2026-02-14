@@ -418,6 +418,9 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 	// We must push any deferred render state recreations before causing any rendering to happen, to make sure that deleted resource references are updated
 	World->SendAllEndOfFrameUpdates();
 
+	// Force wait for all pending rendering commands to complete (Groom/Hair, shadows, etc.)
+	FlushRenderingCommands();
+
 	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
 	FCanvas Canvas(RenderTargetResource, nullptr, World, ViewFamily->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
@@ -463,8 +466,8 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
     PPSettings.bOverride_DynamicGlobalIlluminationMethod = 1;
     PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::Lumen;
     // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::ScreenSpace;
-	PPSettings.bOverride_LumenRayLightingMode = 1;
-	PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
+	// PPSettings.bOverride_LumenRayLightingMode = 1;
+	// PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
 	PPSettings.bOverride_LumenSceneLightingQuality = 1;
 	PPSettings.LumenSceneLightingQuality = 2.0f;
 	PPSettings.bOverride_LumenSceneDetail = 1;
@@ -516,13 +519,19 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
     PPSettings.bOverride_AutoExposureSpeedUp = 1;
     PPSettings.AutoExposureSpeedUp = 20.0f;
 
+
+    PPSettings.bOverride_DepthOfFieldFocalDistance = true;
+    PPSettings.DepthOfFieldFocalDistance = 75.0f;
+    PPSettings.bOverride_DepthOfFieldFocalRegion = true;
+    PPSettings.DepthOfFieldFocalRegion = 2000.0f;
+
 	PPSettings.bOverride_MotionBlurAmount = 1;
 	PPSettings.bOverride_MotionBlurMax = 1;
 	PPSettings.bOverride_MotionBlurTargetFPS = 1;
 	PPSettings.bOverride_MotionBlurPerObjectSize = 1;
-	PPSettings.MotionBlurAmount = 0.05f;  // default 0.5
+	PPSettings.MotionBlurAmount = 0.00f;  // default 0.5
 	PPSettings.MotionBlurMax = 2.0f;  // default 5.0
-	PPSettings.MotionBlurTargetFPS = 24;  // default 30
+	PPSettings.MotionBlurTargetFPS = 30;  // default 30
 	PPSettings.MotionBlurPerObjectSize = 0.f;
 	// PPSettings.MotionBlurAmount = 0.0f;  // default 0.5
 	// PPSettings.MotionBlurMax = 0.f;  // default 5.0
