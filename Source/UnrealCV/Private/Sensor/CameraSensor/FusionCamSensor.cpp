@@ -129,6 +129,8 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	OneObjectLitCamSensor->ShowFlags.SetScreenSpaceReflections(false);
 	OneObjectLitCamSensor->ShowFlags.SetDistanceFieldAO(false);
 	OneObjectLitCamSensor->ShowFlags.SetScreenSpaceAO(false);
+	OneObjectLitCamSensor->ShowFlags.SetAntiAliasing(true);
+	OneObjectLitCamSensor->ShowFlags.SetTemporalAA(true);
 	// FusionSensors.Add(OneObjectLitCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("ShadowCatcherCamSensor"));
