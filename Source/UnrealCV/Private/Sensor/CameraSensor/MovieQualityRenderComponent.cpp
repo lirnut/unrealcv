@@ -388,7 +388,6 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	// View->bIsSceneCaptureCube = false;
 	// View->bIsGameView = true;
 
-	// Solve Lumen Ghosting: ensure view continuity for temporal accumulation
 	View->OverrideFrameIndexValue = FrameCounter++;
 	// View->bAllowTemporalJitter = false;
 

@@ -1265,9 +1265,9 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 
 
 	
-	URuntimeActorSetterBPLib::SetAffectDistanceFieldLighting(SpawnedActor, false);
+	// URuntimeActorSetterBPLib::SetAffectDistanceFieldLighting(SpawnedActor, false);
 	SpawnedActor->RegisterAllComponents();
-	URuntimeActorSetterBPLib::SetAffectDistanceFieldLighting(SpawnedActor, false);
+	// URuntimeActorSetterBPLib::SetAffectDistanceFieldLighting(SpawnedActor, false);
 
 	World->GetTimerManager().SetTimerForNextTick([SpawnedActor]() {
 		UAnnotationBPLib::AnnotateActor(SpawnedActor);
