@@ -40,9 +40,9 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
 	CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 	FOV = Config.FOV == 0 ? 90 : Config.FOV;
 
-	AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
+	// AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
 	// AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
-	// AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;
+	AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;
 
 	// other properties need to be initialized when BeginPlay
 }
