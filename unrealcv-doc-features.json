@@ -728,7 +728,8 @@
         "Add UE5 migration notes",
         "Link to camera commands for Lumen/SSR"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": []
     },
     {

@@ -127,6 +127,17 @@ Documents created:
 - docs/diagrams/command-dispatch.md (TCP command flow)
 
 ## 2026-02-13 - DOC-030
+- DOC-030: UE5-Specific Features - docs/ue5-features.md (NEW)
+
+Document created:
+- docs/ue5-features.md
+- Lumen GI (illumination commands)
+- Reflection methods (Lumen/ScreenSpace)
+- GroomBPLib for hair physics
+- Nanite and Virtual Shadow Maps notes
+- UE4 to UE5 migration guide
+
+## 2026-02-13 - DOC-031
 
 ### SubAgents Launched (18 tasks)
 
