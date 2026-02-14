@@ -774,7 +774,8 @@
         "Add examples for pak, light, dataset commands",
         "Verify version compatibility"
       ],
-      "status": "pending",
+      "status": "completed",
+      "completion_date": "2026-02-13",
       "blocking": ["DOC-001", "DOC-002", "DOC-003"]
     },
     {

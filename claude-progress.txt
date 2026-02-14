@@ -147,6 +147,17 @@ Updated docs/api/blueprint-libraries.md:
 - Extended summary table to 12 libraries
 
 ## 2026-02-13 - DOC-032
+- DOC-032: Document Python Client Updates - client/python/README.md (NEW)
+
+Created client/python/README.md:
+- Quick start guide with connection examples
+- Complete API reference (camera, object, recording)
+- Image capture modes (lit, depth, mask, normal, flow)
+- Recording API documentation
+- Bounding box utilities
+- Message decoder documentation
+
+## 2026-02-13 - DOC-033
 
 ### SubAgents Launched (18 tasks)
 
