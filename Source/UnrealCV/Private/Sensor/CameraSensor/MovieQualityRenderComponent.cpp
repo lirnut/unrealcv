@@ -418,8 +418,8 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 	// We must push any deferred render state recreations before causing any rendering to happen, to make sure that deleted resource references are updated
 	World->SendAllEndOfFrameUpdates();
 
-	// Force wait for all pending rendering commands to complete (Groom/Hair, shadows, etc.)
-	FlushRenderingCommands();
+	// // Force wait for all pending rendering commands to complete (Groom/Hair, shadows, etc.)
+	// FlushRenderingCommands();
 
 	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
