@@ -57,7 +57,7 @@ struct FAutomationConfig
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
-	int32 TotalScenes = 100;
+	int32 TotalScenes = 1;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	FSceneGenerationParams SceneParams;
@@ -70,9 +70,6 @@ struct FAutomationConfig
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	int32 TrajectoryFPS = 30;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Automation")
-	float TrajectoryDegreesPerSecond = 36.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	int32 NumFrames = 121;

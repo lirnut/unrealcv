@@ -112,16 +112,6 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 void AFusionCamCaptureActor::BeginPlay()
 {
 	Super::BeginPlay();
-
-	if (bAddTimestamp)
-	{
-		FString TimestampStr = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M"));
-		FinalDataFolder = FPaths::Combine(DataFolder.Path, TimestampStr);
-	}
-	else
-	{
-		FinalDataFolder = DataFolder.Path;
-	}
 }
 
 void AFusionCamCaptureActor::Tick(float DeltaTime)
@@ -528,7 +518,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 			}
 			else
 			{
-				FString FileNameRGB = MakeFilenameNew("rgb", ".png");
+				FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png");
 				UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before SaveLitToFile call"));
 				Renderer->SaveLitToFile(
 					FileNameRGB,
@@ -546,58 +536,58 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 		else
 #endif
 		{
-			FString FileNameRGB = MakeFilenameNew("rgb", ".png");
+			FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png");
 			TargetSensor->SaveLitToFile(FileNameRGB);
 		}
 	}
 
 	if (bRecordMask)
 	{
-		FString FileNameMask = MakeFilenameNew("mask", ".png");
+		FString FileNameMask = MakeFilenameNewWithFolder("mask", ".png");
 		TargetSensor->SaveSegToFile(FileNameMask);
 		// SaveSegToFile(TargetSensor, FileNameMask);
 	}
 
 	if (bRecordDepth)
 	{
-		FString DepthFilename = MakeFilenameNew("depth", ".npy");
+		FString DepthFilename = MakeFilenameNewWithFolder("depth", ".npy");
 		TargetSensor->SaveDepthToFile(DepthFilename);
 	}
 
 	if (bRecordNormal)
 	{
-		FString NormalFilename = MakeFilenameNew("normal", ".png");
+		FString NormalFilename = MakeFilenameNewWithFolder("normal", ".png");
 		TargetSensor->SaveNormalToFile(NormalFilename);
 	}
 
 	if (bRecordFlow)
 	{
-		FString FlowFilename = MakeFilenameNew("flow", ".png");
+		FString FlowFilename = MakeFilenameNewWithFolder("flow", ".png");
 		TargetSensor->SaveFlowToFile(FlowFilename);
 	}
 
 	if (bRecordOneObjectMask && IsValid(TargetForeground))
 	{
-		FString OneObjFilename = MakeFilenameNew("oneobjmask", ".png");
+		FString OneObjFilename = MakeFilenameNewWithFolder("oneobjmask", ".png");
 		TargetSensor->SaveOneObjMaskToFile(TargetForeground, OneObjFilename);
 	}
 
 	if (bRecordOneObjectLit && IsValid(TargetForeground))
 	{
-		FString OneObjLitFilename = MakeFilenameNew("oneobjlit", ".png");
+		FString OneObjLitFilename = MakeFilenameNewWithFolder("oneobjlit", ".png");
 		TargetSensor->SaveOneObjLitToFile(TargetForeground, OneObjLitFilename);
 	}
 
 	if (bRecordShadowCatcher && IsValid(TargetForeground))
 	{
-		FString ShadowCatcherFilename = MakeFilenameNew("shadowcatcher", ".png");
+		FString ShadowCatcherFilename = MakeFilenameNewWithFolder("shadowcatcher", ".png");
 		TargetSensor->SaveShadowCatcherToFile(TargetForeground, ShadowCatcherFilename);
 		TargetSensor->GetShadowCatcherCamSensor()->Cleanup(TargetForeground);
 	}
 
 	if (bRecordStencilMask && IsValid(TargetForeground))
 	{
-		FString StencilMaskFilename = MakeFilenameNew("stencilmask", ".png");
+		FString StencilMaskFilename = MakeFilenameNewWithFolder("stencilmask", ".png");
 		TargetSensor->SaveStencilMaskToFile(TargetForeground, StencilMaskFilename);
 		TargetSensor->GetStencilMaskCamSensor()->Cleanup(TargetForeground);
 	}
@@ -617,33 +607,33 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 
 			if (bRecordRGB)
 			{
-				FString FileNameRGB = MakeFilenameNew("rgb_woTarget", ".png");
+				FString FileNameRGB = MakeFilenameNewWithFolder("rgb_woTarget", ".png");
 				BackupSensor->SaveLitToFile(FileNameRGB);
 				// SaveRGBToFile(BackupSensor, FileNameRGB);
 			}
 
 			if (bRecordMask)
 			{
-				FString FileNameMask = MakeFilenameNew("mask_woTarget", ".png");
+				FString FileNameMask = MakeFilenameNewWithFolder("mask_woTarget", ".png");
 				BackupSensor->SaveSegToFile(FileNameMask);
 				// SaveSegToFile(BackupSensor, FileNameMask);
 			}
 
 			if (bRecordDepth)
 			{
-				FString DepthFilename = MakeFilenameNew("depth_woTarget", ".npy");
+				FString DepthFilename = MakeFilenameNewWithFolder("depth_woTarget", ".npy");
 				BackupSensor->SaveDepthToFile(DepthFilename);
 			}
 
 			if (bRecordNormal)
 			{
-				FString NormalFilename = MakeFilenameNew("normal_woTarget", ".png");
+				FString NormalFilename = MakeFilenameNewWithFolder("normal_woTarget", ".png");
 				BackupSensor->SaveNormalToFile(NormalFilename);
 			}
 
 			if (bRecordFlow)
 			{
-				FString FlowFilename = MakeFilenameNew("flow_woTarget", ".png");
+				FString FlowFilename = MakeFilenameNewWithFolder("flow_woTarget", ".png");
 				BackupSensor->SaveFlowToFile(FlowFilename);
 			}
 		}
@@ -760,25 +750,6 @@ Audio::FMixerDevice* AFusionCamCaptureActor::GetAudioMixer()
 	return static_cast<Audio::FMixerDevice*>(AudioDevice);
 }
 
-FString AFusionCamCaptureActor::MakeFilename(FString DataType, FString FileExtension)
-{
-	// Find the position to insert frame number
-	int32 Index;
-	if (!RecordFileName.FindLastChar(TEXT('.'), Index))
-	{
-		Index = RecordFileName.Len();
-	}
-
-	// Create filename with frame number and data type
-	FString FileName = RecordFileName;
-	FString InsertStr = FString::Printf(TEXT("%d_%s"), ElapsedSteps, *DataType);
-	FileName.InsertAt(Index, InsertStr);
-
-	// Combine with output folder
-	FileName = FPaths::ConvertRelativePathToFull(FinalDataFolder, FileName);
-
-	return FileName;
-}
 FString AFusionCamCaptureActor::MakeFilenameNew(FString DataType, FString FileExtension)
 {
 	// Find the position to insert frame number
@@ -794,7 +765,7 @@ FString AFusionCamCaptureActor::MakeFilenameNew(FString DataType, FString FileEx
 	// FString FileFolder = FString::Printf(TEXT("%d_%s.%s"), ElapsedSteps, *DataType, *FileExtension);
 	FileName = FPaths::Combine(FileName, FileBaseName);
 	// Combine with output folder
-	FileName = FPaths::ConvertRelativePathToFull(FinalDataFolder, FileName);
+	FileName = FPaths::ConvertRelativePathToFull(FileName);
 
 	return FileName;
 }
@@ -815,7 +786,7 @@ FString AFusionCamCaptureActor::MakeFilenameNewWithFolder(FString DataType, FStr
 	FileName = FPaths::Combine(FileName, FileFolder);
 	FileName = FPaths::Combine(FileName, FileBaseName);
 	// Combine with output folder
-	FileName = FPaths::ConvertRelativePathToFull(FinalDataFolder, FileName);
+	FileName = FPaths::ConvertRelativePathToFull(FileName);
 
 	return FileName;
 }

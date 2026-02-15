@@ -27,7 +27,6 @@ public:
 	FExecStatus SetConfigTotalScenes(const TArray<FString>& Args);
 	FExecStatus SetConfigOutputDirectory(const TArray<FString>& Args);
 	FExecStatus SetConfigTrajectoryFPS(const TArray<FString>& Args);
-	FExecStatus SetConfigTrajectoryDegreesPerSecond(const TArray<FString>& Args);
 	FExecStatus SetConfigNumFrames(const TArray<FString>& Args);
 	FExecStatus SetConfigBLoadSceneParamsFromJson(const TArray<FString>& Args);
 	FExecStatus SetConfigForegroundMoveSpeed(const TArray<FString>& Args);

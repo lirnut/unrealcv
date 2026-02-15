@@ -69,10 +69,6 @@ void FDatasetAutomationHandler::RegisterCommands()
 	Help = "Set config trajectory FPS";
 	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/trajectory_fps [uint]"), Cmd, Help);
 
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigTrajectoryDegreesPerSecond);
-	Help = "Set config trajectory degrees per second";
-	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/trajectory_degrees_per_second [float]"), Cmd, Help);
-
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigNumFrames);
 	Help = "Set config number of frames for trajectory recording";
 	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/num_frames [uint]"), Cmd, Help);
@@ -291,18 +287,6 @@ FExecStatus FDatasetAutomationHandler::SetConfigTrajectoryFPS(const TArray<FStri
 	int32 Value = FCString::Atoi(*Args[0]);
 	UDatasetAutomationBPLib::CurrentConfig.TrajectoryFPS = Value;
 	return FExecStatus::OK(FString::Printf(TEXT("Config.TrajectoryFPS = %d"), Value));
-}
-
-FExecStatus FDatasetAutomationHandler::SetConfigTrajectoryDegreesPerSecond(const TArray<FString>& Args)
-{
-	if (Args.Num() != 1)
-	{
-		return FExecStatus::Error(TEXT("Usage: vset /datasetautomation/config/trajectory_degrees_per_second [Deg]"));
-	}
-
-	float Value = FCString::Atof(*Args[0]);
-	UDatasetAutomationBPLib::CurrentConfig.TrajectoryDegreesPerSecond = Value;
-	return FExecStatus::OK(FString::Printf(TEXT("Config.TrajectoryDegreesPerSecond = %f"), Value));
 }
 
 FExecStatus FDatasetAutomationHandler::SetConfigNumFrames(const TArray<FString>& Args)
