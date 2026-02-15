@@ -15,6 +15,9 @@ public:
 
 	static FString GetCachePath();
 
+	void RegisterWithAssetManager();
+	void UnregisterFromAssetManager();
+
 private:
 	FMetaHumanCacheManager() = default;
 

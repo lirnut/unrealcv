@@ -6,6 +6,8 @@
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
+#include "Engine/AssetManager.h"
+#include "Engine/PrimaryAssetLabel.h"
 
 FMetaHumanCacheManager* FMetaHumanCacheManager::Singleton = nullptr;
 
@@ -114,4 +116,68 @@ TArray<FString> FMetaHumanCacheManager::LoadCacheFromFile()
 	UE_LOG(LogTemp, Log, TEXT("MetaHumanCache loaded from: %s (Cache time: %s, %d entries)"), *CachePath, *CacheTime, MetaHumanPaths.Num());
 
 	return MetaHumanPaths;
+}
+
+void FMetaHumanCacheManager::RegisterWithAssetManager()
+{
+	if (!UAssetManager::IsInitialized())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MetaHumanCacheManager: AssetManager not initialized"));
+		return;
+	}
+
+	UAssetManager& Manager = UAssetManager::Get();
+	FPrimaryAssetType MetaHumanType(TEXT("MetaHuman"));
+
+	TArray<FString> Paths = LoadCacheFromFile();
+	if (Paths.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MetaHumanCacheManager: No cached paths, using live scan"));
+		Paths = GetAllMetaHumanPaths();
+	}
+
+	for (const FString& Path : Paths)
+	{
+		FSoftObjectPath SoftPath(Path);
+		FAssetData AssetData;
+		if (Manager.GetAssetDataForPath(SoftPath, AssetData))
+		{
+			FPrimaryAssetId AssetId = Manager.ExtractPrimaryAssetIdFromData(AssetData, MetaHumanType);
+			if (AssetId.IsValid())
+			{
+				FAssetBundleData BundleData;
+				BundleData.AddBundleAsset(FName("MetaHuman"), Path);
+				Manager.AddDynamicAsset(AssetId, SoftPath, BundleData);
+				UE_LOG(LogTemp, Log, TEXT("MetaHumanCacheManager: Registered %s"), *Path);
+			}
+		}
+	}
+
+	FPrimaryAssetRules Rules;
+	Rules.Priority = 64;
+	Rules.ChunkId = INDEX_NONE;
+	Rules.bApplyRecursively = true;
+	Rules.CookRule = EPrimaryAssetCookRule::AlwaysCook;
+	Manager.SetPrimaryAssetTypeRules(MetaHumanType, Rules);
+
+	UE_LOG(LogTemp, Log, TEXT("MetaHumanCacheManager: Registered %d MetaHumans with AssetManager"), Paths.Num());
+}
+
+void FMetaHumanCacheManager::UnregisterFromAssetManager()
+{
+	if (!UAssetManager::IsInitialized())
+	{
+		return;
+	}
+
+	UAssetManager& Manager = UAssetManager::Get();
+
+	TArray<FString> Paths = LoadCacheFromFile();
+	for (const FString& Path : Paths)
+	{
+		FPrimaryAssetId AssetId(FPrimaryAssetType(TEXT("MetaHuman")), FName(*Path));
+		Manager.UnloadPrimaryAsset(AssetId);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("MetaHumanCacheManager: Unregistered %d MetaHumans from AssetManager"), Paths.Num());
 }

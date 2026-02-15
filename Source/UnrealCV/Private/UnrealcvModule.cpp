@@ -6,6 +6,7 @@
 
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
+#include "Utils/MetaHumanCacheManager.h"
 
 DEFINE_LOG_CATEGORY(LogUnrealCV);
 
@@ -60,11 +61,13 @@ bool StartServerWithRetry(FUnrealcvServer &Server)
 void FUnrealCVPlugin::StartupModule()
 {
 	FString Commandline = FCommandLine::Get();
+
+	FMetaHumanCacheManager::Get().RegisterWithAssetManager();
+
 	if (IsRunningDedicatedServer() ||
 		Commandline.Contains(TEXT("cookcommandlet")) ||
 		Commandline.Contains(TEXT("run=cook")))
 	{
-		// Do no start unrealcv module if running in the commandlet mode.
 		return;
 	}
 
@@ -136,5 +139,6 @@ void FUnrealCVPlugin::StartupModule()
 
 void FUnrealCVPlugin::ShutdownModule()
 {
+	FMetaHumanCacheManager::Get().UnregisterFromAssetManager();
 }
 
