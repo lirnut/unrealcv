@@ -519,11 +519,15 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
     PPSettings.bOverride_AutoExposureSpeedUp = 1;
     PPSettings.AutoExposureSpeedUp = 20.0f;
 
-
-    PPSettings.bOverride_DepthOfFieldFocalDistance = true;
-    PPSettings.DepthOfFieldFocalDistance = 75.0f;
-    PPSettings.bOverride_DepthOfFieldFocalRegion = true;
-    PPSettings.DepthOfFieldFocalRegion = 2000.0f;
+  	// DOF
+  	PPSettings.bOverride_DepthOfFieldScale = true;
+  	PPSettings.DepthOfFieldScale = 0.0f;
+  	// PPSettings.bOverride_DepthOfFieldFstop = true;
+  	// PPSettings.DepthOfFieldFstop = 2.0f;
+    // PPSettings.bOverride_DepthOfFieldFocalDistance = true;
+    // PPSettings.DepthOfFieldFocalDistance = 75.0f;
+    // PPSettings.bOverride_DepthOfFieldFocalRegion = true;
+    // PPSettings.DepthOfFieldFocalRegion = 2000.0f;
 
 	PPSettings.bOverride_MotionBlurAmount = 1;
 	PPSettings.bOverride_MotionBlurMax = 1;
