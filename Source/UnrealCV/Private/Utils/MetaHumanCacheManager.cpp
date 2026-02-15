@@ -146,7 +146,7 @@ void FMetaHumanCacheManager::RegisterWithAssetManager()
 			if (AssetId.IsValid())
 			{
 				FAssetBundleData BundleData;
-				BundleData.AddBundleAsset(FName("MetaHuman"), Path);
+				BundleData.AddBundleAsset(FName("MetaHuman"), FTopLevelAssetPath(Path));
 				Manager.AddDynamicAsset(AssetId, SoftPath, BundleData);
 				UE_LOG(LogTemp, Log, TEXT("MetaHumanCacheManager: Registered %s"), *Path);
 			}
