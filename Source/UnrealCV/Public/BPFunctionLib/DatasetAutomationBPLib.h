@@ -66,7 +66,7 @@ struct FAutomationConfig
 	bool bLoadSceneParamsFromJson = true;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
-	FString OutputDirectory = TEXT("C:/Dataset");
+	FString OutputDirectory;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	int32 TrajectoryFPS = 30;
@@ -82,6 +82,8 @@ struct FAutomationConfig
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	float ForegroundMoveAngleOffset = 0.0f;
+
+	FAutomationConfig() : OutputDirectory(FPaths::ProjectSavedDir() / TEXT("DatasetAutomationOutputDirectory")) {}
 };
 
 USTRUCT(BlueprintType)
@@ -126,8 +128,7 @@ class UNREALCV_API UDatasetAutomationBPLib : public UBlueprintFunctionLibrary
 public:
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation", meta = (WorldContext = "WorldContextObject"))
 	static bool StartBatchGeneration(
-		UObject* WorldContextObject,
-		const FAutomationConfig& Config
+		UObject* WorldContextObject
 	);
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation")
@@ -144,6 +145,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation", meta = (WorldContext = "WorldContextObject"))
 	static bool SetMap(UObject* WorldContextObject, const FString& MapName);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation")
+	static void SetOutputDirectory(const FString& InOutputPath) { CurrentConfig.OutputDirectory = InOutputPath; };
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation")
 	static bool SetTaskName(const FString& InTaskName);

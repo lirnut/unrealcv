@@ -156,7 +156,7 @@ FExecStatus FDatasetAutomationHandler::StartAutomation(const TArray<FString>& Ar
 		return FExecStatus::Error(TEXT("Invalid world context"));
 	}
 
-	bool Success = UDatasetAutomationBPLib::StartBatchGeneration(World, UDatasetAutomationBPLib::CurrentConfig);
+	bool Success = UDatasetAutomationBPLib::StartBatchGeneration(World);
 	if (Success)
 	{
 		return FExecStatus::OK(FString::Printf(TEXT("Started: %d scenes to %s"),

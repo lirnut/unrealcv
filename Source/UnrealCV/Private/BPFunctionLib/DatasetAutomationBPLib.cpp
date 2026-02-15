@@ -1049,8 +1049,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 
 
 bool UDatasetAutomationBPLib::StartBatchGeneration(
-	UObject* WorldContextObject,
-	const FAutomationConfig& Config)
+	UObject* WorldContextObject)
 {
 	if (CurrentStatus.State != EDatasetGenerationState::Idle)
 	{
@@ -1065,9 +1064,9 @@ bool UDatasetAutomationBPLib::StartBatchGeneration(
 		return false;
 	}
 
-	CurrentConfig = Config;
+	// CurrentConfig = Config;
 	CurrentStatus = FAutomationStatus();
-	CurrentStatus.TotalScenes = Config.TotalScenes;
+	CurrentStatus.TotalScenes = CurrentConfig.TotalScenes;
 	CurrentStatus.CurrentSceneIndex = 0;
 
 	ActiveCameraPool.Empty();
@@ -1084,7 +1083,7 @@ bool UDatasetAutomationBPLib::StartBatchGeneration(
 	}
 	TickableObject->Activate();
 
-	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Started batch generation (%d scenes)"), Config.TotalScenes);
+	UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Started batch generation (%d scenes)"), CurrentConfig.TotalScenes);
 
 	ExecuteNextCommand();
 
