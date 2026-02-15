@@ -32,6 +32,10 @@ void FCaptureActorHandler::RegisterCommands()
 	Help = "Spawn a free camera at world origin (0, 0, 0)";
 	CommandDispatcher->BindCommand("vset /captureactor/spawn_free_cam", Cmd, Help);
 
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetTimeDilation);
+	Help = "Get current time dilation value";
+	CommandDispatcher->BindCommand("vget /captureactor/time_dilation", Cmd, Help);
+
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetTimeDilation);
 	Help = "Set time dilation for recording (0.1 to 10.0, default 1.0)";
 	CommandDispatcher->BindCommand("vset /captureactor/time_dilation [float]", Cmd, Help);
@@ -72,6 +76,12 @@ FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
 	}
 
 	return FExecStatus::OK(FString::Printf(TEXT("%d"), CameraID));
+}
+
+FExecStatus FCaptureActorHandler::GetTimeDilation(const TArray<FString>& Args)
+{
+	float TimeDilation = URecordingBPLib::GetTimeDilation();
+	return FExecStatus::OK(FString::Printf(TEXT("%.2f"), TimeDilation));
 }
 
 FExecStatus FCaptureActorHandler::SetTimeDilation(const TArray<FString>& Args)
