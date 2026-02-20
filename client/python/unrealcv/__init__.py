@@ -217,6 +217,7 @@ class Client:
             elif self.type == 'inet':
                 print('=>Info: using ip-port socket')
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             else:
                 raise NotImplementedError
             # Make the socket working in the blocking mode

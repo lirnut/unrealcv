@@ -663,6 +663,15 @@ bool UUnixTcpServer::StartMessageServiceINet(FSocket* ClientSocket, const FIPv4E
 
 	ConnectionSocket = ClientSocket;
 
+	if (ClientSocket->SetNoDelay(true))
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("TCP_NODELAY enabled for client connection"));
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("Failed to set TCP_NODELAY"));
+	}
+
 	UE_LOG(LogUnrealCV, Warning, TEXT("New client connected from %s"), *ClientEndpoint.ToString());
 	// ClientSocket->SetNonBlocking(false); // When this in blocking state, I can not use this socket to send message back
 	FString Confirm = FString::Printf(TEXT("connected to %s"), *GetProjectName());
