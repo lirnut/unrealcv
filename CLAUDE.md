@@ -11,6 +11,74 @@ UnrealCV is an Unreal Engine 5.2+ plugin for computer vision research providing:
 - Python client library for remote control
 - High-throughput recording system for dataset generation (40K-400K layered videos)
 
+## Environment Requirements
+
+- **Unreal Engine**: 5.2-5.6 (tested on 5.2, 5.4, 5.6)
+- **Visual Studio**: 2019/2022 (must match UE version requirements)
+- **Python**: 3.8+ (for test suite and client library)
+- **Platform**: Windows (primary), Linux (experimental)
+
+## Quick Start
+
+```bash
+# 1. Plugin is already in UE project at Plugins/unrealcv/
+
+# 2. Build plugin (opens with UE project)
+# Open [ProjectName].sln in Visual Studio
+# Build solution (Ctrl+Shift+B) - ~17 seconds on 16-core
+
+# 3. Verify plugin loaded
+# UE Editor → Edit → Plugins → Search "UnrealCV" → Verify enabled
+# Enter Play mode (Alt+P) → Check Output Log for "UnrealCV server started on port 9000"
+
+# 4. Test Python client connection
+pip install unrealcv
+python -c "from unrealcv import Client; c = Client(('127.0.0.1', 9000)); c.connect(); print(c.request('vget /unrealcv/status'))"
+```
+
+## Common Workflows
+
+**Adding New TCP Command**:
+1. Add handler method in `Private/Commands/[Handler].cpp`
+2. Register in handler's `RegisterCommands()` with `BindCommand()`
+3. Return `FExecStatus::OK(result)` or `FExecStatus::Error(msg)`
+4. Test via Python: `client.request('vget /your/command')`
+5. Update `cmd.md` documentation
+
+**Testing Recording Pipeline**:
+```bash
+# Start UE Editor in Play mode
+# Run Python script:
+from unrealcv import Client
+c = Client(('127.0.0.1', 9000))
+c.connect()
+c.request('vset /camera/0/start_recording /path/to/output')
+# Wait for recording...
+c.request('vset /camera/0/stop_recording')
+```
+
+**Debugging Command Handler**:
+1. Set breakpoint in handler method (VS debugger)
+2. Attach to UE process: Debug → Attach to Process → [ProjectName]-Win64-DebugGame.exe
+3. Send command via Python client
+4. Inspect `FExecStatus` return values and arguments
+
+**Blueprint Function Development**:
+1. Add `UFUNCTION(BlueprintCallable, Category = "UnrealCV|MyCategory")` in header
+2. Implement in `.cpp` (no external command needed for BP-only functions)
+3. Test in UE Editor Blueprint graph
+4. Optionally expose via TCP command handler for Python access
+
+## File Path Index
+
+**IMPORTANT**: Before working on tasks, check `file_paths.md` in the plugin root directory. This index contains:
+- Most recently modified files (from git history)
+- Critical architecture files by module (Server, Sensor, Commands, etc.)
+- Documentation references (cmd.md, API docs)
+- Frequently accessed utilities and components
+
+Use these indexed paths in your prompts to avoid repeatedly pasting full file paths. The index is updated based on development activity.
+
 ## Development Workflow
 
 ### Build & Compilation
@@ -27,26 +95,23 @@ UnrealCV is an Unreal Engine 5.2+ plugin for computer vision research providing:
 
 ### Running Tests
 
-Python tests require the game to be running (either compiled binary or editor in Play mode):
+**Prerequisites**: UE Editor in Play mode OR compiled binary running with UnrealCV server active on port 9000.
 
 ```bash
-# Install dependencies
+# 1. Start UE instance (choose one):
+# Option A: UE Editor → Play (Alt+P)
+# Option B: Launch compiled binary: [ProjectName]\Binaries\Win64\[ProjectName].exe
+
+# 2. Verify server running (check UE logs for "UnrealCV server started")
+
+# 3. Install test dependencies
 pip install -r test/requirements.txt
 
-# Run all tests (stops on first failure)
-pytest test/ -x
-
-# Run specific test file
-pytest test/server/camera_test.py
-
-# Run specific test function
-pytest test/server/camera_test.py::test_camera_control
-
-# Verbose output with diagnostic info
-pytest test/ -v -s
-
-# Show print statements during test
-pytest test/ -s
+# 4. Run tests
+pytest test/ -x                                    # All tests, stop on first failure
+pytest test/server/camera_test.py                 # Specific test file
+pytest test/server/camera_test.py::test_camera_control  # Specific test function
+pytest test/ -v -s                                # Verbose with print output
 ```
 
 Tests communicate via TCP to UnrealCV server on the running game instance. See `test/README.md` for details.
@@ -81,12 +146,18 @@ Source/UnrealCV/
    - Parses incoming "vget"/"vset" commands
    - Dispatches to appropriate handler based on command prefix
 
-3. **Command Handlers** in `Private/Commands/`:
+3. **Command Handlers** in `Private/Commands/` (11 total):
    - `CameraHandler` - `/camera/*` (control, sensors, recording)
    - `ObjectHandler` - `/object/*` (visibility, transform, properties)
    - `ActionHandler` - `/action/*` (pause, level load, keyboard input)
    - `CaptureActorHandler` - `/captureactor/*` (dataset recording)
-   - `AliasHandler`, `AgentNavHandler`, `PluginHandler`
+   - `DatasetAutomationHandler` - `/datasetautomation/*` (batch generation)
+   - `AliasHandler` - `vrun`/`vexec`/`vbp` aliases for Blueprint execution
+   - `AgentNavHandler` - `/agent/*` (navigation, pathfinding)
+   - `PluginHandler` - `/unrealcv/*` (status, version, help)
+   - `LightHandler` - `/light/*` (lighting control)
+   - `MaterialHandler` - `/material/*` (material properties)
+   - `SequenceHandler` - `/sequence/*` (level sequences)
 
 4. **UFusionCamSensor** (FusionCamSensor.h) - Unified multi-pass rendering orchestrator
    - Manages 5 specialized sensor types in single render pass
@@ -105,13 +176,24 @@ Source/UnrealCV/
 - **FProxyAnnotator** (ProxyAnnotator.h) - Efficient batch annotation via post-process
 - Switch between strategies via `FObjectAnnotator::SetAnnotationMode()`
 
-**Blueprint Function Libraries** (BPFunctionLib/):
+**Blueprint Function Libraries** (BPFunctionLib/) - 21 total, 100+ functions:
+
+**Core Recording & Automation**:
 - `URecordingBPLib` - Camera recording control (normal, bullet-time, trajectory modes)
 - `USceneCompositionBPLib` - Automated scene generation from asset pools
 - `UDatasetAutomationBPLib` - High-level batch generation orchestration
 - `USensorBPLib` - Multi-sensor capture control
 - `UAnnotationBPLib` - Segmentation and mask utilities
-- Plus: AnimationBPLib, MetaHumanBPLib, NavigationBPLib, SerializeBPLib, VisionBPLib, JsonObjectBP
+
+**Specialized Libraries**:
+- `UAnimationBPLib` - Animation control and sequencing
+- `UMetaHumanBPLib` - MetaHuman-specific utilities
+- `UNavigationBPLib` - Navigation and pathfinding
+- `USerializeBPLib` - Data serialization utilities
+- `UVisionBPLib` - Computer vision algorithms
+- `UJsonObjectBP` - JSON parsing and generation
+- `UAutomationBPLib` - General automation utilities
+- Plus 9 additional specialized libraries
 
 **Camera Sensor System** (in Sensor/CameraSensor/):
 - `UFusionCamSensor` - Unified 5-sensor orchestrator with multi-pass rendering
@@ -250,6 +332,42 @@ For TCP responses, use sync path. For recording, use async `CaptureToFile` patte
 
 See `test/server/camera_test.py` for examples
 
+## Troubleshooting
+
+**TCP Connection Failures**:
+```bash
+# Check if server started (UE Output Log)
+# Look for: "UnrealCV server started on port 9000"
+
+# Verify port not in use
+netstat -an | findstr :9000
+
+# Test connection manually
+telnet 127.0.0.1 9000
+# Type: vget /unrealcv/status
+```
+
+**Build Errors**:
+- `error C2039: identifier not found` → VS version mismatch with UE version (rebuild UE project files)
+- `LNK2019 unresolved external symbol` → Missing module in UnrealCV.Build.cs dependencies
+- Plugin not loading → Check `Saved/Logs/[ProjectName].log` for module load failures
+
+**Test Failures**:
+- `Connection refused` → Game not running or wrong port
+- `Timeout waiting for response` → Command not registered (check CommandDispatcher bindings)
+- `ImportError: unrealcv` → `pip install unrealcv` in test environment
+
+**Async Capture Issues**:
+- GPU readback crashes → Update GPU drivers, check `FRHIGPUTextureReadback` compatibility
+- Frame drops during recording → Reduce sensor count or resolution, check disk write speed
+- Memory leaks → Verify `AFusionCamCaptureActor` destruction on recording stop
+
+**Common Gotchas**:
+- Camera ID changes on level reload (use CID format for stability)
+- `SetActorHiddenInGame()` affects all cameras (use per-sensor visibility modes instead)
+- Blueprint hot-reload may break TCP command bindings (restart UE Editor)
+- Python client blocks on `request()` (use async patterns for real-time control)
+
 ## Important Implementation Details
 
 ### Camera ID Format
@@ -320,4 +438,15 @@ No manual build steps required - standard UE project build handles everything.
 
 ## Git Workflow
 
-Branch: `shc/dev` for HUAWEI_Project dataset production (UE 5.2-5.6)
+**Branch**: `shc/dev` for HUAWEI_Project dataset production (UE 5.2-5.6)
+
+**Commit Conventions**:
+- Prefix format: `[TAG-XXX]` for tracked work items (e.g., `[DOC-034] Create FAQ Document`)
+- Descriptive commits: `bugfix: MQRC: DatasetAutomation vrun vset /captureactor/time_dilation`
+- Quick updates: `up` (acceptable for minor iterations during active development)
+
+**PR Guidelines**:
+- Base branch: `shc/dev`
+- Include test results for command changes
+- Update `cmd.md` when adding new vget/vset commands
+- Update `file_paths.md` if adding new critical architecture files
