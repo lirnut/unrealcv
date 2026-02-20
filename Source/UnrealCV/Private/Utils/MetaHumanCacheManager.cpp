@@ -155,7 +155,7 @@ void FMetaHumanCacheManager::RegisterWithAssetManager()
 
 	FPrimaryAssetRules Rules;
 	Rules.Priority = 64;
-	Rules.ChunkId = INDEX_NONE;
+	Rules.ChunkId = 0;
 	Rules.bApplyRecursively = true;
 	Rules.CookRule = EPrimaryAssetCookRule::AlwaysCook;
 	Manager.SetPrimaryAssetTypeRules(MetaHumanType, Rules);
