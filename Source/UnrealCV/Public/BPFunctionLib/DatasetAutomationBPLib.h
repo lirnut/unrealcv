@@ -57,7 +57,7 @@ struct FAutomationConfig
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
-	int32 TotalScenes = 1;
+	int32 TotalScenes = 10;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	FSceneGenerationParams SceneParams;
