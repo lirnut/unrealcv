@@ -73,10 +73,28 @@ DebugGame 控制台中支持的完整命令列表
      >>> vget /objects bp_character <<<
      BP_Character_C_1
      ```
+  - vget /objects/scan_assets - 扫描 /Game/ 路径下所有可生成资源 ⭐
+  - vget /objects/scan_assets [str] - 扫描指定路径下所有可生成资源（StaticMesh/SkeletalMesh/Blueprint）⭐
+     ```
+     >>> vget /objects/scan_assets /Game/MetaHumans/ <<<
+     Found 125 spawnable assets in '/Game/MetaHumans/':
+     BP_human_2_dress0_f-fat | Blueprint | /Game/MetaHumans/human_2_dress0_f-fat/BP_human_2_dress0_f-fat.BP_human_2_dress0_f-fat
+     Chair_01 | StaticMesh | /Game/Props/Furniture/Chair_01.Chair_01
+     ...
+     ```
   - vset /objects/spawn_cube - 生成测试立方体
   - vset /objects/spawn_cube [name] - 生成命名测试立方体
-  - vset /objects/spawn [classname] - 生成物体
-  - vset /objects/spawn [classname] [name] - 生成命名物体
+  - vset /objects/spawn [classname] - 生成物体（使用UClass名称）
+  - vset /objects/spawn [classname] [name] - 生成命名物体（使用UClass名称）
+  - vset /objects/spawn_from_path [str] - 从资产路径生成物体（Cook友好）⭐
+  - vset /objects/spawn_from_path [str] [str] - 从资产路径生成命名物体 ⭐
+     ```
+     >>> vset /objects/spawn_from_path /Game/MetaHumans/human_2_dress0_f-fat/BP_human_2_dress0_f-fat.BP_human_2_dress0_f-fat <<<
+     BP_human_2_dress0_f-fat_C_2147467374
+
+     >>> vset /objects/spawn_from_path /Game/Props/Chair.Chair MyChair <<<
+     MyChair
+     ```
   - vget /object/[name]/location - 获取物体位置
   - vset /object/[name]/location [x] [y] [z] - 设置物体位置
   - vget /object/[name]/rotation - 获取物体旋转

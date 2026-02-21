@@ -63,6 +63,7 @@ void FDatasetAutomationHandler::RegisterCommands()
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigOutputDirectory);
 	Help = "Set config output directory";
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/output_directory"), Cmd, Help);
 	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/output_directory [str]"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigTrajectoryFPS);

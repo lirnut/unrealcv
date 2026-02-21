@@ -24,6 +24,8 @@ private:
 
 	FExecStatus Spawn(const TArray<FString>& Args);
 
+	FExecStatus SpawnFromPath(const TArray<FString>& Args);
+
 	FExecStatus GetAnnotationColor(const TArray<FString>& Args);
 
 	FExecStatus SetAnnotationColor(const TArray<FString>& Args);
@@ -73,4 +75,6 @@ private:
 	FExecStatus SetHairAirDrag(const TArray<FString>& Args);
 
 	FExecStatus ResetHairSimulation(const TArray<FString>& Args);
+
+	FExecStatus ScanAssets(const TArray<FString>& Args);
 };

@@ -14,6 +14,9 @@
 #include "CubeActor.h"
 #include "CommandInterface.h"
 #include "BPFunctionLib/GroomBPLib.h"
+#include "BPFunctionLib/AssetDiscoveryBPLib.h"
+#include "BPFunctionLib/SpawnBPLib.h"
+#include "UnrealcvLog.h"
 
 FExecStatus SetActorName(AActor* Actor, FString NewName)
 {
@@ -79,6 +82,18 @@ void FObjectHandler::RegisterCommands()
 		"vset /objects/spawn [str] [str]",
 		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::Spawn),
 		"Spawn an object with UClassName as the argument."
+	);
+
+	CommandDispatcher->BindCommand(
+		"vset /objects/spawn_from_path [str]",
+		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::SpawnFromPath),
+		"Spawn an object from asset path (e.g., /Game/Folder/BP_Actor.BP_Actor)"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vset /objects/spawn_from_path [str] [str]",
+		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::SpawnFromPath),
+		"Spawn an object from asset path with custom name"
 	);
 
 	CommandDispatcher->BindCommand(
@@ -207,6 +222,18 @@ void FObjectHandler::RegisterCommands()
 		"vset /object/[str]/reset_hair_simulation",
 		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::ResetHairSimulation),
 		"Reset hair simulation for an actor with Groom component"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /objects/scan_assets",
+		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::ScanAssets),
+		"Scan spawnable assets in /Game/ path"
+	);
+
+	CommandDispatcher->BindCommand(
+		"vget /objects/scan_assets [str]",
+		FDispatcherDelegate::CreateRaw(this, &FObjectHandler::ScanAssets),
+		"Scan spawnable assets in given path"
 	);
 }
 
@@ -464,6 +491,55 @@ FExecStatus FObjectHandler::Spawn(const TArray<FString>& Args)
 	return FExecStatus::OK(Actor->GetName());
 }
 
+FExecStatus FObjectHandler::SpawnFromPath(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::GetInvalidArgument();
+	}
+
+	FString AssetPath = Args[0];
+
+	if (Args.Num() == 2)
+	{
+		FString ActorId = Args[1];
+		AActor* ExistingActor = GetActorById(FUnrealcvServer::Get().GetWorld(), ActorId);
+		if (IsValid(ExistingActor))
+		{
+			FString ErrorMsg = FString::Printf(TEXT("Failed to spawn %s, object exist."), *ActorId);
+			UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *ErrorMsg);
+			return FExecStatus::Error(ErrorMsg);
+		}
+	}
+
+	UWorld* GameWorld = FUnrealcvServer::Get().GetWorld();
+	if (!IsValid(GameWorld))
+	{
+		return FExecStatus::Error("Invalid world");
+	}
+
+	AActor* SpawnedActor = USpawnBPLib::SpawnActorFromPath(
+		GameWorld,
+		AssetPath,
+		FVector::ZeroVector,
+		FRotator::ZeroRotator
+	);
+
+	if (!IsValid(SpawnedActor))
+	{
+		FString ErrorMsg = FString::Printf(TEXT("Failed to spawn actor from path '%s'"), *AssetPath);
+		return FExecStatus::Error(ErrorMsg);
+	}
+
+	if (Args.Num() == 2)
+	{
+		FString ActorName = Args[1];
+		SetActorName(SpawnedActor, ActorName);
+	}
+
+	return FExecStatus::OK(SpawnedActor->GetName());
+}
+
 FExecStatus FObjectHandler::Destroy(const TArray<FString>& Args)
 {
 	AActor* Actor = GetActor(Args);
@@ -636,4 +712,47 @@ FExecStatus FObjectHandler::ResetHairSimulation(const TArray<FString>& Args)
 	}
 
 	return FExecStatus::OK("Hair simulation reset");
+}
+
+FExecStatus FObjectHandler::ScanAssets(const TArray<FString>& Args)
+{
+	FString SearchPath = TEXT("/Game/");
+	if (Args.Num() > 0 && !Args[0].IsEmpty())
+	{
+		SearchPath = Args[0];
+	}
+
+	TArray<FDiscoveredAsset> Assets = UAssetDiscoveryBPLib::ScanSpawnableAssets(
+		SearchPath,
+		true,
+		true,
+		true,
+		true
+	);
+
+	if (Assets.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("ScanAssets: No spawnable assets found in '%s'"), *SearchPath);
+		return FExecStatus::OK("No spawnable assets found");
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("ScanAssets: Found %d spawnable assets in '%s':"), Assets.Num(), *SearchPath);
+
+	FString Result = FString::Printf(TEXT("Found %d spawnable assets in '%s':\n"), Assets.Num(), *SearchPath);
+
+	for (const FDiscoveredAsset& Asset : Assets)
+	{
+		FString Line = FString::Printf(TEXT("%s | %s | %s\n"),
+			*Asset.AssetName,
+			*Asset.AssetType,
+			*Asset.AssetPath);
+		Result += Line;
+
+		UE_LOG(LogUnrealCV, Log, TEXT("  %s | %s | %s"),
+			*Asset.AssetName,
+			*Asset.AssetType,
+			*Asset.AssetPath);
+	}
+
+	return FExecStatus::OK(Result);
 }

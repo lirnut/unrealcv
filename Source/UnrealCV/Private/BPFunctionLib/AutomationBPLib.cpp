@@ -30,11 +30,12 @@ void UAutomationBPLib::StartTicking()
 	TickableObject->Activate();
 	UE_LOG(LogUnrealCV, Log, TEXT("AutomationBPLib: Ticking started"));
 
+	// PushCommand(TEXT("vset /datasetautomation/config/output_directory C:\\Users\\hulc\\AppData\\Local\\HUAWEI_Project\\Saved\\Dataset"));
 	PushCommand(TEXT("vset /datasetautomation/config/output_directory"));
 
-#if WITH_EDITOR
+// #if WITH_EDITOR
 	PushCommand(TEXT("vset /captureactor/spawn_free_cam"));
-#endif
+// #endif
 
 	PushCommand(TEXT("r.ForceLOD 0"));
 	PushCommand(TEXT("r.SkeletalMeshLODBias -10"));
@@ -56,7 +57,7 @@ void UAutomationBPLib::StartTicking()
 
 	PushCommand(TEXT("r.TextureStreaming 0"));
 
-#if WITH_EDITOR
+// #if WITH_EDITOR
 	PushCommand(TEXT("MaxQuality"));
 	PushCommand(TEXT("r.ParticleLODBias -10"));
 	PushCommand(TEXT("foliage.DitheredLOD 0"));
@@ -85,7 +86,7 @@ void UAutomationBPLib::StartTicking()
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.FastUpdateModeUseNeighborhoodClamp 1"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.RejectBasedOnNormal 1"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.HairStrands.ScreenTrace 1"));
-#endif
+// #endif
 }
 
 void UAutomationBPLib::StopTicking()

@@ -33,6 +33,7 @@
 #include "JsonUtilities.h"
 #include "Misc/FileHelper.h"
 #include "JsonConfigHelper.h"
+#include "SpawnBPLib.h"
 
 TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
 
@@ -1140,48 +1141,7 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 
 	AActor* SpawnedActor = nullptr;
 
-	if (AssetType == TEXT("StaticMesh"))
-	{
-		UStaticMesh* StaticMesh = LoadObject<UStaticMesh>(nullptr, *AssetPath);
-		if (!IsValid(StaticMesh))
-		{
-			UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: StaticMesh not found '%s'"), *AssetPath);
-			return nullptr;
-		}
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		AStaticMeshActor* MeshActor = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location, Rotation, SpawnParams);
-		if (MeshActor)
-		{
-			UStaticMeshComponent* MeshComponent = MeshActor->GetStaticMeshComponent();
-			if (MeshComponent)
-			{
-				MeshComponent->SetMobility(EComponentMobility::Movable);
-				MeshComponent->SetStaticMesh(StaticMesh);
-			}
-		}
-		SpawnedActor = MeshActor;
-	}
-	else if (AssetType == TEXT("Blueprint"))
-	{
-		// if (AssetPath.Contains("MetaHumans"))
-		// {
-        //     // TArray<FString> MetaHumanPaths = UMetaHumanBPLib::SetupAllMetaHumansWithAnimation(TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
-		// 	UMetaHumanBPLib::SetMetaHumanAnimationBlueprint(AssetPath, TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"));
-		// }
-		UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *AssetPath);
-		if (!IsValid(Blueprint) || !Blueprint->GeneratedClass || !Blueprint->GeneratedClass->IsChildOf(AActor::StaticClass()))
-		{
-			UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Blueprint not found or invalid '%s'"), *AssetPath);
-			return nullptr;
-		}
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		SpawnedActor = World->SpawnActor<AActor>(Blueprint->GeneratedClass, Location, Rotation, SpawnParams);
-	}
-	else if (AssetType == TEXT("SM+AnimSeq"))
+	if (AssetType == TEXT("SM+AnimSeq"))
 	{
 		USkeletalMesh* SkeletalMesh = LoadObject<USkeletalMesh>(nullptr, *AssetPath);
 		if (!IsValid(SkeletalMesh))
@@ -1216,9 +1176,9 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 	}
 	else
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Unknown asset type '%s'"), *AssetType);
-		return nullptr;
+		SpawnedActor = USpawnBPLib::SpawnActorFromPath(World, AssetPath, Location, Rotation);
 	}
+
 	if (!IsValid(SpawnedActor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("SpawnActorFromMetadata: Failed to spawn actor '%s'"), *AssetPath);
@@ -1263,11 +1223,7 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 	UE_LOG(LogUnrealCV, Warning, TEXT("SpawnActorFromMetadata: Spawned actor '%s' at location %.2f, %.2f, %.2f"),
 		*SpawnedActor->GetName(), FinalLocation.X, FinalLocation.Y, FinalLocation.Z);
 
-
-	
-	// URuntimeActorSetterBPLib::SetAffectDistanceFieldLighting(SpawnedActor, false);
 	SpawnedActor->RegisterAllComponents();
-	// URuntimeActorSetterBPLib::SetAffectDistanceFieldLighting(SpawnedActor, false);
 
 	World->GetTimerManager().SetTimerForNextTick([SpawnedActor]() {
 		UAnnotationBPLib::AnnotateActor(SpawnedActor);

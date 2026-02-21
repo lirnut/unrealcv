@@ -1,10 +1,26 @@
 # UnrealCV File Path Index
 
-Auto-generated index of frequently accessed files. Last updated: 2026-02-20
+Auto-generated index of frequently accessed files. Last updated: 2026-02-21
 
 Use these shorthand paths in prompts instead of copy-pasting full paths.
 
-## Session Context Files (2026-02-20)
+## Session Context Files (2026-02-21)
+
+**Session Topic**: Asset discovery and spawn system - implementing vget /objects/scan_assets command and vset /objects/spawn_from_path with robust Cook-friendly loading
+
+### Blueprint Function Libraries (Asset Management & Spawn)
+- `Source/UnrealCV/Public/BPFunctionLib/AssetDiscoveryBPLib.h` - Asset registry scanning for spawnable resources (StaticMesh/SkeletalMesh/Blueprint)
+- `Source/UnrealCV/Private/BPFunctionLib/AssetDiscoveryBPLib.cpp` - ScanSpawnableAssets with FAssetRegistryModule, Actor Blueprint filtering
+- `Source/UnrealCV/Public/BPFunctionLib/SpawnBPLib.h` - Unified spawn from asset path API
+- `Source/UnrealCV/Private/BPFunctionLib/SpawnBPLib.cpp` - 7-layer spawn strategy: StaticLoadClass→LoadObject→StaticLoadObject fallbacks
+- `Source/UnrealCV/Private/BPFunctionLib/SceneCompositionBPLib.cpp` - SpawnActorFromMetadata refactored to use SpawnBPLib (line 1117)
+- `Source/UnrealCV/Public/BPFunctionLib/SceneCompositionBPLib.h`
+
+### Command Handlers (Object Management)
+- `Source/UnrealCV/Private/Commands/ObjectHandler.cpp` - Added ScanAssets and SpawnFromPath commands (delegates to SpawnBPLib)
+- `Source/UnrealCV/Private/Commands/ObjectHandler.h` - Object manipulation commands: spawn, destroy, location, rotation, bounds
+
+## Previous Session Files (2026-02-20)
 
 **Session Topic**: TCP command execution pipeline optimization - analyzing vget /camera/0/lit request flow and reducing TCP latency
 
