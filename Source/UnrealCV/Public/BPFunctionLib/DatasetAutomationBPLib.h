@@ -80,7 +80,8 @@ struct FAutomationConfig
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	float ForegroundMoveAngleOffset = 0.0f;
 
-	FAutomationConfig() : OutputDirectory(FPaths::ProjectSavedDir() / TEXT("DatasetAutomationOutputDirectory")) {}
+	FAutomationConfig() {}
+	// FAutomationConfig() : OutputDirectory(FPaths::ProjectSavedDir() / TEXT("DatasetAutomationOutputDirectory")) {}
 };
 
 USTRUCT(BlueprintType)

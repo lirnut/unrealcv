@@ -268,13 +268,23 @@ FExecStatus FDatasetAutomationHandler::SetConfigTotalScenes(const TArray<FString
 
 FExecStatus FDatasetAutomationHandler::SetConfigOutputDirectory(const TArray<FString>& Args)
 {
-	if (Args.Num() != 1)
+	FString OutputDirectory;
+
+	if (Args.Num() == 0)
 	{
-		return FExecStatus::Error(TEXT("Usage: vset /datasetautomation/config/output_directory [Path]"));
+		OutputDirectory = FPaths::ProjectSavedDir() / TEXT("DatasetAutomationOutputDirectory");
+	}
+	else if (Args.Num() == 1)
+	{
+		OutputDirectory = Args[0];
+	}
+	else
+	{
+		return FExecStatus::Error(TEXT("Usage: vset /datasetautomation/config/output_directory [Path] (Path is optional, defaults to Saved/DatasetAutomationOutputDirectory)"));
 	}
 
-	UDatasetAutomationBPLib::CurrentConfig.OutputDirectory = Args[0];
-	return FExecStatus::OK(FString::Printf(TEXT("Config.OutputDirectory = %s"), *Args[0]));
+	UDatasetAutomationBPLib::CurrentConfig.OutputDirectory = OutputDirectory;
+	return FExecStatus::OK(FString::Printf(TEXT("Config.OutputDirectory = %s"), *OutputDirectory));
 }
 
 FExecStatus FDatasetAutomationHandler::SetConfigTrajectoryFPS(const TArray<FString>& Args)

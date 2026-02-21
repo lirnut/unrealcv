@@ -30,6 +30,7 @@ void UAutomationBPLib::StartTicking()
 	TickableObject->Activate();
 	UE_LOG(LogUnrealCV, Log, TEXT("AutomationBPLib: Ticking started"));
 
+	PushCommand(TEXT("vset /datasetautomation/config/output_directory"));
 
 #if WITH_EDITOR
 	PushCommand(TEXT("vset /captureactor/spawn_free_cam"));
@@ -53,9 +54,10 @@ void UAutomationBPLib::StartTicking()
 	PushCommand(TEXT("r.SceneCapture.DepthPrepassOptimization 1"));
 	PushCommand(TEXT("r.SceneCapture.EnableLogging 1"));
 
+	PushCommand(TEXT("r.TextureStreaming 0"));
+
 #if WITH_EDITOR
 	PushCommand(TEXT("MaxQuality"));
-	PushCommand(TEXT("r.TextureStreaming 0"));
 	PushCommand(TEXT("r.ParticleLODBias -10"));
 	PushCommand(TEXT("foliage.DitheredLOD 0"));
 	PushCommand(TEXT("foliage.ForceLOD 0"));
