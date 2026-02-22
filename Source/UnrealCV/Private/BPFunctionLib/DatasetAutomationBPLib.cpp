@@ -131,7 +131,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.ForegroundMoveAngleOffset = 90.0f;
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.3")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
-		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("120 175")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("120 155")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-60 60")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("75 100")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
