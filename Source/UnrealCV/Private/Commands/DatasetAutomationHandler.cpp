@@ -28,6 +28,7 @@ void FDatasetAutomationHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::StartAutomation);
 	Help = "Start automation with current configuration";
 	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/start [str]"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/start"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::StopAutomation);
 	Help = "Stop automation";
