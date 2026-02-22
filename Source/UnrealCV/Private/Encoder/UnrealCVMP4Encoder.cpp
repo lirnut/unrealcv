@@ -697,6 +697,12 @@ static HRESULT GetVideoStreamEncoderAttributes(IMFAttributes** OutEncoderAttribu
 
 bool FUnrealCVMP4Encoder::InitializeEncoder()
 {
+	UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Starting encoder initialization..."));
+	UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Output file: %s"), *Options.OutputFilename);
+	UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Resolution: %dx%d @ %d/%d fps"),
+		Options.Width, Options.Height, Options.FrameRate.Numerator, Options.FrameRate.Denominator);
+	UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Include audio: %s"), Options.bIncludeAudio ? TEXT("Yes") : TEXT("No"));
+
 	SinkWriter = nullptr;
 
 	IMFMediaType* VideoMediaTypeOut = nullptr;
@@ -710,57 +716,176 @@ bool FUnrealCVMP4Encoder::InitializeEncoder()
 
 	if (SUCCEEDED(Result))
 	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: MFCreateAttributes succeeded"));
 		ConfigAttributes->SetUINT32(CODECAPI_AVLowLatencyMode, false);
 
 		ConfigAttributes->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, true);
 
 		ConfigAttributes->SetUINT32(MF_SINK_WRITER_DISABLE_THROTTLING, true);
 	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: MFCreateAttributes failed with HRESULT: 0x%08X"), Result);
+		return false;
+	}
 
 	if (SUCCEEDED(Result))
 	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Creating SinkWriter from URL..."));
 		Result = MFCreateSinkWriterFromURL(*Options.OutputFilename, NULL, ConfigAttributes, &SinkWriter);
 	}
+
 	if (SUCCEEDED(Result))
 	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: MFCreateSinkWriterFromURL succeeded, SinkWriter = 0x%p"), SinkWriter);
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: MFCreateSinkWriterFromURL failed with HRESULT: 0x%08X"), Result);
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: Failed to create sink writer for output file: %s"), *Options.OutputFilename);
+		return false;
+	}
+
+	if (SUCCEEDED(Result))
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Creating video media output stream..."));
 		Result = CreateVideoMediaOutputStream(&VideoMediaTypeOut, Options);
+	}
+
+	if (SUCCEEDED(Result))
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: CreateVideoMediaOutputStream succeeded"));
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: CreateVideoMediaOutputStream failed with HRESULT: 0x%08X"), Result);
+		if (SinkWriter) SinkWriter->Release();
+		return false;
 	}
 
 	if (SUCCEEDED(Result) && SinkWriter)
 	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Adding video stream to SinkWriter..."));
 		Result = SinkWriter->AddStream(VideoMediaTypeOut, (DWORD*)&VideoStreamIndex);
+	}
+	else if (!SinkWriter)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: Cannot add video stream - SinkWriter is null"));
+		return false;
+	}
+
+	if (SUCCEEDED(Result))
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Video stream added successfully, StreamIndex = %d"), VideoStreamIndex);
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: AddStream (video) failed with HRESULT: 0x%08X"), Result);
+		if (SinkWriter) SinkWriter->Release();
+		return false;
 	}
 
 	if (Options.bIncludeAudio)
 	{
 		if (SUCCEEDED(Result))
 		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Creating audio media output stream..."));
 			Result = CreateAudioMediaOutputStream(&AudioMediaTypeOut, Options);
-		}
-
-		if (SUCCEEDED(Result) && SinkWriter)
-		{
-			Result = SinkWriter->AddStream(AudioMediaTypeOut, (DWORD*)&AudioStreamIndex);
 		}
 
 		if (SUCCEEDED(Result))
 		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: CreateAudioMediaOutputStream succeeded"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: CreateAudioMediaOutputStream failed with HRESULT: 0x%08X"), Result);
+			if (SinkWriter) SinkWriter->Release();
+			return false;
+		}
+
+		if (SUCCEEDED(Result) && SinkWriter)
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Adding audio stream to SinkWriter..."));
+			Result = SinkWriter->AddStream(AudioMediaTypeOut, (DWORD*)&AudioStreamIndex);
+		}
+		else if (!SinkWriter)
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: Cannot add audio stream - SinkWriter is null"));
+			return false;
+		}
+
+		if (SUCCEEDED(Result))
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Audio stream added successfully, StreamIndex = %d"), AudioStreamIndex);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: AddStream (audio) failed with HRESULT: 0x%08X"), Result);
+			if (SinkWriter) SinkWriter->Release();
+			return false;
+		}
+
+		if (SUCCEEDED(Result))
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Creating audio media input type..."));
 			Result = CreateAudioMediaTypeIn(&AudioMediaTypeIn, Options);
+		}
+
+		if (SUCCEEDED(Result))
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: CreateAudioMediaTypeIn succeeded"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: CreateAudioMediaTypeIn failed with HRESULT: 0x%08X"), Result);
+			if (SinkWriter) SinkWriter->Release();
+			return false;
 		}
 	}
 
 	if (SUCCEEDED(Result))
 	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Creating video media input type..."));
 		Result = CreateVideoMediaTypeIn(&VideoMediaTypeIn, Options);
+	}
+
+	if (SUCCEEDED(Result))
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: CreateVideoMediaTypeIn succeeded"));
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: CreateVideoMediaTypeIn failed with HRESULT: 0x%08X"), Result);
+		if (SinkWriter) SinkWriter->Release();
+		return false;
 	}
 
 	if (SUCCEEDED(Result) && SinkWriter)
 	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Getting video stream encoder attributes..."));
 		IMFAttributes* pEncAttrs = nullptr;
 		Result = GetVideoStreamEncoderAttributes(&pEncAttrs, Options);
+
 		if (SUCCEEDED(Result))
 		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: GetVideoStreamEncoderAttributes succeeded"));
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Setting input media type for video stream..."));
 			Result = SinkWriter->SetInputMediaType(VideoStreamIndex, VideoMediaTypeIn, pEncAttrs);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: GetVideoStreamEncoderAttributes failed with HRESULT: 0x%08X"), Result);
+		}
+
+		if (SUCCEEDED(Result))
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: SetInputMediaType (video) succeeded"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: SetInputMediaType (video) failed with HRESULT: 0x%08X"), Result);
+			UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: This usually indicates H.264 encoder is not available or incompatible settings"));
 		}
 
 		if (pEncAttrs)
@@ -768,32 +893,98 @@ bool FUnrealCVMP4Encoder::InitializeEncoder()
 			pEncAttrs->Release();
 		}
 	}
+	else if (!SinkWriter)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: Cannot set video input media type - SinkWriter is null"));
+		return false;
+	}
+
+	if (!SUCCEEDED(Result))
+	{
+		if (SinkWriter) SinkWriter->Release();
+		return false;
+	}
 
 	if (Options.bIncludeAudio)
 	{
 		if (SUCCEEDED(Result) && SinkWriter)
 		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Setting input media type for audio stream..."));
 			Result = SinkWriter->SetInputMediaType(AudioStreamIndex, AudioMediaTypeIn, NULL);
+		}
+		else if (!SinkWriter)
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: Cannot set audio input media type - SinkWriter is null"));
+			return false;
+		}
+
+		if (SUCCEEDED(Result))
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: SetInputMediaType (audio) succeeded"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: SetInputMediaType (audio) failed with HRESULT: 0x%08X"), Result);
+			if (SinkWriter) SinkWriter->Release();
+			return false;
 		}
 	}
 
 	if (SUCCEEDED(Result) && SinkWriter)
 	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Getting codec API service..."));
 		ICodecAPI* CodecApi = nullptr;
 		Result = SinkWriter->GetServiceForStream(VideoStreamIndex, GUID_NULL, __uuidof(ICodecAPI), (LPVOID*)&CodecApi);
 
-		const FString CodecApiDllPath = GetCodecApiDllPath(CodecApi);
-		UE_LOG(LogUnrealCV, Display, TEXT("Using the following encoder for the MP4 encode: %s"), *CodecApiDllPath);
+		if (SUCCEEDED(Result))
+		{
+			const FString CodecApiDllPath = GetCodecApiDllPath(CodecApi);
+			UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Using the following encoder DLL: %s"), *CodecApiDllPath);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("MP4Encoder: GetServiceForStream (CodecAPI) failed with HRESULT: 0x%08X"), Result);
+			UE_LOG(LogUnrealCV, Warning, TEXT("MP4Encoder: Cannot query codec information, but continuing..."));
+			Result = S_OK;
+		}
+	}
+	else if (!SinkWriter)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: Cannot get codec API - SinkWriter is null"));
+		return false;
 	}
 
 	if (SUCCEEDED(Result) && SinkWriter)
 	{
-		SinkWriter->BeginWriting();
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Beginning writing..."));
+		Result = SinkWriter->BeginWriting();
+	}
+	else if (!SinkWriter)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: Cannot begin writing - SinkWriter is null"));
+		return false;
+	}
+
+	if (SUCCEEDED(Result))
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: BeginWriting succeeded"));
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: BeginWriting failed with HRESULT: 0x%08X"), Result);
+		if (SinkWriter) SinkWriter->Release();
+		return false;
 	}
 
 	if (SUCCEEDED(Result) && SinkWriter)
 	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Adding reference to SinkWriter..."));
 		SinkWriter->AddRef();
+	}
+	else if (!SinkWriter)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: Cannot add reference - SinkWriter is null"));
+		return false;
 	}
 
 	if (SinkWriter)
@@ -816,6 +1007,15 @@ bool FUnrealCVMP4Encoder::InitializeEncoder()
 	if (AudioMediaTypeIn)
 	{
 		AudioMediaTypeIn->Release();
+	}
+
+	if (Result == S_OK)
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MP4Encoder: Initialization completed successfully!"));
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MP4Encoder: Initialization failed with final HRESULT: 0x%08X"), Result);
 	}
 
 	return Result == S_OK;

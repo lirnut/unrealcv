@@ -115,7 +115,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				PublicAdditionalLibraries.AddRange(new string[] {
+				PublicSystemLibraries.AddRange(new string[] {
 					"mfuuid.lib",
 					"mfplat.lib",
 					"mf.lib",
