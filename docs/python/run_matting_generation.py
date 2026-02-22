@@ -105,6 +105,7 @@ def generate_matting_dataset(client, num_scenes=1):
     client.request(f'vset /datasetautomation/config/output_directory {output_dir}')
     client.request('vset /datasetautomation/config/trajectory_fps 30')
     client.request('vset /datasetautomation/config/num_frames 90')
+    client.request('vset /datasetautomation/config/recording_options lit,oneobjlit,metadata')
     client.request('vset /datasetautomation/task_name Matting')
 
     command_sequence = {
@@ -123,7 +124,7 @@ def generate_matting_dataset(client, num_scenes=1):
             {"cmd": "delay", "params": "5.0"},
             {"cmd": "random_resolution", "params": "1080x1920 1920x1080"},
             {"cmd": "random_fov", "params": "40 55"},
-            {"cmd": "aim_camera_at_foreground", "params": "125 175"},
+            {"cmd": "aim_camera_at_foreground", "params": "125 155"},
             {"cmd": "add_camera_rotation_noise", "params": "4.0 0.5 2.0"},
             {"cmd": "prepare_record"},
             {"cmd": "delay", "params": "10.0"},

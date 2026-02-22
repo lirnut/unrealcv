@@ -51,18 +51,6 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 
 	bIsRecording = false;
 	bAddTimestamp = true;
-	bRecordRGB = true;
-	bRecordMask = false;
-	bRecordDepth = false;
-	bRecordNormal = false;
-	bRecordFlow = false;
-	bRecordOneObjectMask = false;
-	bRecordOneObjectLit = false;
-	bRecordShadowCatcher = false;
-	bRecordStencilMask = false;
-	bRecordMetadata = true;
-	bRecordAudio = true;
-	bRecordWithoutTarget = false;
 	bTrackForegroundMovement = true;
 	ForegroundMoveSpeed = 0.0f;
 	ElapsedSteps = 0;
@@ -233,7 +221,7 @@ void AFusionCamCaptureActor::StopRecord()
 		}
 #endif
 
-		if (bRecordAudio)
+		if (RecordingDataTypes.bRecordAudio)
 		{
 			StopAudioRecord();
 		}
@@ -270,6 +258,11 @@ void AFusionCamCaptureActor::StopRecord()
 		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Stop recording but bIsRecording is false. CurrentTrajectoryIndex = %d, NumFrames = %d"), CurrentTrajectoryIndex, NumFrames);
 		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_Record);
 	}
+}
+
+void AFusionCamCaptureActor::ApplyRecordingConfig(const FRecordingDataTypesConfig& InConfig)
+{
+	RecordingDataTypes = InConfig;
 }
 
 void AFusionCamCaptureActor::OnTimerRecord()
@@ -477,7 +470,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 	}
 
 
-	if (bRecordRGB)
+	if (RecordingDataTypes.bRecordRGB)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Recording RGB"));
 
@@ -541,97 +534,97 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 		}
 	}
 
-	if (bRecordMask)
+	if (RecordingDataTypes.bRecordMask)
 	{
 		FString FileNameMask = MakeFilenameNewWithFolder("mask", ".png");
 		TargetSensor->SaveSegToFile(FileNameMask);
 		// SaveSegToFile(TargetSensor, FileNameMask);
 	}
 
-	if (bRecordDepth)
+	if (RecordingDataTypes.bRecordDepth)
 	{
 		FString DepthFilename = MakeFilenameNewWithFolder("depth", ".npy");
 		TargetSensor->SaveDepthToFile(DepthFilename);
 	}
 
-	if (bRecordNormal)
+	if (RecordingDataTypes.bRecordNormal)
 	{
 		FString NormalFilename = MakeFilenameNewWithFolder("normal", ".png");
 		TargetSensor->SaveNormalToFile(NormalFilename);
 	}
 
-	if (bRecordFlow)
+	if (RecordingDataTypes.bRecordFlow)
 	{
 		FString FlowFilename = MakeFilenameNewWithFolder("flow", ".png");
 		TargetSensor->SaveFlowToFile(FlowFilename);
 	}
 
-	if (bRecordOneObjectMask && IsValid(TargetForeground))
+	if (RecordingDataTypes.bRecordOneObjectMask && IsValid(TargetForeground))
 	{
 		FString OneObjFilename = MakeFilenameNewWithFolder("oneobjmask", ".png");
 		TargetSensor->SaveOneObjMaskToFile(TargetForeground, OneObjFilename);
 	}
 
-	if (bRecordOneObjectLit && IsValid(TargetForeground))
+	if (RecordingDataTypes.bRecordOneObjectLit && IsValid(TargetForeground))
 	{
 		FString OneObjLitFilename = MakeFilenameNewWithFolder("oneobjlit", ".png");
 		TargetSensor->SaveOneObjLitToFile(TargetForeground, OneObjLitFilename);
 	}
 
-	if (bRecordShadowCatcher && IsValid(TargetForeground))
+	if (RecordingDataTypes.bRecordShadowCatcher && IsValid(TargetForeground))
 	{
 		FString ShadowCatcherFilename = MakeFilenameNewWithFolder("shadowcatcher", ".png");
 		TargetSensor->SaveShadowCatcherToFile(TargetForeground, ShadowCatcherFilename);
 		TargetSensor->GetShadowCatcherCamSensor()->Cleanup(TargetForeground);
 	}
 
-	if (bRecordStencilMask && IsValid(TargetForeground))
+	if (RecordingDataTypes.bRecordStencilMask && IsValid(TargetForeground))
 	{
 		FString StencilMaskFilename = MakeFilenameNewWithFolder("stencilmask", ".png");
 		TargetSensor->SaveStencilMaskToFile(TargetForeground, StencilMaskFilename);
 		TargetSensor->GetStencilMaskCamSensor()->Cleanup(TargetForeground);
 	}
 
-	if (bRecordWithoutTarget && IsValid(TargetForeground))
+	if (RecordingDataTypes.bRecordWithoutTarget && IsValid(TargetForeground))
 	{
 		if (IsValid(BackupSensor))
 		{
 			BackupSensor->SetSensorLocation(TargetSensor->GetSensorLocation());
 			BackupSensor->SetSensorRotation(TargetSensor->GetSensorRotation());
 
-			if (bRecordRGB) BackupSensor->GetLitCamSensor()->HideActor(TargetForeground);
-			if (bRecordMask) BackupSensor->GetAnnotationCamSensor()->HideActor(TargetForeground);
-			if (bRecordDepth) BackupSensor->GetDepthCamSensor()->HideActor(TargetForeground);
-			if (bRecordNormal) BackupSensor->GetNormalCamSensor()->HideActor(TargetForeground);
-			if (bRecordFlow) BackupSensor->GetFlowCamSensor()->HideActor(TargetForeground);
+			if (RecordingDataTypes.bRecordRGB) BackupSensor->GetLitCamSensor()->HideActor(TargetForeground);
+			if (RecordingDataTypes.bRecordMask) BackupSensor->GetAnnotationCamSensor()->HideActor(TargetForeground);
+			if (RecordingDataTypes.bRecordDepth) BackupSensor->GetDepthCamSensor()->HideActor(TargetForeground);
+			if (RecordingDataTypes.bRecordNormal) BackupSensor->GetNormalCamSensor()->HideActor(TargetForeground);
+			if (RecordingDataTypes.bRecordFlow) BackupSensor->GetFlowCamSensor()->HideActor(TargetForeground);
 
-			if (bRecordRGB)
+			if (RecordingDataTypes.bRecordRGB)
 			{
 				FString FileNameRGB = MakeFilenameNewWithFolder("rgb_woTarget", ".png");
 				BackupSensor->SaveLitToFile(FileNameRGB);
 				// SaveRGBToFile(BackupSensor, FileNameRGB);
 			}
 
-			if (bRecordMask)
+			if (RecordingDataTypes.bRecordMask)
 			{
 				FString FileNameMask = MakeFilenameNewWithFolder("mask_woTarget", ".png");
 				BackupSensor->SaveSegToFile(FileNameMask);
 				// SaveSegToFile(BackupSensor, FileNameMask);
 			}
 
-			if (bRecordDepth)
+			if (RecordingDataTypes.bRecordDepth)
 			{
 				FString DepthFilename = MakeFilenameNewWithFolder("depth_woTarget", ".npy");
 				BackupSensor->SaveDepthToFile(DepthFilename);
 			}
 
-			if (bRecordNormal)
+			if (RecordingDataTypes.bRecordNormal)
 			{
 				FString NormalFilename = MakeFilenameNewWithFolder("normal_woTarget", ".png");
 				BackupSensor->SaveNormalToFile(NormalFilename);
 			}
 
-			if (bRecordFlow)
+			if (RecordingDataTypes.bRecordFlow)
 			{
 				FString FlowFilename = MakeFilenameNewWithFolder("flow_woTarget", ".png");
 				BackupSensor->SaveFlowToFile(FlowFilename);
@@ -642,7 +635,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 		}
 	}
 
-	if (bRecordMetadata)
+	if (RecordingDataTypes.bRecordMetadata)
 	{
 		SaveCameraMetadata();
 	}
@@ -1109,7 +1102,7 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 
 	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Set all quality settings to maximum for recording (Lumen GI and Reflections enabled)"));
 
-	if (bRecordWithoutTarget && !IsValid(BackupSensor) && IsValid(TargetSensor))
+	if (RecordingDataTypes.bRecordWithoutTarget && !IsValid(BackupSensor) && IsValid(TargetSensor))
 	{
 		BackupCameraID = URecordingBPLib::CreateFreeCamera(
 			this,
@@ -1136,7 +1129,7 @@ void AFusionCamCaptureActor::PrepareTrajectoryRecord(AActor * Target, float FPS)
 	}
 
 
-	if (bRecordWithoutTarget && IsValid(BackupSensor))
+	if (RecordingDataTypes.bRecordWithoutTarget && IsValid(BackupSensor))
 	{
 		CopySensorSettings(TargetSensor, BackupSensor);
 	}
@@ -1214,7 +1207,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	SaveOverviewMetadata();
 
 #if PLATFORM_WINDOWS
-	if (bEnableH264Encoding && bRecordRGB && bUseMovieQualityRendering)
+	if (bEnableH264Encoding && RecordingDataTypes.bRecordRGB && bUseMovieQualityRendering)
 	{
 		MP4OutputPath = FPaths::Combine(FPaths::ConvertRelativePathToFull(FinalDataFolder, RecordFileName), TEXT("rgb.mp4"));
 
@@ -1247,7 +1240,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	}
 #endif
 
-	if (bRecordAudio)
+	if (RecordingDataTypes.bRecordAudio)
 	{
 		StartAudioRecord();
 	}
@@ -1508,7 +1501,7 @@ void AFusionCamCaptureActor::RenderTrajectory(const TArray<FCameraPose>& Traject
 	// 	TargetSensor->SetSensorLocation(OriginalCameraLocation);
 	// 	TargetSensor->SetSensorRotation(OriginalCameraRotation);
 
-	// 	if (bRecordAudio)
+	// 	if (RecordingDataTypes.bRecordAudio)
 	// 	{
 	// 		StopAudioRecord();
 	// 	}

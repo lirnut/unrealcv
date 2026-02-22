@@ -34,6 +34,158 @@ enum class ECameraTrajectoryType : uint8
 	RenderOnly5S UMETA(DisplayName = "Render Only 5S (No Camera Movement)")
 };
 
+USTRUCT(BlueprintType)
+struct FRecordingDataTypesConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordRGB = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordMask = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordDepth = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordNormal = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordFlow = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordOneObjectMask = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordOneObjectLit = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordShadowCatcher = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordStencilMask = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordMetadata = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordAudio = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordWithoutTarget = false;
+
+	static FRecordingDataTypesConfig MakeTrajectoryConfig()
+	{
+		FRecordingDataTypesConfig Config;
+		Config.bRecordAudio = false;
+		Config.bRecordRGB = true;
+		Config.bRecordMask = true;
+		Config.bRecordOneObjectLit = true;
+		Config.bRecordMetadata = true;
+		return Config;
+	}
+
+	static FRecordingDataTypesConfig MakeOmnimatteConfig()
+	{
+		FRecordingDataTypesConfig Config;
+		Config.bRecordAudio = true;
+		Config.bRecordRGB = true;
+		Config.bRecordMask = true;
+		Config.bRecordOneObjectMask = true;
+		Config.bRecordShadowCatcher = true;
+		Config.bRecordStencilMask = true;
+		Config.bRecordMetadata = true;
+		Config.bRecordWithoutTarget = true;
+		return Config;
+	}
+
+	static FRecordingDataTypesConfig MakeSpeedTestConfig()
+	{
+		FRecordingDataTypesConfig Config;
+		Config.bRecordRGB = true;
+		Config.bRecordMetadata = true;
+		return Config;
+	}
+
+	static FRecordingDataTypesConfig ParseRecordingOptions(const FString& OptionsStr)
+	{
+		FRecordingDataTypesConfig Config;
+
+		if (OptionsStr.IsEmpty())
+		{
+			Config.bRecordRGB = true;
+			return Config;
+		}
+
+		TArray<FString> Options;
+		OptionsStr.ParseIntoArray(Options, TEXT(","), true);
+
+		for (const FString& Option : Options)
+		{
+			FString Trimmed = Option.TrimStartAndEnd().ToLower();
+
+			if (Trimmed == TEXT("lit") || Trimmed == TEXT("rgb"))
+			{
+				Config.bRecordRGB = true;
+			}
+			else if (Trimmed == TEXT("object_mask") || Trimmed == TEXT("seg") || Trimmed == TEXT("mask"))
+			{
+				Config.bRecordMask = true;
+			}
+			else if (Trimmed == TEXT("normal"))
+			{
+				Config.bRecordNormal = true;
+			}
+			else if (Trimmed == TEXT("depth"))
+			{
+				Config.bRecordDepth = true;
+			}
+			else if (Trimmed == TEXT("optical_flow") || Trimmed == TEXT("flow"))
+			{
+				Config.bRecordFlow = true;
+			}
+			else if (Trimmed == TEXT("one_object_mask") || Trimmed == TEXT("oneobjmask"))
+			{
+				Config.bRecordOneObjectMask = true;
+			}
+			else if (Trimmed == TEXT("one_object_lit") || Trimmed == TEXT("oneobjlit"))
+			{
+				Config.bRecordOneObjectLit = true;
+			}
+			else if (Trimmed == TEXT("shadow_catcher") || Trimmed == TEXT("shadowcatcher"))
+			{
+				Config.bRecordShadowCatcher = true;
+			}
+			else if (Trimmed == TEXT("stencil_mask") || Trimmed == TEXT("stencilmask"))
+			{
+				Config.bRecordStencilMask = true;
+			}
+			else if (Trimmed == TEXT("metadata"))
+			{
+				Config.bRecordMetadata = true;
+			}
+			else if (Trimmed == TEXT("audio"))
+			{
+				Config.bRecordAudio = true;
+			}
+			else if (Trimmed == TEXT("without_target") || Trimmed == TEXT("woTarget"))
+			{
+				Config.bRecordWithoutTarget = true;
+			}
+		}
+
+		if (!Config.bRecordRGB && !Config.bRecordMask && !Config.bRecordNormal &&
+		    !Config.bRecordDepth && !Config.bRecordFlow && !Config.bRecordOneObjectMask &&
+		    !Config.bRecordOneObjectLit && !Config.bRecordShadowCatcher && !Config.bRecordStencilMask)
+		{
+			Config.bRecordRGB = true;
+		}
+
+		return Config;
+	}
+};
+
 /**
  * An actor to capture video and data from a specific FusionCamSensor.
  * This actor moves the recording logic from FusionCamSensor to maintain better OOD.
@@ -74,6 +226,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	void SetSceneHandle(const FSceneHandle& InSceneHandle);
 
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void ApplyRecordingConfig(const FRecordingDataTypesConfig& InConfig);
+
 	// ========== Configuration ==========
 
 	/** The FusionCamSensor to record from */
@@ -111,51 +266,8 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
 	float TargetHeightOffset;
 
-	/** Record RGB images */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordRGB;
-
-	/** Record segmentation masks */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordMask;
-
-	/** Record depth data */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordDepth;
-
-	/** Record normal data */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordNormal;
-
-	/** Record optical flow data */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordFlow;
-
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordOneObjectMask;
-
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordOneObjectLit;
-
-	/** Record shadow catcher (object RGB + shadow) */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordShadowCatcher;
-
-	/** Record stencil mask (using CustomDepth/Stencil) */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordStencilMask;
-
-	/** Record camera metadata (location, rotation, FOV, etc.) */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordMetadata;
-
-	/** Record audio from camera position */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordAudio;
-
-	/** Record version without target actor (for dataset generation) */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Data Types")
-	bool bRecordWithoutTarget;
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "FusionCamCapture| Data Types")
+	FRecordingDataTypesConfig RecordingDataTypes;
 
 	/** Bullet time rotation speed in degrees per frame */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Bullet Time")

@@ -55,8 +55,10 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		return;
 	}
 	CommandQueue.Empty();
+
 	if (TaskName == TEXT("Trajectory"))
 	{
+		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeTrajectoryConfig();
 		CurrentConfig.NumFrames = 121;
 		CurrentConfig.TrajectoryFPS = 30;
  		CurrentConfig.ForegroundMoveSpeed = 0.0f;
@@ -125,6 +127,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	}
 	else if (TaskName == TEXT("Matting"))
 	{
+		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeOmnimatteConfig();
 		CurrentConfig.NumFrames = 90;
 		CurrentConfig.TrajectoryFPS = 30;
  		CurrentConfig.ForegroundMoveSpeed = 70.0f;
@@ -168,6 +171,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	}
 	else if (TaskName == TEXT("Omnimatte"))
 	{
+		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeOmnimatteConfig();
 		CurrentConfig.NumFrames = 240;
 		CurrentConfig.TrajectoryFPS = 24;
  		CurrentConfig.ForegroundMoveSpeed = 0.0f;
@@ -195,6 +199,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	}
 	else if (TaskName == "SpeedTest")
 	{
+		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeSpeedTestConfig();
 		CurrentConfig.NumFrames = 240;
 		CurrentConfig.TrajectoryFPS = 60;
  		CurrentConfig.ForegroundMoveSpeed = 0.0f;
@@ -1306,56 +1311,8 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 
 	CaptureActor->TargetHeightOffset = CurrentStatus.RandomTargetHeight;
 
-	if (TaskName == "Trajectory" || TaskName == "Matting")
-	{
-		CaptureActor->bRecordAudio = false;
-		CaptureActor->bRecordRGB = true;
-		CaptureActor->bRecordMask = true;
-		CaptureActor->bRecordDepth = false;
-		CaptureActor->bRecordFlow = false;
-		CaptureActor->bRecordNormal = false;
-		CaptureActor->bRecordOneObjectMask = false;
-		CaptureActor->bRecordOneObjectLit = true;
- 		CaptureActor->bRecordShadowCatcher = false;
- 		CaptureActor->bRecordStencilMask = false;
-		CaptureActor->bRecordMetadata = true;
-		CaptureActor->bRecordWithoutTarget = false;
-	}
-	else if (TaskName == "Omnimatte")
-	{
-		CaptureActor->bRecordAudio = true;
-		CaptureActor->bRecordRGB = true;
-		CaptureActor->bRecordMask = true;
-		CaptureActor->bRecordDepth = false;
-		CaptureActor->bRecordFlow = false;
-		CaptureActor->bRecordNormal = false;
-		CaptureActor->bRecordOneObjectMask = true;
-		CaptureActor->bRecordOneObjectLit = false;
- 		CaptureActor->bRecordShadowCatcher = true;
- 		CaptureActor->bRecordStencilMask = true;
-		CaptureActor->bRecordMetadata = true;
-		CaptureActor->bRecordWithoutTarget = true;
-	}
-	else if (TaskName == "SpeedTest")
-	{
-		CaptureActor->bRecordAudio = false;
-		CaptureActor->bRecordRGB = true;
-		CaptureActor->bRecordMask = false;
-		CaptureActor->bRecordDepth = false;
-		CaptureActor->bRecordFlow = false;
-		CaptureActor->bRecordNormal = false;
-		CaptureActor->bRecordOneObjectMask = false;
-		CaptureActor->bRecordOneObjectLit = false;
- 		CaptureActor->bRecordShadowCatcher = false;
- 		CaptureActor->bRecordStencilMask = false;
-		CaptureActor->bRecordMetadata = true;
-		CaptureActor->bRecordWithoutTarget = false;
-	}
-	else
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("StartTrajectoryRecording: Invalid task name '%s'."), *TaskName);
-		return false;
-	}
+	CaptureActor->ApplyRecordingConfig(CurrentConfig.RecordingConfig);
+
 	AllocatedCam->SetFilmSize(CurrentStatus.ChosenRes.X, CurrentStatus.ChosenRes.Y);
 	AllocatedCam->SetSensorFOV(CurrentStatus.ChosenFOV);
 
@@ -1421,6 +1378,16 @@ bool UDatasetAutomationBPLib::SetTaskName(const FString& InTaskName)
 FString UDatasetAutomationBPLib::GetTaskName()
 {
 	return TaskName;
+}
+
+void UDatasetAutomationBPLib::SetRecordingConfig(const FRecordingDataTypesConfig& InConfig)
+{
+	CurrentConfig.RecordingConfig = InConfig;
+}
+
+FRecordingDataTypesConfig UDatasetAutomationBPLib::GetRecordingConfig()
+{
+	return CurrentConfig.RecordingConfig;
 }
 
 FString UDatasetAutomationBPLib::GetIdleCamera()

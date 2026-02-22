@@ -338,29 +338,52 @@ TArray<FString> URecordingBPLib::GetSupportedTrajectoryTypes()
 	};
 }
 
-bool URecordingBPLib::StartSimpleRecording(int32 CameraID, const FString& FileName, int32 FPS, float DurationSeconds)
-{
-	AFusionCamCaptureActor* CaptureActor = PrepareRecording(CameraID);
-	if (!IsValid(CaptureActor))
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("StartSimpleRecording: Failed to prepare recording for camera %d"), CameraID);
-		return false;
-	}
+// bool URecordingBPLib::StartSimpleRecording(int32 CameraID, const FString& FileName, int32 FPS, float DurationSeconds)
+// {
+// 	AFusionCamCaptureActor* CaptureActor = PrepareRecording(CameraID);
+// 	if (!IsValid(CaptureActor))
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("StartSimpleRecording: Failed to prepare recording for camera %d"), CameraID);
+// 		return false;
+// 	}
 
-	UE_LOG(LogUnrealCV, Log, TEXT("StartSimpleRecording: Camera %d, File: %s, FPS: %d, Duration: %.2fs"),
-		CameraID, *FileName, FPS, DurationSeconds);
+// 	UE_LOG(LogUnrealCV, Log, TEXT("StartSimpleRecording: Camera %d, File: %s, FPS: %d, Duration: %.2fs"),
+// 		CameraID, *FileName, FPS, DurationSeconds);
 
-	CaptureActor->StartSimpleRecording(FileName, FPS, DurationSeconds);
-	return true;
-}
+// 	CaptureActor->StartSimpleRecording(FileName, FPS, DurationSeconds);
+// 	return true;
+// }
 
-bool URecordingBPLib::StartSimpleRecording(const FString& IDString, const FString& FileName, int32 FPS, float DurationSeconds)
-{
-	return StartSimpleRecording(IDString, FileName, FPS, DurationSeconds, true, false, false, false, false);
-}
+// bool URecordingBPLib::StartSimpleRecording(const FString& IDString, const FString& FileName, int32 FPS, float DurationSeconds)
+// {
+// 	return StartSimpleRecording(IDString, FileName, FPS, DurationSeconds, true, false, false, false, false);
+// }
+
+// bool URecordingBPLib::StartSimpleRecording(const FString& IDString, const FString& FileName, int32 FPS, float DurationSeconds,
+// 	bool bRecordLit, bool bRecordMask, bool bRecordNormal, bool bRecordDepth, bool bRecordFlow)
+// {
+// 	AFusionCamCaptureActor* CaptureActor = PrepareRecording(USensorBPLib::GetIndexByAnyID(IDString));
+// 	if (!IsValid(CaptureActor))
+// 	{
+// 		UE_LOG(LogUnrealCV, Error, TEXT("StartSimpleRecording: Failed to prepare recording for camera %s"), *IDString);
+// 		return false;
+// 	}
+
+// 	CaptureActor->RecordingDataTypes.bRecordRGB = bRecordLit;
+// 	CaptureActor->RecordingDataTypes.bRecordMask = bRecordMask;
+// 	CaptureActor->RecordingDataTypes.bRecordNormal = bRecordNormal;
+// 	CaptureActor->RecordingDataTypes.bRecordDepth = bRecordDepth;
+// 	CaptureActor->RecordingDataTypes.bRecordFlow = bRecordFlow;
+
+// 	UE_LOG(LogUnrealCV, Log, TEXT("StartSimpleRecording: Camera %s, File: %s, FPS: %d, Duration: %.2fs, RGB:%d Mask:%d Normal:%d Depth:%d Flow:%d"),
+// 		*IDString, *FileName, FPS, DurationSeconds, bRecordLit, bRecordMask, bRecordNormal, bRecordDepth, bRecordFlow);
+
+// 	CaptureActor->StartSimpleRecording(FileName, FPS, DurationSeconds);
+// 	return true;
+// }
 
 bool URecordingBPLib::StartSimpleRecording(const FString& IDString, const FString& FileName, int32 FPS, float DurationSeconds,
-	bool bRecordLit, bool bRecordMask, bool bRecordNormal, bool bRecordDepth, bool bRecordFlow)
+	const FRecordingDataTypesConfig& RecordingConfig)
 {
 	AFusionCamCaptureActor* CaptureActor = PrepareRecording(USensorBPLib::GetIndexByAnyID(IDString));
 	if (!IsValid(CaptureActor))
@@ -369,14 +392,10 @@ bool URecordingBPLib::StartSimpleRecording(const FString& IDString, const FStrin
 		return false;
 	}
 
-	CaptureActor->bRecordRGB = bRecordLit;
-	CaptureActor->bRecordMask = bRecordMask;
-	CaptureActor->bRecordNormal = bRecordNormal;
-	CaptureActor->bRecordDepth = bRecordDepth;
-	CaptureActor->bRecordFlow = bRecordFlow;
+	CaptureActor->ApplyRecordingConfig(RecordingConfig);
 
-	UE_LOG(LogUnrealCV, Log, TEXT("StartSimpleRecording: Camera %s, File: %s, FPS: %d, Duration: %.2fs, RGB:%d Mask:%d Normal:%d Depth:%d Flow:%d"),
-		*IDString, *FileName, FPS, DurationSeconds, bRecordLit, bRecordMask, bRecordNormal, bRecordDepth, bRecordFlow);
+	UE_LOG(LogUnrealCV, Log, TEXT("StartSimpleRecording: Camera %s, File: %s, FPS: %d, Duration: %.2fs"),
+		*IDString, *FileName, FPS, DurationSeconds);
 
 	CaptureActor->StartSimpleRecording(FileName, FPS, DurationSeconds);
 	return true;

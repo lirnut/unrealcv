@@ -64,28 +64,35 @@ public:
 	static TArray<FString> GetSupportedTrajectoryTypes();
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Recording|Simple")
-	static bool StartSimpleRecording(
-		int32 CameraID,
-		const FString& FileName,
-		int32 FPS,
-		float DurationSeconds
-	);
+	// static bool StartSimpleRecording(
+	// 	int32 CameraID,
+	// 	const FString& FileName,
+	// 	int32 FPS,
+	// 	float DurationSeconds
+	// );
+	// static bool StartSimpleRecording(
+	// 	const FString& IDString,
+	// 	const FString& FileName,
+	// 	int32 FPS,
+	// 	float DurationSeconds,
+	// 	bool bRecordLit = true,
+	// 	bool bRecordMask = false,
+	// 	bool bRecordNormal = false,
+	// 	bool bRecordDepth = false,
+	// 	bool bRecordFlow = false
+	// );
+	// static bool StartSimpleRecording(
+	// 	const FString& IDString,
+	// 	const FString& FileName,
+	// 	int32 FPS,
+	// 	float DurationSeconds
+	// );
 	static bool StartSimpleRecording(
 		const FString& IDString,
 		const FString& FileName,
 		int32 FPS,
 		float DurationSeconds,
-		bool bRecordLit = true,
-		bool bRecordMask = false,
-		bool bRecordNormal = false,
-		bool bRecordDepth = false,
-		bool bRecordFlow = false
-	);
-	static bool StartSimpleRecording(
-		const FString& IDString,
-		const FString& FileName,
-		int32 FPS,
-		float DurationSeconds
+		const FRecordingDataTypesConfig& RecordingConfig
 	);
 	static bool ParseTrajectoryType(const FString& TrajectoryTypeStr, ECameraTrajectoryType& OutTrajectoryType);
 	static float GetTimeDilation();

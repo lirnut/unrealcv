@@ -1,6 +1,7 @@
 #include "DatasetAutomationHandler.h"
 #include "DatasetAutomationBPLib.h"
 #include "SensorBPLib.h"
+#include "Actor/FusionCamCaptureActor.h"
 #include "Utils/UObjectUtils.h"
 #include "UnrealcvLog.h"
 
@@ -86,6 +87,11 @@ void FDatasetAutomationHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigForegroundMoveAngleOffset);
 	Help = "Set foreground movement angle offset in degrees (0=forward, 90=right, -90=left, 180=backward)";
 	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/foreground_move_angle_offset [float]"), Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigRecordingOptions);
+	Help = "Set recording data types options (comma-separated): lit/rgb, mask/seg, normal, depth, flow, oneobjmask, oneobjlit, shadowcatcher, stencilmask, metadata, audio, woTarget";
+	Help += "\nExample: vset /datasetautomation/config/recording_options lit,mask,oneobjlit,metadata";
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/recording_options [str]"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::GetCommandHistory);
 	Help = "Get command execution history";
@@ -352,6 +358,34 @@ FExecStatus FDatasetAutomationHandler::SetConfigForegroundMoveAngleOffset(const 
 	float Value = FCString::Atof(*Args[0]);
 	UDatasetAutomationBPLib::CurrentConfig.ForegroundMoveAngleOffset = Value;
 	return FExecStatus::OK(FString::Printf(TEXT("Config.ForegroundMoveAngleOffset = %.2f degrees"), Value));
+}
+
+FExecStatus FDatasetAutomationHandler::SetConfigRecordingOptions(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		return FExecStatus::Error(TEXT("Usage: vset /datasetautomation/config/recording_options [OptionsString]"));
+	}
+
+	FRecordingDataTypesConfig RecordingConfig = FRecordingDataTypesConfig::ParseRecordingOptions(Args[0]);
+	UDatasetAutomationBPLib::CurrentConfig.RecordingConfig = RecordingConfig;
+
+	TArray<FString> EnabledTypes;
+	if (RecordingConfig.bRecordRGB) EnabledTypes.Add(TEXT("RGB"));
+	if (RecordingConfig.bRecordMask) EnabledTypes.Add(TEXT("Mask"));
+	if (RecordingConfig.bRecordDepth) EnabledTypes.Add(TEXT("Depth"));
+	if (RecordingConfig.bRecordNormal) EnabledTypes.Add(TEXT("Normal"));
+	if (RecordingConfig.bRecordFlow) EnabledTypes.Add(TEXT("Flow"));
+	if (RecordingConfig.bRecordOneObjectMask) EnabledTypes.Add(TEXT("OneObjMask"));
+	if (RecordingConfig.bRecordOneObjectLit) EnabledTypes.Add(TEXT("OneObjLit"));
+	if (RecordingConfig.bRecordShadowCatcher) EnabledTypes.Add(TEXT("ShadowCatcher"));
+	if (RecordingConfig.bRecordStencilMask) EnabledTypes.Add(TEXT("StencilMask"));
+	if (RecordingConfig.bRecordMetadata) EnabledTypes.Add(TEXT("Metadata"));
+	if (RecordingConfig.bRecordAudio) EnabledTypes.Add(TEXT("Audio"));
+	if (RecordingConfig.bRecordWithoutTarget) EnabledTypes.Add(TEXT("WithoutTarget"));
+
+	FString Summary = FString::Join(EnabledTypes, TEXT(", "));
+	return FExecStatus::OK(FString::Printf(TEXT("Config.RecordingOptions set to: %s"), *Summary));
 }
 
 FExecStatus FDatasetAutomationHandler::GetCommandHistory(const TArray<FString>& Args)

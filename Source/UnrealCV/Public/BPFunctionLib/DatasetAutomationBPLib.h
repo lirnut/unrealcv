@@ -80,6 +80,9 @@ struct FAutomationConfig
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	float ForegroundMoveAngleOffset = 0.0f;
 
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	FRecordingDataTypesConfig RecordingConfig;
+
 	FAutomationConfig() {}
 	// FAutomationConfig() : OutputDirectory(FPaths::ProjectSavedDir() / TEXT("DatasetAutomationOutputDirectory")) {}
 };
@@ -163,6 +166,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|Automation")
 	static const TArray<FCompletedCommand>& GetCommandHistory();
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Automation")
+	static void SetRecordingConfig(const FRecordingDataTypesConfig& InConfig);
+
+	UFUNCTION(BlueprintPure, Category = "UnrealCV|Automation")
+	static FRecordingDataTypesConfig GetRecordingConfig();
 
 public:
 	static FAutomationConfig CurrentConfig;
