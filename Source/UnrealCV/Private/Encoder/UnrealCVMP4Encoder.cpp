@@ -123,7 +123,7 @@ void FUnrealCVMP4Encoder::Finalize()
 
 bool FUnrealCVMP4Encoder::WriteFrame(const uint8* InFrameData, EImagePixelType InPixelFormat)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UnrealCVMP4Encoder_WriteFrame);
+	// TRACE_CPUPROFILER_EVENT_SCOPE(UnrealCVMP4Encoder_WriteFrame);
 	if (!ensureMsgf(bInitialized && !bFinalized, TEXT("WriteFrame should not be called if not initialized or after finalize! Initialized: %d Finalized: %d"), bInitialized, bFinalized))
 	{
 		return false;
@@ -240,7 +240,7 @@ bool FUnrealCVMP4Encoder::WriteFrame(const uint8* InFrameData, EImagePixelType I
 
 bool FUnrealCVMP4Encoder::WriteAudioSample(const TArrayView<int16>& InAudioSamples)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UnrealCVMP4Encoder_WriteAudioSample);
+	// TRACE_CPUPROFILER_EVENT_SCOPE(UnrealCVMP4Encoder_WriteAudioSample);
 
 	if (!Options.bIncludeAudio)
 	{

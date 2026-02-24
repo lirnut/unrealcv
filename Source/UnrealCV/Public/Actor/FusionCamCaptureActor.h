@@ -70,7 +70,7 @@ struct FRecordingDataTypesConfig
 	bool bRecordMetadata = true;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Recording")
-	bool bRecordAudio = true;
+	bool bRecordAudio = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Recording")
 	bool bRecordWithoutTarget = false;
@@ -80,7 +80,7 @@ struct FRecordingDataTypesConfig
 		FRecordingDataTypesConfig Config;
 		Config.bRecordAudio = false;
 		Config.bRecordRGB = true;
-		Config.bRecordMask = true;
+		Config.bRecordMask = false;
 		Config.bRecordOneObjectLit = true;
 		Config.bRecordMetadata = true;
 		return Config;
@@ -89,12 +89,12 @@ struct FRecordingDataTypesConfig
 	static FRecordingDataTypesConfig MakeOmnimatteConfig()
 	{
 		FRecordingDataTypesConfig Config;
-		Config.bRecordAudio = true;
+		Config.bRecordAudio = false;
 		Config.bRecordRGB = true;
 		Config.bRecordMask = true;
 		Config.bRecordOneObjectMask = true;
 		Config.bRecordShadowCatcher = true;
-		Config.bRecordStencilMask = true;
+		Config.bRecordStencilMask = false;
 		Config.bRecordMetadata = true;
 		Config.bRecordWithoutTarget = true;
 		return Config;

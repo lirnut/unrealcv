@@ -5,6 +5,7 @@
 #include "RHI.h"
 #include "RHIResources.h"
 #include "SceneView.h"
+#include "SceneViewExtension.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MovieQualityRenderComponent.generated.h"
 
@@ -52,6 +53,9 @@ struct FMQRCSettings
 
 	UPROPERTY()
 	float AutoExposureMaxBrightness = 20.0f;
+
+	UPROPERTY()
+	float DepthOfFieldScale = 0.0f;
 };
 
 UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))
@@ -82,7 +86,9 @@ public:
 
 	void FlushPendingFrames();
 
-	void CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady);
+	void Render();
+
+	void CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady, bool bExecuteNow = false);
 
 	void CaptureFrameToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete = nullptr);
 
@@ -101,6 +107,26 @@ public:
 	float GetFOV() const { return FOV; }
 
 	bool IsInitialized() const { return bIsInitialized; }
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lumen")
+	bool bRenderEveryFrame = true;
+
+	UPROPERTY(interp, Category = "PostProcess", meta = (ShowOnlyInnerProperties))
+	FPostProcessSettings PostProcessSettings;
+
+	UPROPERTY(interp, Category = "PostProcess", BlueprintReadWrite, meta = (UIMin = "0.0", UIMax = "1.0"))
+	float PostProcessBlendWeight = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess")
+	bool bInheritMainViewPostProcessSettings = true;
+
+	void CaptureDiscardFrame();
+
+	TSharedPtr<ISceneViewExtension, ESPMode::ThreadSafe> ViewExtension;
+	FFinalPostProcessSettings CachedMainViewPostProcessSettings;
+	bool bHasCachedMainViewPostProcessSettings = false;
+
 
 protected:
 	UPROPERTY()
@@ -125,9 +151,12 @@ protected:
 	// float GetTargetGamma() const;
 
 	virtual void SetPostProcessSettings(FPostProcessSettings& PPSettings);
-
+	
 private:
 	void SetDefaultPostProcessSettings(FPostProcessSettings& PPSettings);
+	void ExecuteCaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady);
+
+	TOptional<TFunction<void(TUniquePtr<FImagePixelData>&&)>> PendingCaptureCallback;
 
 protected:
 	bool bIsInitialized;
@@ -142,4 +171,6 @@ protected:
 
 	UPROPERTY()
 	TMap<FString, UTextureRenderTarget2D*> RenderTargetPool;
+
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 };

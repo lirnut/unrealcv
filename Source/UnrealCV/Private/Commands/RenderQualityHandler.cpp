@@ -135,6 +135,18 @@ void FMQRCHandler::RegisterCommands()
 		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::SetAutoExposureMaxBrightness),
 		TEXT("Set auto-exposure maximum brightness")
 	);
+
+	CommandDispatcher->BindCommand(
+		TEXT("vget /mqrc/depth_of_field_scale"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::GetDepthOfFieldScale),
+		TEXT("Get depth of field scale")
+	);
+
+	CommandDispatcher->BindCommand(
+		TEXT("vset /mqrc/depth_of_field_scale [float]"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::SetDepthOfFieldScale),
+		TEXT("Set depth of field scale")
+	);
 }
 
 FExecStatus FMQRCHandler::GetAntiAliasingMethod(const TArray<FString>& Args)
@@ -419,5 +431,23 @@ FExecStatus FMQRCHandler::SetAutoExposureMaxBrightness(const TArray<FString>& Ar
 
 	float Value = FCString::Atof(*Args[0]);
 	UMovieQualityRenderComponent::GlobalSettings.AutoExposureMaxBrightness = Value;
+	return FExecStatus::OK();
+}
+
+FExecStatus FMQRCHandler::GetDepthOfFieldScale(const TArray<FString>& Args)
+{
+	float Value = UMovieQualityRenderComponent::GlobalSettings.DepthOfFieldScale;
+	return FExecStatus::OK(FString::Printf(TEXT("%f"), Value));
+}
+
+FExecStatus FMQRCHandler::SetDepthOfFieldScale(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		return FExecStatus::GetInvalidArgument();
+	}
+
+	float Value = FCString::Atof(*Args[0]);
+	UMovieQualityRenderComponent::GlobalSettings.DepthOfFieldScale = Value;
 	return FExecStatus::OK();
 }

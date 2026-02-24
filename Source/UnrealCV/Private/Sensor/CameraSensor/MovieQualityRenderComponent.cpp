@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "Engine/Canvas.h"
 #include "SceneView.h"
+#include "SceneViewExtension.h"
 #include "EngineModule.h"
 #include "RenderingThread.h"
 #include "RHICommandList.h"
@@ -17,12 +18,48 @@
 
 FMQRCSettings UMovieQualityRenderComponent::GlobalSettings;
 
+// ViewExtension implementation to capture main view's PostProcessSettings
+class FMovieQualityViewExtension : public FSceneViewExtensionBase
+{
+public:
+	FMovieQualityViewExtension(const FAutoRegister& AutoRegister, UMovieQualityRenderComponent* InComponent)
+		: FSceneViewExtensionBase(AutoRegister)
+		, Component(InComponent)
+	{
+	}
+
+	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override
+	{ 
+		if (!Component.IsValid()) { return; }
+		if (InViewFamily.bIsMainViewFamily)
+		{
+			if (InViewFamily.Views.Num() > 0 && InViewFamily.Views[0] != nullptr)
+			{
+				Component->CachedMainViewPostProcessSettings = InViewFamily.Views[0]->FinalPostProcessSettings;
+				Component->bHasCachedMainViewPostProcessSettings = true;
+			}
+		}
+
+		Component->Render();
+	}
+
+	virtual int32 GetPriority() const override { return -100; }
+
+	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
+	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
+
+private:
+	TWeakObjectPtr<UMovieQualityRenderComponent> Component;
+};
+
+
 UMovieQualityRenderComponent::UMovieQualityRenderComponent()
   : ShowFlags(EShowFlagInitMode::ESFIM_Game)
 {
 	bIsInitialized = false;
 	FrameCounter = 0;
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickInterval = 0.0f;
 
 
 	ShowFlags.SetPostProcessing(true);
@@ -73,6 +110,10 @@ void UMovieQualityRenderComponent::BeginPlay()
 	int32 ResHeight = Config.Height == 0 ? 480 : Config.Height;
 
 	Initialize(ResWidth, ResHeight);
+
+	// Register view extension to capture main viewport's PostProcessSettings
+	// NewExtension automatically handles registration
+	ViewExtension = FSceneViewExtensions::NewExtension<FMovieQualityViewExtension>(this);
 }
 
 void UMovieQualityRenderComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -214,8 +255,97 @@ void UMovieQualityRenderComponent::Shutdown()
 	}
 	RenderTargetPool.Empty();
 
+	ViewExtension.Reset();
+
 	bIsInitialized = false;
 	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() END"));
+}
+
+void UMovieQualityRenderComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+}
+
+void UMovieQualityRenderComponent::Render()
+{
+	if (!bIsInitialized)
+	{
+		return;
+	}
+	// auto* World = GetWorld();	
+	if (PendingCaptureCallback.IsSet())
+	{
+
+		TFunction<void(TUniquePtr<FImagePixelData>&&)> Callback = MoveTemp(PendingCaptureCallback.GetValue());
+		PendingCaptureCallback.Reset();
+		// AsyncTask(ENamedThreads::GameThread, [this, Callback = MoveTemp(Callback)]() mutable
+		// World->GetTimerManager().SetTimerForNextTick([this, Callback = MoveTemp(Callback)]() mutable
+		// {
+			ExecuteCaptureFrame(MoveTemp(Callback));
+		// });
+
+	}
+	else if (bRenderEveryFrame)
+	{
+		// AsyncTask(ENamedThreads::GameThread, [this]()
+		// World->GetTimerManager().SetTimerForNextTick([this]() 
+		// {
+			CaptureDiscardFrame();
+		// });
+	}
+}
+
+void UMovieQualityRenderComponent::CaptureDiscardFrame()
+{
+	FString PoolKey = FString::Printf(TEXT("RGB_%dx%d_%s"),
+		Resolution.X, Resolution.Y,
+		PixelFormat == PF_FloatRGBA ? TEXT("Float") : TEXT("BGRA8"));
+
+	UTextureRenderTarget2D* RenderTarget = nullptr;
+
+	if (RenderTargetPool.Contains(PoolKey))
+	{
+		RenderTarget = RenderTargetPool[PoolKey];
+	}
+	else
+	{
+		RenderTarget = NewObject<UTextureRenderTarget2D>(this);
+		RenderTarget->InitCustomFormat(Resolution.X, Resolution.Y, PixelFormat, true);
+		RenderTargetPool.Add(PoolKey, RenderTarget);
+	}
+
+	TSharedPtr<FSceneViewFamilyContext> ViewFamily = CreateViewFamily(RenderTarget);
+	if (!ViewFamily.IsValid())
+	{
+		return;
+	}
+
+	FSceneView* View = CreateSceneView(ViewFamily.Get());
+	if (!View)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	World->SendAllEndOfFrameUpdates();
+
+	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+	FCanvas Canvas(RenderTargetResource, nullptr, World, ViewFamily->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
+	GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
+
+	// Render but discard result - no callback, no SurfaceQueue processing
+	ENQUEUE_RENDER_COMMAND(DiscardFrameCommand)(
+		[RenderTargetResource](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			// Frame is rendered but nothing is done with it
+			// Lumen temporal state is updated, TAA history is preserved
+		}
+	);
 }
 
 void UMovieQualityRenderComponent::FlushPendingFrames()
@@ -228,12 +358,19 @@ void UMovieQualityRenderComponent::FlushPendingFrames()
 
 	UE_LOG(LogTemp, Log, TEXT("FlushPendingFrames - Starting flush of pending GPU readback frames"));
 
+	if (PendingCaptureCallback.IsSet())
+	{
+		TFunction<void(TUniquePtr<FImagePixelData>&&)> Callback = MoveTemp(PendingCaptureCallback.GetValue());
+		PendingCaptureCallback.Reset();
+		ExecuteCaptureFrame(MoveTemp(Callback));
+	}
+
 	SurfaceQueue->Shutdown();
 
 	UE_LOG(LogTemp, Log, TEXT("FlushPendingFrames - Flush completed"));
 }
 
-void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
+void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady, bool bExecuteNow)
 {
 	if (!bIsInitialized)
 	{
@@ -241,6 +378,22 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 		return;
 	}
 
+	if (bExecuteNow)
+	{
+		ExecuteCaptureFrame(OnPixelDataReady);
+	}
+	else
+	{
+		if (PendingCaptureCallback.IsSet())
+		{
+			UE_LOG(LogTemp, Error, TEXT("CaptureFrame - Called twice before next Tick"));
+		}
+		PendingCaptureCallback = MoveTemp(OnPixelDataReady);
+	}
+}
+
+void UMovieQualityRenderComponent::ExecuteCaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
+{
 	FString PoolKey = FString::Printf(TEXT("RGB_%dx%d_%s"),
 		Resolution.X, Resolution.Y,
 		PixelFormat == PF_FloatRGBA ? TEXT("Float") : TEXT("BGRA8"));
@@ -255,8 +408,6 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 	{
 		RenderTarget = NewObject<UTextureRenderTarget2D>(this);
 		RenderTarget->ClearColor = FLinearColor::Black;
-		// RenderTarget->TargetGamma = ForceTargetGamma;
-		// RenderTarget->InitCustomFormat(Resolution.X, Resolution.Y, PixelFormat, bForceLinearGamma);
 		RenderTarget->InitAutoFormat(Resolution.X, Resolution.Y);
 		RenderTarget->AddToRoot();
 		RenderTargetPool.Add(PoolKey, RenderTarget);
@@ -265,18 +416,18 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 	TSharedPtr<FSceneViewFamilyContext> ViewFamily = CreateViewFamily(RenderTarget);
 	if (!ViewFamily.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("CaptureFrame - ViewFamily creation failed"));
+		UE_LOG(LogTemp, Error, TEXT("ExecuteCaptureFrame - ViewFamily creation failed"));
 		return;
 	}
 
 	FSceneView* View = CreateSceneView(ViewFamily.Get());
 	if (!View)
 	{
-		UE_LOG(LogTemp, Error, TEXT("CaptureFrame - SceneView creation failed"));
+		UE_LOG(LogTemp, Error, TEXT("ExecuteCaptureFrame - SceneView creation failed"));
 		return;
 	}
 
-	SubmitToRendererWithCallback(ViewFamily.Get(), RenderTarget, OnPixelDataReady);
+	SubmitToRendererWithCallback(ViewFamily.Get(), RenderTarget, MoveTemp(OnPixelDataReady));
 }
 
 void UMovieQualityRenderComponent::CaptureFrameToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete)
@@ -389,13 +540,33 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	View->OverrideFrameIndexValue = FrameCounter++;
 	// View->bAllowTemporalJitter = false;
 
-	// View->FinalPostProcessSettings.SetBaseValues();
-	// View->StartFinalPostprocessSettings(ViewInitOptions.ViewOrigin);
+	SetDefaultPostProcessSettings(PostProcessSettings);
 
-	// FPostProcessSettings& PPSettings = View->FinalPostProcessSettings;
-	SetPostProcessSettings(View->FinalPostProcessSettings);
+	// Step 1: Initialize FinalPostProcessSettings
+	View->StartFinalPostprocessSettings(ViewInitOptions.ViewOrigin);
 
-	// View->EndFinalPostprocessSettings(ViewInitOptions);
+	// Step 2: Optionally inherit main view post-process settings from cached data
+	if (!bHasCachedMainViewPostProcessSettings)
+	{
+		UE_LOG(LogTemp, Error, TEXT("bHasCachedMainViewPostProcessSettings = false"));
+	}
+	if (bInheritMainViewPostProcessSettings && bHasCachedMainViewPostProcessSettings)
+	{
+		// Use the cached main viewport's PostProcessSettings
+		View->FinalPostProcessSettings = CachedMainViewPostProcessSettings;
+	}
+	else
+	{
+		// Initialize with default settings (similar to SceneCaptureComponent2D)
+		View->FinalPostProcessSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::None;
+		View->FinalPostProcessSettings.ReflectionMethod = EReflectionMethod::None;
+		View->FinalPostProcessSettings.LumenSurfaceCacheResolution = 0.5f;
+	}
+
+	// Step 3: Override with our PostProcessSettings using blend weight
+	View->OverridePostProcessSettings(PostProcessSettings, PostProcessBlendWeight);
+
+	View->EndFinalPostprocessSettings(ViewInitOptions);
 
 	ViewFamily->Views.Add(View);
 
@@ -478,8 +649,8 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	PPSettings.LumenFinalGatherScreenTraces = 1;
 	// PPSettings.bOverride_LumenMaxTraceDistance = 1;
 	// PPSettings.LumenMaxTraceDistance = 2097152.0f;
-	// PPSettings.bOverride_LumenReflectionQuality = 1;
-	// PPSettings.LumenReflectionQuality = 2.0f;
+	PPSettings.bOverride_LumenReflectionQuality = 1;
+	PPSettings.LumenReflectionQuality = 2.0f;
 	// PPSettings.bOverride_LumenReflectionsScreenTraces = 1;
 	// PPSettings.LumenReflectionsScreenTraces = 1;
 	// PPSettings.bOverride_LumenFrontLayerTranslucencyReflections = 1;
@@ -490,8 +661,8 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.LumenMaxReflectionBounces = 8;
 	// PPSettings.bOverride_LumenMaxRefractionBounces = 1;
 	// PPSettings.LumenMaxRefractionBounces = 64;
-	// PPSettings.bOverride_LumenSurfaceCacheResolution = 1;
-	// PPSettings.LumenSurfaceCacheResolution = 1.0f;
+	PPSettings.bOverride_LumenSurfaceCacheResolution = 1;
+	PPSettings.LumenSurfaceCacheResolution = 1.0f;
 
 	/////////////////////////////////////////////////////////
 	// reduce ghosting phenomenon
@@ -510,8 +681,8 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 
 	PPSettings.bOverride_AutoExposureMethod = 1;
 	PPSettings.AutoExposureMethod = GlobalSettings.ExposureMethod;
-	PPSettings.bOverride_AutoExposureBias = 1;
-	PPSettings.AutoExposureBias = GlobalSettings.ExposureBias;
+	// PPSettings.bOverride_AutoExposureBias = 1;
+	// PPSettings.AutoExposureBias = GlobalSettings.ExposureBias;
 	// PPSettings.bOverride_AutoExposureMinBrightness = 1;
 	// PPSettings.AutoExposureMinBrightness = GlobalSettings.AutoExposureMinBrightness;
 	// PPSettings.bOverride_AutoExposureMaxBrightness = 1;
@@ -523,7 +694,7 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 
   	// DOF
   	PPSettings.bOverride_DepthOfFieldScale = true;
-  	PPSettings.DepthOfFieldScale = 0.0f;
+  	PPSettings.DepthOfFieldScale = GlobalSettings.DepthOfFieldScale;
   	// PPSettings.bOverride_DepthOfFieldFstop = true;
   	// PPSettings.DepthOfFieldFstop = 2.0f;
     // PPSettings.bOverride_DepthOfFieldFocalDistance = true;
@@ -547,55 +718,55 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.bOverride_ColorOffsetMidtones = 1;
 	// PPSettings.ColorOffsetMidtones = Offset;
 
-	FVector4 Saturation = FVector4(GlobalSettings.Saturation, GlobalSettings.Saturation, GlobalSettings.Saturation, 1.0f);
-	FVector4 Contrast = FVector4(GlobalSettings.Contrast, GlobalSettings.Contrast, GlobalSettings.Contrast, 1.0f);
-	FVector4 Gamma = FVector4(GlobalSettings.Gamma, GlobalSettings.Gamma, GlobalSettings.Gamma, 1.0f);
-	FVector4 Gain = FVector4(GlobalSettings.Gain, GlobalSettings.Gain, GlobalSettings.Gain, 1.0f);
-	FVector4 Offset = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+	// FVector4 Saturation = FVector4(GlobalSettings.Saturation, GlobalSettings.Saturation, GlobalSettings.Saturation, 1.0f);
+	// FVector4 Contrast = FVector4(GlobalSettings.Contrast, GlobalSettings.Contrast, GlobalSettings.Contrast, 1.0f);
+	// FVector4 Gamma = FVector4(GlobalSettings.Gamma, GlobalSettings.Gamma, GlobalSettings.Gamma, 1.0f);
+	// FVector4 Gain = FVector4(GlobalSettings.Gain, GlobalSettings.Gain, GlobalSettings.Gain, 1.0f);
+	// FVector4 Offset = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 
-	PPSettings.bOverride_ColorSaturation = 1;
-	PPSettings.ColorSaturation = Saturation;
-	PPSettings.bOverride_ColorContrast = 1;
-	PPSettings.ColorContrast = Contrast;
-	PPSettings.bOverride_ColorGamma = 1;
-	PPSettings.ColorGamma = Gamma;
-	PPSettings.bOverride_ColorGain = 1;
-	PPSettings.ColorGain = Gain;
-	PPSettings.bOverride_ColorOffset = 1;
-	PPSettings.ColorOffset = Offset;
+	// PPSettings.bOverride_ColorSaturation = 1;
+	// PPSettings.ColorSaturation = Saturation;
+	// PPSettings.bOverride_ColorContrast = 1;
+	// PPSettings.ColorContrast = Contrast;
+	// PPSettings.bOverride_ColorGamma = 1;
+	// PPSettings.ColorGamma = Gamma;
+	// PPSettings.bOverride_ColorGain = 1;
+	// PPSettings.ColorGain = Gain;
+	// PPSettings.bOverride_ColorOffset = 1;
+	// PPSettings.ColorOffset = Offset;
 
-	PPSettings.bOverride_ColorSaturationShadows = 1;
-	PPSettings.ColorSaturationShadows = Saturation;
-	PPSettings.bOverride_ColorContrastShadows = 1;
-	PPSettings.ColorContrastShadows = Contrast;
-	PPSettings.bOverride_ColorGammaShadows = 1;
-	PPSettings.ColorGammaShadows = Gamma;
-	PPSettings.bOverride_ColorGainShadows = 1;
-	PPSettings.ColorGainShadows = Gain;
-	PPSettings.bOverride_ColorOffsetShadows = 1;
-	PPSettings.ColorOffsetShadows = Offset;
+	// PPSettings.bOverride_ColorSaturationShadows = 1;
+	// PPSettings.ColorSaturationShadows = Saturation;
+	// PPSettings.bOverride_ColorContrastShadows = 1;
+	// PPSettings.ColorContrastShadows = Contrast;
+	// PPSettings.bOverride_ColorGammaShadows = 1;
+	// PPSettings.ColorGammaShadows = Gamma;
+	// PPSettings.bOverride_ColorGainShadows = 1;
+	// PPSettings.ColorGainShadows = Gain;
+	// PPSettings.bOverride_ColorOffsetShadows = 1;
+	// PPSettings.ColorOffsetShadows = Offset;
 
-	PPSettings.bOverride_ColorSaturationMidtones = 1;
-	PPSettings.ColorSaturationMidtones = Saturation;
-	PPSettings.bOverride_ColorContrastMidtones = 1;
-	PPSettings.ColorContrastMidtones = Contrast;
-	PPSettings.bOverride_ColorGammaMidtones = 1;
-	PPSettings.ColorGammaMidtones = Gamma;
-	PPSettings.bOverride_ColorGainMidtones = 1;
-	PPSettings.ColorGainMidtones = Gain;
-	PPSettings.bOverride_ColorOffsetMidtones = 1;
-	PPSettings.ColorOffsetMidtones = Offset;
+	// PPSettings.bOverride_ColorSaturationMidtones = 1;
+	// PPSettings.ColorSaturationMidtones = Saturation;
+	// PPSettings.bOverride_ColorContrastMidtones = 1;
+	// PPSettings.ColorContrastMidtones = Contrast;
+	// PPSettings.bOverride_ColorGammaMidtones = 1;
+	// PPSettings.ColorGammaMidtones = Gamma;
+	// PPSettings.bOverride_ColorGainMidtones = 1;
+	// PPSettings.ColorGainMidtones = Gain;
+	// PPSettings.bOverride_ColorOffsetMidtones = 1;
+	// PPSettings.ColorOffsetMidtones = Offset;
 
-	PPSettings.bOverride_ColorSaturationHighlights = 1;
-	PPSettings.ColorSaturationHighlights = Saturation;
-	PPSettings.bOverride_ColorContrastHighlights = 1;
-	PPSettings.ColorContrastHighlights = Contrast;
-	PPSettings.bOverride_ColorGammaHighlights = 1;
-	PPSettings.ColorGammaHighlights = Gamma;
-	PPSettings.bOverride_ColorGainHighlights = 1;
-	PPSettings.ColorGainHighlights = Gain;
-	PPSettings.bOverride_ColorOffsetHighlights = 1;
-	PPSettings.ColorOffsetHighlights = Offset;
+	// PPSettings.bOverride_ColorSaturationHighlights = 1;
+	// PPSettings.ColorSaturationHighlights = Saturation;
+	// PPSettings.bOverride_ColorContrastHighlights = 1;
+	// PPSettings.ColorContrastHighlights = Contrast;
+	// PPSettings.bOverride_ColorGammaHighlights = 1;
+	// PPSettings.ColorGammaHighlights = Gamma;
+	// PPSettings.bOverride_ColorGainHighlights = 1;
+	// PPSettings.ColorGainHighlights = Gain;
+	// PPSettings.bOverride_ColorOffsetHighlights = 1;
+	// PPSettings.ColorOffsetHighlights = Offset;
 
 	// PPSettings.bOverride_Sharpen = 1;
 	// PPSettings.Sharpen = 0.0f;

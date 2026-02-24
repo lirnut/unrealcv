@@ -39,4 +39,7 @@ public:
 
 	FExecStatus GetAutoExposureMaxBrightness(const TArray<FString>& Args);
 	FExecStatus SetAutoExposureMaxBrightness(const TArray<FString>& Args);
+
+	FExecStatus GetDepthOfFieldScale(const TArray<FString>& Args);
+	FExecStatus SetDepthOfFieldScale(const TArray<FString>& Args);
 };
