@@ -33,7 +33,7 @@ struct FMQRCSettings
 	float LumenSceneLightingQuality = 2.0f;
 
 	UPROPERTY()
-	float LumenFinalGatherQuality = 2.0f;
+	float LumenFinalGatherQuality = 4.0f;
 
 	UPROPERTY()
 	float Saturation = 1.0f;

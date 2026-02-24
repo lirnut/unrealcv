@@ -512,10 +512,10 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	PPSettings.AutoExposureMethod = GlobalSettings.ExposureMethod;
 	PPSettings.bOverride_AutoExposureBias = 1;
 	PPSettings.AutoExposureBias = GlobalSettings.ExposureBias;
-	PPSettings.bOverride_AutoExposureMinBrightness = 1;
-	PPSettings.AutoExposureMinBrightness = GlobalSettings.AutoExposureMinBrightness;
-	PPSettings.bOverride_AutoExposureMaxBrightness = 1;
-	PPSettings.AutoExposureMaxBrightness = GlobalSettings.AutoExposureMaxBrightness;
+	// PPSettings.bOverride_AutoExposureMinBrightness = 1;
+	// PPSettings.AutoExposureMinBrightness = GlobalSettings.AutoExposureMinBrightness;
+	// PPSettings.bOverride_AutoExposureMaxBrightness = 1;
+	// PPSettings.AutoExposureMaxBrightness = GlobalSettings.AutoExposureMaxBrightness;
     PPSettings.bOverride_AutoExposureSpeedDown = 1;
     PPSettings.AutoExposureSpeedDown = 20.0f;
     PPSettings.bOverride_AutoExposureSpeedUp = 1;
@@ -597,10 +597,10 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	PPSettings.bOverride_ColorOffsetHighlights = 1;
 	PPSettings.ColorOffsetHighlights = Offset;
 
-	PPSettings.bOverride_Sharpen = 1;
-	PPSettings.Sharpen = 0.0f;
-	PPSettings.bOverride_FilmGrainIntensity = 1;
-	PPSettings.FilmGrainIntensity = 0.0f;
+	// PPSettings.bOverride_Sharpen = 1;
+	// PPSettings.Sharpen = 0.0f;
+	// PPSettings.bOverride_FilmGrainIntensity = 1;
+	// PPSettings.FilmGrainIntensity = 0.0f;
 }
 
 /*

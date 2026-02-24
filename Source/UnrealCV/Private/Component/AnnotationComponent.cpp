@@ -359,8 +359,8 @@ public:
 				bAnySegmentUsesWorldPositionOffset |= Section.Material->IsUsingWorldPositionOffset_Concurrent(GMaxRHIFeatureLevel);
 			}
 		}
-		UE_LOG(LogUnrealCV, Log, TEXT("FInstancedStaticMeshAnnotationSceneProxy: LODs.Num=%d, AnnotationMID=%p, AnnotationMaterialRenderProxy=%p"),
-			LODs.Num(), AnnotationMID, AnnotationMaterialRenderProxy);
+		// UE_LOG(LogUnrealCV, Log, TEXT("FInstancedStaticMeshAnnotationSceneProxy: LODs.Num=%d, AnnotationMID=%p, AnnotationMaterialRenderProxy=%p"),
+		// 	LODs.Num(), AnnotationMID, AnnotationMaterialRenderProxy);
 
 		UserData_AllInstances.MeshRenderData = StaticMesh->GetRenderData();
 		UserData_AllInstances.MinDrawDistance = InProxyDesc.InstanceMinDrawDistance;
@@ -500,12 +500,12 @@ public:
 		SetupInstancedMeshBatch(LODIndex, BatchIndex, OutMeshBatch);
 		OutMeshBatch.MaterialRenderProxy = this->AnnotationMaterialRenderProxy;
 
-		static bool bLogOnce = true;
-		if (bLogOnce)
-		{
-			UE_LOG(LogUnrealCV, Log, TEXT("GetMeshElement: LODIndex=%d, MaterialRenderProxy=%p"), LODIndex, OutMeshBatch.MaterialRenderProxy);
-			bLogOnce = false;
-		}
+		// static bool bLogOnce = true;
+		// if (bLogOnce)
+		// {
+		// 	UE_LOG(LogUnrealCV, Log, TEXT("GetMeshElement: LODIndex=%d, MaterialRenderProxy=%p"), LODIndex, OutMeshBatch.MaterialRenderProxy);
+		// 	bLogOnce = false;
+		// }
 
 		return true;
 	}
@@ -898,7 +898,7 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 	// }
 	else
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("The type of ParentMeshComponent : %s can not be supported."), *ParentComponent->GetClass()->GetName());
+		// UE_LOG(LogUnrealCV, Warning, TEXT("The type of ParentMeshComponent : %s can not be supported."), *ParentComponent->GetClass()->GetName());
 		return nullptr;
 	}
 	// return nullptr;
@@ -936,7 +936,7 @@ FBoxSphereBounds UAnnotationComponent::CalcBounds(const FTransform & LocalToWorl
 		return GroomComponent->CalcBounds(LocalToWorld);
 	}
 
-	UE_LOG(LogTemp, Error, TEXT("The type of ParentMeshComponent : %s can not be supported."), *Parent->GetClass()->GetName());
+	// UE_LOG(LogTemp, Error, TEXT("The type of ParentMeshComponent : %s can not be supported."), *Parent->GetClass()->GetName());
     FBoxSphereBounds DefaultBounds = FBoxSphereBounds(FVector::ZeroVector, FVector::ZeroVector, 0.0f);
 	return DefaultBounds;
 }
