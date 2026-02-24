@@ -1,12 +1,22 @@
 # UnrealCV File Path Index
 
-Auto-generated index of frequently accessed files. Last updated: 2026-02-21
+Auto-generated index of frequently accessed files. Last updated: 2026-02-24
 
 Use these shorthand paths in prompts instead of copy-pasting full paths.
 
-## Session Context Files (2026-02-21)
+## Session Context Files (2026-02-24)
+
+**Session Topic**: Python client TCP resilience - fixing process hang on Ctrl+C and TCP disconnection in Windows
+
+### Python Client Library (TCP Connection Management)
+- `client/python/unrealcv/__init__.py` - TCP client with daemon thread + timeout join() to prevent hang on disconnect (daemon=True, join(timeout=2.0))
+- `docs/python/run_matting_generation.py` - Dataset generation script with AssertionError exception handling for TCP failures
+
+## Previous Session Files (2026-02-21)
 
 **Session Topic**: Asset discovery and spawn system - implementing vget /objects/scan_assets command and vset /objects/spawn_from_path with robust Cook-friendly loading
+
+## Earlier Session Files (2026-02-21)
 
 ### Blueprint Function Libraries (Asset Management & Spawn)
 - `Source/UnrealCV/Public/BPFunctionLib/AssetDiscoveryBPLib.h` - Asset registry scanning for spawnable resources (StaticMesh/SkeletalMesh/Blueprint)
@@ -20,7 +30,7 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 - `Source/UnrealCV/Private/Commands/ObjectHandler.cpp` - Added ScanAssets and SpawnFromPath commands (delegates to SpawnBPLib)
 - `Source/UnrealCV/Private/Commands/ObjectHandler.h` - Object manipulation commands: spawn, destroy, location, rotation, bounds
 
-## Previous Session Files (2026-02-20)
+## Earlier Session Files (2026-02-21)
 
 **Session Topic**: TCP command execution pipeline optimization - analyzing vget /camera/0/lit request flow and reducing TCP latency
 

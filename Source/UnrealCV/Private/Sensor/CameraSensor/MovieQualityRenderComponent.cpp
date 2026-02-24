@@ -15,6 +15,8 @@
 #include "MoviePipelineSurfaceReader.h"
 #include "UnrealcvServer.h"
 
+FMQRCSettings UMovieQualityRenderComponent::GlobalSettings;
+
 UMovieQualityRenderComponent::UMovieQualityRenderComponent()
   : ShowFlags(EShowFlagInitMode::ESFIM_Game)
 {
@@ -39,10 +41,6 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 	FOV = Config.FOV == 0 ? 90 : Config.FOV;
-
-	// AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
-	// AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
-	AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;
 
 	// other properties need to be initialized when BeginPlay
 }
@@ -381,7 +379,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 
 	View->State = ViewState.GetReference();
 	View->bIsOfflineRender = true;
-	View->AntiAliasingMethod = AntiAliasingMethod;
+	View->AntiAliasingMethod = GlobalSettings.AntiAliasingMethod;
 	// View->bSceneCaptureUsesRayTracing = true;
 	// View->bIsReflectionCapture = true;
 	// View->bIsSceneCapture = false;
@@ -469,13 +467,13 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.bOverride_LumenRayLightingMode = 1;
 	// PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
 	PPSettings.bOverride_LumenSceneLightingQuality = 1;
-	PPSettings.LumenSceneLightingQuality = 2.0f;
+	PPSettings.LumenSceneLightingQuality = GlobalSettings.LumenSceneLightingQuality;
 	PPSettings.bOverride_LumenSceneDetail = 1;
 	PPSettings.LumenSceneDetail = 4.0f;
 	// PPSettings.bOverride_LumenSceneViewDistance = 1;
 	// PPSettings.LumenSceneViewDistance = 2097152.0f;
 	PPSettings.bOverride_LumenFinalGatherQuality = 1;
-	PPSettings.LumenFinalGatherQuality = 2.0f;
+	PPSettings.LumenFinalGatherQuality = GlobalSettings.LumenFinalGatherQuality;
 	PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
 	PPSettings.LumenFinalGatherScreenTraces = 1;
 	// PPSettings.bOverride_LumenMaxTraceDistance = 1;
@@ -511,9 +509,13 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	/////////////////////////////////////////////////////////
 
 	PPSettings.bOverride_AutoExposureMethod = 1;
-	PPSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Histogram;
+	PPSettings.AutoExposureMethod = GlobalSettings.ExposureMethod;
 	PPSettings.bOverride_AutoExposureBias = 1;
-	PPSettings.AutoExposureBias = 0.0f;
+	PPSettings.AutoExposureBias = GlobalSettings.ExposureBias;
+	PPSettings.bOverride_AutoExposureMinBrightness = 1;
+	PPSettings.AutoExposureMinBrightness = GlobalSettings.AutoExposureMinBrightness;
+	PPSettings.bOverride_AutoExposureMaxBrightness = 1;
+	PPSettings.AutoExposureMaxBrightness = GlobalSettings.AutoExposureMaxBrightness;
     PPSettings.bOverride_AutoExposureSpeedDown = 1;
     PPSettings.AutoExposureSpeedDown = 20.0f;
     PPSettings.bOverride_AutoExposureSpeedUp = 1;
@@ -533,7 +535,7 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	PPSettings.bOverride_MotionBlurMax = 1;
 	PPSettings.bOverride_MotionBlurTargetFPS = 1;
 	PPSettings.bOverride_MotionBlurPerObjectSize = 1;
-	PPSettings.MotionBlurAmount = 0.00f;  // default 0.5
+	PPSettings.MotionBlurAmount = GlobalSettings.MotionBlurAmount;
 	PPSettings.MotionBlurMax = 2.0f;  // default 5.0
 	PPSettings.MotionBlurTargetFPS = 30;  // default 30
 	PPSettings.MotionBlurPerObjectSize = 0.f;
@@ -542,10 +544,13 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.MotionBlurTargetFPS = 24;  // default 30
 	// PPSettings.MotionBlurPerObjectSize = 0.f;
 
-	FVector4 Saturation = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-	FVector4 Contrast = FVector4(0.80f, 0.80f, 0.80f, 1.0f);
-	FVector4 Gamma = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-	FVector4 Gain = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+	// PPSettings.bOverride_ColorOffsetMidtones = 1;
+	// PPSettings.ColorOffsetMidtones = Offset;
+
+	FVector4 Saturation = FVector4(GlobalSettings.Saturation, GlobalSettings.Saturation, GlobalSettings.Saturation, 1.0f);
+	FVector4 Contrast = FVector4(GlobalSettings.Contrast, GlobalSettings.Contrast, GlobalSettings.Contrast, 1.0f);
+	FVector4 Gamma = FVector4(GlobalSettings.Gamma, GlobalSettings.Gamma, GlobalSettings.Gamma, 1.0f);
+	FVector4 Gain = FVector4(GlobalSettings.Gain, GlobalSettings.Gain, GlobalSettings.Gain, 1.0f);
 	FVector4 Offset = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 
 	PPSettings.bOverride_ColorSaturation = 1;

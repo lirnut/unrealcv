@@ -12,14 +12,55 @@ struct FMoviePipelineSurfaceQueue;
 class FUnrealCVImageWriteQueue;
 class UFusionCamSensor;
 
+USTRUCT()
+struct FMQRCSettings
+{
+	GENERATED_BODY()
+
+	// UPROPERTY()
+	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
+
+	// UPROPERTY()
+	EAutoExposureMethod ExposureMethod = EAutoExposureMethod::AEM_Histogram;
+
+	UPROPERTY()
+	float ExposureBias = 0.0f;
+
+	UPROPERTY()
+	float MotionBlurAmount = 0.0f;
+
+	UPROPERTY()
+	float LumenSceneLightingQuality = 2.0f;
+
+	UPROPERTY()
+	float LumenFinalGatherQuality = 2.0f;
+
+	UPROPERTY()
+	float Saturation = 1.0f;
+
+	UPROPERTY()
+	float Contrast = 0.80f;
+
+	UPROPERTY()
+	float Gamma = 1.0f;
+
+	UPROPERTY()
+	float Gain = 1.0f;
+
+	UPROPERTY()
+	float AutoExposureMinBrightness = -10.0f;
+
+	UPROPERTY()
+	float AutoExposureMaxBrightness = 20.0f;
+};
+
 UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))
 class UNREALCV_API UMovieQualityRenderComponent : public USceneComponent
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY()
-	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod;
+	static FMQRCSettings GlobalSettings;
 
 public:
 	UMovieQualityRenderComponent();
