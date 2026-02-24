@@ -155,7 +155,12 @@ def generate_matting_dataset(client, num_scenes=1):
         print(f"[START] {result}")
 
         while True:
-            status = client.request('vget /datasetautomation/status')
+            try:
+                status = client.request('vget /datasetautomation/status')
+            except AssertionError as e:
+                print(f"[ERROR] TCP disconnected during status poll: {e}")
+                return False
+
             print(f"[STATUS] {status}")
 
             if "Completed" in status:
@@ -168,7 +173,7 @@ def generate_matting_dataset(client, num_scenes=1):
                 print(f"[ERROR] Scene {scene_index + 1} failed to start: {status}")
                 return False
             else:
-               print(f"State {status}")
+                print(f"State {status}")
 
             time.sleep(2.0)
 
@@ -192,7 +197,8 @@ def main():
     try:
         if not args.skip_start:
             game_proc = start_game()
-
+            if not wait_for_server(game_proc, TIMEOUT):
+                return 1
         else:
             print(f"[INFO] Connecting to existing instance on port {PORT}...")
 
@@ -213,6 +219,10 @@ def main():
 
         client.disconnect()
         return 0
+
+    except KeyboardInterrupt:
+        print("\n[INFO] Interrupted by user (Ctrl+C)")
+        return 1
 
     finally:
         if game_proc:

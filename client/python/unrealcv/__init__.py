@@ -231,7 +231,7 @@ class Client:
                     _L.info('Got connection confirm: %s', repr(message))
 
                     # start receive queue here
-                    self.t = threading.Thread(target=self.receive_loop_queue)
+                    self.t = threading.Thread(target=self.receive_loop_queue, daemon=True)
                     self.t.start()
 
                     return True
@@ -278,7 +278,7 @@ class Client:
         if getattr(self, 't', None):
             if self.t.is_alive():
                 self.recv_num_q.put(None)
-                self.t.join()
+                self.t.join(timeout=2.0)
 
     def receive(self):
         """
