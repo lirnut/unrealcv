@@ -6,7 +6,6 @@
 #include "Engine/World.h"
 #include "Engine/Canvas.h"
 #include "SceneView.h"
-#include "SceneViewExtension.h"
 #include "EngineModule.h"
 #include "RenderingThread.h"
 #include "RHICommandList.h"
@@ -20,42 +19,23 @@
 
 FMQRCSettings UMovieQualityRenderComponent::GlobalSettings;
 
-// ViewExtension implementation to capture main view's PostProcessSettings
-class FMovieQualityViewExtension : public FSceneViewExtensionBase
+
+void FMovieQualityViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 {
-public:
-	FMovieQualityViewExtension(const FAutoRegister& AutoRegister, UMovieQualityRenderComponent* InComponent)
-		: FSceneViewExtensionBase(AutoRegister)
-		, Component(InComponent)
+	if (!Component.IsValid()) { return; }
+	if (InViewFamily.bIsMainViewFamily)
 	{
-	}
-
-	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override
-	{
-		if (!Component.IsValid()) { return; }
-		if (InViewFamily.bIsMainViewFamily)
+		if (InViewFamily.Views.Num() > 0 && InViewFamily.Views[0] != nullptr)
 		{
-			if (InViewFamily.Views.Num() > 0 && InViewFamily.Views[0] != nullptr)
-			{
-				Component->CachedMainViewPostProcessSettings = InViewFamily.Views[0]->FinalPostProcessSettings;
-				Component->bHasCachedMainViewPostProcessSettings = true;
-				Component->LastMainViewportFrameNumber = InViewFamily.FrameNumber;
-			}
-
-			// Process deferred captures AFTER main viewport renders
-			Component->ProcessDeferredCaptures();
+			Component->CachedMainViewPostProcessSettings = InViewFamily.Views[0]->FinalPostProcessSettings;
+			Component->bHasCachedMainViewPostProcessSettings = true;
+			Component->LastMainViewportFrameNumber = InViewFamily.FrameNumber;
 		}
+
+		// Process deferred captures AFTER main viewport renders
+		Component->ProcessDeferredCaptures();
 	}
-
-	virtual int32 GetPriority() const override { return 100; }
-
-	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
-	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
-
-private:
-	TWeakObjectPtr<UMovieQualityRenderComponent> Component;
-};
-
+}
 
 UMovieQualityRenderComponent::UMovieQualityRenderComponent()
   : ShowFlags(EShowFlagInitMode::ESFIM_Game)
@@ -274,39 +254,12 @@ void UMovieQualityRenderComponent::Shutdown()
 void UMovieQualityRenderComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	Render();
-}
-
-void UMovieQualityRenderComponent::Render()
-{
-	if (!bIsInitialized)
+	if (bRenderEveryFrame && DeferredCaptureQueue.IsEmpty())
 	{
-		return;
-	}
-	// auto* World = GetWorld();	
-	if (PendingCaptureCallback.IsSet())
-	{
-
-		TFunction<void(TUniquePtr<FImagePixelData>&&)> Callback = MoveTemp(PendingCaptureCallback.GetValue());
-		PendingCaptureCallback.Reset();
-		// AsyncTask(ENamedThreads::GameThread, [this, Callback = MoveTemp(Callback)]() mutable
-		// World->GetTimerManager().SetTimerForNextTick([this, Callback = MoveTemp(Callback)]() mutable
-		// {
-			ExecuteCaptureFrame(MoveTemp(Callback));
-		// });
-
-	}
-	// else if (GlobalSettings.bRenderEveryFrame)
-	else if (bRenderEveryFrame)
-	{
-		// AsyncTask(ENamedThreads::GameThread, [this]()
-		// World->GetTimerManager().SetTimerForNextTick([this]() 
-		// {
-			CaptureDiscardFrame();
-			// ExecuteCaptureFrame([](TUniquePtr<FImagePixelData>&& Input) {});
-		// });
+		EnqueueDeferredCapture([](TUniquePtr<FImagePixelData>&& Input) {});
 	}
 }
+
 
 void UMovieQualityRenderComponent::CaptureDiscardFrame()
 {
@@ -370,14 +323,7 @@ void UMovieQualityRenderComponent::FlushPendingFrames()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("FlushPendingFrames - Starting flush of pending GPU readback frames"));
-
-	if (PendingCaptureCallback.IsSet())
-	{
-		TFunction<void(TUniquePtr<FImagePixelData>&&)> Callback = MoveTemp(PendingCaptureCallback.GetValue());
-		PendingCaptureCallback.Reset();
-		ExecuteCaptureFrame(MoveTemp(Callback));
-	}
-
+	ProcessDeferredCaptures();
 	SurfaceQueue->Shutdown();
 
 	UE_LOG(LogTemp, Log, TEXT("FlushPendingFrames - Flush completed"));
@@ -393,13 +339,7 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 
 	if (GlobalSettings.bRenderImmediately)
 	{
-		// Immediate path - execute in next Tick via Render()
-		if (PendingCaptureCallback.IsSet())
-		{
-			UE_LOG(LogTemp, Error, TEXT("CaptureFrame - Called twice before next Tick"));
-			return;
-		}
-		PendingCaptureCallback = MoveTemp(OnPixelDataReady);
+		ExecuteCaptureFrame(OnPixelDataReady);
 	}
 	else
 	{
@@ -858,20 +798,10 @@ void UMovieQualityRenderComponent::ProcessDeferredCaptures()
 		return;
 	}
 
-	// Cache validation with fallback
-	if (!bHasCachedMainViewPostProcessSettings)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("MQRC: Main viewport cache invalid, using default PostProcessSettings"));
-
-		// Fallback: Use default PostProcessSettings
-		CachedMainViewPostProcessSettings = FPostProcessSettings();
-		SetDefaultPostProcessSettings(CachedMainViewPostProcessSettings);
-	}
-
 	// Lumen cache management - clear on first deferred capture
 	if (bFirstDeferredCapture)
 	{
-		ClearLumenCache();
+		ResetAllTemporalState();
 		bFirstDeferredCapture = false;
 	}
 
@@ -895,15 +825,14 @@ void UMovieQualityRenderComponent::ProcessDeferredCaptures()
 	// FrameCounter = SavedFrameCounter;
 }
 
-void UMovieQualityRenderComponent::ClearLumenCache()
+void UMovieQualityRenderComponent::ResetAllTemporalState()
 {
-	FSceneViewStateInterface* StateRef = ViewState.GetReference();
-	if (StateRef)
+	FSceneViewStateInterface * ViewStateRef = static_cast<FSceneViewStateInterface *>(ViewState.GetReference());
+	if (ViewStateRef)
 	{
-		// Force Lumen to rebuild caches
-		StateRef->ClearLightingHistory();
-
-		UE_LOG(LogTemp, Log, TEXT("MQRC: Cleared Lumen lighting history for deferred mode"));
+		// ViewStateRef->Lumen.SafeRelease();
+		ViewStateRef->ResetViewState();  // 重置所有temporal state
+		UE_LOG(LogTemp, Warning, TEXT("MQRC: FULL ViewState reset (including TAA/FrameIndex)"));
 	}
 }
 

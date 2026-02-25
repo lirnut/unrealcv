@@ -4,6 +4,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "RHI.h"
+#include "SceneViewExtension.h"
 #include "RHIResources.h"
 #include "SceneView.h"
 #include "SceneViewExtension.h"
@@ -13,6 +14,28 @@
 struct FMoviePipelineSurfaceQueue;
 class FUnrealCVImageWriteQueue;
 class UFusionCamSensor;
+
+// ViewExtension implementation to capture main view's PostProcessSettings
+class FMovieQualityViewExtension : public FSceneViewExtensionBase
+{
+public:
+	FMovieQualityViewExtension(const FAutoRegister& AutoRegister, UMovieQualityRenderComponent* InComponent)
+		: FSceneViewExtensionBase(AutoRegister)
+		, Component(InComponent)
+	{
+	}
+
+	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
+
+	virtual int32 GetPriority() const override { return 100; }
+
+	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
+	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
+
+private:
+	TWeakObjectPtr<UMovieQualityRenderComponent> Component;
+};
+
 
 USTRUCT()
 struct FMQRCSettings
@@ -66,6 +89,8 @@ UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))
 class UNREALCV_API UMovieQualityRenderComponent : public USceneComponent
 {
 	GENERATED_BODY()
+private:
+	friend class FMovieQualityViewExtension;
 
 public:
 	UPROPERTY()
@@ -95,8 +120,6 @@ public:
 	void Shutdown();
 
 	void FlushPendingFrames();
-
-	void Render();
 
 	void CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady);
 
@@ -145,7 +168,7 @@ protected:
 
 	void EnqueueDeferredCapture(TFunction<void(TUniquePtr<FImagePixelData>&&)> Callback);
 	void ProcessDeferredCaptures();
-	void ClearLumenCache();
+	void ResetAllTemporalState();
 	UPROPERTY()
 	TEnumAsByte<ESceneCaptureSource> CaptureSource;
 
@@ -173,8 +196,6 @@ protected:
 	
 	void SetDefaultPostProcessSettings(FPostProcessSettings& PPSettings);
 	void ExecuteCaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady);
-
-	TOptional<TFunction<void(TUniquePtr<FImagePixelData>&&)>> PendingCaptureCallback;
 
 protected:
 	bool bIsInitialized;
