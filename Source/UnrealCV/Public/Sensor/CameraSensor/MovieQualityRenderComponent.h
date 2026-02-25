@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "RHI.h"
 #include "RHIResources.h"
 #include "SceneView.h"
@@ -17,6 +18,9 @@ USTRUCT()
 struct FMQRCSettings
 {
 	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bRenderImmediately = true;
 
 	// UPROPERTY()
 	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
@@ -88,14 +92,9 @@ public:
 
 	void Render();
 
-	void CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady, bool bExecuteNow = false);
+	void CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady);
 
 	void CaptureFrameToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete = nullptr);
-
-	void SaveLitToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete = nullptr)
-	{
-		CaptureFrameToFile(OutputPath, OnComplete);
-	}
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Quality Render")
 	TEnumAsByte<ESceneCaptureSource> GetCaptureSource() { return CaptureSource; }
@@ -107,6 +106,8 @@ public:
 	float GetFOV() const { return FOV; }
 
 	bool IsInitialized() const { return bIsInitialized; }
+
+	void SetShowOnlyComponents(const TArray<TWeakObjectPtr<UPrimitiveComponent>>& InComponents);
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lumen")
@@ -138,9 +139,11 @@ protected:
 	UPROPERTY()
 	float FOV;
 
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> ShowOnlyComponents;
+
 protected:
 	TSharedPtr<FSceneViewFamilyContext> CreateViewFamily(UTextureRenderTarget2D* RenderTarget);
-	FSceneView* CreateSceneView(FSceneViewFamily* ViewFamily);
+	virtual FSceneView* CreateSceneView(FSceneViewFamily* ViewFamily);
 
 	void SubmitToRendererWithCallback(
 		FSceneViewFamily* ViewFamily,
@@ -152,7 +155,6 @@ protected:
 
 	virtual void SetPostProcessSettings(FPostProcessSettings& PPSettings);
 	
-private:
 	void SetDefaultPostProcessSettings(FPostProcessSettings& PPSettings);
 	void ExecuteCaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady);
 

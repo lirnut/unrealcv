@@ -476,7 +476,6 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 	if (RecordingDataTypes.bRecordRGB)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Recording RGB"));
-
 #if PLATFORM_WINDOWS
 		if (bUseMovieQualityRendering)
 		{
@@ -524,7 +523,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 			{
 				FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png");
 				UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before SaveLitToFile call"));
-				Renderer->SaveLitToFile(
+				Renderer->CaptureFrameToFile(
 					FileNameRGB,
 					[](bool bSuccess)
 					{

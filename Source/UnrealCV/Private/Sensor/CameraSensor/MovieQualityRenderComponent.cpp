@@ -1,6 +1,7 @@
 #include "MovieQualityRenderComponent.h"
 #include "LitCamSensor.h"
 #include "ImageWriteQueue.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "Engine/Canvas.h"
@@ -15,6 +16,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "MoviePipelineSurfaceReader.h"
 #include "UnrealcvServer.h"
+#include "UnrealcvLog.h"
 
 FMQRCSettings UMovieQualityRenderComponent::GlobalSettings;
 
@@ -370,7 +372,7 @@ void UMovieQualityRenderComponent::FlushPendingFrames()
 	UE_LOG(LogTemp, Log, TEXT("FlushPendingFrames - Flush completed"));
 }
 
-void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady, bool bExecuteNow)
+void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
 {
 	if (!bIsInitialized)
 	{
@@ -378,16 +380,18 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 		return;
 	}
 
-	if (bExecuteNow)
+	if (PendingCaptureCallback.IsSet())
+	{
+		UE_LOG(LogTemp, Error, TEXT("CaptureFrame - Called twice before next Tick"));
+		return;
+	}
+
+	if (GlobalSettings.bRenderImmediately)
 	{
 		ExecuteCaptureFrame(OnPixelDataReady);
 	}
 	else
 	{
-		if (PendingCaptureCallback.IsSet())
-		{
-			UE_LOG(LogTemp, Error, TEXT("CaptureFrame - Called twice before next Tick"));
-		}
 		PendingCaptureCallback = MoveTemp(OnPixelDataReady);
 	}
 }
@@ -432,6 +436,11 @@ void UMovieQualityRenderComponent::ExecuteCaptureFrame(TFunction<void(TUniquePtr
 
 void UMovieQualityRenderComponent::CaptureFrameToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete)
 {
+	if (!IsInitialized())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MQRC not initialized"));
+		return;
+	}
 	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] CaptureFrameToFile START - Path: %s"), *OutputPath);
 
 	CaptureFrame([this, OutputPath, OnComplete](TUniquePtr<FImagePixelData>&& InPixelData)
@@ -464,6 +473,11 @@ void UMovieQualityRenderComponent::CaptureFrameToFile(const FString& OutputPath,
 	});
 
 	UE_LOG(LogTemp, Log, TEXT("[CHECKPOINT] CaptureFrameToFile END"));
+}
+
+void UMovieQualityRenderComponent::SetShowOnlyComponents(const TArray<TWeakObjectPtr<UPrimitiveComponent>>& InComponents)
+{
+	ShowOnlyComponents = InComponents;
 }
 
 TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFamily(UTextureRenderTarget2D* RenderTarget)
@@ -568,6 +582,23 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 
 	View->EndFinalPostprocessSettings(ViewInitOptions);
 
+	if (ShowOnlyComponents.Num() > 0)
+	{
+		TSet<FPrimitiveComponentId> VisiblePrimitives;
+		for (const TWeakObjectPtr<UPrimitiveComponent>& CompPtr : ShowOnlyComponents)
+		{
+			if (UPrimitiveComponent* Comp = CompPtr.Get())
+			{
+				FPrimitiveComponentId Id = Comp->GetPrimitiveSceneId();
+				if (Id.IsValid())
+				{
+					VisiblePrimitives.Add(Id);
+				}
+			}
+		}
+		View->ShowOnlyPrimitives = TOptional<TSet<FPrimitiveComponentId>>(VisiblePrimitives);
+	}
+
 	ViewFamily->Views.Add(View);
 
 	return View;
@@ -669,11 +700,11 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// https://www.reddit.com/r/UnrealEngine5/comments/182y8br/lumen_ghosting_on_moving_objects_please_help/
 	// https://forums.unrealengine.com/t/desperate-for-a-definitve-answer-on-lumen-ghosting-issue/661853
 	// https://dev.epicgames.com/community/learning/tutorials/mjo7/unreal-engine-temporal-quality-guide
-	// PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
-	// PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
-	// PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	// PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
-	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
+	PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
+	PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
+	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
+	PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
+	PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
 	// PPSettings.LumenFinalGatherScreenTraces = 0;
 	// PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;
 	// PPSettings.AmbientOcclusionTemporalBlendWeight = 0.0f;

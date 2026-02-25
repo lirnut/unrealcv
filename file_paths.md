@@ -1,10 +1,28 @@
 # UnrealCV File Path Index
 
-Auto-generated index of frequently accessed files. Last updated: 2026-02-24
+Auto-generated index of frequently accessed files. Last updated: 2026-02-25
 
 Use these shorthand paths in prompts instead of copy-pasting full paths.
 
-## Session Context Files (2026-02-24)
+## Session Context Files (2026-02-25)
+
+**Session Topic**: UE 5.6 SceneCaptureComponent2D anti-aliasing source code analysis - tracing how TSR/TAA is determined from Project Settings → `r.AntiAliasingMethod` CVar → `FSceneView::SetupAntiAliasingMethod()`
+
+### Sensor System
+- `Source/UnrealCV/Private/Sensor/CameraSensor/BaseCameraSensor.cpp` - USceneCaptureComponent2D subclass; ShowFlags.SetAntiAliasing/TemporalAA currently commented out (AA disabled)
+- `Source/UnrealCV/Public/Sensor/CameraSensor/BaseCameraSensor.h` - UBaseCameraSensor class inheriting USceneCaptureComponent2D; controls FOV, film size, async capture pipeline
+
+### UE5 Engine References (SceneCapture & Anti-Aliasing)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneView.h` - FSceneView class; `AntiAliasingMethod` field at line 1725; `SetupAntiAliasingMethod()` declaration at line 1940
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\SceneView.cpp` - FSceneView constructor (line 857): `State(InitOptions.SceneViewStateInterface)`; `SetupAntiAliasingMethod()` called at line 1009; `r.AntiAliasingMethod` CVar defined at line 219 (default=4=TSR)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\SceneUtils.cpp` - `GetDefaultAntiAliasingMethod()` implementation (line 72): reads `r.AntiAliasingMethod` CVar; TSR→TAA fallback if platform unsupported (line 128-135)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneUtils.h` - `GetDefaultAntiAliasingMethod(FeatureLevel)` declaration
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Engine\RendererSettings.h` - `DefaultFeatureAntiAliasing` UPROPERTY bound to `r.AntiAliasingMethod` CVar (line 839); maps Project Settings UI → CVar
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Components\SceneCaptureComponent.cpp` - SceneCapture2D view setup; `GetViewState()` (line 403); `FSceneViewStateReference` allocation for TAA history
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - `SetupViewFamilyForSceneCapture()` (line 666): creates `FSceneViewInitOptions`, sets `SceneViewStateInterface` from `GetViewState()`, calls `new FSceneView(ViewInitOptions)` at line 743
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\LocalPlayer.cpp` - Standard game render path; `new FSceneView(ViewInitOptions)` at line 880 (comparison reference)
+
+## Previous Session Files (2026-02-24)
 
 **Session Topic**: Global MQRC render quality configuration system - centralized runtime control for anti-aliasing, exposure, motion blur, Lumen, and color grading
 

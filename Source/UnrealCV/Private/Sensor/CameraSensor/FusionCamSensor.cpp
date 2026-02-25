@@ -15,6 +15,7 @@
 #include "ShadowCatcherCamSensor.h"
 #include "StencilMaskCamSensor.h"
 #include "MovieQualityRenderComponent.h"
+#include "MovieQualityLitCamSensor.h"
 
 #include "Utils/UObjectUtils.h"
 #include "Component/AnnotationComponent.h"
@@ -111,27 +112,7 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	// FusionSensors.Add(OneObjectMaskCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("OneObjectLitCamSensor"));
-	OneObjectLitCamSensor = CreateDefaultSubobject<ULitCamSensor>(*ComponentName);
-	// BUG FIX: Delay attachment to BeginPlay() to avoid template component attachment issues
-	// OneObjectLitCamSensor->SetupAttachment(this);
-	OneObjectLitCamSensor->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-	OneObjectLitCamSensor->CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
-	OneObjectLitCamSensor->ShowFlags.SetLighting(false);
-	OneObjectLitCamSensor->ShowFlags.SetSkyLighting(false);
-	OneObjectLitCamSensor->ShowFlags.SetFog(false);
-	OneObjectLitCamSensor->ShowFlags.SetVolumetricFog(false);
-	OneObjectLitCamSensor->ShowFlags.SetPostProcessing(false);
-	OneObjectLitCamSensor->ShowFlags.SetCloud(false);
-	OneObjectLitCamSensor->ShowFlags.SetAtmosphere(false);
-	OneObjectLitCamSensor->ShowFlags.SetLumenGlobalIllumination(false);
-	OneObjectLitCamSensor->ShowFlags.SetGlobalIllumination(false);
-	OneObjectLitCamSensor->ShowFlags.SetLumenReflections(false);
-	OneObjectLitCamSensor->ShowFlags.SetScreenSpaceReflections(false);
-	OneObjectLitCamSensor->ShowFlags.SetDistanceFieldAO(false);
-	OneObjectLitCamSensor->ShowFlags.SetScreenSpaceAO(false);
-	OneObjectLitCamSensor->ShowFlags.SetAntiAliasing(true);
-	OneObjectLitCamSensor->ShowFlags.SetTemporalAA(true);
-	// FusionSensors.Add(OneObjectLitCamSensor);
+	OneObjectLitCamSensor = CreateDefaultSubobject<UMovieQualityLitCamSensor>(*ComponentName);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("ShadowCatcherCamSensor"));
 	ShadowCatcherCamSensor = CreateDefaultSubobject<UShadowCatcherCamSensor>(*ComponentName);
@@ -195,7 +176,6 @@ void UFusionCamSensor::BeginPlay()
 	if (IsValid(OneObjectLitCamSensor))
 	{
 		OneObjectLitCamSensor->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-		FusionSensors.Add(OneObjectLitCamSensor);
 	}
 
 	if (IsValid(ShadowCatcherCamSensor))
@@ -363,7 +343,7 @@ void UFusionCamSensor::GetOneObjLit(AActor* Actor, TArray<FColor>& Data, int& In
 	CollectAllPrimitiveComponentsForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
 	UE_LOG(LogTemp, Log, TEXT("ComponentList Num: %d"), ComponentList.Num());
 
-	OneObjectLitCamSensor->ShowOnlyComponents = ComponentList;
+	OneObjectLitCamSensor->SetShowOnlyComponents(ComponentList);
 	// UMaterialBPLib::ShowOnlyActorMaterial(Actor, FUnrealcvServer::Get().GetGameWorld());
 	OneObjectLitCamSensor->CaptureLit(Data, InOutWidth, InOutHeight);
 	// UMaterialBPLib::RestoreAllActorMaterials();
@@ -384,7 +364,7 @@ void UFusionCamSensor::SaveOneObjLitToFile(AActor* Actor, const FString& Filenam
 	}
 	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
 	CollectAllPrimitiveComponentsForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
-	OneObjectLitCamSensor->ShowOnlyComponents = ComponentList;
+	OneObjectLitCamSensor->SetShowOnlyComponents(ComponentList);
 
 	// UMaterialBPLib::ShowOnlyActorMaterial(Actor, FUnrealcvServer::Get().GetGameWorld());
 	OneObjectLitCamSensor->CaptureLitToFile(Filename);
@@ -554,6 +534,11 @@ void UFusionCamSensor::SetFilmSize(int Width, int Height)
 
 	check(MovieQualityRenderer);
 	MovieQualityRenderer->Initialize(Width, Height);
+
+	if (IsValid(OneObjectLitCamSensor))
+	{
+		OneObjectLitCamSensor->Initialize(Width, Height);
+	}
 }
 
 float UFusionCamSensor::GetSensorFOV()
@@ -573,6 +558,11 @@ void UFusionCamSensor::SetSensorFOV(float fov)
 	}
 	check(MovieQualityRenderer);
 	MovieQualityRenderer->SetFOV(FOV);
+
+	if (IsValid(OneObjectLitCamSensor))
+	{
+		OneObjectLitCamSensor->SetFOV(FOV);
+	}
 }
 
 TArray<UFusionCamSensor*> UFusionCamSensor::GetComponents(AActor* Actor)

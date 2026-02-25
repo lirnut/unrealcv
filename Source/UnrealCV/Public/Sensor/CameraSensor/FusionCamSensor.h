@@ -241,7 +241,7 @@ protected:
 	class UAnnotationCamSensor* OneObjectMaskCamSensor;
 
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
-	class ULitCamSensor* OneObjectLitCamSensor;
+	class UMovieQualityLitCamSensor* OneObjectLitCamSensor;
 
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
 	class UShadowCatcherCamSensor* ShadowCatcherCamSensor;
