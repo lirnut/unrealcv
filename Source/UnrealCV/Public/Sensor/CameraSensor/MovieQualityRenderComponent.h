@@ -20,7 +20,7 @@ struct FMQRCSettings
 	GENERATED_BODY()
 
 	UPROPERTY()
-	bool bRenderImmediately = true;
+	bool bRenderImmediately = false;
 
 	// UPROPERTY()
 	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
@@ -128,8 +128,24 @@ public:
 	FFinalPostProcessSettings CachedMainViewPostProcessSettings;
 	bool bHasCachedMainViewPostProcessSettings = false;
 
+	uint32 LastMainViewportFrameNumber = 0;
 
 protected:
+	// Deferred capture system
+	struct FDeferredCaptureRequest
+	{
+		TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady;
+		double EnqueueTime;
+		uint32 FrameNumber;
+	};
+
+	TQueue<FDeferredCaptureRequest, EQueueMode::Spsc> DeferredCaptureQueue;
+	FCriticalSection QueueLock;
+	bool bFirstDeferredCapture = true;
+
+	void EnqueueDeferredCapture(TFunction<void(TUniquePtr<FImagePixelData>&&)> Callback);
+	void ProcessDeferredCaptures();
+	void ClearLumenCache();
 	UPROPERTY()
 	TEnumAsByte<ESceneCaptureSource> CaptureSource;
 

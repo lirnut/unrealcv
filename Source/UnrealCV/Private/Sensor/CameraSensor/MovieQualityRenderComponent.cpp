@@ -31,7 +31,7 @@ public:
 	}
 
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override
-	{ 
+	{
 		if (!Component.IsValid()) { return; }
 		if (InViewFamily.bIsMainViewFamily)
 		{
@@ -39,13 +39,15 @@ public:
 			{
 				Component->CachedMainViewPostProcessSettings = InViewFamily.Views[0]->FinalPostProcessSettings;
 				Component->bHasCachedMainViewPostProcessSettings = true;
+				Component->LastMainViewportFrameNumber = InViewFamily.FrameNumber;
 			}
-		}
 
-		// Component->Render();
+			// Process deferred captures AFTER main viewport renders
+			Component->ProcessDeferredCaptures();
+		}
 	}
 
-	virtual int32 GetPriority() const override { return -100; }
+	virtual int32 GetPriority() const override { return 100; }
 
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
 	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
@@ -204,6 +206,12 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("5"));
+
+	// Initialize deferred capture state
+	bFirstDeferredCapture = true;
+	LastMainViewportFrameNumber = 0;
+	bHasCachedMainViewPostProcessSettings = false;
+
 	bIsInitialized = true;
 
 	UE_LOG(LogTemp, Log, TEXT("MovieQualityRenderComponent initialized at %dx%d, PixelFormat=%s, LinearGamma=%d, CaptureSource=%d"),
@@ -383,19 +391,20 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 		return;
 	}
 
-	if (PendingCaptureCallback.IsSet())
-	{
-		UE_LOG(LogTemp, Error, TEXT("CaptureFrame - Called twice before next Tick"));
-		return;
-	}
-
 	if (GlobalSettings.bRenderImmediately)
 	{
-		ExecuteCaptureFrame(OnPixelDataReady);
+		// Immediate path - execute in next Tick via Render()
+		if (PendingCaptureCallback.IsSet())
+		{
+			UE_LOG(LogTemp, Error, TEXT("CaptureFrame - Called twice before next Tick"));
+			return;
+		}
+		PendingCaptureCallback = MoveTemp(OnPixelDataReady);
 	}
 	else
 	{
-		PendingCaptureCallback = MoveTemp(OnPixelDataReady);
+		// Deferred path - execute in ViewExtension after main viewport renders
+		EnqueueDeferredCapture(MoveTemp(OnPixelDataReady));
 	}
 }
 
@@ -818,6 +827,84 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.Sharpen = 0.0f;
 	// PPSettings.bOverride_FilmGrainIntensity = 1;
 	// PPSettings.FilmGrainIntensity = 0.0f;
+}
+
+void UMovieQualityRenderComponent::EnqueueDeferredCapture(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
+{
+	FScopeLock Lock(&QueueLock);
+
+	FDeferredCaptureRequest Request;
+	Request.OnPixelDataReady = MoveTemp(OnPixelDataReady);
+	Request.EnqueueTime = FPlatformTime::Seconds();
+	Request.FrameNumber = GFrameCounter;
+
+	DeferredCaptureQueue.Enqueue(Request);
+
+	UE_LOG(LogTemp, Verbose, TEXT("MQRC: Enqueued deferred capture (Frame %u)"), Request.FrameNumber);
+}
+
+void UMovieQualityRenderComponent::ProcessDeferredCaptures()
+{
+	if (!bIsInitialized)
+	{
+		return;
+	}
+
+	FScopeLock Lock(&QueueLock);
+
+	// Empty queue check
+	if (DeferredCaptureQueue.IsEmpty())
+	{
+		return;
+	}
+
+	// Cache validation with fallback
+	if (!bHasCachedMainViewPostProcessSettings)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MQRC: Main viewport cache invalid, using default PostProcessSettings"));
+
+		// Fallback: Use default PostProcessSettings
+		CachedMainViewPostProcessSettings = FPostProcessSettings();
+		SetDefaultPostProcessSettings(CachedMainViewPostProcessSettings);
+	}
+
+	// Lumen cache management - clear on first deferred capture
+	if (bFirstDeferredCapture)
+	{
+		ClearLumenCache();
+		bFirstDeferredCapture = false;
+	}
+
+	// Frame counter sync
+	uint32 SavedFrameCounter = FrameCounter;
+	FrameCounter = LastMainViewportFrameNumber;
+
+	// Process all queued captures
+	FDeferredCaptureRequest Request;
+	while (DeferredCaptureQueue.Dequeue(Request))
+	{
+		double Latency = FPlatformTime::Seconds() - Request.EnqueueTime;
+		UE_LOG(LogTemp, Verbose,
+			TEXT("MQRC: Processing deferred capture (Enqueued Frame %u, Latency %.2fms)"),
+			Request.FrameNumber, Latency * 1000.0);
+
+		ExecuteCaptureFrame(MoveTemp(Request.OnPixelDataReady));
+	}
+
+	// Restore frame counter (optional, depends on temporal requirements)
+	// FrameCounter = SavedFrameCounter;
+}
+
+void UMovieQualityRenderComponent::ClearLumenCache()
+{
+	FSceneViewStateInterface* StateRef = ViewState.GetReference();
+	if (StateRef)
+	{
+		// Force Lumen to rebuild caches
+		StateRef->ClearLightingHistory();
+
+		UE_LOG(LogTemp, Log, TEXT("MQRC: Cleared Lumen lighting history for deferred mode"));
+	}
 }
 
 /*
