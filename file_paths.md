@@ -6,6 +6,30 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 
 ## Session Context Files (2026-02-25)
 
+**Session Topic**: Gamma control mechanism analysis - SceneCaptureComponent2D vs MovieRenderPipeline color space handling, sRGB encoding, TextureRenderTarget configuration, and FReadSurfaceDataFlags behavior
+
+### Sensor System (Gamma & Color Space)
+- `Source/UnrealCV/Private/Sensor/CameraSensor/BaseCameraSensor.cpp` - USceneCaptureComponent2D subclass; InitTextureTarget with bForceLinearGamma=false (line 79-87); CaptureSource=SCS_FinalColorLDR (line 36); ReadFlags.SetLinearToGamma(false) in GPU readback (line 427, 949)
+- `Source/UnrealCV/Public/Sensor/CameraSensor/BaseCameraSensor.h` - Async capture pipeline with FQueuedCapture, ECaptureFormat enum, CaptureCache for Fast path
+
+### UE5 Engine References (Gamma & Color Management)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Components\SceneCaptureComponent.h` - USceneCaptureComponent base class with CaptureSource enum
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Components\SceneCaptureComponent.cpp` - SceneCapture view setup and FSceneViewStateReference management
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Components\SceneCaptureComponent2D.h` - USceneCaptureComponent2D class definition
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneView.h` - FSceneView class with color space and gamma processing
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Engine\TextureRenderTarget2D.h` - bForceLinearGamma property (line 127-129); InitCustomFormat method; GetDisplayGamma implementation (line 703-721)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\TextureRenderTarget2D.cpp` - GetDisplayGamma logic: TargetGamma priority → bForceLinearGamma → default 2.2 (line 703-721); InitCustomFormat (line 135-158)
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - SCS_FinalColorLDR rendering path (line 213-216); SetupViewFamilyForSceneCapture
+- `H:\UE_5.6\Engine\Source\Runtime\RHI\Public\RHITypes.h` - FReadSurfaceDataFlags with SetLinearToGamma method (line 15-123); bLinearToGamma default=true
+
+### UE5 Engine References (MovieRenderPipeline - Gamma Control)
+- `H:\UE_5.6\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Private\MoviePipelineSurfaceReader.cpp` - FRHIGPUTextureReadback async GPU readback; SCS_SceneColorHDR linear workflow
+- `H:\UE_5.6\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Private\MoviePipelineImageQuantization.cpp` - GenerateSRGBTable with precise gamma formula; ConvertLinearTosRGB8bpp with dithering
+- `H:\UE_5.6\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Private\MoviePipelineImageSequenceOutput.cpp` - Format-dependent gamma strategy (PNG=sRGB, EXR=linear)
+- `H:\UE_5.6\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Public\MoviePipelineColorSetting.h` - OCIOConfiguration and bDisableToneCurve properties
+
+## Previous Session Files (2026-02-25)
+
 **Session Topic**: UE 5.6 SceneCaptureComponent2D anti-aliasing source code analysis - tracing how TSR/TAA is determined from Project Settings → `r.AntiAliasingMethod` CVar → `FSceneView::SetupAntiAliasingMethod()`
 
 ### Sensor System

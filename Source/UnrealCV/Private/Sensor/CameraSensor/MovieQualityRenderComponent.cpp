@@ -295,6 +295,7 @@ void UMovieQualityRenderComponent::Render()
 		// World->GetTimerManager().SetTimerForNextTick([this]() 
 		// {
 			CaptureDiscardFrame();
+			// ExecuteCaptureFrame([](TUniquePtr<FImagePixelData>&& Input) {});
 		// });
 	}
 }
@@ -400,6 +401,15 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 
 void UMovieQualityRenderComponent::ExecuteCaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
 {
+	// if (NumWarmup > 0)
+	// {
+	// 	for (uint32 N = 0; N < NumWarmup; N += 1)
+	// 	{
+	// 		CaptureDiscardFrame();
+	// 		UE_LOG(LogTemp, Warning, TEXT("CaptureFrame - Warmup"));
+	// 	}
+	// }
+
 	FString PoolKey = FString::Printf(TEXT("RGB_%dx%d_%s"),
 		Resolution.X, Resolution.Y,
 		PixelFormat == PF_FloatRGBA ? TEXT("Float") : TEXT("BGRA8"));
@@ -545,7 +555,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	FSceneView* View = new FSceneView(ViewInitOptions);
 
 	View->State = ViewState.GetReference();
-	View->bIsOfflineRender = true;
+	View->bIsOfflineRender = false;
 	View->AntiAliasingMethod = GlobalSettings.AntiAliasingMethod;
 	// View->bSceneCaptureUsesRayTracing = true;
 	// View->bIsReflectionCapture = true;
@@ -558,10 +568,8 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 
 	SetPostProcessSettings(PostProcessSettings);
 
-	// Step 1: Initialize FinalPostProcessSettings
 	View->StartFinalPostprocessSettings(ViewInitOptions.ViewOrigin);
 
-	// Step 2: Optionally inherit main view post-process settings from cached data
 	if (!bHasCachedMainViewPostProcessSettings)
 	{
 		UE_LOG(LogTemp, Error, TEXT("bHasCachedMainViewPostProcessSettings = false"));
@@ -582,7 +590,6 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 		UE_LOG(LogTemp, Warning, TEXT("Initialize with default settings PostProcessSettings"));
 	}
 
-	// Step 3: Override with our PostProcessSettings using blend weight
 	View->OverridePostProcessSettings(PostProcessSettings, PostProcessBlendWeight);
 
 	View->EndFinalPostprocessSettings(ViewInitOptions);
@@ -643,6 +650,12 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 			);
 		}
 	);
+
+	// FlushRenderingCommands();
+
+	// FReadSurfaceDataFlags ReadSurfaceDataFlags;
+	// ReadSurfaceDataFlags.SetLinearToGamma(false);
+	// RenderTargetResource->ReadPixels(Image, ReadSurfaceDataFlags);
 }
 
 // float UMovieQualityRenderComponent::GetTargetGamma() const
@@ -751,58 +764,55 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.MotionBlurTargetFPS = 24;  // default 30
 	// PPSettings.MotionBlurPerObjectSize = 0.f;
 
-	// PPSettings.bOverride_ColorOffsetMidtones = 1;
-	// PPSettings.ColorOffsetMidtones = Offset;
+	FVector4 Saturation = FVector4(GlobalSettings.Saturation, GlobalSettings.Saturation, GlobalSettings.Saturation, 1.0f);
+	FVector4 Contrast = FVector4(GlobalSettings.Contrast, GlobalSettings.Contrast, GlobalSettings.Contrast, 1.0f);
+	FVector4 Gamma = FVector4(GlobalSettings.Gamma, GlobalSettings.Gamma, GlobalSettings.Gamma, 1.0f);
+	FVector4 Gain = FVector4(GlobalSettings.Gain, GlobalSettings.Gain, GlobalSettings.Gain, 1.0f);
+	FVector4 Offset = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 
-	// FVector4 Saturation = FVector4(GlobalSettings.Saturation, GlobalSettings.Saturation, GlobalSettings.Saturation, 1.0f);
-	// FVector4 Contrast = FVector4(GlobalSettings.Contrast, GlobalSettings.Contrast, GlobalSettings.Contrast, 1.0f);
-	// FVector4 Gamma = FVector4(GlobalSettings.Gamma, GlobalSettings.Gamma, GlobalSettings.Gamma, 1.0f);
-	// FVector4 Gain = FVector4(GlobalSettings.Gain, GlobalSettings.Gain, GlobalSettings.Gain, 1.0f);
-	// FVector4 Offset = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+	PPSettings.bOverride_ColorSaturation = 1;
+	PPSettings.ColorSaturation = Saturation;
+	PPSettings.bOverride_ColorContrast = 1;
+	PPSettings.ColorContrast = Contrast;
+	PPSettings.bOverride_ColorGamma = 1;
+	PPSettings.ColorGamma = Gamma;
+	PPSettings.bOverride_ColorGain = 1;
+	PPSettings.ColorGain = Gain;
+	PPSettings.bOverride_ColorOffset = 1;
+	PPSettings.ColorOffset = Offset;
 
-	// PPSettings.bOverride_ColorSaturation = 1;
-	// PPSettings.ColorSaturation = Saturation;
-	// PPSettings.bOverride_ColorContrast = 1;
-	// PPSettings.ColorContrast = Contrast;
-	// PPSettings.bOverride_ColorGamma = 1;
-	// PPSettings.ColorGamma = Gamma;
-	// PPSettings.bOverride_ColorGain = 1;
-	// PPSettings.ColorGain = Gain;
-	// PPSettings.bOverride_ColorOffset = 1;
-	// PPSettings.ColorOffset = Offset;
+	PPSettings.bOverride_ColorSaturationShadows = 1;
+	PPSettings.ColorSaturationShadows = Saturation;
+	PPSettings.bOverride_ColorContrastShadows = 1;
+	PPSettings.ColorContrastShadows = Contrast;
+	PPSettings.bOverride_ColorGammaShadows = 1;
+	PPSettings.ColorGammaShadows = Gamma;
+	PPSettings.bOverride_ColorGainShadows = 1;
+	PPSettings.ColorGainShadows = Gain;
+	PPSettings.bOverride_ColorOffsetShadows = 1;
+	PPSettings.ColorOffsetShadows = Offset;
 
-	// PPSettings.bOverride_ColorSaturationShadows = 1;
-	// PPSettings.ColorSaturationShadows = Saturation;
-	// PPSettings.bOverride_ColorContrastShadows = 1;
-	// PPSettings.ColorContrastShadows = Contrast;
-	// PPSettings.bOverride_ColorGammaShadows = 1;
-	// PPSettings.ColorGammaShadows = Gamma;
-	// PPSettings.bOverride_ColorGainShadows = 1;
-	// PPSettings.ColorGainShadows = Gain;
-	// PPSettings.bOverride_ColorOffsetShadows = 1;
-	// PPSettings.ColorOffsetShadows = Offset;
+	PPSettings.bOverride_ColorSaturationMidtones = 1;
+	PPSettings.ColorSaturationMidtones = Saturation;
+	PPSettings.bOverride_ColorContrastMidtones = 1;
+	PPSettings.ColorContrastMidtones = Contrast;
+	PPSettings.bOverride_ColorGammaMidtones = 1;
+	PPSettings.ColorGammaMidtones = Gamma;
+	PPSettings.bOverride_ColorGainMidtones = 1;
+	PPSettings.ColorGainMidtones = Gain;
+	PPSettings.bOverride_ColorOffsetMidtones = 1;
+	PPSettings.ColorOffsetMidtones = Offset;
 
-	// PPSettings.bOverride_ColorSaturationMidtones = 1;
-	// PPSettings.ColorSaturationMidtones = Saturation;
-	// PPSettings.bOverride_ColorContrastMidtones = 1;
-	// PPSettings.ColorContrastMidtones = Contrast;
-	// PPSettings.bOverride_ColorGammaMidtones = 1;
-	// PPSettings.ColorGammaMidtones = Gamma;
-	// PPSettings.bOverride_ColorGainMidtones = 1;
-	// PPSettings.ColorGainMidtones = Gain;
-	// PPSettings.bOverride_ColorOffsetMidtones = 1;
-	// PPSettings.ColorOffsetMidtones = Offset;
-
-	// PPSettings.bOverride_ColorSaturationHighlights = 1;
-	// PPSettings.ColorSaturationHighlights = Saturation;
-	// PPSettings.bOverride_ColorContrastHighlights = 1;
-	// PPSettings.ColorContrastHighlights = Contrast;
-	// PPSettings.bOverride_ColorGammaHighlights = 1;
-	// PPSettings.ColorGammaHighlights = Gamma;
-	// PPSettings.bOverride_ColorGainHighlights = 1;
-	// PPSettings.ColorGainHighlights = Gain;
-	// PPSettings.bOverride_ColorOffsetHighlights = 1;
-	// PPSettings.ColorOffsetHighlights = Offset;
+	PPSettings.bOverride_ColorSaturationHighlights = 1;
+	PPSettings.ColorSaturationHighlights = Saturation;
+	PPSettings.bOverride_ColorContrastHighlights = 1;
+	PPSettings.ColorContrastHighlights = Contrast;
+	PPSettings.bOverride_ColorGammaHighlights = 1;
+	PPSettings.ColorGammaHighlights = Gamma;
+	PPSettings.bOverride_ColorGainHighlights = 1;
+	PPSettings.ColorGainHighlights = Gain;
+	PPSettings.bOverride_ColorOffsetHighlights = 1;
+	PPSettings.ColorOffsetHighlights = Offset;
 
 	// PPSettings.bOverride_Sharpen = 1;
 	// PPSettings.Sharpen = 0.0f;

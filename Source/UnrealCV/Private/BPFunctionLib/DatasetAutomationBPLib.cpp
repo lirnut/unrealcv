@@ -515,7 +515,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			TransitionToState(EDatasetGenerationState::Error);
 			return;
 		}
-		Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = true;
+		// Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = true;
 
 		FString PrimaryCameraID = USensorBPLib::GetSensorNewFormatID(Sensor);
 		ActiveCameraPool.Empty();

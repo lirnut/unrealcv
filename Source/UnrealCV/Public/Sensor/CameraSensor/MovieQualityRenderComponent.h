@@ -71,6 +71,9 @@ public:
 	UPROPERTY()
 	bool bRenderEveryFrame = false;
 
+	// UPROPERTY()
+	// uint32 NumWarmup = 5;
+
 	static FMQRCSettings GlobalSettings;
 
 public:
