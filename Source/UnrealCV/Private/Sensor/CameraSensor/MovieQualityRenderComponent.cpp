@@ -42,7 +42,7 @@ public:
 			}
 		}
 
-		Component->Render();
+		// Component->Render();
 	}
 
 	virtual int32 GetPriority() const override { return -100; }
@@ -266,6 +266,7 @@ void UMovieQualityRenderComponent::Shutdown()
 void UMovieQualityRenderComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	Render();
 }
 
 void UMovieQualityRenderComponent::Render()
@@ -287,6 +288,7 @@ void UMovieQualityRenderComponent::Render()
 		// });
 
 	}
+	// else if (GlobalSettings.bRenderEveryFrame)
 	else if (bRenderEveryFrame)
 	{
 		// AsyncTask(ENamedThreads::GameThread, [this]()
@@ -554,7 +556,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	View->OverrideFrameIndexValue = FrameCounter++;
 	// View->bAllowTemporalJitter = false;
 
-	SetDefaultPostProcessSettings(PostProcessSettings);
+	SetPostProcessSettings(PostProcessSettings);
 
 	// Step 1: Initialize FinalPostProcessSettings
 	View->StartFinalPostprocessSettings(ViewInitOptions.ViewOrigin);
@@ -564,10 +566,12 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	{
 		UE_LOG(LogTemp, Error, TEXT("bHasCachedMainViewPostProcessSettings = false"));
 	}
-	if (bInheritMainViewPostProcessSettings && bHasCachedMainViewPostProcessSettings)
+
+	if (bHasCachedMainViewPostProcessSettings)
 	{
 		// Use the cached main viewport's PostProcessSettings
 		View->FinalPostProcessSettings = CachedMainViewPostProcessSettings;
+		UE_LOG(LogTemp, Warning, TEXT("Use the cached main viewport's PostProcessSettings"));
 	}
 	else
 	{
@@ -575,6 +579,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 		View->FinalPostProcessSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::None;
 		View->FinalPostProcessSettings.ReflectionMethod = EReflectionMethod::None;
 		View->FinalPostProcessSettings.LumenSurfaceCacheResolution = 0.5f;
+		UE_LOG(LogTemp, Warning, TEXT("Initialize with default settings PostProcessSettings"));
 	}
 
 	// Step 3: Override with our PostProcessSettings using blend weight

@@ -13,6 +13,7 @@ UMovieQualityLitCamSensor::UMovieQualityLitCamSensor()
 {
 	SetComponentTickEnabled(false);
 	bRenderEveryFrame = false;
+	// GlobalSettings.bRenderEveryFrame = false;
 
 	CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
 

@@ -21,6 +21,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Dom/JsonObject.h"
 #include "JsonConfigHelper.h"
+#include "MovieQualityRenderComponent.h"
 
 FAutomationConfig UDatasetAutomationBPLib::CurrentConfig;
 FAutomationStatus UDatasetAutomationBPLib::CurrentStatus;
@@ -514,6 +515,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			TransitionToState(EDatasetGenerationState::Error);
 			return;
 		}
+		Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = true;
 
 		FString PrimaryCameraID = USensorBPLib::GetSensorNewFormatID(Sensor);
 		ActiveCameraPool.Empty();

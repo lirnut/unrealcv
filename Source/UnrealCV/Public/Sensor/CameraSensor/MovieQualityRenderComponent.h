@@ -68,6 +68,9 @@ class UNREALCV_API UMovieQualityRenderComponent : public USceneComponent
 	GENERATED_BODY()
 
 public:
+	UPROPERTY()
+	bool bRenderEveryFrame = false;
+
 	static FMQRCSettings GlobalSettings;
 
 public:
@@ -110,17 +113,11 @@ public:
 	void SetShowOnlyComponents(const TArray<TWeakObjectPtr<UPrimitiveComponent>>& InComponents);
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lumen")
-	bool bRenderEveryFrame = true;
-
 	UPROPERTY(interp, Category = "PostProcess", meta = (ShowOnlyInnerProperties))
 	FPostProcessSettings PostProcessSettings;
 
 	UPROPERTY(interp, Category = "PostProcess", BlueprintReadWrite, meta = (UIMin = "0.0", UIMax = "1.0"))
 	float PostProcessBlendWeight = 1.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess")
-	bool bInheritMainViewPostProcessSettings = true;
 
 	void CaptureDiscardFrame();
 
