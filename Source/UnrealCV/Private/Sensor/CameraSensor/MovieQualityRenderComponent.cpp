@@ -474,7 +474,7 @@ TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFami
 	ViewFamily->bWorldIsPaused = false;
 	ViewFamily->ViewMode = VMI_Lit;
 	ViewFamily->bOverrideVirtualTextureThrottle = true;
-	ViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(*ViewFamily, 1.0f));
+	ViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(*ViewFamily, GlobalSettings.ScreenPercentage));
 
 	return ViewFamily;
 }
@@ -515,6 +515,13 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	View->State = ViewState.GetReference();
 	View->bIsOfflineRender = true;
 	View->AntiAliasingMethod = GlobalSettings.AntiAliasingMethod;
+	auto SPM = GlobalSettings.PrimaryScreenPercentageMethod;
+	if (GlobalSettings.AntiAliasingMethod == EAntiAliasingMethod::AAM_FXAA)
+	{
+		SPM = EPrimaryScreenPercentageMethod::SpatialUpscale;
+		UE_LOG(LogTemp, Warning, TEXT("FXAA force use SpatialUpscale"));
+	}
+	View->PrimaryScreenPercentageMethod = SPM;
 	// View->bSceneCaptureUsesRayTracing = true;
 	// View->bIsReflectionCapture = true;
 	// View->bIsSceneCapture = false;
@@ -660,8 +667,8 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
     PPSettings.bOverride_DynamicGlobalIlluminationMethod = 1;
     PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::Lumen;
     // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::ScreenSpace;
-	// PPSettings.bOverride_LumenRayLightingMode = 1;
-	// PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
+	PPSettings.bOverride_LumenRayLightingMode = 1;
+	PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLightingForReflections;
 	PPSettings.bOverride_LumenSceneLightingQuality = 1;
 	PPSettings.LumenSceneLightingQuality = GlobalSettings.LumenSceneLightingQuality;
 	PPSettings.bOverride_LumenSceneDetail = 1;

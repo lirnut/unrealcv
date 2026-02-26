@@ -43,6 +43,12 @@ public:
 	FExecStatus GetDepthOfFieldScale(const TArray<FString>& Args);
 	FExecStatus SetDepthOfFieldScale(const TArray<FString>& Args);
 
+	FExecStatus GetScreenPercentage(const TArray<FString>& Args);
+	FExecStatus SetScreenPercentage(const TArray<FString>& Args);
+
+	FExecStatus GetScreenPercentageMethod(const TArray<FString>& Args);
+	FExecStatus SetScreenPercentageMethod(const TArray<FString>& Args);
+
 	// FExecStatus GetRenderImmediately(const TArray<FString>& Args);
 	// FExecStatus SetRenderImmediately(const TArray<FString>& Args);
 };

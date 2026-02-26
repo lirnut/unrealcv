@@ -47,6 +47,8 @@ struct FMQRCSettings
 	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
 	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_MSAA;
 
+	EPrimaryScreenPercentageMethod PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;
+
 	// UPROPERTY()
 	EAutoExposureMethod ExposureMethod = EAutoExposureMethod::AEM_Histogram;
 
@@ -82,6 +84,9 @@ struct FMQRCSettings
 
 	UPROPERTY()
 	float DepthOfFieldScale = 0.0f;
+
+	UPROPERTY()
+	float ScreenPercentage = 1.5f;
 };
 
 UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))

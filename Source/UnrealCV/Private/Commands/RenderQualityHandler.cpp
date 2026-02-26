@@ -148,6 +148,30 @@ void FMQRCHandler::RegisterCommands()
 		TEXT("Set depth of field scale")
 	);
 
+	CommandDispatcher->BindCommand(
+		TEXT("vget /mqrc/screen_percentage"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::GetScreenPercentage),
+		TEXT("Get screen percentage (1.0 = 100%)")
+	);
+
+	CommandDispatcher->BindCommand(
+		TEXT("vset /mqrc/screen_percentage [float]"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::SetScreenPercentage),
+		TEXT("Set screen percentage (1.0 = 100%, 1.5 = 150% supersampling)")
+	);
+
+	CommandDispatcher->BindCommand(
+		TEXT("vget /mqrc/screen_percentage_method"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::GetScreenPercentageMethod),
+		TEXT("Get primary screen percentage method")
+	);
+
+	CommandDispatcher->BindCommand(
+		TEXT("vset /mqrc/screen_percentage_method [str]"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::SetScreenPercentageMethod),
+		TEXT("Set primary screen percentage method: spatial, temporal, raw")
+	);
+
 	// CommandDispatcher->BindCommand(
 	// 	TEXT("vget /mqrc/render_immediately"),
 	// 	FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::GetRenderImmediately),
@@ -462,6 +486,84 @@ FExecStatus FMQRCHandler::SetDepthOfFieldScale(const TArray<FString>& Args)
 	float Value = FCString::Atof(*Args[0]);
 	UMovieQualityRenderComponent::GlobalSettings.DepthOfFieldScale = Value;
 	return FExecStatus::OK();
+}
+
+FExecStatus FMQRCHandler::GetScreenPercentage(const TArray<FString>& Args)
+{
+	float Value = UMovieQualityRenderComponent::GlobalSettings.ScreenPercentage;
+	return FExecStatus::OK(FString::Printf(TEXT("%f"), Value));
+}
+
+FExecStatus FMQRCHandler::SetScreenPercentage(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		return FExecStatus::GetInvalidArgument();
+	}
+
+	float Value = FCString::Atof(*Args[0]);
+	if (Value <= 0.0f)
+	{
+		return FExecStatus::Error(TEXT("Screen percentage must be greater than 0"));
+	}
+
+	UMovieQualityRenderComponent::GlobalSettings.ScreenPercentage = Value;
+	return FExecStatus::OK();
+}
+
+FExecStatus FMQRCHandler::GetScreenPercentageMethod(const TArray<FString>& Args)
+{
+	const EPrimaryScreenPercentageMethod Method = UMovieQualityRenderComponent::GlobalSettings.PrimaryScreenPercentageMethod;
+
+	FString MethodName;
+	switch (Method)
+	{
+		case EPrimaryScreenPercentageMethod::SpatialUpscale:
+			MethodName = TEXT("spatial");
+			break;
+		case EPrimaryScreenPercentageMethod::TemporalUpscale:
+			MethodName = TEXT("temporal");
+			break;
+		case EPrimaryScreenPercentageMethod::RawOutput:
+			MethodName = TEXT("raw");
+			break;
+		default:
+			MethodName = TEXT("unknown");
+			break;
+	}
+
+	return FExecStatus::OK(MethodName);
+}
+
+FExecStatus FMQRCHandler::SetScreenPercentageMethod(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		return FExecStatus::GetInvalidArgument();
+	}
+
+	FString MethodStr = Args[0].ToLower();
+
+	if (MethodStr == TEXT("spatial"))
+	{
+		UMovieQualityRenderComponent::GlobalSettings.PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::SpatialUpscale;
+		return FExecStatus::OK();
+	}
+	else if (MethodStr == TEXT("temporal"))
+	{
+		UMovieQualityRenderComponent::GlobalSettings.PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;
+		return FExecStatus::OK();
+	}
+	else if (MethodStr == TEXT("raw"))
+	{
+		UMovieQualityRenderComponent::GlobalSettings.PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::RawOutput;
+		return FExecStatus::OK();
+	}
+	else
+	{
+		FString ErrorMsg = FString::Printf(TEXT("Can not support screen percentage method %s, available options are spatial, temporal, raw"), *MethodStr);
+		return FExecStatus::Error(ErrorMsg);
+	}
 }
 
 // FExecStatus FMQRCHandler::GetRenderImmediately(const TArray<FString>& Args)
