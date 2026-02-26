@@ -8,10 +8,9 @@
 #include "RHIResources.h"
 #include "SceneView.h"
 #include "SceneViewExtension.h"
-#include "MovieRenderPipelineDataTypes.h"
+#include "Sensor/CameraSensor/UnrealCVSurfaceReader.h"
 #include "MovieQualityRenderComponent.generated.h"
 
-struct FMoviePipelineSurfaceQueue;
 class FUnrealCVImageWriteQueue;
 class UFusionCamSensor;
 
@@ -210,7 +209,7 @@ protected:
 	float ForceTargetGamma;
 	uint32 FrameCounter;
 
-	TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> SurfaceQueue;
+	TSharedPtr<FUnrealCVSurfaceQueue, ESPMode::ThreadSafe> SurfaceQueue;
 	FSceneViewStateReference ViewState;
 	TSharedPtr<FUnrealCVImageWriteQueue> ImageWriteQueue;
 

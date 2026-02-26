@@ -13,7 +13,8 @@
 #include "LegacyScreenPercentageDriver.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
-#include "MoviePipelineSurfaceReader.h"
+#include "Sensor/CameraSensor/UnrealCVSurfaceReader.h"
+#include "MovieRenderPipelineDataTypes.h"
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
 
@@ -172,7 +173,7 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		UE_LOG(LogTemp, Warning, TEXT("8"));
 	}
 	UE_LOG(LogTemp, Warning, TEXT("5"));
-	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe>(
+	SurfaceQueue = MakeShared<FUnrealCVSurfaceQueue, ESPMode::ThreadSafe>(
 		Resolution,
 		PixelFormat,
 		10,
