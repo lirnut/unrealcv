@@ -133,6 +133,18 @@ void AFusionCamCaptureActor::StopRecord()
 {
 	if (bIsRecording)
 	{
+
+		if (bUseMovieQualityRendering && IsValid(TargetSensor))
+		{
+			auto* Renderer = TargetSensor->GetMovieQualityRenderer();
+			if (Renderer && Renderer->IsInitialized())
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("Flushing pending GPU readback frames..."));
+				Renderer->FlushPendingFrames();
+				UE_LOG(LogUnrealCV, Log, TEXT("GPU readback flush completed"));
+			}
+		}
+
 		if (IsValid(TargetSensor))
 		{
 			bool LocationManaged = false;
@@ -199,16 +211,7 @@ void AFusionCamCaptureActor::StopRecord()
 		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded. Real Duration: %.2fs, Real FPS: %.2f"),
 			ElapsedSteps, RealWorldTimeDurationSeconds, RealWorldTimeFPS);
 
-		if (bUseMovieQualityRendering && IsValid(TargetSensor))
-		{
-			auto* Renderer = TargetSensor->GetMovieQualityRenderer();
-			if (Renderer && Renderer->IsInitialized())
-			{
-				UE_LOG(LogUnrealCV, Log, TEXT("Flushing pending GPU readback frames..."));
-				Renderer->FlushPendingFrames();
-				UE_LOG(LogUnrealCV, Log, TEXT("GPU readback flush completed"));
-			}
-		}
+
 
 // #if PLATFORM_WINDOWS
 // 		if (MP4Encoder && MP4Encoder->IsInitialized())
@@ -325,9 +328,10 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	if (FMath::IsNearlyZero(EffectiveTimeDilation))
 	{
 		WorldSettings->SetTimeDilation(0.0f);
+		// TargetSensor->GetMovieQualityRenderer()->bRenderImmediately = true;
 
-		// while (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
-		// 	   FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
+		while (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
+			   FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
 		{
 			if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 			{
@@ -342,6 +346,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 
 			bool bWarmUp = ( WarmUpElapsedFrames < WarmUpFrames );
 			RecordFrame(bWarmUp);
+			FlushRenderingCommands();
 			if (bWarmUp)
 			{
 				WarmUpElapsedFrames++;
@@ -353,17 +358,23 @@ void AFusionCamCaptureActor::OnTimerRecord()
 			}
 		}
 
-		if (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
-		 	 FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
-		{
-			AsyncTask(ENamedThreads::GameThread, [this]()
-			{
-				OnTimerRecord();
-			});
-		}
+		// if (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
+		//  	 FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
+		// {
+
+		// 	// UWorld* World = FUnrealcvServer::Get().GetGameWorld();
+		// 	// World->GetTimerManager().SetTimerForNextTick([this]() {
+		// 	// 	OnTimerRecord();
+		// 	// });
+		// 	AsyncTask(ENamedThreads::GameThread, [this]()
+		// 	{
+		// 		OnTimerRecord();
+		// 	});
+		// }
 	}
 	else
 	{
+		// TargetSensor->GetMovieQualityRenderer()->bRenderImmediately = false;
 		if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 		{
 			MoveTo(
@@ -1579,9 +1590,16 @@ FVector AFusionCamCaptureActor::GetTargetLocationWithOffset(AActor* Target)
 		UE_LOG(LogUnrealCV, Error, TEXT("GetTargetLocationWithOffset: Target actor is invalid"));
 		return FVector::ZeroVector;
 	}
-
 	FVector TargetLocation = Target->GetActorLocation();
-	TargetLocation.Z += TargetHeightOffset;
+	FBox ActorBounds = Target->GetComponentsBoundingBox();
+	if (ActorBounds.IsValid)
+	{
+		TargetLocation.Z = ActorBounds.Min.Z + (ActorBounds.Max.Z - ActorBounds.Min.Z) * 0.86;
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("!ActorBounds.IsValid"));
+	}
 	return TargetLocation;
 }
 

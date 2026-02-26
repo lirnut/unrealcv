@@ -42,11 +42,11 @@ struct FMQRCSettings
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	bool bRenderImmediately = false;
-
 	// UPROPERTY()
-	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
+	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;
+	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
+	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
+	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_MSAA;
 
 	// UPROPERTY()
 	EAutoExposureMethod ExposureMethod = EAutoExposureMethod::AEM_Histogram;
@@ -96,8 +96,11 @@ public:
 	UPROPERTY()
 	bool bRenderEveryFrame = false;
 
-	// UPROPERTY()
-	// uint32 NumWarmup = 5;
+	UPROPERTY()
+	int32 NumWarmup = 0;
+
+	UPROPERTY()
+	bool bRenderImmediately = true;
 
 	static FMQRCSettings GlobalSettings;
 
@@ -153,6 +156,9 @@ public:
 
 	uint32 LastMainViewportFrameNumber = 0;
 
+
+	void ProcessDeferredCaptures();
+
 protected:
 	// Deferred capture system
 	struct FDeferredCaptureRequest
@@ -160,14 +166,14 @@ protected:
 		TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady;
 		double EnqueueTime;
 		uint32 FrameNumber;
+		bool bIsDiscardFrame;
 	};
 
 	TQueue<FDeferredCaptureRequest, EQueueMode::Spsc> DeferredCaptureQueue;
 	FCriticalSection QueueLock;
 	bool bFirstDeferredCapture = true;
 
-	void EnqueueDeferredCapture(TFunction<void(TUniquePtr<FImagePixelData>&&)> Callback);
-	void ProcessDeferredCaptures();
+	void EnqueueDeferredCapture(TFunction<void(TUniquePtr<FImagePixelData>&&)> Callback, bool bIsDiscardFrame);
 	void ResetAllTemporalState();
 	UPROPERTY()
 	TEnumAsByte<ESceneCaptureSource> CaptureSource;

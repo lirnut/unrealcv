@@ -56,7 +56,7 @@ static float GetForegroundActorTopZ()
 	FBox ActorBounds = UDatasetAutomationBPLib::CurrentScene.ForegroundActor->GetComponentsBoundingBox();
 	if (ActorBounds.IsValid)
 	{
-		return ActorBounds.Max.Z;
+		return ActorBounds.Min.Z + (ActorBounds.Max.Z - ActorBounds.Min.Z) * 0.86;
 	}
 	UE_LOG(LogUnrealCV, Error, TEXT("!ActorBounds.IsValid"));
 	return 170.0f;
@@ -80,12 +80,14 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.NumFrames = 121;
 		CurrentConfig.TrajectoryFPS = 30;
  		CurrentConfig.ForegroundMoveSpeed = 0.0f;
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /mqrc/render_immediately true")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.5")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("250 400")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
@@ -150,14 +152,13 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.TrajectoryFPS = 30;
  		CurrentConfig.ForegroundMoveSpeed = 70.0f;
 		CurrentConfig.ForegroundMoveAngleOffset = 90.0f;
-		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.35")));
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.65")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("120 155")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-60 60")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("75 100")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
-		// CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Script/Engine.AnimBlueprint'/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement'")));
-		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C")));
+		// CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_Run.ABP_Run_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_groom")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
@@ -166,12 +167,12 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		if(FMath::RandRange(0.0f, 100.0f) < 50.0f)
 		{
 			CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1080x1920")));
-			CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
+			CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("50 60")));
 		}
 		else
 		{
 			CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
-			CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("60 80")));
+			CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("70 80")));
 		}
 		
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("125 175")));
@@ -517,7 +518,8 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			TransitionToState(EDatasetGenerationState::Error);
 			return;
 		}
-		Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = true;
+		// Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = true;
+		Sensor->GetMovieQualityRenderer()->NumWarmup = 4;
 
 		FString PrimaryCameraID = USensorBPLib::GetSensorNewFormatID(Sensor);
 		ActiveCameraPool.Empty();

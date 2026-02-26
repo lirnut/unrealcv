@@ -42,4 +42,7 @@ public:
 
 	FExecStatus GetDepthOfFieldScale(const TArray<FString>& Args);
 	FExecStatus SetDepthOfFieldScale(const TArray<FString>& Args);
+
+	// FExecStatus GetRenderImmediately(const TArray<FString>& Args);
+	// FExecStatus SetRenderImmediately(const TArray<FString>& Args);
 };

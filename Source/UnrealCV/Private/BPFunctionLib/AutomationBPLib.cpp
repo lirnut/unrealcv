@@ -75,7 +75,7 @@ void UAutomationBPLib::StartTicking()
 
 	PushCommand(TEXT("r.Shadow.Denoiser 1"));
 
-	PushCommand(TEXT("r.AntiAliasingMethod 2"));  // TAA
+	// PushCommand(TEXT("r.AntiAliasingMethod 2"));  // TAA
 	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.12"));
 	PushCommand(TEXT("r.TemporalAA.Quality 3"));
 	PushCommand(TEXT("r.TemporalAAPauseCorrect 1"));
@@ -90,6 +90,7 @@ void UAutomationBPLib::StartTicking()
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.RejectBasedOnNormal 1"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.HairStrands.ScreenTrace 1"));
 // #endif
+	PushCommand(TEXT("r.NGX.Automation.NonGameViews 1"));
 }
 
 void UAutomationBPLib::StopTicking()

@@ -256,7 +256,7 @@ void UMovieQualityRenderComponent::TickComponent(float DeltaTime, ELevelTick Tic
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	if (bRenderEveryFrame && DeferredCaptureQueue.IsEmpty())
 	{
-		EnqueueDeferredCapture([](TUniquePtr<FImagePixelData>&& Input) {});
+		EnqueueDeferredCapture([](TUniquePtr<FImagePixelData>&& Input) {}, true);
 	}
 }
 
@@ -337,27 +337,35 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 		return;
 	}
 
-	if (GlobalSettings.bRenderImmediately)
+	if (NumWarmup > 0)
+	{
+		CaptureDiscardFrame();
+		UE_LOG(LogTemp, Warning, TEXT("CaptureFrame - Warmup"));
+	}
+
+	if (bRenderImmediately)
 	{
 		ExecuteCaptureFrame(OnPixelDataReady);
 	}
 	else
 	{
 		// Deferred path - execute in ViewExtension after main viewport renders
-		EnqueueDeferredCapture(MoveTemp(OnPixelDataReady));
+		EnqueueDeferredCapture(MoveTemp(OnPixelDataReady), false);
 	}
 }
 
 void UMovieQualityRenderComponent::ExecuteCaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
 {
-	// if (NumWarmup > 0)
-	// {
-	// 	for (uint32 N = 0; N < NumWarmup; N += 1)
-	// 	{
-	// 		CaptureDiscardFrame();
-	// 		UE_LOG(LogTemp, Warning, TEXT("CaptureFrame - Warmup"));
-	// 	}
-	// }
+
+	// ResetAllTemporalState();
+	if (NumWarmup - 1 > 0)
+	{
+		for (int32 N = 0; N < NumWarmup - 1; N += 1)
+		{
+			CaptureDiscardFrame();
+			UE_LOG(LogTemp, Warning, TEXT("CaptureFrame - Warmup"));
+		}
+	}
 
 	FString PoolKey = FString::Printf(TEXT("RGB_%dx%d_%s"),
 		Resolution.X, Resolution.Y,
@@ -504,7 +512,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	FSceneView* View = new FSceneView(ViewInitOptions);
 
 	View->State = ViewState.GetReference();
-	View->bIsOfflineRender = false;
+	View->bIsOfflineRender = true;
 	View->AntiAliasingMethod = GlobalSettings.AntiAliasingMethod;
 	// View->bSceneCaptureUsesRayTracing = true;
 	// View->bIsReflectionCapture = true;
@@ -600,11 +608,29 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 		}
 	);
 
-	// FlushRenderingCommands();
-
-	// FReadSurfaceDataFlags ReadSurfaceDataFlags;
+	FlushRenderingCommands();
+	// TArray<FColor> Image;
+	// FReadSurfaceDataFlags ReadSurfaceDataFlags(RCM_MinMax);
 	// ReadSurfaceDataFlags.SetLinearToGamma(false);
 	// RenderTargetResource->ReadPixels(Image, ReadSurfaceDataFlags);
+
+	// int32 Width = RenderTarget->SizeX;
+	// int32 Height = RenderTarget->SizeY;
+	// int32 ExpectedSize = Width * Height;
+
+	// if (Image.Num() != ExpectedSize)
+	// {
+	// 	UE_LOG(LogUnrealCV, Error, TEXT("ReadPixels failed: expected %d pixels (%dx%d), got %d"),
+	// 		ExpectedSize, Width, Height, Image.Num());
+	// 	return;
+	// }
+
+	// TUniquePtr<FImagePixelData> ImageData = MakeUnique<TImagePixelData<FColor>>(
+	// 	FIntPoint(Width, Height),
+	// 	TArray64<FColor>(MoveTemp(Image))
+	// );
+
+	// OnPixelDataReady(MoveTemp(ImageData));
 }
 
 // float UMovieQualityRenderComponent::GetTargetGamma() const
@@ -667,11 +693,11 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// https://www.reddit.com/r/UnrealEngine5/comments/182y8br/lumen_ghosting_on_moving_objects_please_help/
 	// https://forums.unrealengine.com/t/desperate-for-a-definitve-answer-on-lumen-ghosting-issue/661853
 	// https://dev.epicgames.com/community/learning/tutorials/mjo7/unreal-engine-temporal-quality-guide
-	PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
-	PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
-	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
-	PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
+	// PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
+	// PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
+	// PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
+	// PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
+	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
 	// PPSettings.LumenFinalGatherScreenTraces = 0;
 	// PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;
 	// PPSettings.AmbientOcclusionTemporalBlendWeight = 0.0f;
@@ -694,9 +720,11 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
   	PPSettings.bOverride_DepthOfFieldScale = true;
   	PPSettings.DepthOfFieldScale = GlobalSettings.DepthOfFieldScale;
   	// PPSettings.bOverride_DepthOfFieldFstop = true;
-  	// PPSettings.DepthOfFieldFstop = 2.0f;
+  	// PPSettings.DepthOfFieldFstop = 8.0f;
+	// PPSettings.bOverride_DepthOfFieldSensorWidth = true;
+	// PPSettings.DepthOfFieldSensorWidth = 35.0f;
     // PPSettings.bOverride_DepthOfFieldFocalDistance = true;
-    // PPSettings.DepthOfFieldFocalDistance = 75.0f;
+    // PPSettings.DepthOfFieldFocalDistance = 100.0f;
     // PPSettings.bOverride_DepthOfFieldFocalRegion = true;
     // PPSettings.DepthOfFieldFocalRegion = 2000.0f;
 
@@ -769,7 +797,7 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.FilmGrainIntensity = 0.0f;
 }
 
-void UMovieQualityRenderComponent::EnqueueDeferredCapture(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
+void UMovieQualityRenderComponent::EnqueueDeferredCapture(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady, bool bIsDiscardFrame)
 {
 	FScopeLock Lock(&QueueLock);
 
@@ -777,6 +805,7 @@ void UMovieQualityRenderComponent::EnqueueDeferredCapture(TFunction<void(TUnique
 	Request.OnPixelDataReady = MoveTemp(OnPixelDataReady);
 	Request.EnqueueTime = FPlatformTime::Seconds();
 	Request.FrameNumber = GFrameCounter;
+	Request.bIsDiscardFrame = bIsDiscardFrame;
 
 	DeferredCaptureQueue.Enqueue(Request);
 
@@ -818,7 +847,14 @@ void UMovieQualityRenderComponent::ProcessDeferredCaptures()
 			TEXT("MQRC: Processing deferred capture (Enqueued Frame %u, Latency %.2fms)"),
 			Request.FrameNumber, Latency * 1000.0);
 
-		ExecuteCaptureFrame(MoveTemp(Request.OnPixelDataReady));
+		if (Request.bIsDiscardFrame)
+		{
+			CaptureDiscardFrame();
+		}
+		else
+		{
+			ExecuteCaptureFrame(MoveTemp(Request.OnPixelDataReady));
+		}
 	}
 
 	// Restore frame counter (optional, depends on temporal requirements)
