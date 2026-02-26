@@ -36,8 +36,8 @@ TArray<FCompletedCommand> UDatasetAutomationBPLib::CommandHistory;
 int32 UDatasetAutomationBPLib::CurrentCommandIndex = -1;
 int32 UDatasetAutomationBPLib::CurrentSceneCounter = 0;
 FString UDatasetAutomationBPLib::CurrentSceneID = TEXT("");
-// FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
-FString UDatasetAutomationBPLib::TaskName = TEXT("Matting");
+FString UDatasetAutomationBPLib::TaskName = TEXT("Trajectory");
+// FString UDatasetAutomationBPLib::TaskName = TEXT("Matting");
 // FString UDatasetAutomationBPLib::TaskName = TEXT("SpeedTest");
 double UDatasetAutomationBPLib::DelayStartTime = 0.0;
 double UDatasetAutomationBPLib::DelayDuration = 0.0;
@@ -465,6 +465,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 
 		FVector CameraToTarget = (TargetLocation - PrimaryCam->GetSensorLocation()).GetSafeNormal();
 		FRotator TargetRotation = CameraToTarget.Rotation();
+		TargetRotation.Roll = 0.0f;
 		PrimaryCam->SetSensorRotation(TargetRotation);
 
 		UE_LOG(LogUnrealCV, Log, TEXT("aim_camera_at_foreground: Aiming at top Z=%.1f (bounds-based)"),
@@ -477,9 +478,11 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
 		if (Args.Num() >= 3)
 		{
-			float PitchRange = FCString::Atof(*Args[0]);
-			float YawRange = FCString::Atof(*Args[1]);
-			float RollRange = FCString::Atof(*Args[2]);
+			
+			
+			float RollRange = FCString::Atof(*Args[0]);
+			float PitchRange = FCString::Atof(*Args[1]);
+			float YawRange = FCString::Atof(*Args[2]);
 
 			int32 PrimaryCameraID = CurrentConfig.SceneParams.CameraID;
 			UFusionCamSensor* PrimaryCam = USensorBPLib::GetSensorById(PrimaryCameraID);

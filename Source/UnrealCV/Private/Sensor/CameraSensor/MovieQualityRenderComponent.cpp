@@ -609,7 +609,7 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 		}
 	);
 
-	FlushRenderingCommands();
+	// FlushRenderingCommands();
 	// TArray<FColor> Image;
 	// FReadSurfaceDataFlags ReadSurfaceDataFlags(RCM_MinMax);
 	// ReadSurfaceDataFlags.SetLinearToGamma(false);

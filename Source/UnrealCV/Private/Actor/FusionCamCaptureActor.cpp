@@ -330,8 +330,8 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		WorldSettings->SetTimeDilation(0.0f);
 		// TargetSensor->GetMovieQualityRenderer()->bRenderImmediately = true;
 
-		while (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
-			   FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
+		// while (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
+		// 	   FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
 		{
 			if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 			{
@@ -358,19 +358,25 @@ void AFusionCamCaptureActor::OnTimerRecord()
 			}
 		}
 
-		// if (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
-		//  	 FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
-		// {
+		if (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
+		 	 FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
+		{
 
-		// 	// UWorld* World = FUnrealcvServer::Get().GetGameWorld();
-		// 	// World->GetTimerManager().SetTimerForNextTick([this]() {
-		// 	// 	OnTimerRecord();
-		// 	// });
-		// 	AsyncTask(ENamedThreads::GameThread, [this]()
-		// 	{
-		// 		OnTimerRecord();
-		// 	});
-		// }
+			UWorld* World = FUnrealcvServer::Get().GetGameWorld();
+			World->GetTimerManager().SetTimerForNextTick([this]() {
+				UWorld* World = FUnrealcvServer::Get().GetGameWorld();
+				World->GetTimerManager().SetTimerForNextTick([this]() {
+					UWorld* World = FUnrealcvServer::Get().GetGameWorld();
+					World->GetTimerManager().SetTimerForNextTick([this]() {
+						OnTimerRecord();
+					});
+				});
+			});
+			// AsyncTask(ENamedThreads::GameThread, [this]()
+			// {
+			// 	OnTimerRecord();
+			// });
+		}
 	}
 	else
 	{
@@ -399,7 +405,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		}
 	}
 
-	if (CurrentTrajectoryIndex < CurrentTrajectory.Num())
+	if (CurrentTrajectoryIndex < CurrentTrajectory.Num() && !FMath::IsNearlyZero(EffectiveTimeDilation))
 	{
 		EffectiveTimeDilation = TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation;
 		if (FMath::Abs(EffectiveTimeDilation - WorldSettings->TimeDilation) < 0.05f)

@@ -99,7 +99,7 @@ public:
 	int32 NumWarmup = 0;
 
 	UPROPERTY()
-	bool bRenderImmediately = true;
+	bool bRenderImmediately = false;
 
 	static FMQRCSettings GlobalSettings;
 

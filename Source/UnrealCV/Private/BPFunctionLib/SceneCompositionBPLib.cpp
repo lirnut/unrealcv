@@ -892,7 +892,7 @@ bool USceneCompositionBPLib::GenerateRandomScene(
 		// CameraPosition.Z = LandHeight + CameraHeight;
 
 		FRotator CameraRotation = (NewPosition - CameraPosition).Rotation();
-
+		CameraRotation.Roll = 0.0f;
 		Camera->SetSensorLocation(CameraPosition);
 		Camera->SetSensorRotation(CameraRotation);
 	}
@@ -1549,11 +1549,11 @@ bool USceneCompositionBPLib::PositionCameraToViewTarget(
 
 	// Calculate rotation to look at target
 	FRotator CameraRotation = (TargetPosition - CameraPosition).Rotation();
+	CameraRotation.Roll = 0.0f;
 
 	// Set camera transform
 	Camera->SetWorldLocation(CameraPosition);
 	Camera->SetWorldRotation(CameraRotation);
-
 	return true;
 }
 
