@@ -45,6 +45,23 @@ FGenericTickableObject* UDatasetAutomationBPLib::TickableObject = nullptr;
 
 TArray<FAutomationStep> UDatasetAutomationBPLib::ExternalCommandQueue;
 
+static float GetForegroundActorTopZ()
+{
+	if (!IsValid(UDatasetAutomationBPLib::CurrentScene.ForegroundActor))
+	{
+		return 170.0f;
+		UE_LOG(LogUnrealCV, Error, TEXT("!IsValid(UDatasetAutomationBPLib::CurrentScene.ForegroundActor"));
+	}
+
+	FBox ActorBounds = UDatasetAutomationBPLib::CurrentScene.ForegroundActor->GetComponentsBoundingBox();
+	if (ActorBounds.IsValid)
+	{
+		return ActorBounds.Max.Z;
+	}
+	UE_LOG(LogUnrealCV, Error, TEXT("!ActorBounds.IsValid"));
+	return 170.0f;
+}
+
 void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 {
 	CommandQueue.Empty();
@@ -451,14 +468,14 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			}
 
 			FVector TargetLocation = CurrentScene.ForegroundActor->GetActorLocation();
-			TargetLocation.Z += CurrentStatus.RandomTargetHeight;
+			TargetLocation.Z = GetForegroundActorTopZ();
 
 			FVector CameraToTarget = (TargetLocation - PrimaryCam->GetSensorLocation()).GetSafeNormal();
 			FRotator TargetRotation = CameraToTarget.Rotation();
 			PrimaryCam->SetSensorRotation(TargetRotation);
 
-			UE_LOG(LogUnrealCV, Log, TEXT("aim_camera_at_foreground: Height range [%.1f, %.1f], chosen %.1f"),
-				MinHeight, MaxHeight, CurrentStatus.RandomTargetHeight);
+			UE_LOG(LogUnrealCV, Log, TEXT("aim_camera_at_foreground: Aiming at top Z=%.1f (bounds-based)"),
+				TargetLocation.Z);
 		}
 		else
 		{
