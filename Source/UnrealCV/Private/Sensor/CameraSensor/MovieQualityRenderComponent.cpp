@@ -689,6 +689,13 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	PPSettings.bOverride_LumenSurfaceCacheResolution = 1;
 	PPSettings.LumenSurfaceCacheResolution = 1.0f;
 
+	PPSettings.bOverride_AmbientOcclusionQuality = true;
+	PPSettings.AmbientOcclusionQuality = 80.0f;
+	PPSettings.bOverride_RayTracingAO = true;
+	PPSettings.RayTracingAO = true;
+	PPSettings.bOverride_RayTracingAOSamplesPerPixel = true;
+	PPSettings.RayTracingAOSamplesPerPixel = 4;
+
 	/////////////////////////////////////////////////////////
 	// reduce ghosting phenomenon
 	// https://www.reddit.com/r/UnrealEngine5/comments/182y8br/lumen_ghosting_on_moving_objects_please_help/

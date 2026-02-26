@@ -522,7 +522,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			return;
 		}
 		// Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = true;
-		Sensor->GetMovieQualityRenderer()->NumWarmup = 4;
+		Sensor->GetMovieQualityRenderer()->NumWarmup = 2;
 
 		FString PrimaryCameraID = USensorBPLib::GetSensorNewFormatID(Sensor);
 		ActiveCameraPool.Empty();

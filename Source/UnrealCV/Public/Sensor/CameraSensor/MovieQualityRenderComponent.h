@@ -42,9 +42,9 @@ struct FMQRCSettings
 	GENERATED_BODY()
 
 	// UPROPERTY()
-	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;
+	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;
 	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
-	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
+	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
 	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_MSAA;
 
 	// UPROPERTY()
@@ -57,10 +57,10 @@ struct FMQRCSettings
 	float MotionBlurAmount = 0.0f;
 
 	UPROPERTY()
-	float LumenSceneLightingQuality = 2.0f;
+	float LumenSceneLightingQuality = 3.0f;
 
 	UPROPERTY()
-	float LumenFinalGatherQuality = 4.0f;
+	float LumenFinalGatherQuality = 30.0f;
 
 	UPROPERTY()
 	float Saturation = 1.0f;

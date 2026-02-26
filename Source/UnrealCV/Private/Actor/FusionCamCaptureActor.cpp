@@ -29,6 +29,8 @@
 #include "Utils/Serialization.h"
 #include "Utils/ImageUtil.h"
 #include "Utils/PythonExecutor.h"
+#include "Utils/GenericTickableObject.h"
+#include "Utils/DeferredTaskScheduler.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/BufferArchive.h"
 #include "BPFunctionLib/LineTraceBPLib.h"
@@ -361,21 +363,9 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		if (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
 		 	 FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
 		{
-
-			UWorld* World = FUnrealcvServer::Get().GetGameWorld();
-			World->GetTimerManager().SetTimerForNextTick([this]() {
-				UWorld* World = FUnrealcvServer::Get().GetGameWorld();
-				World->GetTimerManager().SetTimerForNextTick([this]() {
-					UWorld* World = FUnrealcvServer::Get().GetGameWorld();
-					World->GetTimerManager().SetTimerForNextTick([this]() {
-						OnTimerRecord();
-					});
-				});
-			});
-			// AsyncTask(ENamedThreads::GameThread, [this]()
-			// {
-			// 	OnTimerRecord();
-			// });
+			FDeferredTaskScheduler::Get().ScheduleTask([this]() {
+				OnTimerRecord();
+			}, 0.1);
 		}
 	}
 	else

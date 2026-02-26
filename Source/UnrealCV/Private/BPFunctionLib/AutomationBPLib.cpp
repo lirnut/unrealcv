@@ -30,6 +30,8 @@ void UAutomationBPLib::StartTicking()
 	TickableObject->Activate();
 	UE_LOG(LogUnrealCV, Log, TEXT("AutomationBPLib: Ticking started"));
 
+	PushCommand(TEXT("stat FPS"));
+
 	// PushCommand(TEXT("vset /datasetautomation/config/output_directory C:\\Users\\hulc\\AppData\\Local\\HUAWEI_Project\\Saved\\Dataset"));
 	PushCommand(TEXT("vset /datasetautomation/config/output_directory"));
 

@@ -313,6 +313,7 @@ protected:
 	// Recording state
 	float TimeDilationBackUp;
 	FTimerHandle TimerHandle_Record;
+	TSharedPtr<class FGenericTickableObject> TickableObject;
 	FCriticalSection RecordCriticalSection;
 	bool bIsRecording;
 	int32 ElapsedSteps;
