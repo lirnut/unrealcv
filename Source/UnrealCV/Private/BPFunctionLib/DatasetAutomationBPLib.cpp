@@ -443,46 +443,31 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	}
 	else if (Step.Command == TEXT("aim_camera_at_foreground"))
 	{
-		TArray<FString> Args;
-		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
-		if (Args.Num() >= 2)
+		int32 PrimaryCameraID = CurrentConfig.SceneParams.CameraID;
+		UFusionCamSensor* PrimaryCam = USensorBPLib::GetSensorById(PrimaryCameraID);
+		if (!IsValid(PrimaryCam))
 		{
-			float MinHeight = FCString::Atof(*Args[0]);
-			float MaxHeight = FCString::Atof(*Args[1]);
-			CurrentStatus.RandomTargetHeight = FMath::RandRange(MinHeight, MaxHeight);
-
-			int32 PrimaryCameraID = CurrentConfig.SceneParams.CameraID;
-			UFusionCamSensor* PrimaryCam = USensorBPLib::GetSensorById(PrimaryCameraID);
-			if (!IsValid(PrimaryCam))
-			{
-				UE_LOG(LogUnrealCV, Error, TEXT("Primary camera not found"));
-				TransitionToState(EDatasetGenerationState::Error);
-				return;
-			}
-
-			if (!IsValid(CurrentScene.ForegroundActor))
-			{
-				UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: ForegroundActor is null"));
-				TransitionToState(EDatasetGenerationState::Error);
-				return;
-			}
-
-			FVector TargetLocation = CurrentScene.ForegroundActor->GetActorLocation();
-			TargetLocation.Z = GetForegroundActorTopZ();
-
-			FVector CameraToTarget = (TargetLocation - PrimaryCam->GetSensorLocation()).GetSafeNormal();
-			FRotator TargetRotation = CameraToTarget.Rotation();
-			PrimaryCam->SetSensorRotation(TargetRotation);
-
-			UE_LOG(LogUnrealCV, Log, TEXT("aim_camera_at_foreground: Aiming at top Z=%.1f (bounds-based)"),
-				TargetLocation.Z);
-		}
-		else
-		{
-			UE_LOG(LogUnrealCV, Error, TEXT("aim_camera_at_foreground: Invalid arguments, expected 'MinHeight MaxHeight'"));
+			UE_LOG(LogUnrealCV, Error, TEXT("Primary camera not found"));
 			TransitionToState(EDatasetGenerationState::Error);
 			return;
 		}
+
+		if (!IsValid(CurrentScene.ForegroundActor))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: ForegroundActor is null"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+
+		FVector TargetLocation = CurrentScene.ForegroundActor->GetActorLocation();
+		TargetLocation.Z = GetForegroundActorTopZ();
+
+		FVector CameraToTarget = (TargetLocation - PrimaryCam->GetSensorLocation()).GetSafeNormal();
+		FRotator TargetRotation = CameraToTarget.Rotation();
+		PrimaryCam->SetSensorRotation(TargetRotation);
+
+		UE_LOG(LogUnrealCV, Log, TEXT("aim_camera_at_foreground: Aiming at top Z=%.1f (bounds-based)"),
+			TargetLocation.Z);
 		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("add_camera_rotation_noise"))
