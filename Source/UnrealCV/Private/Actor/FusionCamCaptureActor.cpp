@@ -75,7 +75,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	WarmUpFrames = WARM_UP_FRAMES;
 	WarmUpElapsedFrames = 0;
 
-	bUseMovieQualityRendering = false;
+	bUseMovieQualityRendering = true;
 	MovieQualityRenderer = nullptr;
 
 	MP4EncodedFrameCount = 0;
