@@ -26,7 +26,7 @@ public:
 
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
 
-	virtual int32 GetPriority() const override { return -1; }
+	virtual int32 GetPriority() const override { return 100; }
 
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
 	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}

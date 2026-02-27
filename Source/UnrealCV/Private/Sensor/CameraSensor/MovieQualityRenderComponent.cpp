@@ -17,6 +17,7 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
+#include "LandscapeRender.h"
 
 FMQRCSettings UMovieQualityRenderComponent::GlobalSettings;
 
@@ -32,10 +33,7 @@ void FMovieQualityViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewF
 			Component->bHasCachedMainViewPostProcessSettings = true;
 			Component->LastMainViewportFrameNumber = InViewFamily.FrameNumber;
 		}
-
-		// MQRC Fix: Do NOT process deferred captures here to avoid nested rendering
-		// Moved to TickComponent to prevent Landscape LOD cache corruption
-		// Component->ProcessDeferredCaptures();
+		Component->ProcessDeferredCaptures();
 	}
 }
 
@@ -260,9 +258,7 @@ void UMovieQualityRenderComponent::TickComponent(float DeltaTime, ELevelTick Tic
 	{
 		EnqueueDeferredCapture([](TUniquePtr<FImagePixelData>&& Input) {}, false);
 	}
-	// MQRC Fix: Process deferred captures in Tick instead of BeginRenderViewFamily
-	// This avoids nested rendering that corrupts Landscape LOD cache
-	ProcessDeferredCaptures();
+	// ProcessDeferredCaptures();
 }
 
 
@@ -526,9 +522,9 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 		UE_LOG(LogTemp, Warning, TEXT("FXAA force use SpatialUpscale"));
 	}
 	View->PrimaryScreenPercentageMethod = SPM;
-	// View->bSceneCaptureUsesRayTracing = true;
+	View->bSceneCaptureUsesRayTracing = true;
 	// View->bIsReflectionCapture = true;
-	// View->bIsSceneCapture = false;
+	View->bIsSceneCapture = true;
 	// View->bIsSceneCaptureCube = false;
 	// View->bIsGameView = true;
 

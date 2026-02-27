@@ -64,7 +64,8 @@ public class UnrealcvBuildConfig
 			"HairStrandsCore", // For GroomComponent annotation support
 			"Renderer", // For HairStrands interface functions
 			"MovieRenderPipelineCore",
-			"PakFile" // For runtime pak mounting
+			"PakFile", // For runtime pak mounting
+			"Landscape" // For manual Landscape LOD computation
 		});
 
 		EditorPrivateDependencyModuleNames.AddRange(

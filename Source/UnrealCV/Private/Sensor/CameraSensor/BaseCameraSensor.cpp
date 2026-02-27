@@ -28,7 +28,7 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	// Another choice is "StaticMesh'/Engine/EditorMeshes/Camera/SM_CineCam.SM_CineCam'"
 	this->ShowFlags.SetPostProcessing(true);
 	// this->ShowFlags.SetPostProcessMaterial(true);
-	bCaptureEveryFrame = false;
+	bCaptureEveryFrame = true;
 	bCaptureOnMovement = false;
 	PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
 	HiddenComponents.Reset();
