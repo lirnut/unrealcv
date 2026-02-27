@@ -711,7 +711,7 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
 	// PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
 	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	PPSettings.LumenFinalGatherLightingUpdateSpeed = 8.0f;
+	PPSettings.LumenFinalGatherLightingUpdateSpeed = GlobalSettings.LumenFinalGatherLightingUpdateSpeed;
 	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
 	// PPSettings.LumenFinalGatherScreenTraces = 0;
 	// PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;
