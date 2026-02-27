@@ -77,6 +77,18 @@ void FMQRCHandler::RegisterCommands()
 	);
 
 	CommandDispatcher->BindCommand(
+		TEXT("vget /mqrc/override_lumen_final_gather_lighting_update_speed"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::GetOverrideLumenFinalGatherLightingUpdateSpeed),
+		TEXT("Get override flag for Lumen final gather lighting update speed")
+	);
+
+	CommandDispatcher->BindCommand(
+		TEXT("vset /mqrc/override_lumen_final_gather_lighting_update_speed [bool]"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::SetOverrideLumenFinalGatherLightingUpdateSpeed),
+		TEXT("Set override flag for Lumen final gather lighting update speed (true/false)")
+	);
+
+	CommandDispatcher->BindCommand(
 		TEXT("vget /mqrc/saturation"),
 		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::GetSaturation),
 		TEXT("Get color saturation")
@@ -389,6 +401,25 @@ FExecStatus FMQRCHandler::SetLumenFinalGatherLightingUpdateSpeed(const TArray<FS
 
 	float Value = FCString::Atof(*Args[0]);
 	UMovieQualityRenderComponent::GlobalSettings.LumenFinalGatherLightingUpdateSpeed = Value;
+	return FExecStatus::OK();
+}
+
+FExecStatus FMQRCHandler::GetOverrideLumenFinalGatherLightingUpdateSpeed(const TArray<FString>& Args)
+{
+	bool Value = UMovieQualityRenderComponent::GlobalSettings.Override_LumenFinalGatherLightingUpdateSpeed;
+	return FExecStatus::OK(Value ? TEXT("true") : TEXT("false"));
+}
+
+FExecStatus FMQRCHandler::SetOverrideLumenFinalGatherLightingUpdateSpeed(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		return FExecStatus::GetInvalidArgument();
+	}
+
+	FString BoolStr = Args[0].ToLower();
+	bool Value = (BoolStr == TEXT("true") || BoolStr == TEXT("1"));
+	UMovieQualityRenderComponent::GlobalSettings.Override_LumenFinalGatherLightingUpdateSpeed = Value;
 	return FExecStatus::OK();
 }
 

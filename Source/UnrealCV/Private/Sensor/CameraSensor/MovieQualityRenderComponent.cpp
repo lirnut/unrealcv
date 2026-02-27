@@ -710,8 +710,11 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// https://dev.epicgames.com/community/learning/tutorials/mjo7/unreal-engine-temporal-quality-guide
 	// PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
 	// PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
-	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	PPSettings.LumenFinalGatherLightingUpdateSpeed = GlobalSettings.LumenFinalGatherLightingUpdateSpeed;
+	if (GlobalSettings.Override_LumenFinalGatherLightingUpdateSpeed)
+	{
+		PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
+		PPSettings.LumenFinalGatherLightingUpdateSpeed = GlobalSettings.LumenFinalGatherLightingUpdateSpeed;
+	}
 	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
 	// PPSettings.LumenFinalGatherScreenTraces = 0;
 	// PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;

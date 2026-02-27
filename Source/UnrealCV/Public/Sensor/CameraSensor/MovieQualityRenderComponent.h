@@ -68,6 +68,9 @@ struct FMQRCSettings
 	float LumenFinalGatherLightingUpdateSpeed = 4.0f;
 
 	UPROPERTY()
+	bool Override_LumenFinalGatherLightingUpdateSpeed = false;
+
+	UPROPERTY()
 	float Saturation = 1.0f;
 
 	UPROPERTY()
