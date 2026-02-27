@@ -33,8 +33,9 @@ void FMovieQualityViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewF
 			Component->LastMainViewportFrameNumber = InViewFamily.FrameNumber;
 		}
 
-		// Process deferred captures AFTER main viewport renders
-		Component->ProcessDeferredCaptures();
+		// MQRC Fix: Do NOT process deferred captures here to avoid nested rendering
+		// Moved to TickComponent to prevent Landscape LOD cache corruption
+		// Component->ProcessDeferredCaptures();
 	}
 }
 
@@ -259,6 +260,9 @@ void UMovieQualityRenderComponent::TickComponent(float DeltaTime, ELevelTick Tic
 	{
 		EnqueueDeferredCapture([](TUniquePtr<FImagePixelData>&& Input) {}, false);
 	}
+	// MQRC Fix: Process deferred captures in Tick instead of BeginRenderViewFamily
+	// This avoids nested rendering that corrupts Landscape LOD cache
+	ProcessDeferredCaptures();
 }
 
 
