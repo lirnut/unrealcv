@@ -507,6 +507,40 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		}
 		ExecuteNextCommand();
 	}
+	else if (Step.Command == TEXT("render_every_frame"))
+	{
+		TArray<FString> Args;
+		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
+		if (Args.Num() >= 0)
+		{
+			bool positive;
+			if (Args[0] == "false")
+			{
+				positive = false;
+			}
+			else if (Args[0] == "true")
+			{
+				positive = true;
+			}
+			else
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("prepare_record: render_every_frame bad arg %s"), *Args[0]);
+				TransitionToState(EDatasetGenerationState::Error);
+				return;
+			}
+
+			int32 CameraID = CurrentConfig.SceneParams.CameraID;
+			UFusionCamSensor* Sensor = USensorBPLib::GetSensorById(CameraID);
+			Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = positive;
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("prepare_record: render_every_frame bad arg "));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+		ExecuteNextCommand();
+	}
 	else if (Step.Command == TEXT("prepare_record"))
 	{
 		int32 CameraID = CurrentConfig.SceneParams.CameraID;
@@ -517,7 +551,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			TransitionToState(EDatasetGenerationState::Error);
 			return;
 		}
-		Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = true;
+		// Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = true;
 		// Sensor->GetMovieQualityRenderer()->NumWarmup = 1;
 
 		FString PrimaryCameraID = USensorBPLib::GetSensorNewFormatID(Sensor);

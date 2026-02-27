@@ -55,7 +55,7 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
 
 	ShowFlags.SetHair(true);  
 	ShowFlags.SetDynamicShadows(true);
-	ShowFlags.SetContactShadows(true); 
+	ShowFlags.SetContactShadows(false); 
   	ShowFlags.SetCapsuleShadows(true); 
 
 	ShowFlags.SetPreviewShadowsIndicator(false);
@@ -696,12 +696,12 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	PPSettings.bOverride_LumenSurfaceCacheResolution = 1;
 	PPSettings.LumenSurfaceCacheResolution = 1.0f;
 
-	PPSettings.bOverride_AmbientOcclusionQuality = true;
-	PPSettings.AmbientOcclusionQuality = 80.0f;
-	PPSettings.bOverride_RayTracingAO = true;
-	PPSettings.RayTracingAO = true;
-	PPSettings.bOverride_RayTracingAOSamplesPerPixel = true;
-	PPSettings.RayTracingAOSamplesPerPixel = 4;
+	// PPSettings.bOverride_AmbientOcclusionQuality = true;
+	// PPSettings.AmbientOcclusionQuality = 80.0f;
+	// PPSettings.bOverride_RayTracingAO = true;
+	// PPSettings.RayTracingAO = true;
+	// PPSettings.bOverride_RayTracingAOSamplesPerPixel = true;
+	// PPSettings.RayTracingAOSamplesPerPixel = 4;
 
 	/////////////////////////////////////////////////////////
 	// reduce ghosting phenomenon
@@ -806,10 +806,10 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	PPSettings.bOverride_ColorOffsetHighlights = 1;
 	PPSettings.ColorOffsetHighlights = Offset;
 
-	PPSettings.bOverride_ToneCurveAmount = 1;
-	PPSettings.ToneCurveAmount = 1.0f;
-	PPSettings.bOverride_ExpandGamut = 1;
-	PPSettings.ExpandGamut = 1.0f;
+	// PPSettings.bOverride_ToneCurveAmount = 1;
+	// PPSettings.ToneCurveAmount = 1.0f;
+	// PPSettings.bOverride_ExpandGamut = 1;
+	// PPSettings.ExpandGamut = 1.0f;
 
 	// PPSettings.bOverride_Sharpen = 1;
 	// PPSettings.Sharpen = 0.0f;
