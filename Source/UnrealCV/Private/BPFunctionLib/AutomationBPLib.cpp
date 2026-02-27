@@ -86,7 +86,7 @@ void UAutomationBPLib::StartTicking()
 
 	// Lumen Temporal Filter for Ghosting Fix
 	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal 1"));
-	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 12"));
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 16"));
 	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.DistanceThreshold 0.01"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.NormalThreshold 20"));
 	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.FastUpdateModeUseNeighborhoodClamp 1"));
