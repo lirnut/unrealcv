@@ -55,7 +55,7 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
 
 	ShowFlags.SetHair(true);  
 	ShowFlags.SetDynamicShadows(true);
-	ShowFlags.SetContactShadows(false); 
+	ShowFlags.SetContactShadows(true); 
   	ShowFlags.SetCapsuleShadows(true); 
 
 	ShowFlags.SetPreviewShadowsIndicator(false);
@@ -257,7 +257,7 @@ void UMovieQualityRenderComponent::TickComponent(float DeltaTime, ELevelTick Tic
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	if (bRenderEveryFrame && DeferredCaptureQueue.IsEmpty())
 	{
-		EnqueueDeferredCapture([](TUniquePtr<FImagePixelData>&& Input) {}, true);
+		EnqueueDeferredCapture([](TUniquePtr<FImagePixelData>&& Input) {}, false);
 	}
 }
 
@@ -710,8 +710,8 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// https://dev.epicgames.com/community/learning/tutorials/mjo7/unreal-engine-temporal-quality-guide
 	// PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
 	// PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
-	// PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	// PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
+	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
+	PPSettings.LumenFinalGatherLightingUpdateSpeed = 8.0f;
 	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
 	// PPSettings.LumenFinalGatherScreenTraces = 0;
 	// PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;
@@ -805,6 +805,11 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	PPSettings.ColorGainHighlights = Gain;
 	PPSettings.bOverride_ColorOffsetHighlights = 1;
 	PPSettings.ColorOffsetHighlights = Offset;
+
+	PPSettings.bOverride_ToneCurveAmount = 1;
+	PPSettings.ToneCurveAmount = 1.0f;
+	PPSettings.bOverride_ExpandGamut = 1;
+	PPSettings.ExpandGamut = 1.0f;
 
 	// PPSettings.bOverride_Sharpen = 1;
 	// PPSettings.Sharpen = 0.0f;

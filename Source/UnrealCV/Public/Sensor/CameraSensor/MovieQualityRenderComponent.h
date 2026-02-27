@@ -42,9 +42,9 @@ struct FMQRCSettings
 	GENERATED_BODY()
 
 	// UPROPERTY()
-	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;
-	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
-	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
+	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;	
+	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
+	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
 	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_MSAA;
 
 	EPrimaryScreenPercentageMethod PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;
@@ -62,7 +62,7 @@ struct FMQRCSettings
 	float LumenSceneLightingQuality = 3.0f;
 
 	UPROPERTY()
-	float LumenFinalGatherQuality = 30.0f;
+	float LumenFinalGatherQuality = 5.0f;
 
 	UPROPERTY()
 	float Saturation = 1.0f;
@@ -86,7 +86,7 @@ struct FMQRCSettings
 	float DepthOfFieldScale = 0.0f;
 
 	UPROPERTY()
-	float ScreenPercentage = 1.5f;
+	float ScreenPercentage = 0.85f;
 };
 
 UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))

@@ -77,17 +77,18 @@ void UAutomationBPLib::StartTicking()
 
 	PushCommand(TEXT("r.Shadow.Denoiser 1"));
 
-	// PushCommand(TEXT("r.AntiAliasingMethod 2"));  // TAA
+	PushCommand(TEXT("r.AntiAliasingMethod 2"));  // TAA
 	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.12"));
+	PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.22"));
 	PushCommand(TEXT("r.TemporalAA.Quality 3"));
 	PushCommand(TEXT("r.TemporalAAPauseCorrect 1"));
 	PushCommand(TEXT("r.FXAA.Quality 5"));
 
 	// Lumen Temporal Filter for Ghosting Fix
-	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal 1"));
-	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 10"));
-	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.DistanceThreshold 0.01"));
-	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.NormalThreshold 10"));
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal 1"));
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 12"));
+	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.DistanceThreshold 0.01"));
+	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.NormalThreshold 20"));
 	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.FastUpdateModeUseNeighborhoodClamp 1"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.RejectBasedOnNormal 1"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.HairStrands.ScreenTrace 1"));
