@@ -77,7 +77,7 @@ void UAutomationBPLib::StartTicking()
 
 	PushCommand(TEXT("r.Shadow.Denoiser 1"));
 
-	PushCommand(TEXT("r.AntiAliasingMethod 2"));  // TAA
+	// PushCommand(TEXT("r.AntiAliasingMethod 2"));
 	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.12"));
 	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.22"));
 	PushCommand(TEXT("r.TemporalAA.Quality 3"));
