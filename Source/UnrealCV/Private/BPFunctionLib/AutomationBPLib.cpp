@@ -79,7 +79,7 @@ void UAutomationBPLib::StartTicking()
 
 	PushCommand(TEXT("r.AntiAliasingMethod 2"));  // TAA
 	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.12"));
-	PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.22"));
+	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.22"));
 	PushCommand(TEXT("r.TemporalAA.Quality 3"));
 	PushCommand(TEXT("r.TemporalAAPauseCorrect 1"));
 	PushCommand(TEXT("r.FXAA.Quality 5"));

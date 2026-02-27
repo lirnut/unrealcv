@@ -65,6 +65,18 @@ void FMQRCHandler::RegisterCommands()
 	);
 
 	CommandDispatcher->BindCommand(
+		TEXT("vget /mqrc/lumen_final_gather_lighting_update_speed"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::GetLumenFinalGatherLightingUpdateSpeed),
+		TEXT("Get Lumen final gather lighting update speed")
+	);
+
+	CommandDispatcher->BindCommand(
+		TEXT("vset /mqrc/lumen_final_gather_lighting_update_speed [float]"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::SetLumenFinalGatherLightingUpdateSpeed),
+		TEXT("Set Lumen final gather lighting update speed")
+	);
+
+	CommandDispatcher->BindCommand(
 		TEXT("vget /mqrc/saturation"),
 		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::GetSaturation),
 		TEXT("Get color saturation")
@@ -359,6 +371,24 @@ FExecStatus FMQRCHandler::SetLumenQuality(const TArray<FString>& Args)
 
 	UMovieQualityRenderComponent::GlobalSettings.LumenSceneLightingQuality = SceneQuality;
 	UMovieQualityRenderComponent::GlobalSettings.LumenFinalGatherQuality = GatherQuality;
+	return FExecStatus::OK();
+}
+
+FExecStatus FMQRCHandler::GetLumenFinalGatherLightingUpdateSpeed(const TArray<FString>& Args)
+{
+	float Value = UMovieQualityRenderComponent::GlobalSettings.LumenFinalGatherLightingUpdateSpeed;
+	return FExecStatus::OK(FString::Printf(TEXT("%f"), Value));
+}
+
+FExecStatus FMQRCHandler::SetLumenFinalGatherLightingUpdateSpeed(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		return FExecStatus::GetInvalidArgument();
+	}
+
+	float Value = FCString::Atof(*Args[0]);
+	UMovieQualityRenderComponent::GlobalSettings.LumenFinalGatherLightingUpdateSpeed = Value;
 	return FExecStatus::OK();
 }
 

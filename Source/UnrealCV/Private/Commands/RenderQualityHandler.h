@@ -22,6 +22,9 @@ public:
 	FExecStatus GetLumenQuality(const TArray<FString>& Args);
 	FExecStatus SetLumenQuality(const TArray<FString>& Args);
 
+	FExecStatus GetLumenFinalGatherLightingUpdateSpeed(const TArray<FString>& Args);
+	FExecStatus SetLumenFinalGatherLightingUpdateSpeed(const TArray<FString>& Args);
+
 	FExecStatus GetSaturation(const TArray<FString>& Args);
 	FExecStatus SetSaturation(const TArray<FString>& Args);
 
