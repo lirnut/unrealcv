@@ -1624,11 +1624,35 @@ bool USceneCompositionBPLib::AddSafePointToScene(const FString& SceneName, FVect
 
 	if (!SceneConfig.IsValid())
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("AddSafePointToScene: Scene '%s' not found in JSON"), *SceneName);
-		return false;
-	}
+		UE_LOG(LogUnrealCV, Warning, TEXT("AddSafePointToScene: Scene '%s' not found in JSON, creating default config"), *SceneName);
 
-	UE_LOG(LogUnrealCV, Log, TEXT("AddSafePointToScene: Matched scene config '%s' for input '%s'"), *MatchedKey, *SceneName);
+		SceneConfig = MakeShared<FJsonObject>();
+		SceneConfig->SetBoolField(TEXT("Enabled"), true);
+		SceneConfig->SetNumberField(TEXT("XMax"), 3790.0);
+		SceneConfig->SetNumberField(TEXT("YMax"), 1400.0);
+		SceneConfig->SetNumberField(TEXT("XMin"), -3657.0);
+		SceneConfig->SetNumberField(TEXT("YMin"), -2299.0);
+		SceneConfig->SetNumberField(TEXT("GroundHeight"), 100.0);
+		SceneConfig->SetStringField(TEXT("ForegroundPathSpec"), TEXT(""));
+		SceneConfig->SetStringField(TEXT("ForegroundCategory"), TEXT("Foreground_Human"));
+		SceneConfig->SetStringField(TEXT("ForegroundCategory1"), TEXT("Foreground_Human_SKM"));
+		SceneConfig->SetStringField(TEXT("OccluderPathSpec"), TEXT(""));
+		SceneConfig->SetStringField(TEXT("OccluderCategory"), TEXT("Occluder_All"));
+		SceneConfig->SetNumberField(TEXT("OccluderCount"), 0.0);
+		SceneConfig->SetNumberField(TEXT("CameraID"), 1);
+		SceneConfig->SetField(TEXT("OutSceneHandle"), MakeShared<FJsonValueNull>());
+		SceneConfig->SetBoolField(TEXT("bAutoPositionCamera"), true);
+		SceneConfig->SetNumberField(TEXT("ForegroundYaw"), -1.0);
+
+		JsonObject->SetObjectField(SceneName, SceneConfig);
+		MatchedKey = SceneName;
+
+		UE_LOG(LogUnrealCV, Log, TEXT("AddSafePointToScene: Created default config for scene '%s'"), *SceneName);
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("AddSafePointToScene: Matched scene config '%s' for input '%s'"), *MatchedKey, *SceneName);
+	}
 
 	TArray<TSharedPtr<FJsonValue>> SafePointsArray;
 	if (SceneConfig->HasField(TEXT("SafePoints")))
