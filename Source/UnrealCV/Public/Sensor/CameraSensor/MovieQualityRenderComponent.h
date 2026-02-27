@@ -59,7 +59,7 @@ struct FMQRCSettings
 	float MotionBlurAmount = 0.0f;
 
 	UPROPERTY()
-	float LumenSceneLightingQuality = 3.0f;
+	float LumenSceneLightingQuality = 2.0f;
 
 	UPROPERTY()
 	float LumenFinalGatherQuality = 5.0f;
@@ -89,7 +89,7 @@ struct FMQRCSettings
 	float DepthOfFieldScale = 0.0f;
 
 	UPROPERTY()
-	float ScreenPercentage = 0.85f;
+	float ScreenPercentage = 1.00f;
 };
 
 UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))
