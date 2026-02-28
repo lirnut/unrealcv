@@ -162,7 +162,7 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		}
 		else
 		{
-			bForceLinearGamma = true;
+			bForceLinearGamma = false;
 			ForceTargetGamma = 2.2f;
 		}
 	}
@@ -436,6 +436,13 @@ void UMovieQualityRenderComponent::ExecuteCaptureFrame(TFunction<void(TUniquePtr
 		return;
 	}
 
+	for (const FSceneViewExtensionRef& Extension : ViewFamily->ViewExtensions)
+	{
+		Extension->SetupViewFamily(*ViewFamily);
+		Extension->SetupView(*ViewFamily, *View);
+		ViewExtension->BeginRenderViewFamily(*ViewFamily);
+	}
+
 	SubmitToRendererWithCallback(ViewFamily.Get(), RenderTarget, MoveTemp(OnPixelDataReady));
 }
 
@@ -507,8 +514,15 @@ TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFami
 
 	ViewFamily->SceneCaptureSource = CaptureSource;
 	ViewFamily->bWorldIsPaused = false;
+	ViewFamily->bResolveScene = true;
+	ViewFamily->bIsHDR = false;
+	ViewFamily->ExposureSettings.bFixed = false; 
+	ViewFamily->ExposureSettings.FixedEV100 = 4.0f; 
+	// ViewFamily->SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Overwrite;
+	ViewFamily->SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Composite;
 	ViewFamily->ViewMode = VMI_Lit;
-	ViewFamily->bOverrideVirtualTextureThrottle = true;
+	// ViewFamily->bOverrideVirtualTextureThrottle = true;
+	ViewFamily->bIsMainViewFamily = false;
 	ViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(*ViewFamily, GlobalSettings.ScreenPercentage));
 
 	// MQRC Fix: Gather ViewExtensions for Landscape LOD system
@@ -530,6 +544,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* VF)
 	ViewInitOptions.SetViewRectangle(FIntRect(0, 0, Resolution.X, Resolution.Y));
 	ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(Rotation);
 	ViewInitOptions.ViewActor = GetOwner();
+	// ViewInitOptions.ViewElementDrawer = this;
 
 	ViewInitOptions.ViewRotationMatrix = ViewInitOptions.ViewRotationMatrix * FMatrix(
 		FPlane(0, 0, 1, 0),
@@ -544,6 +559,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* VF)
 	ViewInfo.Location = Location;
 	ViewInfo.Rotation = Rotation;
 	ViewInfo.FOV = FOV;
+	// ViewInfo.DesiredFOV = FOV;
 	ViewInfo.AspectRatio = AspectRatio;
 	ViewInfo.bConstrainAspectRatio = false;
 	ViewInfo.ProjectionMode = ECameraProjectionMode::Perspective;
@@ -563,10 +579,16 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* VF)
 	}
 	View->PrimaryScreenPercentageMethod = SPM;
 	View->bSceneCaptureUsesRayTracing = true; 
+	View->bAllowRayTracing = true;
+	View->bIsOfflineRender = true;
 	// View->bIsReflectionCapture = true;
-	View->bIsSceneCapture = true;
+	View->bIsSceneCapture = false;
 	// View->bIsSceneCaptureCube = false;
-	View->bIsGameView = true;
+	View->bIsGameView = false;
+	View->bAllowTemporalJitter = false;
+	View->bEyeAdaptationAllViewPixels = false;
+	// bCameraMotionBlur
+	// InFocusDistance
 
 	View->OverrideFrameIndexValue = FrameCounter++;
 
@@ -683,19 +705,19 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 	// // Force wait for all pending rendering commands to complete (Groom/Hair, shadows, etc.)
 	// FlushRenderingCommands();
 
-	// MQRC Fix: Setup ViewExtensions for scene capture (required for Landscape LOD system)
-	// This mimics SceneCaptureRendering.cpp's SetupSceneViewExtensionsForSceneCapture (lines 806-822)
-	for (const FSceneViewExtensionRef& Extension : VF->ViewExtensions)
-	{
-		Extension->SetupViewFamily(*VF);
-	}
-	for (const FSceneView* View : VF->Views)
-	{
-		for (const FSceneViewExtensionRef& Extension : VF->ViewExtensions)
-		{
-			Extension->SetupView(*VF, *const_cast<FSceneView*>(View));
-		}
-	}
+	// // MQRC Fix: Setup ViewExtensions for scene capture (required for Landscape LOD system)
+	// // This mimics SceneCaptureRendering.cpp's SetupSceneViewExtensionsForSceneCapture (lines 806-822)
+	// for (const FSceneViewExtensionRef& Extension : VF->ViewExtensions)
+	// {
+	// 	Extension->SetupViewFamily(*VF);
+	// }
+	// for (const FSceneView* View : VF->Views)
+	// {
+	// 	for (const FSceneViewExtensionRef& Extension : VF->ViewExtensions)
+	// 	{
+	// 		Extension->SetupView(*VF, *const_cast<FSceneView*>(View));
+	// 	}
+	// }
 
 	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
@@ -1734,9 +1756,11 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
     PPSettings.bOverride_ReflectionMethod = 1;
     PPSettings.ReflectionMethod = EReflectionMethod::Type::Lumen;
     // PPSettings.ReflectionMethod = EReflectionMethod::Type::ScreenSpace;
+    // PPSettings.ReflectionMethod = EReflectionMethod::Type::None;
     PPSettings.bOverride_DynamicGlobalIlluminationMethod = 1;
     PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::Lumen;
     // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::ScreenSpace;
+    // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::None;
 	PPSettings.bOverride_LumenRayLightingMode = 1;
 	PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLightingForReflections;
 	PPSettings.bOverride_LumenSceneLightingQuality = 1;
@@ -1796,11 +1820,11 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	// PPSettings.AutoExposureMethod = AEM_Manual;
 	PPSettings.bOverride_AutoExposureBias = 1;
 	// PPSettings.AutoExposureBias = GlobalSettings.ExposureBias;
-	PPSettings.AutoExposureBias = 15.0f;
-	// PPSettings.bOverride_AutoExposureMinBrightness = 1;
-	// PPSettings.AutoExposureMinBrightness = GlobalSettings.AutoExposureMinBrightness;
-	// PPSettings.bOverride_AutoExposureMaxBrightness = 1;
-	// PPSettings.AutoExposureMaxBrightness = GlobalSettings.AutoExposureMaxBrightness;
+	PPSettings.AutoExposureBias = 100.0f;
+	PPSettings.bOverride_AutoExposureMinBrightness = 1;
+	PPSettings.AutoExposureMinBrightness = GlobalSettings.AutoExposureMinBrightness;
+	PPSettings.bOverride_AutoExposureMaxBrightness = 1;
+	PPSettings.AutoExposureMaxBrightness = GlobalSettings.AutoExposureMaxBrightness;
     PPSettings.bOverride_AutoExposureSpeedDown = 1;
     PPSettings.AutoExposureSpeedDown = 20.0f;
     PPSettings.bOverride_AutoExposureSpeedUp = 1;
