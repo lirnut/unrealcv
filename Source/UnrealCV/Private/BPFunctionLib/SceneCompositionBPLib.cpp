@@ -37,6 +37,35 @@
 
 TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
 
+static FString GetSceneConfigFilePath()
+{
+	FString UserConfigPath = FPaths::Combine(FPlatformProcess::UserHomeDir(), TEXT("UnrealCV"), TEXT("SceneComposition.json"));
+
+	UE_LOG(LogUnrealCV, Log, TEXT("GetSceneConfigFilePath: User home dir = '%s'"), FPlatformProcess::UserHomeDir());
+	UE_LOG(LogUnrealCV, Log, TEXT("GetSceneConfigFilePath: Full config path = '%s'"), *UserConfigPath);
+
+	if (FPaths::FileExists(UserConfigPath))
+	{
+		return UserConfigPath;
+	}
+
+	FString ProjectConfigPath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
+	if (FPaths::FileExists(ProjectConfigPath))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("GetSceneConfigFilePath: Using legacy project config at '%s', consider migrating to '%s'"),
+			*ProjectConfigPath, *UserConfigPath);
+		return ProjectConfigPath;
+	}
+
+	FString UserConfigDir = FPaths::GetPath(UserConfigPath);
+	if (!FPaths::DirectoryExists(UserConfigDir))
+	{
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+		PlatformFile.CreateDirectoryTree(*UserConfigDir);
+	}
+
+	return UserConfigPath;
+}
 
 static APawn* GetFirstPersonPawn()
 {
@@ -387,11 +416,12 @@ bool USceneCompositionBPLib::CreateSceneParamsFromJson(
 		return false;
 	}
 
-	// Read JSON file
+	FString ConfigFilePath = JsonFilePath.IsEmpty() ? GetSceneConfigFilePath() : JsonFilePath;
+
 	FString JsonFileContent;
-	if (!FFileHelper::LoadFileToString(JsonFileContent, *JsonFilePath))
+	if (!FFileHelper::LoadFileToString(JsonFileContent, *ConfigFilePath))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: Failed to read JSON file '%s'"), *JsonFilePath);
+		UE_LOG(LogUnrealCV, Error, TEXT("CreateSceneParamsFromJson: Failed to read JSON file '%s'"), *ConfigFilePath);
 		return false;
 	}
 
@@ -1590,7 +1620,7 @@ ANavAgentController* USceneCompositionBPLib::CreateNavAgentController(UObject* W
 
 bool USceneCompositionBPLib::AddSafePointToScene(const FString& SceneName, FVector Location)
 {
-	FString JsonFilePath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
+	FString JsonFilePath = GetSceneConfigFilePath();
 
 	FString JsonFileContent;
 	if (!FFileHelper::LoadFileToString(JsonFileContent, *JsonFilePath))
@@ -1715,7 +1745,7 @@ bool USceneCompositionBPLib::AddSafePointToCurrentScene(UObject* WorldContextObj
 TArray<FVector> USceneCompositionBPLib::GetSafePointsForScene(const FString& SceneName)
 {
 	TArray<FVector> SafePoints;
-	FString JsonFilePath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
+	FString JsonFilePath = GetSceneConfigFilePath();
 
 	FString JsonFileContent;
 	if (!FFileHelper::LoadFileToString(JsonFileContent, *JsonFilePath))
