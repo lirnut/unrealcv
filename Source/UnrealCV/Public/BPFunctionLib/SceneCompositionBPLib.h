@@ -260,6 +260,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition")
 	static TArray<FVector> GetSafePointsForScene(const FString& SceneName);
 
+	UFUNCTION(BlueprintPure, Category = "UnrealCV|SceneComposition")
+	static FString GetSceneConfigFilePath();
+
 	// ========== Actor Spawning ==========
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))

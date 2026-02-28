@@ -37,7 +37,7 @@
 
 TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
 
-static FString GetSceneConfigFilePath()
+FString USceneCompositionBPLib::GetSceneConfigFilePath()
 {
 	FString UserConfigPath = FPaths::Combine(FPlatformProcess::UserHomeDir(), TEXT("UnrealCV"), TEXT("SceneComposition.json"));
 

@@ -322,7 +322,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 	}
 	else if (Step.Command == TEXT("load_scene_param_json"))
 	{
-		FString JsonFilePath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
+		FString JsonFilePath = USceneCompositionBPLib::GetSceneConfigFilePath();
 		if (!USceneCompositionBPLib::CreateSceneParamsFromJson(WorldContext, JsonFilePath, CurrentConfig.SceneParams))
 		{
 			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Failed to load scene params from JSON"));
@@ -926,7 +926,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 
 		if (CurrentSceneCounter % N == 0 && CurrentSceneCounter > 0)
 		{
-			FString JsonFilePath = FPaths::ProjectSavedDir() / TEXT("SceneComposition.json");
+			FString JsonFilePath = USceneCompositionBPLib::GetSceneConfigFilePath();
 			FString JsonFileContent;
 			if (!FFileHelper::LoadFileToString(JsonFileContent, *JsonFilePath))
 			{
