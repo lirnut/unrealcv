@@ -258,7 +258,7 @@ void AFusionCamCaptureActor::StopRecord()
 		}
 		// GetWorld()->GetWorldSettings()->SetTimeDilation(1.0f);
 
-		TriggerVideoGeneration();
+		// TriggerVideoGeneration();
 	}
 	else
 	{
