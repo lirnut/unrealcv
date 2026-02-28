@@ -2,12 +2,24 @@
 
 FString FJsonConfigHelper::ExtractMapNameFromPath(const FString& MapPath)
 {
+	FString MapName;
 	int32 OutIndex = INDEX_NONE;
 	if (MapPath.FindLastChar(TEXT('/'), OutIndex))
 	{
-		return MapPath.Mid(OutIndex + 1);
+		MapName = MapPath.Mid(OutIndex + 1);
 	}
-	return MapPath;
+	else
+	{
+		MapName = MapPath;
+	}
+
+	const FString PIE_PREFIX = TEXT("UEDPIE_0_");
+	if (MapName.StartsWith(PIE_PREFIX))
+	{
+		MapName = MapName.Mid(PIE_PREFIX.Len());
+	}
+
+	return MapName;
 }
 
 bool FJsonConfigHelper::ParseJsonValue(const TSharedPtr<FJsonValue>& JsonValue, FString& OutString)

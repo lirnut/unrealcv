@@ -20,6 +20,7 @@
 #include "Commands/PawnHandler.h"
 #include "Commands/PakHandler.h"
 #include "Commands/RenderQualityHandler.h"
+#include "Commands/MetaHumanHandler.h"
 #include "WorldController.h"
 #include "UnrealcvLog.h"
 #include "UnrealcvStats.h"
@@ -124,6 +125,7 @@ void FUnrealcvServer::RegisterCommandHandlers()
 	CommandHandlers.Add(new FPawnHandler());
 	CommandHandlers.Add(new FPakHandler());
 	CommandHandlers.Add(new FMQRCHandler());
+	CommandHandlers.Add(new FMetaHumanHandler());
 	for (FCommandHandler* Handler : CommandHandlers)
 	{
 		Handler->CommandDispatcher = CommandDispatcher;
