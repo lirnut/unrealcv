@@ -57,69 +57,69 @@ void UMovieQualityLitCamSensor::SetPostProcessSettings(FPostProcessSettings& PPS
 
 void UMovieQualityLitCamSensor::CaptureLit(TArray<FColor>& Image, int& Width, int& Height)
 {
-	if (!IsInitialized())
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("MovieQualityLitCamSensor not initialized"));
-		Image.Empty();
-		Width = 0;
-		Height = 0;
-		return;
-	}
+	// if (!IsInitialized())
+	// {
+	// 	UE_LOG(LogUnrealCV, Error, TEXT("MovieQualityLitCamSensor not initialized"));
+	// 	Image.Empty();
+	// 	Width = 0;
+	// 	Height = 0;
+	// 	return;
+	// }
 
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		Image.Empty();
-		Width = 0;
-		Height = 0;
-		return;
-	}
+	// UWorld* World = GetWorld();
+	// if (!World)
+	// {
+	// 	Image.Empty();
+	// 	Width = 0;
+	// 	Height = 0;
+	// 	return;
+	// }
 
-	Width = Resolution.X;
-	Height = Resolution.Y;
+	// Width = Resolution.X;
+	// Height = Resolution.Y;
 
-	if (!SyncRenderTarget || SyncRenderTarget->GetSurfaceWidth() != Width || SyncRenderTarget->GetSurfaceHeight() != Height)
-	{
-		if (SyncRenderTarget)
-		{
-			SyncRenderTarget->RemoveFromRoot();
-		}
-		SyncRenderTarget = NewObject<UTextureRenderTarget2D>(this);
-		SyncRenderTarget->InitCustomFormat(Width, Height, PF_B8G8R8A8, false);
-		SyncRenderTarget->ClearColor = FLinearColor::Black;
-		SyncRenderTarget->AddToRoot();
-	}
+	// if (!SyncRenderTarget || SyncRenderTarget->GetSurfaceWidth() != Width || SyncRenderTarget->GetSurfaceHeight() != Height)
+	// {
+	// 	if (SyncRenderTarget)
+	// 	{
+	// 		SyncRenderTarget->RemoveFromRoot();
+	// 	}
+	// 	SyncRenderTarget = NewObject<UTextureRenderTarget2D>(this);
+	// 	SyncRenderTarget->InitCustomFormat(Width, Height, PF_B8G8R8A8, false);
+	// 	SyncRenderTarget->ClearColor = FLinearColor::Black;
+	// 	SyncRenderTarget->AddToRoot();
+	// }
 
-	TSharedPtr<FSceneViewFamilyContext> ViewFamily = CreateViewFamily(SyncRenderTarget);
-	if (!ViewFamily.IsValid())
-	{
-		Image.Empty();
-		return;
-	}
+	// TSharedPtr<FSceneViewFamilyContext> ViewFamily = CreateViewFamily(SyncRenderTarget);
+	// if (!ViewFamily.IsValid())
+	// {
+	// 	Image.Empty();
+	// 	return;
+	// }
 
-	FSceneView* View = CreateSceneView(ViewFamily.Get());
-	if (!View)
-	{
-		Image.Empty();
-		return;
-	}
+	// FSceneView* View = CreateSceneView(ViewFamily.Get());
+	// if (!View)
+	// {
+	// 	Image.Empty();
+	// 	return;
+	// }
 
-	World->SendAllEndOfFrameUpdates();
+	// World->SendAllEndOfFrameUpdates();
 
-	FRenderTarget* RenderTargetResource = SyncRenderTarget->GameThread_GetRenderTargetResource();
-	FCanvas Canvas(RenderTargetResource, nullptr, World, ViewFamily->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
-	GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
+	// FRenderTarget* RenderTargetResource = SyncRenderTarget->GameThread_GetRenderTargetResource();
+	// FCanvas Canvas(RenderTargetResource, nullptr, World, ViewFamily->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
+	// GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
 
-	FlushRenderingCommands();
+	// FlushRenderingCommands();
 
-	FReadSurfaceDataFlags ReadSurfaceDataFlags;
-	ReadSurfaceDataFlags.SetLinearToGamma(false);
-	RenderTargetResource->ReadPixels(Image, ReadSurfaceDataFlags);
+	// FReadSurfaceDataFlags ReadSurfaceDataFlags;
+	// ReadSurfaceDataFlags.SetLinearToGamma(false);
+	// RenderTargetResource->ReadPixels(Image, ReadSurfaceDataFlags);
 
-	if (Image.Num() == 0)
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityLitCamSensor::CaptureLit - Captured data is empty"));
-	}
+	// if (Image.Num() == 0)
+	// {
+	// 	UE_LOG(LogUnrealCV, Warning, TEXT("MovieQualityLitCamSensor::CaptureLit - Captured data is empty"));
+	// }
 }
 
 void UMovieQualityLitCamSensor::CaptureLitToFile(const FString& Filename)

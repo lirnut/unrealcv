@@ -13,10 +13,13 @@ DECLARE_CYCLE_STAT(TEXT("ULitCamSensor::CaptureLit"), STAT_CaptureLit, STATGROUP
 ULitCamSensor::ULitCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
+	// bCaptureEveryFrame = true;
+	bInheritMainViewCameraPostProcessSettings = true;
+
 	// CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 	CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
 	this->ShowFlags.SetAntiAliasing(true);
-	this->ShowFlags.SetTemporalAA(false);
+	this->ShowFlags.SetTemporalAA(true);
 	// this->ShowFlags.SetEyeAdaptation(false); // Eye adaption is a slow temporal procedure, not useful for image capture
 
 

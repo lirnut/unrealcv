@@ -216,7 +216,13 @@ protected:
 	// float GetTargetGamma() const;
 
 	virtual void SetPostProcessSettings(FPostProcessSettings& PPSettings);
-	
+
+	static void DebugPrintPostProcessSettings(const FPostProcessSettings& Settings, const FString& Prefix);
+	static void DebugPrintPostProcessSettingsAll(const FPostProcessSettings& Settings, const FString& Prefix);
+	static void SetAllOverridePostProcessSettings(FPostProcessSettings& Settings);
+
+	static void CopyOverrideFlags(const FPostProcessSettings& Src, FPostProcessSettings& Dest);
+
 	void SetDefaultPostProcessSettings(FPostProcessSettings& PPSettings);
 	void ExecuteCaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady);
 

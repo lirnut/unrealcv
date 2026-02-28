@@ -75,7 +75,7 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	WarmUpFrames = WARM_UP_FRAMES;
 	WarmUpElapsedFrames = 0;
 
-	bUseMovieQualityRendering = true;
+	bUseMovieQualityRendering = false;
 	MovieQualityRenderer = nullptr;
 
 	MP4EncodedFrameCount = 0;
@@ -398,14 +398,14 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	if (CurrentTrajectoryIndex < CurrentTrajectory.Num() && !FMath::IsNearlyZero(EffectiveTimeDilation))
 	{
 		EffectiveTimeDilation = TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation;
-		if (FMath::Abs(EffectiveTimeDilation - WorldSettings->TimeDilation) < 0.05f)
-		{
+		// if (FMath::Abs(EffectiveTimeDilation - WorldSettings->TimeDilation) < 0.05f)
+		// {
 			WorldSettings->SetTimeDilation(EffectiveTimeDilation);
-		}
-		else if (EffectiveTimeDilation != WorldSettings->TimeDilation)
-		{
-			WorldSettings->SetTimeDilation(0.2f * EffectiveTimeDilation + 0.8f * WorldSettings->TimeDilation);
-		}
+		// }
+		// else if (EffectiveTimeDilation != WorldSettings->TimeDilation)
+		// {
+		// 	WorldSettings->SetTimeDilation(0.2f * EffectiveTimeDilation + 0.8f * WorldSettings->TimeDilation);
+		// }
 	}
 
 

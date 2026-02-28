@@ -5,6 +5,8 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "Engine/PostProcessVolume.h"
+#include "EngineUtils.h"
 #include "Engine/Canvas.h"
 #include "SceneView.h"
 #include "SceneViewExtension.h"
@@ -20,22 +22,38 @@
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
 #include "LandscapeRender.h"
+#include "Materials/MaterialRenderProxy.h"
 
 FMQRCSettings UMovieQualityRenderComponent::GlobalSettings;
 
 
 void FMovieQualityViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 {
-	if (!Component.IsValid()) { return; }
+	if (!Component.IsValid()) { 
+		UE_LOG(LogTemp, Error, TEXT("FMovieQualityViewExtension::BeginRenderViewFamily: !Component.IsValid()"));
+		return; 
+	}
 	if (InViewFamily.bIsMainViewFamily)
 	{
 		if (InViewFamily.Views.Num() > 0 && InViewFamily.Views[0] != nullptr)
 		{
 			Component->CachedMainViewPostProcessSettings = InViewFamily.Views[0]->FinalPostProcessSettings;
+			Component->CachedMainViewPostProcessSettings.BlendableManager = FBlendableManager();
+
 			Component->bHasCachedMainViewPostProcessSettings = true;
 			Component->LastMainViewportFrameNumber = InViewFamily.FrameNumber;
+			UE_LOG(LogTemp, Log, TEXT("FMovieQualityViewExtension::BeginRenderViewFamily: sucessfully set CachedMainViewPostProcessSettings"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("FMovieQualityViewExtension::BeginRenderViewFamily: %d"), InViewFamily.Views.Num());
+			UE_LOG(LogTemp, Warning, TEXT("FMovieQualityViewExtension::BeginRenderViewFamily: %p"), InViewFamily.Views[0]);
 		}
 		Component->ProcessDeferredCaptures();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("FMovieQualityViewExtension::BeginRenderViewFamily: !InViewFamily.bIsMainViewFamily"));
 	}
 }
 
@@ -60,6 +78,10 @@ UMovieQualityRenderComponent::UMovieQualityRenderComponent()
   	ShowFlags.SetCapsuleShadows(true); 
 
 	ShowFlags.SetPreviewShadowsIndicator(false);
+
+	ShowFlags.SetTonemapper(true);
+    ShowFlags.SetEyeAdaptation(true);
+    ShowFlags.SetPostProcessing(true);  // Also ensure PostProcessing is on
 
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
@@ -110,6 +132,9 @@ void UMovieQualityRenderComponent::EndPlay(const EEndPlayReason::Type EndPlayRea
 
 void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 ResolutionY)
 {
+	ShowFlags = GetWorld()->GetGameViewport()->EngineShowFlags;
+
+
 	UE_LOG(LogTemp, Warning, TEXT("5"));
 	UWorld* World = GetWorld();
 	if (!World)
@@ -159,6 +184,9 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 	UE_LOG(LogTemp, Warning, TEXT("5"));
 	if (ViewState.GetReference())
 	{
+		// MQRC Fix: Wait for rendering commands before destroying ViewState
+		// This prevents "Material about to be deleted" crashes during re-initialization
+		FlushRenderingCommands();
 		ViewState.Destroy();
 	}
 	UE_LOG(LogTemp, Warning, TEXT("5"));
@@ -213,6 +241,12 @@ void UMovieQualityRenderComponent::Shutdown()
 		return;
 	}
 
+	// MQRC Fix: Wait for all pending rendering commands to complete before destroying resources
+	// This prevents "Material about to be deleted" crashes when switching maps or destroying component
+	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - Flushing rendering commands"));
+	FlushRenderingCommands();
+	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - Rendering commands flushed"));
+
 	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - Before SurfaceQueue shutdown"));
 	if (SurfaceQueue.IsValid())
 	{
@@ -230,12 +264,12 @@ void UMovieQualityRenderComponent::Shutdown()
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - Before ViewState cleanup"));
-	FSceneViewStateInterface* Ref = ViewState.GetReference();
-	if (Ref)
-	{
-		Ref->ClearMIDPool();
-	}
+
+	// MQRC Fix: Let ViewState.Destroy() handle MID pool cleanup automatically
+	// Explicit ClearMIDPool() causes race condition with async material caching
+	// ViewState.Destroy() enqueues proper cleanup on render thread via ReleaseRHI()
 	ViewState.Destroy();
+
 	UE_LOG(LogTemp, Warning, TEXT("[CHECKPOINT] MovieQualityRenderComponent::Shutdown() - ViewState destroyed"));
 
 	for (auto& Pair : RenderTargetPool)
@@ -360,7 +394,6 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 void UMovieQualityRenderComponent::ExecuteCaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
 {
 
-	// ResetAllTemporalState();
 	if (NumWarmup - 1 > 0)
 	{
 		for (int32 N = 0; N < NumWarmup - 1; N += 1)
@@ -486,13 +519,13 @@ TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFami
 	return ViewFamily;
 }
 
-FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* ViewFamily)
+FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* VF)
 {
 	FVector Location = GetComponentLocation();
 	FRotator Rotation = GetComponentRotation();
 
 	FSceneViewInitOptions ViewInitOptions;
-	ViewInitOptions.ViewFamily = ViewFamily;
+	ViewInitOptions.ViewFamily = VF;
 	ViewInitOptions.ViewOrigin = Location;
 	ViewInitOptions.SetViewRectangle(FIntRect(0, 0, Resolution.X, Resolution.Y));
 	ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(Rotation);
@@ -533,38 +566,83 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 	// View->bIsReflectionCapture = true;
 	View->bIsSceneCapture = true;
 	// View->bIsSceneCaptureCube = false;
-	// View->bIsGameView = true;
+	View->bIsGameView = true;
 
 	View->OverrideFrameIndexValue = FrameCounter++;
-	// View->bAllowTemporalJitter = false;
 
-	SetPostProcessSettings(PostProcessSettings);
-
-	View->StartFinalPostprocessSettings(ViewInitOptions.ViewOrigin);
-
-	if (!bHasCachedMainViewPostProcessSettings)
-	{
-		UE_LOG(LogTemp, Error, TEXT("bHasCachedMainViewPostProcessSettings = false"));
-	}
 
 	if (bHasCachedMainViewPostProcessSettings)
 	{
-		// Use the cached main viewport's PostProcessSettings
+		UE_LOG(LogTemp, Log, TEXT("MQRC: bHasCachedMainViewPostProcessSettings = true"));
+		DebugPrintPostProcessSettingsAll(CachedMainViewPostProcessSettings, TEXT("MQRC: CachedMainViewPostProcessSettings"));
 		View->FinalPostProcessSettings = CachedMainViewPostProcessSettings;
-		UE_LOG(LogTemp, Warning, TEXT("Use the cached main viewport's PostProcessSettings"));
+		// SetAllOverridePostProcessSettings(View->FinalPostProcessSettings);
 	}
 	else
 	{
-		// Initialize with default settings (similar to SceneCaptureComponent2D)
-		View->FinalPostProcessSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::None;
-		View->FinalPostProcessSettings.ReflectionMethod = EReflectionMethod::None;
-		View->FinalPostProcessSettings.LumenSurfaceCacheResolution = 0.5f;
-		UE_LOG(LogTemp, Warning, TEXT("Initialize with default settings PostProcessSettings"));
+		UE_LOG(LogTemp, Warning, TEXT("MQRC: bHasCachedMainViewPostProcessSettings = false,  use SetBaseValues() instead"));
+		View->FinalPostProcessSettings.SetBaseValues();
+	}
+	
+	DebugPrintPostProcessSettings(View->FinalPostProcessSettings, TEXT("MQRC: Init"));
+
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		UE_LOG(LogTemp, Log, TEXT("MQRC: World found, gathering PostProcessVolumes"));
+
+		TArray<APostProcessVolume*> Volumes;
+		for (TActorIterator<APostProcessVolume> It(World); It; ++It)
+		{
+			if (It->bEnabled && It->bUnbound)
+			{
+				Volumes.Add(*It);
+				UE_LOG(LogTemp, Log, TEXT("MQRC: Found PPV: %s, Priority=%.2f, BlendWeight=%.2f, Blendables=%d"),
+					*It->GetName(), It->Priority, It->BlendWeight, It->Settings.WeightedBlendables.Array.Num());
+			}
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("MQRC: Total enabled unbound PPVs: %d"), Volumes.Num());
+
+		Volumes.Sort([](const APostProcessVolume& A, const APostProcessVolume& B) {
+			return A.Priority > B.Priority;
+		});
+
+
+		for (APostProcessVolume* Vol : Volumes)
+		{
+			DebugPrintPostProcessSettings(Vol->Settings, FString::Printf(TEXT("MQRC: PPV[%s]"), *Vol->GetName()));
+			FPostProcessSettings TempSettings = Vol->Settings;
+
+			int32 BlendableCount = TempSettings.WeightedBlendables.Array.Num();
+			TempSettings.WeightedBlendables.Array.Empty();
+			UE_LOG(LogTemp, Log, TEXT("MQRC: Applied PPV: %s (cleared %d blendables)"), *Vol->GetName(), BlendableCount);
+
+			View->OverridePostProcessSettings(TempSettings, Vol->BlendWeight);
+			CopyOverrideFlags(TempSettings, View->FinalPostProcessSettings);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MQRC: World not found"));
 	}
 
+	SetPostProcessSettings(PostProcessSettings);
+	DebugPrintPostProcessSettings(PostProcessSettings, TEXT("MQRC: PostProcessSettings Overrides"));
 	View->OverridePostProcessSettings(PostProcessSettings, PostProcessBlendWeight);
+	// CopyOverrideFlags(PostProcessSettings, View->FinalPostProcessSettings);
+	UE_LOG(LogTemp, Log, TEXT("MQRC: Applied PPS overrides"));
 
-	View->EndFinalPostprocessSettings(ViewInitOptions);
+	DebugPrintPostProcessSettings(View->FinalPostProcessSettings, TEXT("MQRC: After PPS overrides"));
+
+	// const float MaxLuminance = 1.2f; // Should we use const LuminanceMaxFromLensAttenuation() instead?
+	// View->FinalPostProcessSettings.AutoExposureMinBrightness = LuminanceToEV100(MaxLuminance, View->FinalPostProcessSettings.AutoExposureMinBrightness);
+	// View->FinalPostProcessSettings.AutoExposureMaxBrightness = LuminanceToEV100(MaxLuminance, View->FinalPostProcessSettings.AutoExposureMaxBrightness);
+
+	// SetAllOverridePostProcessSettings(View->FinalPostProcessSettings);
+  	View->EndFinalPostprocessSettings(ViewInitOptions);
+
+	DebugPrintPostProcessSettings(View->FinalPostProcessSettings, TEXT("MQRC: Final"));
 
 	if (ShowOnlyComponents.Num() > 0)
 	{
@@ -582,14 +660,14 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 		}
 		View->ShowOnlyPrimitives = TOptional<TSet<FPrimitiveComponentId>>(VisiblePrimitives);
 	}
-
-	ViewFamily->Views.Add(View);
+	VF->Views.Add(View);
+	// VF->AllViews.Add(View);
 
 	return View;
 }
 
 void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
-	FSceneViewFamily* ViewFamily,
+	FSceneViewFamily* VF,
 	UTextureRenderTarget2D* RenderTarget,
 	TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
 {
@@ -607,22 +685,22 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 
 	// MQRC Fix: Setup ViewExtensions for scene capture (required for Landscape LOD system)
 	// This mimics SceneCaptureRendering.cpp's SetupSceneViewExtensionsForSceneCapture (lines 806-822)
-	for (const FSceneViewExtensionRef& Extension : ViewFamily->ViewExtensions)
+	for (const FSceneViewExtensionRef& Extension : VF->ViewExtensions)
 	{
-		Extension->SetupViewFamily(*ViewFamily);
+		Extension->SetupViewFamily(*VF);
 	}
-	for (const FSceneView* View : ViewFamily->Views)
+	for (const FSceneView* View : VF->Views)
 	{
-		for (const FSceneViewExtensionRef& Extension : ViewFamily->ViewExtensions)
+		for (const FSceneViewExtensionRef& Extension : VF->ViewExtensions)
 		{
-			Extension->SetupView(*ViewFamily, *const_cast<FSceneView*>(View));
+			Extension->SetupView(*VF, *const_cast<FSceneView*>(View));
 		}
 	}
 
 	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
-	FCanvas Canvas(RenderTargetResource, nullptr, World, ViewFamily->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
-	GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily);
+	FCanvas Canvas(RenderTargetResource, nullptr, World, VF->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
+	GetRendererModule().BeginRenderingViewFamily(&Canvas, VF);
 
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 
@@ -678,6 +756,977 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 void UMovieQualityRenderComponent::SetPostProcessSettings(FPostProcessSettings& PPSettings)
 {
 	SetDefaultPostProcessSettings(PPSettings);
+}
+
+void UMovieQualityRenderComponent::CopyOverrideFlags(const FPostProcessSettings& Src, FPostProcessSettings& Dest)
+{
+#define COPY_OVERRIDE(NAME) if(Src.bOverride_##NAME) Dest.bOverride_##NAME = true;
+
+	COPY_OVERRIDE(TemperatureType);
+	COPY_OVERRIDE(WhiteTemp);
+	COPY_OVERRIDE(WhiteTint);
+	COPY_OVERRIDE(ColorSaturation);
+	COPY_OVERRIDE(ColorContrast);
+	COPY_OVERRIDE(ColorGamma);
+	COPY_OVERRIDE(ColorGain);
+	COPY_OVERRIDE(ColorOffset);
+	COPY_OVERRIDE(ColorSaturationShadows);
+	COPY_OVERRIDE(ColorContrastShadows);
+	COPY_OVERRIDE(ColorGammaShadows);
+	COPY_OVERRIDE(ColorGainShadows);
+	COPY_OVERRIDE(ColorOffsetShadows);
+	COPY_OVERRIDE(ColorSaturationMidtones);
+	COPY_OVERRIDE(ColorContrastMidtones);
+	COPY_OVERRIDE(ColorGammaMidtones);
+	COPY_OVERRIDE(ColorGainMidtones);
+	COPY_OVERRIDE(ColorOffsetMidtones);
+	COPY_OVERRIDE(ColorSaturationHighlights);
+	COPY_OVERRIDE(ColorContrastHighlights);
+	COPY_OVERRIDE(ColorGammaHighlights);
+	COPY_OVERRIDE(ColorGainHighlights);
+	COPY_OVERRIDE(ColorOffsetHighlights);
+	COPY_OVERRIDE(FilmSlope);
+	COPY_OVERRIDE(FilmToe);
+	COPY_OVERRIDE(FilmShoulder);
+	COPY_OVERRIDE(FilmBlackClip);
+	COPY_OVERRIDE(FilmWhiteClip);
+	COPY_OVERRIDE(SceneColorTint);
+	COPY_OVERRIDE(BloomIntensity);
+	COPY_OVERRIDE(BloomThreshold);
+	COPY_OVERRIDE(AutoExposureMethod);
+	COPY_OVERRIDE(AutoExposureSpeedUp);
+	COPY_OVERRIDE(AutoExposureSpeedDown);
+	COPY_OVERRIDE(AutoExposureBias);
+	COPY_OVERRIDE(AutoExposureMinBrightness);
+	COPY_OVERRIDE(AutoExposureMaxBrightness);
+	COPY_OVERRIDE(DepthOfFieldScale);
+	COPY_OVERRIDE(DepthOfFieldFocalDistance);
+	COPY_OVERRIDE(DepthOfFieldFstop);
+	COPY_OVERRIDE(MotionBlurAmount);
+	COPY_OVERRIDE(MotionBlurMax);
+	COPY_OVERRIDE(MotionBlurTargetFPS);
+	COPY_OVERRIDE(MotionBlurPerObjectSize);
+	COPY_OVERRIDE(ReflectionMethod);
+	COPY_OVERRIDE(LumenReflectionQuality);
+	COPY_OVERRIDE(DynamicGlobalIlluminationMethod);
+	COPY_OVERRIDE(LumenSceneLightingQuality);
+	COPY_OVERRIDE(LumenSceneDetail);
+	COPY_OVERRIDE(LumenSceneViewDistance);
+	COPY_OVERRIDE(LumenSceneLightingUpdateSpeed);
+	COPY_OVERRIDE(LumenFinalGatherQuality);
+	COPY_OVERRIDE(LumenFinalGatherLightingUpdateSpeed);
+	COPY_OVERRIDE(LumenFinalGatherScreenTraces);
+	COPY_OVERRIDE(LumenMaxTraceDistance);
+	COPY_OVERRIDE(LumenDiffuseColorBoost);
+	COPY_OVERRIDE(LumenSkylightLeaking);
+	COPY_OVERRIDE(LumenFullSkylightLeakingDistance);
+	COPY_OVERRIDE(LumenRayLightingMode);
+	COPY_OVERRIDE(LumenReflectionsScreenTraces);
+	COPY_OVERRIDE(LumenFrontLayerTranslucencyReflections);
+	COPY_OVERRIDE(LumenMaxRoughnessToTraceReflections);
+	COPY_OVERRIDE(LumenMaxReflectionBounces);
+	COPY_OVERRIDE(LumenMaxRefractionBounces);
+	COPY_OVERRIDE(LumenSurfaceCacheResolution);
+
+#undef COPY_OVERRIDE
+}
+
+void UMovieQualityRenderComponent::DebugPrintPostProcessSettings(const FPostProcessSettings& Settings, const FString& Prefix)
+{
+	UE_LOG(LogTemp, Log, TEXT("%s === PostProcessSettings Debug ==="), *Prefix);
+
+#define CHECK_OVERRIDE_FLOAT(Name) \
+	if (Settings.bOverride_##Name) { \
+		UE_LOG(LogTemp, Log, TEXT("%s   %s = %.4f"), *Prefix, TEXT(#Name), Settings.Name); \
+	}
+
+#define CHECK_OVERRIDE_INT(Name) \
+	if (Settings.bOverride_##Name) { \
+		UE_LOG(LogTemp, Log, TEXT("%s   %s = %d"), *Prefix, TEXT(#Name), (int32)Settings.Name); \
+	}
+
+#define CHECK_OVERRIDE_BOOL(Name) \
+	if (Settings.bOverride_##Name) { \
+		UE_LOG(LogTemp, Log, TEXT("%s   %s = %s"), *Prefix, TEXT(#Name), Settings.Name ? TEXT("true") : TEXT("false")); \
+	}
+
+#define CHECK_OVERRIDE_VEC4(Name) \
+	if (Settings.bOverride_##Name) { \
+		UE_LOG(LogTemp, Log, TEXT("%s   %s = (%.3f, %.3f, %.3f, %.3f)"), *Prefix, TEXT(#Name), \
+			Settings.Name.X, Settings.Name.Y, Settings.Name.Z, Settings.Name.W); \
+	}
+
+#define CHECK_OVERRIDE_COLOR(Name) \
+	if (Settings.bOverride_##Name) { \
+		UE_LOG(LogTemp, Log, TEXT("%s   %s = (R:%.3f, G:%.3f, B:%.3f)"), *Prefix, TEXT(#Name), \
+			Settings.Name.R, Settings.Name.G, Settings.Name.B); \
+	}
+
+#define CHECK_OVERRIDE_VEC2(Name) \
+	if (Settings.bOverride_##Name) { \
+		UE_LOG(LogTemp, Log, TEXT("%s   %s = (%.3f, %.3f)"), *Prefix, TEXT(#Name), \
+			Settings.Name.X, Settings.Name.Y); \
+	}
+
+#define CHECK_OVERRIDE_TEXTURE(Name) \
+	if (Settings.bOverride_##Name) { \
+		UE_LOG(LogTemp, Log, TEXT("%s   %s = %s"), *Prefix, TEXT(#Name), \
+			Settings.Name ? *Settings.Name->GetName() : TEXT("nullptr")); \
+	}
+
+#define CHECK_OVERRIDE_CURVE(Name) \
+	if (Settings.bOverride_##Name) { \
+		UE_LOG(LogTemp, Log, TEXT("%s   %s = %s"), *Prefix, TEXT(#Name), \
+			Settings.Name ? *Settings.Name->GetName() : TEXT("nullptr")); \
+	}
+
+	CHECK_OVERRIDE_INT(TemperatureType);
+	CHECK_OVERRIDE_FLOAT(WhiteTemp);
+	CHECK_OVERRIDE_FLOAT(WhiteTint);
+
+	CHECK_OVERRIDE_VEC4(ColorSaturation);
+	CHECK_OVERRIDE_VEC4(ColorContrast);
+	CHECK_OVERRIDE_VEC4(ColorGamma);
+	CHECK_OVERRIDE_VEC4(ColorGain);
+	CHECK_OVERRIDE_VEC4(ColorOffset);
+
+	CHECK_OVERRIDE_VEC4(ColorSaturationShadows);
+	CHECK_OVERRIDE_VEC4(ColorContrastShadows);
+	CHECK_OVERRIDE_VEC4(ColorGammaShadows);
+	CHECK_OVERRIDE_VEC4(ColorGainShadows);
+	CHECK_OVERRIDE_VEC4(ColorOffsetShadows);
+
+	CHECK_OVERRIDE_VEC4(ColorSaturationMidtones);
+	CHECK_OVERRIDE_VEC4(ColorContrastMidtones);
+	CHECK_OVERRIDE_VEC4(ColorGammaMidtones);
+	CHECK_OVERRIDE_VEC4(ColorGainMidtones);
+	CHECK_OVERRIDE_VEC4(ColorOffsetMidtones);
+
+	CHECK_OVERRIDE_VEC4(ColorSaturationHighlights);
+	CHECK_OVERRIDE_VEC4(ColorContrastHighlights);
+	CHECK_OVERRIDE_VEC4(ColorGammaHighlights);
+	CHECK_OVERRIDE_VEC4(ColorGainHighlights);
+	CHECK_OVERRIDE_VEC4(ColorOffsetHighlights);
+
+	CHECK_OVERRIDE_FLOAT(ColorCorrectionShadowsMax);
+	CHECK_OVERRIDE_FLOAT(ColorCorrectionHighlightsMin);
+	CHECK_OVERRIDE_FLOAT(ColorCorrectionHighlightsMax);
+
+	CHECK_OVERRIDE_FLOAT(BlueCorrection);
+	CHECK_OVERRIDE_FLOAT(ExpandGamut);
+	CHECK_OVERRIDE_FLOAT(ToneCurveAmount);
+
+	CHECK_OVERRIDE_FLOAT(FilmSlope);
+	CHECK_OVERRIDE_FLOAT(FilmToe);
+	CHECK_OVERRIDE_FLOAT(FilmShoulder);
+	CHECK_OVERRIDE_FLOAT(FilmBlackClip);
+	CHECK_OVERRIDE_FLOAT(FilmWhiteClip);
+
+	CHECK_OVERRIDE_COLOR(SceneColorTint);
+	CHECK_OVERRIDE_FLOAT(SceneFringeIntensity);
+	CHECK_OVERRIDE_FLOAT(ChromaticAberrationStartOffset);
+
+	CHECK_OVERRIDE_INT(BloomMethod);
+	CHECK_OVERRIDE_FLOAT(BloomIntensity);
+	CHECK_OVERRIDE_FLOAT(BloomThreshold);
+	CHECK_OVERRIDE_FLOAT(BloomSizeScale);
+	CHECK_OVERRIDE_FLOAT(Bloom1Size);
+	CHECK_OVERRIDE_FLOAT(Bloom2Size);
+	CHECK_OVERRIDE_FLOAT(Bloom3Size);
+	CHECK_OVERRIDE_FLOAT(Bloom4Size);
+	CHECK_OVERRIDE_FLOAT(Bloom5Size);
+	CHECK_OVERRIDE_FLOAT(Bloom6Size);
+	CHECK_OVERRIDE_COLOR(Bloom1Tint);
+	CHECK_OVERRIDE_COLOR(Bloom2Tint);
+	CHECK_OVERRIDE_COLOR(Bloom3Tint);
+	CHECK_OVERRIDE_COLOR(Bloom4Tint);
+	CHECK_OVERRIDE_COLOR(Bloom5Tint);
+	CHECK_OVERRIDE_COLOR(Bloom6Tint);
+
+	CHECK_OVERRIDE_FLOAT(BloomDirtMaskIntensity);
+	CHECK_OVERRIDE_COLOR(BloomDirtMaskTint);
+
+	CHECK_OVERRIDE_FLOAT(CameraShutterSpeed);
+	CHECK_OVERRIDE_FLOAT(CameraISO);
+	CHECK_OVERRIDE_INT(AutoExposureMethod);
+	CHECK_OVERRIDE_FLOAT(AutoExposureLowPercent);
+	CHECK_OVERRIDE_FLOAT(AutoExposureHighPercent);
+	CHECK_OVERRIDE_FLOAT(AutoExposureMinBrightness);
+	CHECK_OVERRIDE_FLOAT(AutoExposureMaxBrightness);
+	CHECK_OVERRIDE_FLOAT(AutoExposureSpeedUp);
+	CHECK_OVERRIDE_FLOAT(AutoExposureSpeedDown);
+	CHECK_OVERRIDE_FLOAT(AutoExposureBias);
+	CHECK_OVERRIDE_FLOAT(AutoExposureBiasBackup);
+	CHECK_OVERRIDE_CURVE(AutoExposureBiasCurve);
+	CHECK_OVERRIDE_TEXTURE(AutoExposureMeterMask);
+	CHECK_OVERRIDE_BOOL(AutoExposureApplyPhysicalCameraExposure);
+	CHECK_OVERRIDE_FLOAT(HistogramLogMin);
+	CHECK_OVERRIDE_FLOAT(HistogramLogMax);
+
+	CHECK_OVERRIDE_INT(LocalExposureMethod);
+	CHECK_OVERRIDE_FLOAT(LocalExposureHighlightContrastScale);
+	CHECK_OVERRIDE_FLOAT(LocalExposureShadowContrastScale);
+	CHECK_OVERRIDE_FLOAT(LocalExposureDetailStrength);
+	CHECK_OVERRIDE_FLOAT(LocalExposureBlurredLuminanceBlend);
+	CHECK_OVERRIDE_FLOAT(LocalExposureBlurredLuminanceKernelSizePercent);
+	CHECK_OVERRIDE_FLOAT(LocalExposureMiddleGreyBias);
+
+	CHECK_OVERRIDE_FLOAT(LensFlareIntensity);
+	CHECK_OVERRIDE_COLOR(LensFlareTint);
+	CHECK_OVERRIDE_FLOAT(LensFlareBokehSize);
+	CHECK_OVERRIDE_FLOAT(LensFlareThreshold);
+	CHECK_OVERRIDE_FLOAT(VignetteIntensity);
+	CHECK_OVERRIDE_FLOAT(Sharpen);
+
+	CHECK_OVERRIDE_FLOAT(FilmGrainIntensity);
+	CHECK_OVERRIDE_FLOAT(FilmGrainIntensityShadows);
+	CHECK_OVERRIDE_FLOAT(FilmGrainIntensityMidtones);
+	CHECK_OVERRIDE_FLOAT(FilmGrainIntensityHighlights);
+
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionIntensity);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionStaticFraction);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionRadius);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionFadeDistance);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionFadeRadius);
+	CHECK_OVERRIDE_BOOL(AmbientOcclusionRadiusInWS);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionPower);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionBias);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionQuality);
+
+	CHECK_OVERRIDE_FLOAT(IndirectLightingIntensity);
+	CHECK_OVERRIDE_COLOR(IndirectLightingColor);
+
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldFocalDistance);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldFstop);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldMinFstop);
+	CHECK_OVERRIDE_INT(DepthOfFieldBladeCount);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldSensorWidth);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldSqueezeFactor);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldDepthBlurRadius);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldDepthBlurAmount);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldFocalRegion);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldNearTransitionRegion);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldFarTransitionRegion);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldScale);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldNearBlurSize);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldFarBlurSize);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldOcclusion);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldSkyFocusDistance);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldVignetteSize);
+
+	CHECK_OVERRIDE_FLOAT(MotionBlurAmount);
+	CHECK_OVERRIDE_FLOAT(MotionBlurMax);
+	CHECK_OVERRIDE_INT(MotionBlurTargetFPS);
+	CHECK_OVERRIDE_FLOAT(MotionBlurPerObjectSize);
+
+	CHECK_OVERRIDE_INT(ReflectionMethod);
+	CHECK_OVERRIDE_FLOAT(LumenReflectionQuality);
+	CHECK_OVERRIDE_FLOAT(ScreenSpaceReflectionIntensity);
+	CHECK_OVERRIDE_FLOAT(ScreenSpaceReflectionQuality);
+	CHECK_OVERRIDE_FLOAT(ScreenSpaceReflectionMaxRoughness);
+
+	CHECK_OVERRIDE_INT(DynamicGlobalIlluminationMethod);
+	CHECK_OVERRIDE_FLOAT(LumenSceneLightingQuality);
+	CHECK_OVERRIDE_FLOAT(LumenSceneDetail);
+	CHECK_OVERRIDE_FLOAT(LumenSceneViewDistance);
+	CHECK_OVERRIDE_FLOAT(LumenSceneLightingUpdateSpeed);
+	CHECK_OVERRIDE_FLOAT(LumenFinalGatherQuality);
+	CHECK_OVERRIDE_FLOAT(LumenFinalGatherLightingUpdateSpeed);
+	CHECK_OVERRIDE_BOOL(LumenFinalGatherScreenTraces);
+	CHECK_OVERRIDE_FLOAT(LumenMaxTraceDistance);
+	CHECK_OVERRIDE_FLOAT(LumenDiffuseColorBoost);
+	CHECK_OVERRIDE_FLOAT(LumenSkylightLeaking);
+	CHECK_OVERRIDE_COLOR(LumenSkylightLeakingTint);
+	CHECK_OVERRIDE_FLOAT(LumenFullSkylightLeakingDistance);
+	CHECK_OVERRIDE_INT(LumenRayLightingMode);
+	CHECK_OVERRIDE_BOOL(LumenReflectionsScreenTraces);
+	CHECK_OVERRIDE_BOOL(LumenFrontLayerTranslucencyReflections);
+	CHECK_OVERRIDE_FLOAT(LumenMaxRoughnessToTraceReflections);
+	CHECK_OVERRIDE_INT(LumenMaxReflectionBounces);
+	CHECK_OVERRIDE_INT(LumenMaxRefractionBounces);
+
+	CHECK_OVERRIDE_BOOL(RayTracingAO);
+	CHECK_OVERRIDE_INT(RayTracingAOSamplesPerPixel);
+	CHECK_OVERRIDE_FLOAT(RayTracingAOIntensity);
+	CHECK_OVERRIDE_FLOAT(RayTracingAORadius);
+
+	// CHECK_OVERRIDE_FLOAT(RayTracingReflectionsMaxRoughness);
+	// CHECK_OVERRIDE_INT(RayTracingReflectionsMaxBounces);
+	// CHECK_OVERRIDE_INT(RayTracingReflectionsSamplesPerPixel);
+	// CHECK_OVERRIDE_INT(RayTracingReflectionsShadows);
+	// CHECK_OVERRIDE_INT(RayTracingReflectionsTranslucency);
+
+	CHECK_OVERRIDE_INT(TranslucencyType);
+	CHECK_OVERRIDE_FLOAT(RayTracingTranslucencyMaxRoughness);
+	CHECK_OVERRIDE_INT(RayTracingTranslucencyRefractionRays);
+	CHECK_OVERRIDE_INT(RayTracingTranslucencySamplesPerPixel);
+	CHECK_OVERRIDE_INT(RayTracingTranslucencyShadows);
+	CHECK_OVERRIDE_INT(RayTracingTranslucencyRefraction);
+
+	CHECK_OVERRIDE_INT(RayTracingTranslucencyMaxPrimaryHitEvents);
+	CHECK_OVERRIDE_INT(RayTracingTranslucencyMaxSecondaryHitEvents);
+	CHECK_OVERRIDE_BOOL(RayTracingTranslucencyUseRayTracedRefraction);
+
+	// CHECK_OVERRIDE_BOOL(RayTracingGI);
+	// CHECK_OVERRIDE_INT(RayTracingGIMaxBounces);
+	// CHECK_OVERRIDE_INT(RayTracingGISamplesPerPixel);
+
+	CHECK_OVERRIDE_INT(PathTracingMaxBounces);
+	CHECK_OVERRIDE_INT(PathTracingSamplesPerPixel);
+	CHECK_OVERRIDE_FLOAT(PathTracingMaxPathIntensity);
+	CHECK_OVERRIDE_BOOL(PathTracingEnableEmissiveMaterials);
+	CHECK_OVERRIDE_BOOL(PathTracingEnableReferenceDOF);
+	CHECK_OVERRIDE_BOOL(PathTracingEnableReferenceAtmosphere);
+	CHECK_OVERRIDE_BOOL(PathTracingEnableDenoiser);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeEmissive);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeDiffuse);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeIndirectDiffuse);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeSpecular);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeIndirectSpecular);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeVolume);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeIndirectVolume);
+
+	CHECK_OVERRIDE_COLOR(AmbientCubemapTint);
+	CHECK_OVERRIDE_FLOAT(AmbientCubemapIntensity);
+
+	CHECK_OVERRIDE_FLOAT(ColorGradingIntensity);
+	CHECK_OVERRIDE_TEXTURE(ColorGradingLUT);
+
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionScatterDispersion);
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionSize);
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionPreFilterMin);
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionPreFilterMax);
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionPreFilterMult);
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionBufferScale);
+	CHECK_OVERRIDE_VEC2(BloomConvolutionCenterUV);
+	CHECK_OVERRIDE_TEXTURE(BloomConvolutionTexture);
+	CHECK_OVERRIDE_TEXTURE(BloomDirtMask);
+
+	CHECK_OVERRIDE_BOOL(DepthOfFieldUseHairDepth);
+	CHECK_OVERRIDE_BOOL(DepthOfFieldPetzvalBokeh);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldPetzvalBokehFalloff);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldPetzvalExclusionBoxRadius);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldAspectRatioScalar);
+	// CHECK_OVERRIDE_INT(DepthOfFieldMatteBoxFlags);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldBarrelRadius);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldBarrelLength);
+
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionMipBlend);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionMipScale);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionMipThreshold);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionTemporalBlendWeight);
+
+	CHECK_OVERRIDE_FLOAT(FilmGrainShadowsMax);
+	CHECK_OVERRIDE_FLOAT(FilmGrainHighlightsMin);
+	CHECK_OVERRIDE_FLOAT(FilmGrainHighlightsMax);
+	CHECK_OVERRIDE_FLOAT(FilmGrainTexelSize);
+	CHECK_OVERRIDE_TEXTURE(FilmGrainTexture);
+
+	// CHECK_OVERRIDE_FLOAT(LensFlareBokehShape);
+	// CHECK_OVERRIDE_COLOR(LensFlareTints);
+
+	CHECK_OVERRIDE_FLOAT(LocalExposureHighlightThreshold);
+	CHECK_OVERRIDE_FLOAT(LocalExposureShadowThreshold);
+	CHECK_OVERRIDE_FLOAT(LocalExposureHighlightThresholdStrength);
+	CHECK_OVERRIDE_FLOAT(LocalExposureShadowThresholdStrength);
+	CHECK_OVERRIDE_CURVE(LocalExposureHighlightContrastCurve);
+	CHECK_OVERRIDE_CURVE(LocalExposureShadowContrastCurve);
+
+	// CHECK_OVERRIDE_BOOL(MobileHQGaussian);
+	// CHECK_OVERRIDE_FLOAT(ScreenSpaceReflectionRoughnessScale);
+	CHECK_OVERRIDE_FLOAT(LumenSurfaceCacheResolution);
+	CHECK_OVERRIDE_BOOL(bMegaLights);
+	CHECK_OVERRIDE_INT(UserFlags);
+
+	if (Settings.WeightedBlendables.Array.Num() > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("%s   WeightedBlendables.Num = %d"), *Prefix, Settings.WeightedBlendables.Array.Num());
+	}
+
+#undef CHECK_OVERRIDE_FLOAT
+#undef CHECK_OVERRIDE_INT
+#undef CHECK_OVERRIDE_BOOL
+#undef CHECK_OVERRIDE_VEC4
+#undef CHECK_OVERRIDE_COLOR
+#undef CHECK_OVERRIDE_VEC2
+#undef CHECK_OVERRIDE_TEXTURE
+#undef CHECK_OVERRIDE_CURVE
+
+	UE_LOG(LogTemp, Log, TEXT("%s ================================"), *Prefix);
+}
+
+void UMovieQualityRenderComponent::DebugPrintPostProcessSettingsAll(const FPostProcessSettings& Settings, const FString& Prefix)
+{
+	UE_LOG(LogTemp, Log, TEXT("%s === PostProcessSettings Debug ==="), *Prefix);
+
+#define CHECK_OVERRIDE_FLOAT(Name) \
+		UE_LOG(LogTemp, Log, TEXT("%s   %s = %.4f"), *Prefix, TEXT(#Name), Settings.Name); 
+
+#define CHECK_OVERRIDE_INT(Name) \
+		UE_LOG(LogTemp, Log, TEXT("%s   %s = %d"), *Prefix, TEXT(#Name), (int32)Settings.Name); 
+
+#define CHECK_OVERRIDE_BOOL(Name) \
+	UE_LOG(LogTemp, Log, TEXT("%s   %s = %s"), *Prefix, TEXT(#Name), Settings.Name ? TEXT("true") : TEXT("false"));
+
+#define CHECK_OVERRIDE_VEC4(Name) \
+	UE_LOG(LogTemp, Log, TEXT("%s   %s = (%.3f, %.3f, %.3f, %.3f)"), *Prefix, TEXT(#Name), \
+		Settings.Name.X, Settings.Name.Y, Settings.Name.Z, Settings.Name.W);
+
+#define CHECK_OVERRIDE_COLOR(Name) \
+	UE_LOG(LogTemp, Log, TEXT("%s   %s = (R:%.3f, G:%.3f, B:%.3f)"), *Prefix, TEXT(#Name), \
+		Settings.Name.R, Settings.Name.G, Settings.Name.B);
+
+#define CHECK_OVERRIDE_VEC2(Name) \
+	UE_LOG(LogTemp, Log, TEXT("%s   %s = (%.3f, %.3f)"), *Prefix, TEXT(#Name), \
+		Settings.Name.X, Settings.Name.Y);
+
+#define CHECK_OVERRIDE_TEXTURE(Name) \
+	UE_LOG(LogTemp, Log, TEXT("%s   %s = %s"), *Prefix, TEXT(#Name), \
+		Settings.Name ? *Settings.Name->GetName() : TEXT("nullptr"));
+
+#define CHECK_OVERRIDE_CURVE(Name) \
+	UE_LOG(LogTemp, Log, TEXT("%s   %s = %s"), *Prefix, TEXT(#Name), \
+		Settings.Name ? *Settings.Name->GetName() : TEXT("nullptr"));
+
+	CHECK_OVERRIDE_INT(TemperatureType);
+	CHECK_OVERRIDE_FLOAT(WhiteTemp);
+	CHECK_OVERRIDE_FLOAT(WhiteTint);
+
+	CHECK_OVERRIDE_VEC4(ColorSaturation);
+	CHECK_OVERRIDE_VEC4(ColorContrast);
+	CHECK_OVERRIDE_VEC4(ColorGamma);
+	CHECK_OVERRIDE_VEC4(ColorGain);
+	CHECK_OVERRIDE_VEC4(ColorOffset);
+
+	CHECK_OVERRIDE_VEC4(ColorSaturationShadows);
+	CHECK_OVERRIDE_VEC4(ColorContrastShadows);
+	CHECK_OVERRIDE_VEC4(ColorGammaShadows);
+	CHECK_OVERRIDE_VEC4(ColorGainShadows);
+	CHECK_OVERRIDE_VEC4(ColorOffsetShadows);
+
+	CHECK_OVERRIDE_VEC4(ColorSaturationMidtones);
+	CHECK_OVERRIDE_VEC4(ColorContrastMidtones);
+	CHECK_OVERRIDE_VEC4(ColorGammaMidtones);
+	CHECK_OVERRIDE_VEC4(ColorGainMidtones);
+	CHECK_OVERRIDE_VEC4(ColorOffsetMidtones);
+
+	CHECK_OVERRIDE_VEC4(ColorSaturationHighlights);
+	CHECK_OVERRIDE_VEC4(ColorContrastHighlights);
+	CHECK_OVERRIDE_VEC4(ColorGammaHighlights);
+	CHECK_OVERRIDE_VEC4(ColorGainHighlights);
+	CHECK_OVERRIDE_VEC4(ColorOffsetHighlights);
+
+	CHECK_OVERRIDE_FLOAT(ColorCorrectionShadowsMax);
+	CHECK_OVERRIDE_FLOAT(ColorCorrectionHighlightsMin);
+	CHECK_OVERRIDE_FLOAT(ColorCorrectionHighlightsMax);
+
+	CHECK_OVERRIDE_FLOAT(BlueCorrection);
+	CHECK_OVERRIDE_FLOAT(ExpandGamut);
+	CHECK_OVERRIDE_FLOAT(ToneCurveAmount);
+
+	CHECK_OVERRIDE_FLOAT(FilmSlope);
+	CHECK_OVERRIDE_FLOAT(FilmToe);
+	CHECK_OVERRIDE_FLOAT(FilmShoulder);
+	CHECK_OVERRIDE_FLOAT(FilmBlackClip);
+	CHECK_OVERRIDE_FLOAT(FilmWhiteClip);
+
+	CHECK_OVERRIDE_COLOR(SceneColorTint);
+	CHECK_OVERRIDE_FLOAT(SceneFringeIntensity);
+	CHECK_OVERRIDE_FLOAT(ChromaticAberrationStartOffset);
+
+	CHECK_OVERRIDE_INT(BloomMethod);
+	CHECK_OVERRIDE_FLOAT(BloomIntensity);
+	CHECK_OVERRIDE_FLOAT(BloomThreshold);
+	CHECK_OVERRIDE_FLOAT(BloomSizeScale);
+	CHECK_OVERRIDE_FLOAT(Bloom1Size);
+	CHECK_OVERRIDE_FLOAT(Bloom2Size);
+	CHECK_OVERRIDE_FLOAT(Bloom3Size);
+	CHECK_OVERRIDE_FLOAT(Bloom4Size);
+	CHECK_OVERRIDE_FLOAT(Bloom5Size);
+	CHECK_OVERRIDE_FLOAT(Bloom6Size);
+	CHECK_OVERRIDE_COLOR(Bloom1Tint);
+	CHECK_OVERRIDE_COLOR(Bloom2Tint);
+	CHECK_OVERRIDE_COLOR(Bloom3Tint);
+	CHECK_OVERRIDE_COLOR(Bloom4Tint);
+	CHECK_OVERRIDE_COLOR(Bloom5Tint);
+	CHECK_OVERRIDE_COLOR(Bloom6Tint);
+
+	CHECK_OVERRIDE_FLOAT(BloomDirtMaskIntensity);
+	CHECK_OVERRIDE_COLOR(BloomDirtMaskTint);
+
+	CHECK_OVERRIDE_FLOAT(CameraShutterSpeed);
+	CHECK_OVERRIDE_FLOAT(CameraISO);
+	CHECK_OVERRIDE_INT(AutoExposureMethod);
+	CHECK_OVERRIDE_FLOAT(AutoExposureLowPercent);
+	CHECK_OVERRIDE_FLOAT(AutoExposureHighPercent);
+	CHECK_OVERRIDE_FLOAT(AutoExposureMinBrightness);
+	CHECK_OVERRIDE_FLOAT(AutoExposureMaxBrightness);
+	CHECK_OVERRIDE_FLOAT(AutoExposureSpeedUp);
+	CHECK_OVERRIDE_FLOAT(AutoExposureSpeedDown);
+	CHECK_OVERRIDE_FLOAT(AutoExposureBias);
+	CHECK_OVERRIDE_FLOAT(AutoExposureBiasBackup);
+	CHECK_OVERRIDE_CURVE(AutoExposureBiasCurve);
+	CHECK_OVERRIDE_TEXTURE(AutoExposureMeterMask);
+	CHECK_OVERRIDE_BOOL(AutoExposureApplyPhysicalCameraExposure);
+	CHECK_OVERRIDE_FLOAT(HistogramLogMin);
+	CHECK_OVERRIDE_FLOAT(HistogramLogMax);
+
+	CHECK_OVERRIDE_INT(LocalExposureMethod);
+	CHECK_OVERRIDE_FLOAT(LocalExposureHighlightContrastScale);
+	CHECK_OVERRIDE_FLOAT(LocalExposureShadowContrastScale);
+	CHECK_OVERRIDE_FLOAT(LocalExposureDetailStrength);
+	CHECK_OVERRIDE_FLOAT(LocalExposureBlurredLuminanceBlend);
+	CHECK_OVERRIDE_FLOAT(LocalExposureBlurredLuminanceKernelSizePercent);
+	CHECK_OVERRIDE_FLOAT(LocalExposureMiddleGreyBias);
+
+	CHECK_OVERRIDE_FLOAT(LensFlareIntensity);
+	CHECK_OVERRIDE_COLOR(LensFlareTint);
+	CHECK_OVERRIDE_FLOAT(LensFlareBokehSize);
+	CHECK_OVERRIDE_FLOAT(LensFlareThreshold);
+	CHECK_OVERRIDE_FLOAT(VignetteIntensity);
+	CHECK_OVERRIDE_FLOAT(Sharpen);
+
+	CHECK_OVERRIDE_FLOAT(FilmGrainIntensity);
+	CHECK_OVERRIDE_FLOAT(FilmGrainIntensityShadows);
+	CHECK_OVERRIDE_FLOAT(FilmGrainIntensityMidtones);
+	CHECK_OVERRIDE_FLOAT(FilmGrainIntensityHighlights);
+
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionIntensity);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionStaticFraction);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionRadius);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionFadeDistance);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionFadeRadius);
+	CHECK_OVERRIDE_BOOL(AmbientOcclusionRadiusInWS);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionPower);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionBias);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionQuality);
+
+	CHECK_OVERRIDE_FLOAT(IndirectLightingIntensity);
+	CHECK_OVERRIDE_COLOR(IndirectLightingColor);
+
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldFocalDistance);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldFstop);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldMinFstop);
+	CHECK_OVERRIDE_INT(DepthOfFieldBladeCount);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldSensorWidth);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldSqueezeFactor);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldDepthBlurRadius);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldDepthBlurAmount);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldFocalRegion);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldNearTransitionRegion);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldFarTransitionRegion);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldScale);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldNearBlurSize);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldFarBlurSize);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldOcclusion);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldSkyFocusDistance);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldVignetteSize);
+
+	CHECK_OVERRIDE_FLOAT(MotionBlurAmount);
+	CHECK_OVERRIDE_FLOAT(MotionBlurMax);
+	CHECK_OVERRIDE_INT(MotionBlurTargetFPS);
+	CHECK_OVERRIDE_FLOAT(MotionBlurPerObjectSize);
+
+	CHECK_OVERRIDE_INT(ReflectionMethod);
+	CHECK_OVERRIDE_FLOAT(LumenReflectionQuality);
+	CHECK_OVERRIDE_FLOAT(ScreenSpaceReflectionIntensity);
+	CHECK_OVERRIDE_FLOAT(ScreenSpaceReflectionQuality);
+	CHECK_OVERRIDE_FLOAT(ScreenSpaceReflectionMaxRoughness);
+
+	CHECK_OVERRIDE_INT(DynamicGlobalIlluminationMethod);
+	CHECK_OVERRIDE_FLOAT(LumenSceneLightingQuality);
+	CHECK_OVERRIDE_FLOAT(LumenSceneDetail);
+	CHECK_OVERRIDE_FLOAT(LumenSceneViewDistance);
+	CHECK_OVERRIDE_FLOAT(LumenSceneLightingUpdateSpeed);
+	CHECK_OVERRIDE_FLOAT(LumenFinalGatherQuality);
+	CHECK_OVERRIDE_FLOAT(LumenFinalGatherLightingUpdateSpeed);
+	CHECK_OVERRIDE_BOOL(LumenFinalGatherScreenTraces);
+	CHECK_OVERRIDE_FLOAT(LumenMaxTraceDistance);
+	CHECK_OVERRIDE_FLOAT(LumenDiffuseColorBoost);
+	CHECK_OVERRIDE_FLOAT(LumenSkylightLeaking);
+	CHECK_OVERRIDE_COLOR(LumenSkylightLeakingTint);
+	CHECK_OVERRIDE_FLOAT(LumenFullSkylightLeakingDistance);
+	CHECK_OVERRIDE_INT(LumenRayLightingMode);
+	CHECK_OVERRIDE_BOOL(LumenReflectionsScreenTraces);
+	CHECK_OVERRIDE_BOOL(LumenFrontLayerTranslucencyReflections);
+	CHECK_OVERRIDE_FLOAT(LumenMaxRoughnessToTraceReflections);
+	CHECK_OVERRIDE_INT(LumenMaxReflectionBounces);
+	CHECK_OVERRIDE_INT(LumenMaxRefractionBounces);
+
+	CHECK_OVERRIDE_BOOL(RayTracingAO);
+	CHECK_OVERRIDE_INT(RayTracingAOSamplesPerPixel);
+	CHECK_OVERRIDE_FLOAT(RayTracingAOIntensity);
+	CHECK_OVERRIDE_FLOAT(RayTracingAORadius);
+
+	// CHECK_OVERRIDE_FLOAT(RayTracingReflectionsMaxRoughness);
+	// CHECK_OVERRIDE_INT(RayTracingReflectionsMaxBounces);
+	// CHECK_OVERRIDE_INT(RayTracingReflectionsSamplesPerPixel);
+	// CHECK_OVERRIDE_INT(RayTracingReflectionsShadows);
+	// CHECK_OVERRIDE_INT(RayTracingReflectionsTranslucency);
+
+	CHECK_OVERRIDE_INT(TranslucencyType);
+	CHECK_OVERRIDE_FLOAT(RayTracingTranslucencyMaxRoughness);
+	CHECK_OVERRIDE_INT(RayTracingTranslucencyRefractionRays);
+	CHECK_OVERRIDE_INT(RayTracingTranslucencySamplesPerPixel);
+	CHECK_OVERRIDE_INT(RayTracingTranslucencyShadows);
+	CHECK_OVERRIDE_INT(RayTracingTranslucencyRefraction);
+
+	CHECK_OVERRIDE_INT(RayTracingTranslucencyMaxPrimaryHitEvents);
+	CHECK_OVERRIDE_INT(RayTracingTranslucencyMaxSecondaryHitEvents);
+	CHECK_OVERRIDE_BOOL(RayTracingTranslucencyUseRayTracedRefraction);
+
+	// CHECK_OVERRIDE_BOOL(RayTracingGI);
+	// CHECK_OVERRIDE_INT(RayTracingGIMaxBounces);
+	// CHECK_OVERRIDE_INT(RayTracingGISamplesPerPixel);
+
+	CHECK_OVERRIDE_INT(PathTracingMaxBounces);
+	CHECK_OVERRIDE_INT(PathTracingSamplesPerPixel);
+	CHECK_OVERRIDE_FLOAT(PathTracingMaxPathIntensity);
+	CHECK_OVERRIDE_BOOL(PathTracingEnableEmissiveMaterials);
+	CHECK_OVERRIDE_BOOL(PathTracingEnableReferenceDOF);
+	CHECK_OVERRIDE_BOOL(PathTracingEnableReferenceAtmosphere);
+	CHECK_OVERRIDE_BOOL(PathTracingEnableDenoiser);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeEmissive);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeDiffuse);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeIndirectDiffuse);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeSpecular);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeIndirectSpecular);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeVolume);
+	CHECK_OVERRIDE_BOOL(PathTracingIncludeIndirectVolume);
+
+	CHECK_OVERRIDE_COLOR(AmbientCubemapTint);
+	CHECK_OVERRIDE_FLOAT(AmbientCubemapIntensity);
+
+	CHECK_OVERRIDE_FLOAT(ColorGradingIntensity);
+	CHECK_OVERRIDE_TEXTURE(ColorGradingLUT);
+
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionScatterDispersion);
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionSize);
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionPreFilterMin);
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionPreFilterMax);
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionPreFilterMult);
+	CHECK_OVERRIDE_FLOAT(BloomConvolutionBufferScale);
+	CHECK_OVERRIDE_VEC2(BloomConvolutionCenterUV);
+	CHECK_OVERRIDE_TEXTURE(BloomConvolutionTexture);
+	CHECK_OVERRIDE_TEXTURE(BloomDirtMask);
+
+	CHECK_OVERRIDE_BOOL(DepthOfFieldUseHairDepth);
+	CHECK_OVERRIDE_BOOL(DepthOfFieldPetzvalBokeh);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldPetzvalBokehFalloff);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldPetzvalExclusionBoxRadius);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldAspectRatioScalar);
+	// CHECK_OVERRIDE_INT(DepthOfFieldMatteBoxFlags);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldBarrelRadius);
+	CHECK_OVERRIDE_FLOAT(DepthOfFieldBarrelLength);
+
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionMipBlend);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionMipScale);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionMipThreshold);
+	CHECK_OVERRIDE_FLOAT(AmbientOcclusionTemporalBlendWeight);
+
+	CHECK_OVERRIDE_FLOAT(FilmGrainShadowsMax);
+	CHECK_OVERRIDE_FLOAT(FilmGrainHighlightsMin);
+	CHECK_OVERRIDE_FLOAT(FilmGrainHighlightsMax);
+	CHECK_OVERRIDE_FLOAT(FilmGrainTexelSize);
+	CHECK_OVERRIDE_TEXTURE(FilmGrainTexture);
+
+	// CHECK_OVERRIDE_FLOAT(LensFlareBokehShape);
+	// CHECK_OVERRIDE_COLOR(LensFlareTints);
+
+	CHECK_OVERRIDE_FLOAT(LocalExposureHighlightThreshold);
+	CHECK_OVERRIDE_FLOAT(LocalExposureShadowThreshold);
+	CHECK_OVERRIDE_FLOAT(LocalExposureHighlightThresholdStrength);
+	CHECK_OVERRIDE_FLOAT(LocalExposureShadowThresholdStrength);
+	CHECK_OVERRIDE_CURVE(LocalExposureHighlightContrastCurve);
+	CHECK_OVERRIDE_CURVE(LocalExposureShadowContrastCurve);
+
+	// CHECK_OVERRIDE_BOOL(MobileHQGaussian);
+	// CHECK_OVERRIDE_FLOAT(ScreenSpaceReflectionRoughnessScale);
+	CHECK_OVERRIDE_FLOAT(LumenSurfaceCacheResolution);
+	CHECK_OVERRIDE_BOOL(bMegaLights);
+	CHECK_OVERRIDE_INT(UserFlags);
+
+	if (Settings.WeightedBlendables.Array.Num() > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("%s   WeightedBlendables.Num = %d"), *Prefix, Settings.WeightedBlendables.Array.Num());
+	}
+
+#undef CHECK_OVERRIDE_FLOAT
+#undef CHECK_OVERRIDE_INT
+#undef CHECK_OVERRIDE_BOOL
+#undef CHECK_OVERRIDE_VEC4
+#undef CHECK_OVERRIDE_COLOR
+#undef CHECK_OVERRIDE_VEC2
+#undef CHECK_OVERRIDE_TEXTURE
+#undef CHECK_OVERRIDE_CURVE
+
+	UE_LOG(LogTemp, Log, TEXT("%s ================================"), *Prefix);
+}
+
+void UMovieQualityRenderComponent::SetAllOverridePostProcessSettings(FPostProcessSettings& Settings)
+{
+#define SET_OVERRIDE_TRUE(Name) Settings.bOverride_##Name = true;
+
+	SET_OVERRIDE_TRUE(TemperatureType);
+	SET_OVERRIDE_TRUE(WhiteTemp);
+	SET_OVERRIDE_TRUE(WhiteTint);
+
+	SET_OVERRIDE_TRUE(ColorSaturation);
+	SET_OVERRIDE_TRUE(ColorContrast);
+	SET_OVERRIDE_TRUE(ColorGamma);
+	SET_OVERRIDE_TRUE(ColorGain);
+	SET_OVERRIDE_TRUE(ColorOffset);
+
+	SET_OVERRIDE_TRUE(ColorSaturationShadows);
+	SET_OVERRIDE_TRUE(ColorContrastShadows);
+	SET_OVERRIDE_TRUE(ColorGammaShadows);
+	SET_OVERRIDE_TRUE(ColorGainShadows);
+	SET_OVERRIDE_TRUE(ColorOffsetShadows);
+
+	SET_OVERRIDE_TRUE(ColorSaturationMidtones);
+	SET_OVERRIDE_TRUE(ColorContrastMidtones);
+	SET_OVERRIDE_TRUE(ColorGammaMidtones);
+	SET_OVERRIDE_TRUE(ColorGainMidtones);
+	SET_OVERRIDE_TRUE(ColorOffsetMidtones);
+
+	SET_OVERRIDE_TRUE(ColorSaturationHighlights);
+	SET_OVERRIDE_TRUE(ColorContrastHighlights);
+	SET_OVERRIDE_TRUE(ColorGammaHighlights);
+	SET_OVERRIDE_TRUE(ColorGainHighlights);
+	SET_OVERRIDE_TRUE(ColorOffsetHighlights);
+
+	SET_OVERRIDE_TRUE(ColorCorrectionShadowsMax);
+	SET_OVERRIDE_TRUE(ColorCorrectionHighlightsMin);
+	SET_OVERRIDE_TRUE(ColorCorrectionHighlightsMax);
+	SET_OVERRIDE_TRUE(BlueCorrection);
+	SET_OVERRIDE_TRUE(ExpandGamut);
+	SET_OVERRIDE_TRUE(ToneCurveAmount);
+
+	SET_OVERRIDE_TRUE(FilmSlope);
+	SET_OVERRIDE_TRUE(FilmToe);
+	SET_OVERRIDE_TRUE(FilmShoulder);
+	SET_OVERRIDE_TRUE(FilmBlackClip);
+	SET_OVERRIDE_TRUE(FilmWhiteClip);
+
+	SET_OVERRIDE_TRUE(SceneColorTint);
+	SET_OVERRIDE_TRUE(SceneFringeIntensity);
+	SET_OVERRIDE_TRUE(ChromaticAberrationStartOffset);
+
+	SET_OVERRIDE_TRUE(BloomMethod);
+	SET_OVERRIDE_TRUE(BloomIntensity);
+	SET_OVERRIDE_TRUE(BloomThreshold);
+	SET_OVERRIDE_TRUE(BloomSizeScale);
+	SET_OVERRIDE_TRUE(Bloom1Size);
+	SET_OVERRIDE_TRUE(Bloom2Size);
+	SET_OVERRIDE_TRUE(Bloom3Size);
+	SET_OVERRIDE_TRUE(Bloom4Size);
+	SET_OVERRIDE_TRUE(Bloom5Size);
+	SET_OVERRIDE_TRUE(Bloom6Size);
+	SET_OVERRIDE_TRUE(Bloom1Tint);
+	SET_OVERRIDE_TRUE(Bloom2Tint);
+	SET_OVERRIDE_TRUE(Bloom3Tint);
+	SET_OVERRIDE_TRUE(Bloom4Tint);
+	SET_OVERRIDE_TRUE(Bloom5Tint);
+	SET_OVERRIDE_TRUE(Bloom6Tint);
+
+	SET_OVERRIDE_TRUE(BloomDirtMaskIntensity);
+	SET_OVERRIDE_TRUE(BloomDirtMaskTint);
+
+	SET_OVERRIDE_TRUE(CameraShutterSpeed);
+	SET_OVERRIDE_TRUE(CameraISO);
+	SET_OVERRIDE_TRUE(AutoExposureMethod);
+	SET_OVERRIDE_TRUE(AutoExposureLowPercent);
+	SET_OVERRIDE_TRUE(AutoExposureHighPercent);
+	SET_OVERRIDE_TRUE(AutoExposureMinBrightness);
+	SET_OVERRIDE_TRUE(AutoExposureMaxBrightness);
+	SET_OVERRIDE_TRUE(AutoExposureSpeedUp);
+	SET_OVERRIDE_TRUE(AutoExposureSpeedDown);
+	SET_OVERRIDE_TRUE(AutoExposureBias);
+	SET_OVERRIDE_TRUE(AutoExposureBiasBackup);
+	SET_OVERRIDE_TRUE(AutoExposureBiasCurve);
+	SET_OVERRIDE_TRUE(AutoExposureMeterMask);
+	SET_OVERRIDE_TRUE(AutoExposureApplyPhysicalCameraExposure);
+	SET_OVERRIDE_TRUE(HistogramLogMin);
+	SET_OVERRIDE_TRUE(HistogramLogMax);
+
+	SET_OVERRIDE_TRUE(LocalExposureMethod);
+	SET_OVERRIDE_TRUE(LocalExposureHighlightContrastScale);
+	SET_OVERRIDE_TRUE(LocalExposureShadowContrastScale);
+	SET_OVERRIDE_TRUE(LocalExposureDetailStrength);
+	SET_OVERRIDE_TRUE(LocalExposureBlurredLuminanceBlend);
+	SET_OVERRIDE_TRUE(LocalExposureBlurredLuminanceKernelSizePercent);
+	SET_OVERRIDE_TRUE(LocalExposureMiddleGreyBias);
+
+	SET_OVERRIDE_TRUE(LensFlareIntensity);
+	SET_OVERRIDE_TRUE(LensFlareTint);
+	SET_OVERRIDE_TRUE(LensFlareBokehSize);
+	SET_OVERRIDE_TRUE(LensFlareThreshold);
+	SET_OVERRIDE_TRUE(VignetteIntensity);
+	SET_OVERRIDE_TRUE(Sharpen);
+
+	SET_OVERRIDE_TRUE(FilmGrainIntensity);
+	SET_OVERRIDE_TRUE(FilmGrainIntensityShadows);
+	SET_OVERRIDE_TRUE(FilmGrainIntensityMidtones);
+	SET_OVERRIDE_TRUE(FilmGrainIntensityHighlights);
+
+	SET_OVERRIDE_TRUE(AmbientOcclusionIntensity);
+	SET_OVERRIDE_TRUE(AmbientOcclusionStaticFraction);
+	SET_OVERRIDE_TRUE(AmbientOcclusionRadius);
+	SET_OVERRIDE_TRUE(AmbientOcclusionFadeDistance);
+	SET_OVERRIDE_TRUE(AmbientOcclusionFadeRadius);
+	SET_OVERRIDE_TRUE(AmbientOcclusionRadiusInWS);
+	SET_OVERRIDE_TRUE(AmbientOcclusionPower);
+	SET_OVERRIDE_TRUE(AmbientOcclusionBias);
+	SET_OVERRIDE_TRUE(AmbientOcclusionQuality);
+
+	SET_OVERRIDE_TRUE(IndirectLightingIntensity);
+	SET_OVERRIDE_TRUE(IndirectLightingColor);
+
+	SET_OVERRIDE_TRUE(DepthOfFieldFocalDistance);
+	SET_OVERRIDE_TRUE(DepthOfFieldFstop);
+	SET_OVERRIDE_TRUE(DepthOfFieldMinFstop);
+	SET_OVERRIDE_TRUE(DepthOfFieldBladeCount);
+	SET_OVERRIDE_TRUE(DepthOfFieldSensorWidth);
+	SET_OVERRIDE_TRUE(DepthOfFieldSqueezeFactor);
+	SET_OVERRIDE_TRUE(DepthOfFieldDepthBlurRadius);
+	SET_OVERRIDE_TRUE(DepthOfFieldDepthBlurAmount);
+	SET_OVERRIDE_TRUE(DepthOfFieldFocalRegion);
+	SET_OVERRIDE_TRUE(DepthOfFieldNearTransitionRegion);
+	SET_OVERRIDE_TRUE(DepthOfFieldFarTransitionRegion);
+	SET_OVERRIDE_TRUE(DepthOfFieldScale);
+	SET_OVERRIDE_TRUE(DepthOfFieldNearBlurSize);
+	SET_OVERRIDE_TRUE(DepthOfFieldFarBlurSize);
+	SET_OVERRIDE_TRUE(DepthOfFieldOcclusion);
+	SET_OVERRIDE_TRUE(DepthOfFieldSkyFocusDistance);
+	SET_OVERRIDE_TRUE(DepthOfFieldVignetteSize);
+
+	SET_OVERRIDE_TRUE(MotionBlurAmount);
+	SET_OVERRIDE_TRUE(MotionBlurMax);
+	SET_OVERRIDE_TRUE(MotionBlurTargetFPS);
+	SET_OVERRIDE_TRUE(MotionBlurPerObjectSize);
+
+	SET_OVERRIDE_TRUE(ReflectionMethod);
+	SET_OVERRIDE_TRUE(LumenReflectionQuality);
+	SET_OVERRIDE_TRUE(ScreenSpaceReflectionIntensity);
+	SET_OVERRIDE_TRUE(ScreenSpaceReflectionQuality);
+	SET_OVERRIDE_TRUE(ScreenSpaceReflectionMaxRoughness);
+
+	SET_OVERRIDE_TRUE(DynamicGlobalIlluminationMethod);
+	SET_OVERRIDE_TRUE(LumenSceneLightingQuality);
+	SET_OVERRIDE_TRUE(LumenSceneDetail);
+	SET_OVERRIDE_TRUE(LumenSceneViewDistance);
+	SET_OVERRIDE_TRUE(LumenSceneLightingUpdateSpeed);
+	SET_OVERRIDE_TRUE(LumenFinalGatherQuality);
+	SET_OVERRIDE_TRUE(LumenFinalGatherLightingUpdateSpeed);
+	SET_OVERRIDE_TRUE(LumenFinalGatherScreenTraces);
+	SET_OVERRIDE_TRUE(LumenMaxTraceDistance);
+	SET_OVERRIDE_TRUE(LumenDiffuseColorBoost);
+	SET_OVERRIDE_TRUE(LumenSkylightLeaking);
+	SET_OVERRIDE_TRUE(LumenSkylightLeakingTint);
+	SET_OVERRIDE_TRUE(LumenFullSkylightLeakingDistance);
+	SET_OVERRIDE_TRUE(LumenRayLightingMode);
+	SET_OVERRIDE_TRUE(LumenReflectionsScreenTraces);
+	SET_OVERRIDE_TRUE(LumenFrontLayerTranslucencyReflections);
+	SET_OVERRIDE_TRUE(LumenMaxRoughnessToTraceReflections);
+	SET_OVERRIDE_TRUE(LumenMaxReflectionBounces);
+	SET_OVERRIDE_TRUE(LumenMaxRefractionBounces);
+
+	SET_OVERRIDE_TRUE(RayTracingAO);
+	SET_OVERRIDE_TRUE(RayTracingAOSamplesPerPixel);
+	SET_OVERRIDE_TRUE(RayTracingAOIntensity);
+	SET_OVERRIDE_TRUE(RayTracingAORadius);
+
+	// SET_OVERRIDE_TRUE(RayTracingReflectionsMaxRoughness);
+	// SET_OVERRIDE_TRUE(RayTracingReflectionsMaxBounces);
+	// SET_OVERRIDE_TRUE(RayTracingReflectionsSamplesPerPixel);
+	// SET_OVERRIDE_TRUE(RayTracingReflectionsShadows);
+	// SET_OVERRIDE_TRUE(RayTracingReflectionsTranslucency);
+
+	SET_OVERRIDE_TRUE(TranslucencyType);
+	SET_OVERRIDE_TRUE(RayTracingTranslucencyMaxRoughness);
+	SET_OVERRIDE_TRUE(RayTracingTranslucencyRefractionRays);
+	SET_OVERRIDE_TRUE(RayTracingTranslucencySamplesPerPixel);
+	SET_OVERRIDE_TRUE(RayTracingTranslucencyShadows);
+	SET_OVERRIDE_TRUE(RayTracingTranslucencyRefraction);
+
+	SET_OVERRIDE_TRUE(RayTracingTranslucencyMaxPrimaryHitEvents);
+	SET_OVERRIDE_TRUE(RayTracingTranslucencyMaxSecondaryHitEvents);
+	SET_OVERRIDE_TRUE(RayTracingTranslucencyUseRayTracedRefraction);
+
+	// SET_OVERRIDE_TRUE(RayTracingGI);
+	// SET_OVERRIDE_TRUE(RayTracingGIMaxBounces);
+	// SET_OVERRIDE_TRUE(RayTracingGISamplesPerPixel);
+
+	SET_OVERRIDE_TRUE(PathTracingMaxBounces);
+	SET_OVERRIDE_TRUE(PathTracingSamplesPerPixel);
+	SET_OVERRIDE_TRUE(PathTracingMaxPathIntensity);
+	SET_OVERRIDE_TRUE(PathTracingEnableEmissiveMaterials);
+	SET_OVERRIDE_TRUE(PathTracingEnableReferenceDOF);
+	SET_OVERRIDE_TRUE(PathTracingEnableReferenceAtmosphere);
+	SET_OVERRIDE_TRUE(PathTracingEnableDenoiser);
+	SET_OVERRIDE_TRUE(PathTracingIncludeEmissive);
+	SET_OVERRIDE_TRUE(PathTracingIncludeDiffuse);
+	SET_OVERRIDE_TRUE(PathTracingIncludeIndirectDiffuse);
+	SET_OVERRIDE_TRUE(PathTracingIncludeSpecular);
+	SET_OVERRIDE_TRUE(PathTracingIncludeIndirectSpecular);
+	SET_OVERRIDE_TRUE(PathTracingIncludeVolume);
+	SET_OVERRIDE_TRUE(PathTracingIncludeIndirectVolume);
+
+	SET_OVERRIDE_TRUE(AmbientCubemapTint);
+	SET_OVERRIDE_TRUE(AmbientCubemapIntensity);
+
+	SET_OVERRIDE_TRUE(ColorGradingIntensity);
+	SET_OVERRIDE_TRUE(ColorGradingLUT);
+
+	SET_OVERRIDE_TRUE(BloomConvolutionScatterDispersion);
+	SET_OVERRIDE_TRUE(BloomConvolutionSize);
+	SET_OVERRIDE_TRUE(BloomConvolutionPreFilterMin);
+	SET_OVERRIDE_TRUE(BloomConvolutionPreFilterMax);
+	SET_OVERRIDE_TRUE(BloomConvolutionPreFilterMult);
+	SET_OVERRIDE_TRUE(BloomConvolutionBufferScale);
+	SET_OVERRIDE_TRUE(BloomConvolutionCenterUV);
+	SET_OVERRIDE_TRUE(BloomConvolutionTexture);
+	SET_OVERRIDE_TRUE(BloomDirtMask);
+
+	SET_OVERRIDE_TRUE(DepthOfFieldUseHairDepth);
+	SET_OVERRIDE_TRUE(DepthOfFieldPetzvalBokeh);
+	SET_OVERRIDE_TRUE(DepthOfFieldPetzvalBokehFalloff);
+	SET_OVERRIDE_TRUE(DepthOfFieldPetzvalExclusionBoxRadius);
+	SET_OVERRIDE_TRUE(DepthOfFieldAspectRatioScalar);
+	// SET_OVERRIDE_TRUE(DepthOfFieldMatteBoxFlags); 
+	SET_OVERRIDE_TRUE(DepthOfFieldBarrelRadius);
+	SET_OVERRIDE_TRUE(DepthOfFieldBarrelLength);
+
+	SET_OVERRIDE_TRUE(AmbientOcclusionMipBlend);
+	SET_OVERRIDE_TRUE(AmbientOcclusionMipScale);
+	SET_OVERRIDE_TRUE(AmbientOcclusionMipThreshold);
+	SET_OVERRIDE_TRUE(AmbientOcclusionTemporalBlendWeight);
+
+	SET_OVERRIDE_TRUE(FilmGrainShadowsMax);
+	SET_OVERRIDE_TRUE(FilmGrainHighlightsMin);
+	SET_OVERRIDE_TRUE(FilmGrainHighlightsMax);
+	SET_OVERRIDE_TRUE(FilmGrainTexelSize);
+	SET_OVERRIDE_TRUE(FilmGrainTexture);
+
+	
+	// SET_OVERRIDE_TRUE(LensFlareBokehShape);
+	// SET_OVERRIDE_TRUE(LensFlareTints);
+
+	SET_OVERRIDE_TRUE(LocalExposureHighlightThreshold);
+	SET_OVERRIDE_TRUE(LocalExposureShadowThreshold);
+	SET_OVERRIDE_TRUE(LocalExposureHighlightThresholdStrength);
+	SET_OVERRIDE_TRUE(LocalExposureShadowThresholdStrength);
+	SET_OVERRIDE_TRUE(LocalExposureHighlightContrastCurve);
+	SET_OVERRIDE_TRUE(LocalExposureShadowContrastCurve);
+
+	// SET_OVERRIDE_TRUE(MobileHQGaussian);
+	// SET_OVERRIDE_TRUE(ScreenSpaceReflectionRoughnessScale);
+	
+	SET_OVERRIDE_TRUE(LumenSurfaceCacheResolution);
+	SET_OVERRIDE_TRUE(bMegaLights);
+	SET_OVERRIDE_TRUE(UserFlags);
+
+#undef SET_OVERRIDE_TRUE
 }
 
 void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSettings& PPSettings)
@@ -744,8 +1793,10 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 
 	PPSettings.bOverride_AutoExposureMethod = 1;
 	PPSettings.AutoExposureMethod = GlobalSettings.ExposureMethod;
-	// PPSettings.bOverride_AutoExposureBias = 1;
+	// PPSettings.AutoExposureMethod = AEM_Manual;
+	PPSettings.bOverride_AutoExposureBias = 1;
 	// PPSettings.AutoExposureBias = GlobalSettings.ExposureBias;
+	PPSettings.AutoExposureBias = 15.0f;
 	// PPSettings.bOverride_AutoExposureMinBrightness = 1;
 	// PPSettings.AutoExposureMinBrightness = GlobalSettings.AutoExposureMinBrightness;
 	// PPSettings.bOverride_AutoExposureMaxBrightness = 1;

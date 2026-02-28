@@ -118,55 +118,106 @@ void UBaseCameraSensor::InitUInt8TextureTarget(int filmWidth, int filmHeight, bo
 
 void UBaseCameraSensor::ConfigureMaxQualityLumen()
 {
-	FPostProcessSettings& PPSettings = this->PostProcessSettings;
+	// FPostProcessSettings& PPSettings = this->PostProcessSettings;
+    // PPSettings.bOverride_ReflectionMethod = 1;
+    // PPSettings.ReflectionMethod = EReflectionMethod::Type::Lumen;
+    // // PPSettings.ReflectionMethod = EReflectionMethod::Type::ScreenSpace;
+    // PPSettings.bOverride_DynamicGlobalIlluminationMethod = 1;
+    // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::Lumen;
+    // // PPSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Type::ScreenSpace;
+	// PPSettings.bOverride_LumenRayLightingMode = 1;
+	// PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLightingForReflections;
+	// PPSettings.bOverride_LumenSceneLightingQuality = 1;
+	// PPSettings.LumenSceneLightingQuality = 4.0f;
+	// PPSettings.bOverride_LumenSceneDetail = 1;
+	// PPSettings.LumenSceneDetail = 4.0f;
+	// // PPSettings.bOverride_LumenSceneViewDistance = 1;
+	// // PPSettings.LumenSceneViewDistance = 2097152.0f;
+	// PPSettings.bOverride_LumenFinalGatherQuality = 1;
+	// PPSettings.LumenFinalGatherQuality = 5.0f;
+	// PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
+	// PPSettings.LumenFinalGatherScreenTraces = 1;
+	// // PPSettings.bOverride_LumenMaxTraceDistance = 1;
+	// // PPSettings.LumenMaxTraceDistance = 2097152.0f;
+	// PPSettings.bOverride_LumenReflectionQuality = 1;
+	// PPSettings.LumenReflectionQuality = 2.0f;
+	// // PPSettings.bOverride_LumenReflectionsScreenTraces = 1;
+	// // PPSettings.LumenReflectionsScreenTraces = 1;
+	// // PPSettings.bOverride_LumenFrontLayerTranslucencyReflections = 1;
+	// // PPSettings.LumenFrontLayerTranslucencyReflections = 1;
+	// // PPSettings.bOverride_LumenMaxRoughnessToTraceReflections = 1;
+	// // PPSettings.LumenMaxRoughnessToTraceReflections = 1.0f;
+	// // PPSettings.bOverride_LumenMaxReflectionBounces = 1;
+	// // PPSettings.LumenMaxReflectionBounces = 8;
+	// // PPSettings.bOverride_LumenMaxRefractionBounces = 1;
+	// // PPSettings.LumenMaxRefractionBounces = 64;
+	// PPSettings.bOverride_LumenSurfaceCacheResolution = 1;
+	// PPSettings.LumenSurfaceCacheResolution = 1.0f;
 
-	PPSettings.bOverride_LumenRayLightingMode = 1;
-	PPSettings.LumenRayLightingMode = ELumenRayLightingModeOverride::HitLighting;
+	// // PPSettings.bOverride_AmbientOcclusionQuality = true;
+	// // PPSettings.AmbientOcclusionQuality = 80.0f;
+	// // PPSettings.bOverride_RayTracingAO = true;
+	// // PPSettings.RayTracingAO = true;
+	// // PPSettings.bOverride_RayTracingAOSamplesPerPixel = true;
+	// // PPSettings.RayTracingAOSamplesPerPixel = 4;
 
-	PPSettings.bOverride_LumenSceneLightingQuality = 1;
-	PPSettings.LumenSceneLightingQuality = 2.0f;
+	// /////////////////////////////////////////////////////////
+	// // reduce ghosting phenomenon
+	// // https://www.reddit.com/r/UnrealEngine5/comments/182y8br/lumen_ghosting_on_moving_objects_please_help/
+	// // https://forums.unrealengine.com/t/desperate-for-a-definitve-answer-on-lumen-ghosting-issue/661853
+	// // https://dev.epicgames.com/community/learning/tutorials/mjo7/unreal-engine-temporal-quality-guide
+	// // PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
+	// // PPSettings.LumenSceneLightingUpdateSpeed = 2.0f;
+	// // if (GlobalSettings.Override_LumenFinalGatherLightingUpdateSpeed)
+	// // {
+	// // 	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
+	// // 	PPSettings.LumenFinalGatherLightingUpdateSpeed = GlobalSettings.LumenFinalGatherLightingUpdateSpeed;
+	// // }
+	// // PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
+	// // PPSettings.LumenFinalGatherScreenTraces = 0;
+	// // PPSettings.bOverride_AmbientOcclusionTemporalBlendWeight = 1;
+	// // PPSettings.AmbientOcclusionTemporalBlendWeight = 0.0f;
+	// /////////////////////////////////////////////////////////
 
-	PPSettings.bOverride_LumenSceneDetail = 1;
-	PPSettings.LumenSceneDetail = 4.0f;
+	// // PPSettings.bOverride_AutoExposureMethod = 1;
+	// // PPSettings.AutoExposureMethod = GlobalSettings.ExposureMethod;
+	// // // PPSettings.AutoExposureMethod = AEM_Manual;
+	// // PPSettings.bOverride_AutoExposureBias = 1;
+	// // // PPSettings.AutoExposureBias = GlobalSettings.ExposureBias;
+	// // PPSettings.AutoExposureBias = 15.0f;
+	// // // PPSettings.bOverride_AutoExposureMinBrightness = 1;
+	// // // PPSettings.AutoExposureMinBrightness = GlobalSettings.AutoExposureMinBrightness;
+	// // // PPSettings.bOverride_AutoExposureMaxBrightness = 1;
+	// // // PPSettings.AutoExposureMaxBrightness = GlobalSettings.AutoExposureMaxBrightness;
+    // // PPSettings.bOverride_AutoExposureSpeedDown = 1;
+    // // PPSettings.AutoExposureSpeedDown = 20.0f;
+    // // PPSettings.bOverride_AutoExposureSpeedUp = 1;
+    // // PPSettings.AutoExposureSpeedUp = 20.0f;
 
-	PPSettings.bOverride_LumenSceneViewDistance = 1;
-	PPSettings.LumenSceneViewDistance = 2097152.0f;
+  	// // DOF
+  	// PPSettings.bOverride_DepthOfFieldScale = true;
+  	// PPSettings.DepthOfFieldScale = 0.0f;
+  	// // PPSettings.bOverride_DepthOfFieldFstop = true;
+  	// // PPSettings.DepthOfFieldFstop = 8.0f;
+	// // PPSettings.bOverride_DepthOfFieldSensorWidth = true;
+	// // PPSettings.DepthOfFieldSensorWidth = 35.0f;
+    // // PPSettings.bOverride_DepthOfFieldFocalDistance = true;
+    // // PPSettings.DepthOfFieldFocalDistance = 100.0f;
+    // // PPSettings.bOverride_DepthOfFieldFocalRegion = true;
+    // // PPSettings.DepthOfFieldFocalRegion = 2000.0f;
 
-	PPSettings.bOverride_LumenFinalGatherQuality = 1;
-	PPSettings.LumenFinalGatherQuality = 2.0f;
-
-	PPSettings.bOverride_LumenFinalGatherScreenTraces = 1;
-	PPSettings.LumenFinalGatherScreenTraces = 1;
-
-	PPSettings.bOverride_LumenMaxTraceDistance = 1;
-	PPSettings.LumenMaxTraceDistance = 2097152.0f;
-
-	PPSettings.bOverride_LumenReflectionQuality = 1;
-	PPSettings.LumenReflectionQuality = 2.0f;
-
-	PPSettings.bOverride_LumenReflectionsScreenTraces = 1;
-	PPSettings.LumenReflectionsScreenTraces = 1;
-
-	PPSettings.bOverride_LumenFrontLayerTranslucencyReflections = 1;
-	PPSettings.LumenFrontLayerTranslucencyReflections = 1;
-
-	PPSettings.bOverride_LumenMaxRoughnessToTraceReflections = 1;
-	PPSettings.LumenMaxRoughnessToTraceReflections = 1.0f;
-
-	PPSettings.bOverride_LumenMaxReflectionBounces = 1;
-	PPSettings.LumenMaxReflectionBounces = 8;
-
-	PPSettings.bOverride_LumenMaxRefractionBounces = 1;
-	PPSettings.LumenMaxRefractionBounces = 64;
-
-	PPSettings.bOverride_LumenSurfaceCacheResolution = 1;
-	PPSettings.LumenSurfaceCacheResolution = 1.0f;
-
-	PPSettings.bOverride_LumenSceneLightingUpdateSpeed = 1;
-	PPSettings.LumenSceneLightingUpdateSpeed = 4.0f;
-
-	PPSettings.bOverride_LumenFinalGatherLightingUpdateSpeed = 1;
-	PPSettings.LumenFinalGatherLightingUpdateSpeed = 4.0f;
+	// PPSettings.bOverride_MotionBlurAmount = 1;
+	// PPSettings.bOverride_MotionBlurMax = 1;
+	// PPSettings.bOverride_MotionBlurTargetFPS = 1;
+	// PPSettings.bOverride_MotionBlurPerObjectSize = 1;
+	// PPSettings.MotionBlurAmount = 0.05f;
+	// PPSettings.MotionBlurMax = 2.0f;  // default 5.0
+	// PPSettings.MotionBlurTargetFPS = 30;  // default 30
+	// PPSettings.MotionBlurPerObjectSize = 0.f;
+	// // PPSettings.MotionBlurAmount = 0.0f;  // default 0.5
+	// // PPSettings.MotionBlurMax = 0.f;  // default 5.0
+	// // PPSettings.MotionBlurTargetFPS = 24;  // default 30
+	// // PPSettings.MotionBlurPerObjectSize = 0.f;
 }
 
 void UBaseCameraSensor::SetFilmSize(int Width, int Height)
