@@ -1,10 +1,40 @@
 # UnrealCV File Path Index
 
-Auto-generated index of frequently accessed files. Last updated: 2026-02-25
+Auto-generated index of frequently accessed files. Last updated: 2026-02-28
 
 Use these shorthand paths in prompts instead of copy-pasting full paths.
 
-## Session Context Files (2026-02-25)
+## Session Context Files (2026-02-28)
+
+**Session Topic**: UE 5.6 Landscape LOD crash with Ray Tracing - FLandscapeSceneViewExtension view counting issue when MQRC's global ViewExtension interferes with SceneCaptureComponent2D rendering pipeline
+
+### Sensor System (Landscape LOD Crash Investigation)
+- `Source/UnrealCV/Private/Sensor/CameraSensor/BaseCameraSensor.cpp` - USceneCaptureComponent2D subclass; bUseRayTracingIfEnabled=true (line 39), bCaptureEveryFrame=true (line 31), bAlwaysPersistRenderingState=true (line 40); LaunchCapture() calls CaptureScene() (line 744-754)
+- `Source/UnrealCV/Public/Sensor/CameraSensor/BaseCameraSensor.h` - BaseCameraSensor class definition with async capture pipeline
+- `Source/UnrealCV/Private/Sensor/CameraSensor/MovieQualityRenderComponent.cpp` - Custom rendering pipeline with manual ViewFamily/View creation; FMovieQualityViewExtension registration (line 102); SubmitToRendererWithCallback (line 588-646); attempted manual Landscape LOD computation (reverted due to linking errors)
+- `Source/UnrealCV/Public/Sensor/CameraSensor/MovieQualityRenderComponent.h` - FMovieQualityViewExtension class with GetPriority()=-100 (line 29); UMovieQualityRenderComponent with custom CreateSceneView (sets bSceneCaptureUsesRayTracing=true, bIsSceneCapture=true)
+- `Source/UnrealCV/Private/Sensor/CameraSensor/PanoramicCamSensor.cpp` - Panoramic sensor with bUseRayTracingIfEnabled=true (line 18)
+- `Source/UnrealCV/Private/Sensor/CameraSensor/LitCamSensor.cpp` - RGB sensor with Lumen configuration when ray tracing supported (line 24-31)
+
+### Build Configuration
+- `Source/UnrealCV/UnrealCV.Build.cs` - Module dependencies; added "Landscape" module (line 69) for manual LOD computation attempt
+
+### Documentation (Created During Session)
+- `MQRC-Landscape-LOD-Crash-Analysis.md` - Comprehensive technical analysis of UE 5.6 Landscape LOD caching crash with SceneCaptureComponent2D + Ray Tracing
+
+### UE5 Engine References (Landscape Rendering System)
+- `H:\UE_5.6\Engine\Source\Runtime\Landscape\Public\LandscapeRender.h` - FLandscapeRenderSystem class (lines 507-656); FLandscapeSceneViewExtension with PreRenderView_RenderThread and view counting logic
+- `H:\UE_5.6\Engine\Source\Runtime\Landscape\Private\LandscapeRender.cpp` - GetCachedSectionLODValues() crash site (line 1023); PreRenderView_RenderThread with view counting condition `LandscapeViews.Num() == InView.Family->AllViews.Num()` (line 1218); ComputeSectionsLODForView() (line 1199-1287); GetDynamicRayTracingInstances() (line 3072-3122)
+- `H:\UE_5.6\Engine\Source\Runtime\Landscape\Private\LandscapeModule.cpp` - FLandscapeSceneViewExtension global registration in OnPostEngineInit() (line 263-267)
+
+### UE5 Engine References (SceneCapture & ViewExtension Pipeline)
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - SetupSceneViewExtensionsForSceneCapture() (line 806-822); SetupViewFamilyForSceneCapture() (line 666-1003); UpdateSceneCaptureContent()
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneRendering.cpp` - ViewExtension PreRenderView_RenderThread callbacks (line 3929-3943); main viewport rendering flow
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneVisibility.cpp` - ViewExtension PreInitViews_RenderThread callbacks (line 4912-4915)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneViewExtension.h` - ISceneViewExtension base class with GetPriority() default=0 (line 217)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Components\SceneCaptureComponent.cpp` - SceneCapture2D view setup and ViewState management
+
+## Previous Session Files (2026-02-25)
 
 **Session Topic**: Gamma control mechanism analysis - SceneCaptureComponent2D vs MovieRenderPipeline color space handling, sRGB encoding, TextureRenderTarget configuration, and FReadSurfaceDataFlags behavior
 
