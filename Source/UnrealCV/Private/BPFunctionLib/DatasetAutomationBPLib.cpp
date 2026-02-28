@@ -170,7 +170,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		else
 		{
 			CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
-			CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("70 80")));
+			CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("80 90")));
 		}
 		
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("125 175")));

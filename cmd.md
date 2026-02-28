@@ -346,3 +346,10 @@ DebugGame 控制台中支持的完整命令列表
   - vget /unrealcv/echo [str] - [调试]回显消息
   - vget /scene/name - 获取场景名称
   - vget /level/name - 获取当前关卡名称
+
+  MetaHuman命令 (/metahuman/*)
+
+  - vget /metahuman/all_paths - 获取所有MetaHuman路径（扫描AssetRegistry并保存缓存）
+  - vset /metahuman/update_cache - 扫描AssetRegistry并更新缓存文件
+  - vget /metahuman/cache_path - 获取缓存文件路径
+  - vget /metahuman/filter_batch - 从缓存中过滤批量生成的MetaHuman
