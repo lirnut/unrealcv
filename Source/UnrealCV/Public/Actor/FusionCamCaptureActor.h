@@ -85,6 +85,17 @@ struct FRecordingDataTypesConfig
 		Config.bRecordMetadata = true;
 		return Config;
 	}
+	
+	static FRecordingDataTypesConfig MakeMattingConfig()
+	{
+		FRecordingDataTypesConfig Config;
+		Config.bRecordAudio = false;
+		Config.bRecordRGB = true;
+		Config.bRecordMask = true;
+		Config.bRecordOneObjectLit = true;
+		Config.bRecordMetadata = true;
+		return Config;
+	}
 
 	static FRecordingDataTypesConfig MakeOmnimatteConfig()
 	{

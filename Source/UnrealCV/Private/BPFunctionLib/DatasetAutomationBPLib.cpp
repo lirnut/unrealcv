@@ -144,7 +144,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 	}
 	else if (TaskName == TEXT("Matting"))
 	{
-		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeTrajectoryConfig();
+		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeMattingConfig();
 		CurrentConfig.NumFrames = 90;
 		CurrentConfig.TrajectoryFPS = 30;
  		CurrentConfig.ForegroundMoveSpeed = 70.0f;
