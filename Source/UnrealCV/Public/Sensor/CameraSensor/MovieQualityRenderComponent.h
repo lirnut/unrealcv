@@ -28,6 +28,13 @@ public:
 
 	virtual int32 GetPriority() const override { return 100; }
 
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override
+	{
+		// Only activate for main viewport (has Viewport), not for MQRC's own captures (no Viewport)
+		// This prevents double-processing and allows MQRC to capture main viewport's PostProcessSettings
+		return Context.Viewport != nullptr;
+	}
+
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
 	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
 
@@ -43,8 +50,8 @@ struct FMQRCSettings
 
 	// UPROPERTY()
 	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;	
-	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
-	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
+	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
+	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_FXAA;
 	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_MSAA;
 
 	EPrimaryScreenPercentageMethod PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;

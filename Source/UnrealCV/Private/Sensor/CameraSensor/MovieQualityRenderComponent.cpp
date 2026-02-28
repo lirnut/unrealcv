@@ -4,8 +4,10 @@
 #include "Components/PrimitiveComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
 #include "Engine/Canvas.h"
 #include "SceneView.h"
+#include "SceneViewExtension.h"
 #include "EngineModule.h"
 #include "RenderingThread.h"
 #include "RHICommandList.h"
@@ -476,6 +478,11 @@ TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFami
 	ViewFamily->bOverrideVirtualTextureThrottle = true;
 	ViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(*ViewFamily, GlobalSettings.ScreenPercentage));
 
+	// MQRC Fix: Gather ViewExtensions for Landscape LOD system
+	// This mimics SceneCaptureRendering.cpp line 885-886
+	FSceneViewExtensionContext ViewExtensionContext(World->Scene);
+	ViewFamily->ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
+
 	return ViewFamily;
 }
 
@@ -522,7 +529,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* View
 		UE_LOG(LogTemp, Warning, TEXT("FXAA force use SpatialUpscale"));
 	}
 	View->PrimaryScreenPercentageMethod = SPM;
-	View->bSceneCaptureUsesRayTracing = true;
+	View->bSceneCaptureUsesRayTracing = true; 
 	// View->bIsReflectionCapture = true;
 	View->bIsSceneCapture = true;
 	// View->bIsSceneCaptureCube = false;
@@ -597,6 +604,20 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 
 	// // Force wait for all pending rendering commands to complete (Groom/Hair, shadows, etc.)
 	// FlushRenderingCommands();
+
+	// MQRC Fix: Setup ViewExtensions for scene capture (required for Landscape LOD system)
+	// This mimics SceneCaptureRendering.cpp's SetupSceneViewExtensionsForSceneCapture (lines 806-822)
+	for (const FSceneViewExtensionRef& Extension : ViewFamily->ViewExtensions)
+	{
+		Extension->SetupViewFamily(*ViewFamily);
+	}
+	for (const FSceneView* View : ViewFamily->Views)
+	{
+		for (const FSceneViewExtensionRef& Extension : ViewFamily->ViewExtensions)
+		{
+			Extension->SetupView(*ViewFamily, *const_cast<FSceneView*>(View));
+		}
+	}
 
 	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
