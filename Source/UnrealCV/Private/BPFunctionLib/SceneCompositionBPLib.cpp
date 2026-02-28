@@ -447,7 +447,7 @@ bool USceneCompositionBPLib::CreateSceneParamsFromJson(
 	{
 		const FString& Key = Pair.Key;
 		// if (CurrentMapName.StartsWith(Key) || Key.StartsWith(CurrentMapName))
-		if (CurrentMapName.Find(Key) != INDEX_NONE)
+		if (CurrentMapName == Key)
 		{
 			if (Pair.Value->Type == EJson::Object)
 			{
@@ -455,6 +455,26 @@ bool USceneCompositionBPLib::CreateSceneParamsFromJson(
 				MatchedKey = Key;
 				UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Found matching config key: %s"), *Key);
 				break;
+			}
+		}
+	}
+
+	if (!MatchingConfig.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneParamsFromJson: fall back find map name for: %s"), *CurrentMapName);
+		for (const auto& Pair : JsonObject->Values)
+		{
+			const FString& Key = Pair.Key;
+			// if (CurrentMapName.StartsWith(Key) || Key.StartsWith(CurrentMapName))
+			if (CurrentMapName.Find(Key) != INDEX_NONE)
+			{
+				if (Pair.Value->Type == EJson::Object)
+				{
+					MatchingConfig = Pair.Value->AsObject();
+					MatchedKey = Key;
+					UE_LOG(LogUnrealCV, Log, TEXT("CreateSceneParamsFromJson: Found matching config key: %s"), *Key);
+					break;
+				}
 			}
 		}
 	}
@@ -1643,7 +1663,8 @@ bool USceneCompositionBPLib::AddSafePointToScene(const FString& SceneName, FVect
 	{
 		if (Pair.Value->Type == EJson::Object)
 		{
-			if (Pair.Key.Find(SceneName) != INDEX_NONE || SceneName.Find(Pair.Key) != INDEX_NONE)
+			// if (Pair.Key.Find(SceneName) != INDEX_NONE || SceneName.Find(Pair.Key) != INDEX_NONE)
+			if (SceneName == Pair.Key)  // use strict law
 			{
 				SceneConfig = Pair.Value->AsObject();
 				MatchedKey = Pair.Key;
