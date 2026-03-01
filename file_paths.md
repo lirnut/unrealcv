@@ -6,11 +6,14 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 
 ## Session Context Files (2026-03-01)
 
-**Session Topic**: MainViewportRenderComponent black pixel bug - viewport backbuffer capture vs separate render target; fixed assertion error (RHIGetViewportBackBuffer called from game thread)
+**Session Topic**: MainViewportRenderComponent async GPU readback implementation - migrating from synchronous ReadSurfaceData to FUnrealCVSurfaceQueue for 30-50% performance improvement; fixed camera projection matrix mismatch causing RGB/mask misalignment
 
-### Sensor System (Viewport Capture)
-- `Source/UnrealCV/Private/Sensor/CameraSensor/MainViewportRenderComponent.cpp` - Main viewport capture; changed from SceneViewport::ReadPixels to RHIGetViewportBackBuffer for reading actual displayed pixels; ENQUEUE_RENDER_COMMAND fix for assertion error
-- `Source/UnrealCV/Public/Sensor/CameraSensor/MainViewportRenderComponent.h` - Added FSceneViewport pointer member
+### Sensor System (Viewport Capture & Async Readback)
+- `Source/UnrealCV/Private/Sensor/CameraSensor/MainViewportRenderComponent.cpp` - Async GPU readback via FUnrealCVSurfaceQueue (line 148-158 initialization, line 334-366 async capture); CaptureFrameSync() synchronous interface (line 371-501); projection matrix debug logging (line 281-294)
+- `Source/UnrealCV/Public/Sensor/CameraSensor/MainViewportRenderComponent.h` - Added FUnrealCVSurfaceQueue member (line 67), CaptureFrameSync() declaration (line 38)
+- `Source/UnrealCV/Private/Sensor/CameraSensor/BaseCameraSensor.cpp` - Fixed AspectRatio calculation from TextureTarget dimensions in GetCameraView() to match projection matrix (line 1088-1093); added projection matrix debug logging
+- `Source/UnrealCV/Private/Sensor/CameraSensor/UnrealCVSurfaceReader.cpp` - FUnrealCVSurfaceQueue implementation with OnRenderTargetReady_RenderThread for async GPU readback
+- `Source/UnrealCV/Public/Sensor/CameraSensor/UnrealCVSurfaceReader.h` - FUnrealCVSurfaceQueue class with SetFrameResolveLatency() for sync/async control
 
 ### Recording & Capture
 - `Source/UnrealCV/Private/Actor/FusionCamCaptureActor.cpp` - Recording actor; converted bUseMovieQualityRendering/bRecordViaViewport to static global settings

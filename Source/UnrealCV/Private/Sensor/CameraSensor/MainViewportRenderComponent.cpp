@@ -10,6 +10,8 @@
 #include "HighResScreenshot.h"
 #include "Runtime\Engine\Public\Slate\SceneViewport.h"
 #include "RHI.h"
+#include "Sensor/CameraSensor/UnrealCVSurfaceReader.h"
+#include "MovieRenderPipelineDataTypes.h"
 
 UMainViewportRenderComponent::UMainViewportRenderComponent()
 {
@@ -120,6 +122,40 @@ void UMainViewportRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		return;
 	}
 
+	if (SurfaceQueue.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Shutting down existing SurfaceQueue"));
+		SurfaceQueue->Shutdown();
+		SurfaceQueue.Reset();
+	}
+
+	if (!SceneViewport)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent: SceneViewport is null, cannot initialize SurfaceQueue"));
+		bIsInitialized = false;
+		return;
+	}
+
+	FViewportRHIRef TestViewportRHI = SceneViewport->GetViewportRHI();
+	if (!IsValidRef(TestViewportRHI))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent: ViewportRHI is invalid at initialization"));
+		bIsInitialized = false;
+		return;
+	}
+
+	FIntPoint ViewportSize(ResolutionX, ResolutionY);
+	SurfaceQueue = MakeShared<FUnrealCVSurfaceQueue, ESPMode::ThreadSafe>(
+		ViewportSize,
+		PF_B8G8R8A8,
+		10,
+		false
+	);
+
+	SurfaceQueue->SetFrameResolveLatency(0);
+
+	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: SurfaceQueue ZERO latency - synchronous readback for frame sync with BaseCameraSensor"));
+
 	bIsInitialized = true;
 
 	UWorld* World = GetWorld();
@@ -136,10 +172,19 @@ void UMainViewportRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 	}
 
 	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent initialized: %d x %d"), ResolutionX, ResolutionY);
+
+	FlushRenderingCommands();
 }
 
 void UMainViewportRenderComponent::Shutdown()
 {
+	if (SurfaceQueue.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Shutting down SurfaceQueue"));
+		SurfaceQueue->Shutdown();
+		SurfaceQueue.Reset();
+	}
+
 	if (ImageWriteQueue.IsValid())
 	{
 		ImageWriteQueue->Shutdown();
@@ -189,17 +234,21 @@ FIntPoint UMainViewportRenderComponent::GetViewportSize() const
 
 void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
 {
-	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent::CaptureFrame called"));
+	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent::CaptureFrame (async mode)"));
 
 	UWorld* World = GetWorld();
 	if (!World)
 	{
+		UE_LOG(LogUnrealCV, Error, TEXT("World is null"));
+		if (OnPixelDataReady) OnPixelDataReady(nullptr);
 		return;
 	}
 
 	APlayerController* PC = World->GetFirstPlayerController();
 	if (!PC)
 	{
+		UE_LOG(LogUnrealCV, Error, TEXT("PlayerController is null"));
+		if (OnPixelDataReady) OnPixelDataReady(nullptr);
 		return;
 	}
 
@@ -214,115 +263,232 @@ void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 		Pawn->SetActorLocation(ComponentLocation);
 	}
 
-	if (PC->PlayerCameraManager && FOV > 0.0f)
+	APlayerCameraManager* CamMgr = PC->PlayerCameraManager;
+	if (CamMgr)
 	{
-		float CurrentFOV = PC->PlayerCameraManager->GetFOVAngle();
-		if (FMath::Abs(CurrentFOV - FOV) > 0.01f)
+		FIntPoint ViewportSize = ViewportClient ? ViewportClient->Viewport->GetSizeXY() : FIntPoint::ZeroValue;
+		if (ViewportSize.X > 0 && ViewportSize.Y > 0)
 		{
-			UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRenderComponent: FOV mismatch (%.2f vs %.2f), reapplying..."),
-				CurrentFOV, FOV);
-			SetFOV(FOV);
+			float CurrentAspectRatio = (float)ViewportSize.X / (float)ViewportSize.Y;
+			CamMgr->DefaultAspectRatio = CurrentAspectRatio;
+			CamMgr->bDefaultConstrainAspectRatio = false;
+
+			if (FOV > 0.0f)
+			{
+				CamMgr->SetFOV(FOV);
+			}
+
+			FMinimalViewInfo POVInfo;
+			CamMgr->GetCameraViewPoint(POVInfo.Location, POVInfo.Rotation);
+			POVInfo.FOV = CamMgr->GetFOVAngle();
+			POVInfo.AspectRatio = CamMgr->DefaultAspectRatio;
+			POVInfo.bConstrainAspectRatio = CamMgr->bDefaultConstrainAspectRatio;
+			FMatrix ProjectionMatrix = POVInfo.CalculateProjectionMatrix();
+
+			UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRC::CaptureFrame PROJECTION DEBUG:"));
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - ViewportSize: %dx%d"), ViewportSize.X, ViewportSize.Y);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - FOV: %.6f"), POVInfo.FOV);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - AspectRatio: %.6f"), POVInfo.AspectRatio);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - bConstrainAspectRatio: %d"), POVInfo.bConstrainAspectRatio);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[0][0]: %.6f, M[1][1]: %.6f"), ProjectionMatrix.M[0][0], ProjectionMatrix.M[1][1]);
 		}
 	}
-
-	if (!IsInitialized())
+	else
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent not initialized"));
-		if (OnPixelDataReady)
-		{
-			OnPixelDataReady(nullptr);
-		}
-		return;
+		UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRC::CaptureFrame - PlayerCameraManager is null!"));
 	}
 
-	if (!ViewportClient || !ViewportClient->Viewport)
+	if (!IsInitialized() || !ViewportClient || !ViewportClient->Viewport || !SurfaceQueue.IsValid())
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("Viewport not available. ViewportClient=%p, Viewport=%p"),
-			ViewportClient, ViewportClient ? ViewportClient->Viewport : nullptr);
-		if (OnPixelDataReady)
-		{
-			OnPixelDataReady(nullptr);
-		}
+		UE_LOG(LogUnrealCV, Error, TEXT("Component not properly initialized"));
+		if (OnPixelDataReady) OnPixelDataReady(nullptr);
 		return;
 	}
 
 	FViewport* Viewport = ViewportClient->Viewport;
 	FIntPoint ViewportSize = Viewport->GetSizeXY();
-	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Viewport size = %d x %d"), ViewportSize.X, ViewportSize.Y);
 
+	if (!SceneViewport)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SceneViewport is null"));
+		if (OnPixelDataReady) OnPixelDataReady(nullptr);
+		return;
+	}
+
+	Viewport->Draw(false);
+	FlushRenderingCommands();
+
+	FViewportRHIRef ViewportRHI = SceneViewport->GetViewportRHI();
+	if (!IsValidRef(ViewportRHI))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("ViewportRHI is invalid after Draw"));
+		if (OnPixelDataReady) OnPixelDataReady(nullptr);
+		return;
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("Enqueueing async GPU readback for %dx%d"), ViewportSize.X, ViewportSize.Y);
+
+	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload =
+		MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
+
+	ENQUEUE_RENDER_COMMAND(MainViewportAsyncReadback)(
+		[ViewportRHI_RT = ViewportRHI,
+		 SurfaceQueue_RT = this->SurfaceQueue,
+		 FramePayload_RT = FramePayload,
+		 OnPixelDataReady_RT = MoveTemp(OnPixelDataReady)]
+		(FRHICommandListImmediate& RHICmdList) mutable
+		{
+			FTextureRHIRef BackBuffer = RHIGetViewportBackBuffer(ViewportRHI_RT);
+			if (!BackBuffer.IsValid())
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("BackBuffer is invalid"));
+				if (OnPixelDataReady_RT) OnPixelDataReady_RT(nullptr);
+				return;
+			}
+
+			UE_LOG(LogUnrealCV, Log, TEXT("BackBuffer: %dx%d"),
+				BackBuffer->GetSizeX(), BackBuffer->GetSizeY());
+
+			RHICmdList.Transition(FRHITransitionInfo(
+				BackBuffer,
+				ERHIAccess::Unknown,
+				ERHIAccess::SRVGraphics
+			));
+
+			SurfaceQueue_RT->OnRenderTargetReady_RenderThread(
+				BackBuffer,
+				FramePayload_RT,
+				MoveTemp(OnPixelDataReady_RT)
+			);
+
+			UE_LOG(LogUnrealCV, Log, TEXT("Enqueued to SurfaceQueue"));
+		}
+	);
+
+	UE_LOG(LogUnrealCV, Log, TEXT("Async capture enqueued, callback will fire next frame"));
+}
+
+void UMainViewportRenderComponent::CaptureFrameSync(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
+{
+	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent::CaptureFrameSync (synchronous mode)"));
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("World is null"));
+		if (OnPixelDataReady) OnPixelDataReady(nullptr);
+		return;
+	}
+
+	APlayerController* PC = World->GetFirstPlayerController();
+	if (!PC)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("PlayerController is null"));
+		if (OnPixelDataReady) OnPixelDataReady(nullptr);
+		return;
+	}
+
+	FVector ComponentLocation = GetComponentLocation();
+	FRotator ComponentRotation = GetComponentRotation();
+
+	PC->ClientSetRotation(ComponentRotation);
+
+	APawn* Pawn = PC->GetPawn();
+	if (Pawn)
+	{
+		Pawn->SetActorLocation(ComponentLocation);
+	}
+
+	APlayerCameraManager* CamMgr = PC->PlayerCameraManager;
+	if (CamMgr)
+	{
+		FIntPoint ViewportSize = ViewportClient ? ViewportClient->Viewport->GetSizeXY() : FIntPoint::ZeroValue;
+		if (ViewportSize.X > 0 && ViewportSize.Y > 0)
+		{
+			float CurrentAspectRatio = (float)ViewportSize.X / (float)ViewportSize.Y;
+			CamMgr->DefaultAspectRatio = CurrentAspectRatio;
+			CamMgr->bDefaultConstrainAspectRatio = false;
+
+			if (FOV > 0.0f)
+			{
+				CamMgr->SetFOV(FOV);
+			}
+
+			FMinimalViewInfo POVInfo;
+			CamMgr->GetCameraViewPoint(POVInfo.Location, POVInfo.Rotation);
+			POVInfo.FOV = CamMgr->GetFOVAngle();
+			POVInfo.AspectRatio = CamMgr->DefaultAspectRatio;
+			POVInfo.bConstrainAspectRatio = CamMgr->bDefaultConstrainAspectRatio;
+			FMatrix ProjectionMatrix = POVInfo.CalculateProjectionMatrix();
+
+			UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRC::CaptureFrame PROJECTION DEBUG:"));
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - ViewportSize: %dx%d"), ViewportSize.X, ViewportSize.Y);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - FOV: %.6f"), POVInfo.FOV);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - AspectRatio: %.6f"), POVInfo.AspectRatio);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - bConstrainAspectRatio: %d"), POVInfo.bConstrainAspectRatio);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[0][0]: %.6f, M[1][1]: %.6f"), ProjectionMatrix.M[0][0], ProjectionMatrix.M[1][1]);
+		}
+	}
+
+	if (!IsInitialized() || !ViewportClient || !ViewportClient->Viewport)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component not properly initialized"));
+		if (OnPixelDataReady) OnPixelDataReady(nullptr);
+		return;
+	}
+
+	FViewport* Viewport = ViewportClient->Viewport;
+	FIntPoint ViewportSize = Viewport->GetSizeXY();
+
+	if (!SceneViewport)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SceneViewport is null"));
+		if (OnPixelDataReady) OnPixelDataReady(nullptr);
+		return;
+	}
 
 	bool bSuccess = false;
 	TArray<FColor> Bitmap;
 
-	if (SceneViewport)
+	Viewport->Draw(false);
+	FlushRenderingCommands();
+
+	FViewportRHIRef ViewportRHI = SceneViewport->GetViewportRHI();
+	if (IsValidRef(ViewportRHI))
 	{
-		Viewport->Draw();
+		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRC: ViewportRHI is valid, reading backbuffer synchronously"));
+
+		ENQUEUE_RENDER_COMMAND(ReadBackBufferAndPixelsSync)(
+			[ViewportRHI_RT = ViewportRHI, ViewportSize_RT = ViewportSize, OutData_RT = &Bitmap](FRHICommandListImmediate& RHICmdList)
+			{
+				FTextureRHIRef BackBuffer = RHIGetViewportBackBuffer(ViewportRHI_RT);
+				if (BackBuffer.IsValid())
+				{
+					UE_LOG(LogUnrealCV, Log, TEXT("ReadBackBuffer: BackBuffer is valid: %d x %d"),
+						BackBuffer->GetSizeX(), BackBuffer->GetSizeY());
+
+					FIntRect ReadRect(0, 0, BackBuffer->GetSizeX(), BackBuffer->GetSizeY());
+					FReadSurfaceDataFlags Flags;
+					Flags.SetLinearToGamma(false);
+
+					RHICmdList.ReadSurfaceData(BackBuffer, ReadRect, *OutData_RT, Flags);
+
+					UE_LOG(LogUnrealCV, Log, TEXT("ReadBackBuffer: ReadSurfaceData done, Bitmap.Num()=%d"), OutData_RT->Num());
+				}
+				else
+				{
+					UE_LOG(LogUnrealCV, Error, TEXT("ReadBackBuffer: BackBuffer is invalid"));
+				}
+			});
 		FlushRenderingCommands();
 
-		FViewportRHIRef ViewportRHI = SceneViewport->GetViewportRHI();
-		if (IsValidRef(ViewportRHI))
-		{
-			UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: ViewportRHI is valid, reading backbuffer in render command"));
-
-			ENQUEUE_RENDER_COMMAND(ReadBackBufferAndPixels)(
-				[ViewportRHI_RT = ViewportRHI, ViewportSize_RT = ViewportSize, OutData_RT = &Bitmap](FRHICommandListImmediate& RHICmdList)
-				{
-					FTextureRHIRef BackBuffer = RHIGetViewportBackBuffer(ViewportRHI_RT);
-					if (BackBuffer.IsValid())
-					{
-						UE_LOG(LogUnrealCV, Log, TEXT("ReadBackBuffer: BackBuffer is valid: %d x %d"),
-							BackBuffer->GetSizeX(), BackBuffer->GetSizeY());
-
-						FIntRect ReadRect(0, 0, BackBuffer->GetSizeX(), BackBuffer->GetSizeY());
-						FReadSurfaceDataFlags Flags;
-						Flags.SetLinearToGamma(false);
-
-						RHICmdList.ReadSurfaceData(BackBuffer, ReadRect, *OutData_RT, Flags);
-
-						UE_LOG(LogUnrealCV, Log, TEXT("ReadBackBuffer: ReadSurfaceData done, Bitmap.Num()=%d"), OutData_RT->Num());
-					}
-					else
-					{
-						UE_LOG(LogUnrealCV, Error, TEXT("ReadBackBuffer: BackBuffer is invalid"));
-					}
-				});
-			FlushRenderingCommands();
-
-			bSuccess = Bitmap.Num() > 0;
-			UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Read backbuffer returned %d, Bitmap.Num()=%d"), bSuccess, Bitmap.Num());
-		}
-		else
-		{
-			UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent: ViewportRHI is invalid"));
-		}
+		bSuccess = Bitmap.Num() > 0;
+		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRC: Sync read backbuffer returned %d, Bitmap.Num()=%d"), bSuccess, Bitmap.Num());
 	}
 	else
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent: SceneViewport is null"));
-		bSuccess = false;
+		UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRC: ViewportRHI is invalid"));
 	}
-
-	// if (Bitmap.Num() > 0)
-	// {
-	// 	int32 NonBlackPixels = 0;
-	// 	for (const auto& Color : Bitmap)
-	// 	{
-	// 		if (Color.R > 0 || Color.G > 0 || Color.B > 0)
-	// 		{
-	// 			NonBlackPixels++;
-	// 		}
-	// 	}
-	// 	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Non-black pixels: %d / %d"), NonBlackPixels, Bitmap.Num());
-	// }
-
-	// Viewport->Draw();
-	// FlushRenderingCommands();
-
-	// UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Calling Viewport->ReadPixels..."));
-	// FReadSurfaceDataFlags Flags;
-	// Flags.SetLinearToGamma(false);
-	// bool bSuccess = Viewport->ReadPixels(Bitmap, Flags);
-	// UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: ReadPixels returned %d, Bitmap.Num()=%d"), bSuccess, Bitmap.Num());
 
 	if (!bSuccess || Bitmap.Num() == 0)
 	{
@@ -333,11 +499,6 @@ void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 		}
 		return;
 	}
-
-	// for (auto& Color : Bitmap)
-	// {
-	// 	Color.A = 255;
-	// }
 
 	TUniquePtr<FImagePixelData> ImageData = MakeUnique<TImagePixelData<FColor>>(
 		FIntPoint(ViewportSize.X, ViewportSize.Y),

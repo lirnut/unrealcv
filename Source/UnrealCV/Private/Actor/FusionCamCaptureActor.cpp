@@ -543,7 +543,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 					{
 						UE_LOG(LogUnrealCV, Log, TEXT("Viewport: Calling CaptureFrame. ViewportSize=%dx%d, Encoder=%dx%d, bWarmUp=%d, bLastFrame=%d"),
 							ViewportSize.X, ViewportSize.Y, EncoderWidth, EncoderHeight, bWarmUp, bLastFrame);
-						ViewportCapture->CaptureFrame([this, bWarmUp, bLastFrame, ViewportSize](TUniquePtr<FImagePixelData>&& InPixelData)
+						ViewportCapture->CaptureFrameSync([this, bWarmUp, bLastFrame, ViewportSize](TUniquePtr<FImagePixelData>&& InPixelData)
 						{
 							UE_LOG(LogUnrealCV, Log, TEXT("Viewport CaptureFrame callback: InPixelData.IsValid()=%d"), InPixelData.IsValid());
 
@@ -695,6 +695,11 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 		}
 	}
 
+
+
+	
+
+
 	if (RecordingDataTypes.bRecordMask)
 	{
 		FString FileNameMask = MakeFilenameNewWithFolder("mask", ".png");
@@ -745,6 +750,12 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 		TargetSensor->SaveStencilMaskToFile(TargetForeground, StencilMaskFilename);
 		TargetSensor->GetStencilMaskCamSensor()->Cleanup(TargetForeground);
 	}
+
+
+
+
+
+
 
 	if (RecordingDataTypes.bRecordWithoutTarget && IsValid(TargetForeground))
 	{
@@ -1624,6 +1635,16 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTra
 	case ECameraTrajectoryType::RenderOnly:
 	case ECameraTrajectoryType::RenderOnly5S:
 		return CalculateRenderOnly(InNumFrames);
+	case ECameraTrajectoryType::RenderLeftRotate:
+		return CalculateRenderLeftRotate(InNumFrames);
+	case ECameraTrajectoryType::RenderRightRotate:
+		return CalculateRenderRightRotate(InNumFrames);
+	case ECameraTrajectoryType::RenderRotateLeft:
+		return CalculateRotateLeft(Target, InNumFrames, 30.0f, 1.0f);
+	case ECameraTrajectoryType::RenderRotateRight:
+		return CalculateRotateRight(Target, InNumFrames, -30.0f, 1.0f);
+	case ECameraTrajectoryType::RenderRotateUp:
+		return CalculateRotateUp(Target, InNumFrames, 30.0f, 1.0f);
 	default:
 		UE_LOG(LogUnrealCV, Error, TEXT("Unknown trajectory type"));
 		return TArray<FCameraPose>();
@@ -1845,7 +1866,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddHandheldS
 	return ShakenTrajectory;
 }
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateLeft(AActor* Target, int32 InNumFrames, float TotalRotationDeg)
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateLeft(AActor* Target, int32 InNumFrames, float TotalRotationDeg, float DesiredEstTimeDilation)
 {
 	TArray<FCameraPose> CoreTrajectory;
 	FVector TargetLocation = UnifiedTargetLocation;
@@ -1870,7 +1891,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
-		Pose.DesiredEstTimeDilation = 0.0f;
+		Pose.DesiredEstTimeDilation = DesiredEstTimeDilation;
 		CoreTrajectory.Add(Pose);
 	}
 
@@ -1878,7 +1899,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 }
 
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateRight(AActor* Target, int32 InNumFrames, float TotalRotationDeg)
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateRight(AActor* Target, int32 InNumFrames, float TotalRotationDeg, float DesiredEstTimeDilation)
 {
 	TArray<FCameraPose> CoreTrajectory;
 	FVector TargetLocation = UnifiedTargetLocation;
@@ -1903,14 +1924,14 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
-		Pose.DesiredEstTimeDilation = 0.0f;
+		Pose.DesiredEstTimeDilation = DesiredEstTimeDilation;
 		CoreTrajectory.Add(Pose);
 	}
 
 	return AddRotateBufferFrames(CoreTrajectory);
 }
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateUp(AActor* Target, int32 InNumFrames, float TotalRotationDeg)
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotateUp(AActor* Target, int32 InNumFrames, float TotalRotationDeg, float DesiredEstTimeDilation)
 {
 	TArray<FCameraPose> CoreTrajectory;
 	FVector TargetLocation = UnifiedTargetLocation;
@@ -1938,7 +1959,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
-		Pose.DesiredEstTimeDilation = 0.0f;
+		Pose.DesiredEstTimeDilation = DesiredEstTimeDilation;
 		CoreTrajectory.Add(Pose);
 	}
 
@@ -2128,6 +2149,68 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRen
 		Pose.Location = SensorLocation;
 		Pose.Rotation = SensorRotation;
 		Pose.bManageTransform = false;
+		Trajectory.Add(Pose);
+	}
+
+	return AddHandheldShake(Trajectory);
+}
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRenderLeftRotate(int32 InNumFrames)
+{
+	TArray<FCameraPose> Trajectory;
+	NumFrames = InNumFrames;
+
+	FVector SensorLocation = TargetSensor->GetSensorLocation();
+	FRotator SensorRotation = TargetSensor->GetSensorRotation();
+	float FOV = TargetSensor->GetSensorFOV();
+
+	float StartYaw = -FOV / 2.0f;
+	float EndYaw = FOV / 2.0f;
+
+	for (int i = 0; i < NumFrames; i++)
+	{
+		float Alpha = static_cast<float>(i) / FMath::Max(NumFrames - 1, 1);
+		float CurrentYaw = FMath::Lerp(StartYaw, EndYaw, Alpha);
+
+		FRotator NewRotation = SensorRotation;
+		NewRotation.Yaw += CurrentYaw;
+
+		FCameraPose Pose;
+		Pose.Location = SensorLocation;
+		Pose.Rotation = NewRotation;
+		Pose.bManageTransform = true;
+		Pose.DesiredEstTimeDilation = 1.0f;
+		Trajectory.Add(Pose);
+	}
+
+	return AddHandheldShake(Trajectory);
+}
+
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRenderRightRotate(int32 InNumFrames)
+{
+	TArray<FCameraPose> Trajectory;
+	NumFrames = InNumFrames;
+
+	FVector SensorLocation = TargetSensor->GetSensorLocation();
+	FRotator SensorRotation = TargetSensor->GetSensorRotation();
+	float FOV = TargetSensor->GetSensorFOV();
+
+	float StartYaw = FOV / 2.0f;
+	float EndYaw = -FOV / 2.0f;
+
+	for (int i = 0; i < NumFrames; i++)
+	{
+		float Alpha = static_cast<float>(i) / FMath::Max(NumFrames - 1, 1);
+		float CurrentYaw = FMath::Lerp(StartYaw, EndYaw, Alpha);
+
+		FRotator NewRotation = SensorRotation;
+		NewRotation.Yaw += CurrentYaw;
+
+		FCameraPose Pose;
+		Pose.Location = SensorLocation;
+		Pose.Rotation = NewRotation;
+		Pose.bManageTransform = true;
+		Pose.DesiredEstTimeDilation = 1.0f;
 		Trajectory.Add(Pose);
 	}
 

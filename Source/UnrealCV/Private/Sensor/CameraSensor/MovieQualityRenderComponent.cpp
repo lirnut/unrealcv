@@ -23,6 +23,12 @@
 #include "UnrealcvLog.h"
 #include "LandscapeRender.h"
 #include "Materials/MaterialRenderProxy.h"
+#include "ContentStreaming.h"
+#include "Interfaces/Interface_PostProcessVolume.h"
+#include "RHI.h"
+#include "RendererInterface.h"
+#include "AssetCompilingManager.h"
+#include "LandscapeSubsystem.h"
 
 FMQRCSettings UMovieQualityRenderComponent::GlobalSettings;
 
@@ -132,7 +138,43 @@ void UMovieQualityRenderComponent::EndPlay(const EEndPlayReason::Type EndPlayRea
 
 void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 ResolutionY)
 {
-	ShowFlags = GetWorld()->GetGameViewport()->EngineShowFlags;
+	// ========== CRITICAL FIX #6: Preserve ShowFlags Configuration ==========
+	// PROBLEM: GetWorld()->GetGameViewport()->EngineShowFlags may have incorrect defaults
+	// SOLUTION: Start from Game defaults and explicitly enable critical flags
+
+	UE_LOG(LogUnrealCV, Warning, TEXT("MQRC: Initializing with resolution %dx%d"), ResolutionX, ResolutionY);
+
+	// Start from Game mode defaults (not Editor)
+	ShowFlags = FEngineShowFlags(ESFIM_Game);
+
+	// CRITICAL: Explicitly enable post-processing pipeline
+	// Without these, tonemapping and exposure are disabled → brightness completely wrong
+	ShowFlags.SetPostProcessing(true);
+	ShowFlags.SetTonemapper(true);
+	ShowFlags.SetEyeAdaptation(true);
+	ShowFlags.SetBloom(true);
+	ShowFlags.SetLocalExposure(true);
+
+	// Anti-aliasing (controlled by GlobalSettings)
+	ShowFlags.SetAntiAliasing(true);
+	ShowFlags.SetTemporalAA(true);
+	ShowFlags.SetScreenPercentage(true);
+
+	// Motion blur (disabled for dataset clarity)
+	ShowFlags.SetMotionBlur(false);
+
+	// Hair and shadows
+	ShowFlags.SetHair(true);
+	ShowFlags.SetDynamicShadows(true);
+	ShowFlags.SetContactShadows(false);
+	ShowFlags.SetCapsuleShadows(true);
+
+	// Disable debug indicators
+	ShowFlags.SetPreviewShadowsIndicator(false);
+
+	UE_LOG(LogUnrealCV, Warning, TEXT("MQRC: ShowFlags set - PostProcessing=%d, Tonemapper=%d, EyeAdaptation=%d"),
+		ShowFlags.PostProcessing, ShowFlags.Tonemapper, ShowFlags.EyeAdaptation);
+	// ========== End CRITICAL FIX #6 ==========
 
 
 	UE_LOG(LogTemp, Warning, TEXT("5"));
@@ -158,7 +200,7 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		if (CaptureSource == ESceneCaptureSource::SCS_FinalColorLDR)
 		{
 			bForceLinearGamma = true;
-			ForceTargetGamma = 2.2f;
+			ForceTargetGamma = 1.0f;
 		}
 		else
 		{
@@ -172,7 +214,7 @@ void UMovieQualityRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		if (CaptureSource == ESceneCaptureSource::SCS_FinalColorLDR)
 		{
 			bForceLinearGamma = true;
-			ForceTargetGamma = 2.2f;
+			ForceTargetGamma = 1.0f;
 		}
 		else
 		{
@@ -313,7 +355,7 @@ void UMovieQualityRenderComponent::CaptureDiscardFrame()
 	else
 	{
 		RenderTarget = NewObject<UTextureRenderTarget2D>(this);
-		RenderTarget->InitCustomFormat(Resolution.X, Resolution.Y, PixelFormat, true);
+		RenderTarget->InitCustomFormat(Resolution.X, Resolution.Y, PixelFormat, bForceLinearGamma);
 		RenderTargetPool.Add(PoolKey, RenderTarget);
 	}
 
@@ -393,6 +435,59 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 
 void UMovieQualityRenderComponent::ExecuteCaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
 {
+	UWorld* World = GetWorld();
+
+	// ========== MRQ Fix #1: Async System Flushing ==========
+	// Flush async systems on first frame to ensure complete scene data for Lumen GI, textures, etc.
+	if (FrameCounter == 0 || NumWarmup > 0)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("MQRC: Flushing async systems (FrameCounter=%d, NumWarmup=%d)"), FrameCounter, NumWarmup);
+
+		if (World)
+		{
+			// 1. Virtual Texture Tiles (CRITICAL for texture quality)
+			UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Flushing Virtual Texture tiles..."));
+			ERHIFeatureLevel::Type FeatureLevel = World->GetFeatureLevel();
+			ENQUEUE_RENDER_COMMAND(FlushVirtualTextureTiles)(
+				[FeatureLevel](FRHICommandListImmediate& RHICmdList)
+				{
+					GetRendererModule().LoadPendingVirtualTextureTiles(RHICmdList, FeatureLevel);
+					UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Virtual Texture tiles flushed (RenderThread)"));
+				});
+			FlushRenderingCommands();
+
+			// 2. Streaming Managers (Texture, Nanite, etc.)
+			UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Flushing Streaming Managers..."));
+			IStreamingManager& StreamingManager = IStreamingManager::Get();
+			StreamingManager.UpdateResourceStreaming(World->GetDeltaSeconds(), true);
+			StreamingManager.BlockTillAllRequestsFinished();
+			UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Streaming Managers flushed"));
+
+			// 3. Asset Compilation (Shaders, Materials)
+			UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Flushing Asset Compiler..."));
+			FAssetCompilingManager::Get().FinishAllCompilation();
+			UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Asset Compiler flushed"));
+
+			// 4. Shader Compilation
+			UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Flushing Shader Compiler..."));
+			UMaterialInterface::SubmitRemainingJobsForWorld(World);
+			UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Shader Compiler flushed"));
+
+			// 5. Landscape Grass Streaming (if present)
+			ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>();
+			if (LandscapeSubsystem)
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Flushing Landscape Grass streaming..."));
+				TArray<FVector> CameraLocations;
+				CameraLocations.Add(GetComponentLocation());
+				LandscapeSubsystem->RegenerateGrass(true, true, MakeArrayView(CameraLocations));
+				UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Landscape Grass flushed"));
+			}
+		}
+
+		UE_LOG(LogUnrealCV, Warning, TEXT("MQRC: All async systems flushed successfully"));
+	}
+	// ========== End MRQ Fix #1 ==========
 
 	if (NumWarmup - 1 > 0)
 	{
@@ -412,12 +507,25 @@ void UMovieQualityRenderComponent::ExecuteCaptureFrame(TFunction<void(TUniquePtr
 	if (RenderTargetPool.Contains(PoolKey))
 	{
 		RenderTarget = RenderTargetPool[PoolKey];
+		UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Reusing RenderTarget from pool: %s"), *PoolKey);
 	}
 	else
 	{
 		RenderTarget = NewObject<UTextureRenderTarget2D>(this);
-		RenderTarget->ClearColor = FLinearColor::Black;
-		RenderTarget->InitAutoFormat(Resolution.X, Resolution.Y);
+		RenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		// RenderTarget->InitAutoFormat(Resolution.X, Resolution.Y);
+		RenderTarget->InitCustomFormat(Resolution.X, Resolution.Y, PixelFormat, bForceLinearGamma);
+
+		// // ========== CRITICAL FIX #10: Configure RenderTarget for Proper Gamma ==========
+		// // Force linear gamma for HDR rendering path
+		// // The tonemapper will handle gamma correction
+		// RenderTarget->bForceLinearGamma = false;  // Let engine decide based on CaptureSource
+		RenderTarget->TargetGamma = UTextureRenderTarget::GetDefaultDisplayGamma();;
+
+		UE_LOG(LogUnrealCV, Warning, TEXT("MQRC: Created RenderTarget %dx%d - Format=%s, bForceLinearGamma=%d, TargetGamma=%.2f"),
+			Resolution.X, Resolution.Y, *PoolKey, RenderTarget->bForceLinearGamma, RenderTarget->TargetGamma);
+		// ========== End CRITICAL FIX #10 ==========
+
 		RenderTarget->AddToRoot();
 		RenderTargetPool.Add(PoolKey, RenderTarget);
 	}
@@ -515,13 +623,36 @@ TSharedPtr<FSceneViewFamilyContext> UMovieQualityRenderComponent::CreateViewFami
 	ViewFamily->SceneCaptureSource = CaptureSource;
 	ViewFamily->bWorldIsPaused = false;
 	ViewFamily->bResolveScene = true;
-	ViewFamily->bIsHDR = false;
-	ViewFamily->ExposureSettings.bFixed = false; 
-	ViewFamily->ExposureSettings.FixedEV100 = 4.0f; 
+
+	ViewFamily->bIsFirstViewInMultipleViewFamily = false;
+	ViewFamily->bAdditionalViewFamily = true;
+
+	ViewFamily->EngineShowFlags.ScreenPercentage = false;
+	ViewFamily->EngineShowFlags.MotionBlur = false;
+
+	// ========== CRITICAL FIX #7: Enable HDR Rendering for Proper Tonemapping ==========
+	// PROBLEM: bIsHDR = false prevents proper tone mapping
+	// SOLUTION: Enable HDR mode so tonemapper can convert HDR scene values to display range
+	ViewFamily->bIsHDR = true;  // CRITICAL: Changed from false to true
+	UE_LOG(LogUnrealCV, Warning, TEXT("MQRC: ViewFamily.bIsHDR = true (enables proper tonemapping)"));
+	// ========== End CRITICAL FIX #7 ==========
+
+	// ========== CRITICAL FIX #8: Remove Conflicting Exposure Settings ==========
+	// PROBLEM: ViewFamily.ExposureSettings can override View's PostProcessSettings
+	// SOLUTION: Remove these lines - let View's auto-exposure system handle it
+	//
+	// ViewFamily->ExposureSettings.bFixed = false;
+	// ViewFamily->ExposureSettings.FixedEV100 = 4.0f;
+	//
+	// These settings conflict with the View's PostProcessSettings.AutoExposureMethod
+	// When removed, the View's auto-exposure (configured via PostProcessSettings) works correctly
+	UE_LOG(LogUnrealCV, Log, TEXT("MQRC: ViewFamily ExposureSettings left at defaults (controlled by View PP settings)"));
+	// ========== End CRITICAL FIX #8 ==========
+
 	// ViewFamily->SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Overwrite;
 	ViewFamily->SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Composite;
 	ViewFamily->ViewMode = VMI_Lit;
-	// ViewFamily->bOverrideVirtualTextureThrottle = true;
+	ViewFamily->bOverrideVirtualTextureThrottle = true;
 	ViewFamily->bIsMainViewFamily = false;
 	ViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(*ViewFamily, GlobalSettings.ScreenPercentage));
 
@@ -559,12 +690,24 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* VF)
 	ViewInfo.Location = Location;
 	ViewInfo.Rotation = Rotation;
 	ViewInfo.FOV = FOV;
-	// ViewInfo.DesiredFOV = FOV;
+	ViewInfo.DesiredFOV = FOV;
+		// const float MatrixFOV = 90.0f * (float)UE_PI / 360.0f;
+		// const float ClippingPlane = GNearClippingPlane;
+
+		// ViewInitOptions.ProjectionMatrix = FReversedZPerspectiveMatrix(MatrixFOV, MatrixFOV, 1.0f, 1.0f, ClippingPlane, ClippingPlane);
 	ViewInfo.AspectRatio = AspectRatio;
 	ViewInfo.bConstrainAspectRatio = false;
 	ViewInfo.ProjectionMode = ECameraProjectionMode::Perspective;
 
 	ViewInitOptions.ProjectionMatrix = ViewInfo.CalculateProjectionMatrix();
+
+	UE_LOG(LogUnrealCV, Warning, TEXT("MQRC::CreateView PROJECTION DEBUG:"));
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - Resolution: %dx%d"), Resolution.X, Resolution.Y);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - FOV: %.6f"), ViewInfo.FOV);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - AspectRatio: %.6f"), ViewInfo.AspectRatio);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - bConstrainAspectRatio: %d"), ViewInfo.bConstrainAspectRatio);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[0][0]: %.6f, M[1][1]: %.6f"),
+		ViewInitOptions.ProjectionMatrix.M[0][0], ViewInitOptions.ProjectionMatrix.M[1][1]);
 
 	FSceneView* View = new FSceneView(ViewInitOptions);
 
@@ -575,22 +718,28 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* VF)
 	if (GlobalSettings.AntiAliasingMethod == EAntiAliasingMethod::AAM_FXAA)
 	{
 		SPM = EPrimaryScreenPercentageMethod::SpatialUpscale;
-		UE_LOG(LogTemp, Warning, TEXT("FXAA force use SpatialUpscale"));
+		UE_LOG(LogUnrealCV, Warning, TEXT("MQRC: FXAA force use SpatialUpscale"));
 	}
 	View->PrimaryScreenPercentageMethod = SPM;
-	View->bSceneCaptureUsesRayTracing = true; 
+	View->bSceneCaptureUsesRayTracing = true;
 	View->bAllowRayTracing = true;
-	View->bIsOfflineRender = true;
 	// View->bIsReflectionCapture = true;
 	View->bIsSceneCapture = false;
 	// View->bIsSceneCaptureCube = false;
 	View->bIsGameView = false;
 	View->bAllowTemporalJitter = false;
 	View->bEyeAdaptationAllViewPixels = false;
-	// bCameraMotionBlur
-	// InFocusDistance
+
+	// ========== MRQ Fix #5: Force Camera Visibility Reset ==========
+	// Reset occlusion queries to prevent objects from disappearing
+	// Critical for multi-frame captures and tiled rendering
+	View->bForceCameraVisibilityReset = true;
+	UE_LOG(LogUnrealCV, Log, TEXT("MQRC: View flags set - bIsOfflineRender=%d, bForceCameraVisibilityReset=%d, AA=%d"),
+		View->bIsOfflineRender, View->bForceCameraVisibilityReset, (int32)View->AntiAliasingMethod);
+	// ========== End MRQ Fix #5 ==========
 
 	View->OverrideFrameIndexValue = FrameCounter++;
+	UE_LOG(LogUnrealCV, Log, TEXT("MQRC: FrameIndex=%d"), View->OverrideFrameIndexValue.GetValue());
 
 
 	if (bHasCachedMainViewPostProcessSettings)
@@ -602,47 +751,102 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* VF)
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("MQRC: bHasCachedMainViewPostProcessSettings = false,  use SetBaseValues() instead"));
-		View->FinalPostProcessSettings.SetBaseValues();
+		// ========== MRQ Fix #3: Preserve Lumen Settings ==========
+		// DO NOT call SetBaseValues() - it disables Lumen GI/Reflections
+		// Instead, use engine defaults which preserve quality settings
+		UE_LOG(LogUnrealCV, Warning, TEXT("MQRC: No cached main view PP settings, using engine defaults (preserving Lumen)"));
+
+		// Note: FSceneView constructor already initialized FinalPostProcessSettings with proper defaults
+		// We only need to explicitly disable features that are incompatible with offline rendering
+		View->FinalPostProcessSettings.bOverride_MotionBlurAmount = true;
+		View->FinalPostProcessSettings.MotionBlurAmount = 0.0f;  // Disable motion blur for clarity
+		// ========== End MRQ Fix #3 ==========
 	}
-	
+
 	DebugPrintPostProcessSettings(View->FinalPostProcessSettings, TEXT("MQRC: Init"));
 
 	UWorld* World = GetWorld();
 	if (World)
 	{
-		UE_LOG(LogTemp, Log, TEXT("MQRC: World found, gathering PostProcessVolumes"));
+		UE_LOG(LogUnrealCV, Log, TEXT("MQRC: World found, gathering ALL PostProcessVolumes (bound + unbound)"));
 
-		TArray<APostProcessVolume*> Volumes;
-		for (TActorIterator<APostProcessVolume> It(World); It; ++It)
+		// ========== MRQ Fix #2: Proper PPV Blending (MRQ-style) ==========
+		// Replicate MRQ's DoPostProcessBlend function from MoviePipelineUtils.cpp:1231-1265
+		FVector ViewLocation = GetComponentLocation();
+		int32 TotalPPVCount = 0;
+		int32 AppliedPPVCount = 0;
+
+		// Iterate ALL PostProcessVolumes (both bound and unbound)
+		for (IInterface_PostProcessVolume* PPVolume : World->PostProcessVolumes)
 		{
-			if (It->bEnabled && It->bUnbound)
+			TotalPPVCount++;
+			const FPostProcessVolumeProperties VolumeProperties = PPVolume->GetProperties();
+
+			// Skip disabled volumes
+			if (!VolumeProperties.bIsEnabled)
 			{
-				Volumes.Add(*It);
-				UE_LOG(LogTemp, Log, TEXT("MQRC: Found PPV: %s, Priority=%.2f, BlendWeight=%.2f, Blendables=%d"),
-					*It->GetName(), It->Priority, It->BlendWeight, It->Settings.WeightedBlendables.Array.Num());
+				UE_LOG(LogUnrealCV, Verbose, TEXT("MQRC: Skipping disabled PPV"));
+				continue;
+			}
+
+			float LocalWeight = FMath::Clamp(VolumeProperties.BlendWeight, 0.0f, 1.0f);
+			bool bIsUnbound = VolumeProperties.bIsUnbound;
+
+			// For bounded volumes, calculate distance-based weight
+			if (!bIsUnbound)
+			{
+				float DistanceToPoint = 0.0f;
+				PPVolume->EncompassesPoint(ViewLocation, 0.0f, &DistanceToPoint);
+
+				if (DistanceToPoint >= 0 && DistanceToPoint < VolumeProperties.BlendRadius)
+				{
+					// Inside blend radius - attenuate weight by distance
+					float DistanceWeight = FMath::Clamp(1.0f - DistanceToPoint / VolumeProperties.BlendRadius, 0.0f, 1.0f);
+					LocalWeight *= DistanceWeight;
+
+					UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Bounded PPV in range - Distance=%.2f, BlendRadius=%.2f, DistanceWeight=%.3f, FinalWeight=%.3f"),
+						DistanceToPoint, VolumeProperties.BlendRadius, DistanceWeight, LocalWeight);
+				}
+				else
+				{
+					// Outside blend radius - skip this volume
+					LocalWeight = 0.0f;
+					UE_LOG(LogUnrealCV, Verbose, TEXT("MQRC: Bounded PPV out of range - Distance=%.2f, BlendRadius=%.2f (skipped)"),
+						DistanceToPoint, VolumeProperties.BlendRadius);
+					continue;
+				}
+			}
+			else
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Unbound PPV - Weight=%.3f, Priority=%.2f"),
+					LocalWeight, VolumeProperties.Priority);
+			}
+
+			// Apply the volume settings
+			if (LocalWeight > SMALL_NUMBER)
+			{
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+				FString PPVName = PPVolume->GetDebugName();
+#else
+				FString PPVName = TEXT("PPVolume");
+#endif
+				// Clear blendables to avoid issues
+				FPostProcessSettings TempSettings = *VolumeProperties.Settings;
+				int32 BlendableCount = TempSettings.WeightedBlendables.Array.Num();
+				TempSettings.WeightedBlendables.Array.Empty();
+
+				View->OverridePostProcessSettings(TempSettings, LocalWeight);
+				CopyOverrideFlags(TempSettings, View->FinalPostProcessSettings);
+
+				AppliedPPVCount++;
+				UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Applied PPV #%d: '%s' (Unbound=%d, Weight=%.3f, cleared %d blendables)"),
+					AppliedPPVCount, *PPVName, bIsUnbound ? 1 : 0, LocalWeight, BlendableCount);
+				DebugPrintPostProcessSettings(TempSettings, FString::Printf(TEXT("MQRC: PPV[%s]"), *PPVName));
 			}
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("MQRC: Total enabled unbound PPVs: %d"), Volumes.Num());
-
-		Volumes.Sort([](const APostProcessVolume& A, const APostProcessVolume& B) {
-			return A.Priority > B.Priority;
-		});
-
-
-		for (APostProcessVolume* Vol : Volumes)
-		{
-			DebugPrintPostProcessSettings(Vol->Settings, FString::Printf(TEXT("MQRC: PPV[%s]"), *Vol->GetName()));
-			FPostProcessSettings TempSettings = Vol->Settings;
-
-			int32 BlendableCount = TempSettings.WeightedBlendables.Array.Num();
-			TempSettings.WeightedBlendables.Array.Empty();
-			UE_LOG(LogTemp, Log, TEXT("MQRC: Applied PPV: %s (cleared %d blendables)"), *Vol->GetName(), BlendableCount);
-
-			View->OverridePostProcessSettings(TempSettings, Vol->BlendWeight);
-			CopyOverrideFlags(TempSettings, View->FinalPostProcessSettings);
-		}
+		UE_LOG(LogUnrealCV, Warning, TEXT("MQRC: PPV Blending Complete - Total=%d, Applied=%d"), TotalPPVCount, AppliedPPVCount);
+		// ========== End MRQ Fix #2 ==========
 	}
 	else
 	{
@@ -682,6 +886,8 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* VF)
 		}
 		View->ShowOnlyPrimitives = TOptional<TSet<FPrimitiveComponentId>>(VisiblePrimitives);
 	}
+
+	// View->FinalPostProcessSettings = FFinalPostProcessSettings();
 	VF->Views.Add(View);
 	// VF->AllViews.Add(View);
 
@@ -721,11 +927,62 @@ void UMovieQualityRenderComponent::SubmitToRendererWithCallback(
 
 	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
+	UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Submitting ViewFamily to renderer (FeatureLevel=%d, Views=%d)"),
+		(int32)VF->GetFeatureLevel(), VF->Views.Num());
+
+	// ========== CRITICAL FIX #9: Verify ShowFlags Before Rendering ==========
+	// Log ShowFlags state to diagnose if they're being incorrectly disabled
+	UE_LOG(LogUnrealCV, Warning, TEXT("MQRC: FINAL ShowFlags verification:"));
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - PostProcessing = %d (MUST be 1 for tonemapping)"), VF->EngineShowFlags.PostProcessing);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - Tonemapper = %d"), VF->EngineShowFlags.Tonemapper);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - EyeAdaptation = %d"), VF->EngineShowFlags.EyeAdaptation);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - Bloom = %d"), VF->EngineShowFlags.Bloom);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - TemporalAA = %d"), VF->EngineShowFlags.TemporalAA);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - ViewMode = %d (VMI_Lit=2)"), VF->ViewMode);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - bIsHDR = %d"), VF->bIsHDR);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - SceneCaptureSource = %d (FinalColorLDR=0, SceneColorHDR=2)"), (int32)VF->SceneCaptureSource);
+
+	// CRITICAL CHECK: If PostProcessing is disabled, rendering will be WRONG
+	if (!VF->EngineShowFlags.PostProcessing)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MQRC: CRITICAL ERROR - PostProcessing is DISABLED! Brightness will be wrong!"));
+		UE_LOG(LogUnrealCV, Error, TEXT("MQRC: Forcing PostProcessing back ON..."));
+		VF->EngineShowFlags.SetPostProcessing(true);
+		VF->EngineShowFlags.SetTonemapper(true);
+		VF->EngineShowFlags.SetEyeAdaptation(true);
+	}
+	// ========== End CRITICAL FIX #9 ==========
+
 	FCanvas Canvas(RenderTargetResource, nullptr, World, VF->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
 	GetRendererModule().BeginRenderingViewFamily(&Canvas, VF);
 
+	// ========== MRQ Fix #4: RHI Texture Transition for GPU Readback ==========
+	// Transition RenderTarget texture from RTV (RenderTargetView) to SRV (ShaderResourceView)
+	// This ensures correct GPU readback without data corruption
+	UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Transitioning texture state for GPU readback"));
+	ENQUEUE_RENDER_COMMAND(TransitionTextureForReadback)(
+		[RenderTargetResource](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			FRHITexture* Texture = RenderTargetResource->GetRenderTargetTexture();
+			if (Texture)
+			{
+				RHICmdList.Transition(FRHITransitionInfo(
+					Texture,
+					ERHIAccess::RTV,                // From: RenderTargetView
+					ERHIAccess::SRVGraphics        // To: ShaderResourceView
+				));
+				UE_LOG(LogUnrealCV, Verbose, TEXT("MQRC: Texture transition complete (RenderThread)"));
+			}
+			else
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("MQRC: RenderTarget texture is null!"));
+			}
+		});
+	// ========== End MRQ Fix #4 ==========
+
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 
+	UE_LOG(LogUnrealCV, Log, TEXT("MQRC: Enqueueing GPU readback command"));
 	ENQUEUE_RENDER_COMMAND(CaptureFrameCommand)(
 		[SurfaceQueue = this->SurfaceQueue, FramePayload, OnPixelDataReady, RenderTargetResource](FRHICommandListImmediate& RHICmdList) mutable
 		{
@@ -1826,9 +2083,9 @@ void UMovieQualityRenderComponent::SetDefaultPostProcessSettings(FPostProcessSet
 	PPSettings.bOverride_AutoExposureMaxBrightness = 1;
 	PPSettings.AutoExposureMaxBrightness = GlobalSettings.AutoExposureMaxBrightness;
     PPSettings.bOverride_AutoExposureSpeedDown = 1;
-    PPSettings.AutoExposureSpeedDown = 20.0f;
+    PPSettings.AutoExposureSpeedDown = 200.0f;
     PPSettings.bOverride_AutoExposureSpeedUp = 1;
-    PPSettings.AutoExposureSpeedUp = 20.0f;
+    PPSettings.AutoExposureSpeedUp = 200.0f;
 
   	// DOF
   	PPSettings.bOverride_DepthOfFieldScale = true;

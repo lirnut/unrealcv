@@ -263,6 +263,11 @@ bool URecordingBPLib::ParseTrajectoryType(const FString& TrajectoryTypeStr, ECam
 
 		{TEXT("render_only"),       ECameraTrajectoryType::RenderOnly},
 		{TEXT("render_only_5s"),       ECameraTrajectoryType::RenderOnly5S},
+		{TEXT("render_left_rotate"),       ECameraTrajectoryType::RenderLeftRotate},
+		{TEXT("render_right_rotate"),       ECameraTrajectoryType::RenderRightRotate},
+		{TEXT("render_rotate_left"),       ECameraTrajectoryType::RenderRotateLeft},
+		{TEXT("render_rotate_right"),       ECameraTrajectoryType::RenderRotateRight},
+		{TEXT("render_rotate_up"),       ECameraTrajectoryType::RenderRotateUp},
 	};
 
 	const ECameraTrajectoryType* Found = TrajectoryMap.Find(Normalized);

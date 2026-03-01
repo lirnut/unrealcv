@@ -8,6 +8,7 @@
 class UGameViewportClient;
 class FSceneViewport;
 class FUnrealCVImageWriteQueue;
+struct FUnrealCVSurfaceQueue;
 
 UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))
 class UNREALCV_API UMainViewportRenderComponent : public USceneComponent
@@ -33,6 +34,8 @@ public:
 	void Shutdown();
 
 	void CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady);
+
+	void CaptureFrameSync(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady);
 
 	void CaptureFrameToFile(const FString& OutputPath, TFunction<void(bool)> OnComplete = nullptr);
 
@@ -61,4 +64,5 @@ protected:
 	FSceneViewport* SceneViewport = nullptr;
 
 	TSharedPtr<FUnrealCVImageWriteQueue> ImageWriteQueue;
+	TSharedPtr<FUnrealCVSurfaceQueue, ESPMode::ThreadSafe> SurfaceQueue;
 };

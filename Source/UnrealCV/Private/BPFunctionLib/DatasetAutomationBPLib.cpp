@@ -178,7 +178,18 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 0.5 2.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
+
+		TArray<FString> MattingTrajectoryOptions = {
+			TEXT("render_only"),
+			TEXT("render_left_rotate"),
+			TEXT("render_right_rotate"),
+			TEXT("render_rotate_left"),
+			TEXT("render_rotate_right")
+			// TEXT("render_rotate_up")
+		};
+		FString ChosenMattingTrajectory = MattingTrajectoryOptions[FMath::RandRange(0, MattingTrajectoryOptions.Num() - 1)];
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), ChosenMattingTrajectory));
+
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("clear_scene")));

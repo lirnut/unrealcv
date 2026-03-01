@@ -98,7 +98,7 @@ void UAutomationBPLib::StartTicking()
 
 
 
-	PushCommand(TEXT("sleep 5"));
+	PushCommand(TEXT("sleep 20"));
 	PushCommand(TEXT("vset /datasetautomation/config/b_exit_on_complete true"));
 	PushCommand(TEXT("vset /datasetautomation/start"));
 }

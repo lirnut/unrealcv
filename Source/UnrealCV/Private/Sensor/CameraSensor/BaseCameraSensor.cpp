@@ -689,20 +689,33 @@ void UBaseCameraSensor::GetCameraView(float DeltaTime, FMinimalViewInfo& Desired
 	DesiredView.Location = GetComponentLocation();
 	DesiredView.Rotation = GetComponentRotation();
 	DesiredView.FOV = this->FOVAngle;
-	// DesiredView.FOV = FieldOfView;
-	// DesiredView.bConstrainAspectRatio = bConstrainAspectRatio;
-	// DesiredView.bUseFieldOfViewForLOD = bUseFieldOfViewForLOD;
-	// DesiredView.ProjectionMode = ProjectionMode;
 	DesiredView.ProjectionMode = ECameraProjectionMode::Perspective;
 	DesiredView.OrthoWidth = OrthoWidth;
-	// DesiredView.OrthoNearClipPlane = OrthoNearClipPlane;
-	// DesiredView.OrthoFarClipPlane = OrthoFarClipPlane;
 
-	// See if the CameraActor wants to override the PostProcess settings used.
+	if (TextureTarget && TextureTarget->SizeX > 0 && TextureTarget->SizeY > 0)
+	{
+		DesiredView.AspectRatio = (float)TextureTarget->SizeX / (float)TextureTarget->SizeY;
+		DesiredView.bConstrainAspectRatio = true;
+	}
+
 	DesiredView.PostProcessBlendWeight = PostProcessBlendWeight;
 	if (PostProcessBlendWeight > 0.0f)
 	{
 		DesiredView.PostProcessSettings = PostProcessSettings;
+	}
+
+	if (TextureTarget)
+	{
+		float ComputedAspectRatio = (float)TextureTarget->SizeX / (float)TextureTarget->SizeY;
+		FMatrix ProjectionMatrix = DesiredView.CalculateProjectionMatrix();
+
+		UE_LOG(LogUnrealCV, Warning, TEXT("BaseCameraSensor::GetCameraView PROJECTION DEBUG:"));
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - TextureTarget Size: %dx%d"), TextureTarget->SizeX, TextureTarget->SizeY);
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - FOV: %.6f"), DesiredView.FOV);
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - AspectRatio (from view): %.6f"), DesiredView.AspectRatio);
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - AspectRatio (computed): %.6f"), ComputedAspectRatio);
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - bConstrainAspectRatio: %d"), DesiredView.bConstrainAspectRatio);
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[0][0]: %.6f, M[1][1]: %.6f"), ProjectionMatrix.M[0][0], ProjectionMatrix.M[1][1]);
 	}
 
 }

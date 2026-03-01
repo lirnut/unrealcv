@@ -67,6 +67,11 @@ public:
 
 	bool IsStale() const;
 
+	void SetFrameResolveLatency(int32 InLatency)
+	{
+		FrameResolveLatency = FMath::Clamp(InLatency, 0, Surfaces.Num() - 1);
+	}
+
 private:
 	struct FResolveSurface
 	{
