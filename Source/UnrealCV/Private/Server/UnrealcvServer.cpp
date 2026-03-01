@@ -14,6 +14,7 @@
 #include "Commands/AliasHandler.h"
 #include "Commands/CameraHandler.h"
 #include "Commands/CaptureActorHandler.h"
+#include "Commands/EditorHandler.h"
 #include "Commands/AgentNavHandler.h"
 #include "Commands/DatasetAutomationHandler.h"
 #include "Commands/LightHandler.h"
@@ -119,6 +120,7 @@ void FUnrealcvServer::RegisterCommandHandlers()
 	CommandHandlers.Add(new FAliasHandler());
 	CommandHandlers.Add(new FCameraHandler());
 	CommandHandlers.Add(new FCaptureActorHandler());
+	CommandHandlers.Add(new FEditorHandler());
 	CommandHandlers.Add(new FAgentNavHandler());
 	CommandHandlers.Add(new FDatasetAutomationHandler());
 	CommandHandlers.Add(new FLightHandler());

@@ -6,6 +6,31 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 
 ## Session Context Files (2026-03-01)
 
+**Session Topic**: MainViewportRenderComponent black pixel bug - viewport backbuffer capture vs separate render target; fixed assertion error (RHIGetViewportBackBuffer called from game thread)
+
+### Sensor System (Viewport Capture)
+- `Source/UnrealCV/Private/Sensor/CameraSensor/MainViewportRenderComponent.cpp` - Main viewport capture; changed from SceneViewport::ReadPixels to RHIGetViewportBackBuffer for reading actual displayed pixels; ENQUEUE_RENDER_COMMAND fix for assertion error
+- `Source/UnrealCV/Public/Sensor/CameraSensor/MainViewportRenderComponent.h` - Added FSceneViewport pointer member
+
+### Recording & Capture
+- `Source/UnrealCV/Private/Actor/FusionCamCaptureActor.cpp` - Recording actor; converted bUseMovieQualityRendering/bRecordViaViewport to static global settings
+- `Source/UnrealCV/Public/Actor/FusionCamCaptureActor.h` - Static global settings for recording control
+
+### Command Handlers (Recording Settings)
+- `Source/UnrealCV/Private/Commands/CaptureActorHandler.cpp` - Added TCP commands: /captureactor/use_movie_quality_rendering, /captureactor/record_via_viewport
+- `Source/UnrealCV/Private/Commands/CaptureActorHandler.h`
+
+### UE5 Engine References (Viewport & Backbuffer)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Slate\SceneViewport.cpp` - FSceneViewport class; GetViewportRHI(), UseSeparateRenderTarget(), BeginRenderFrame() with backbuffer logic; SetViewportSize(), ResizeViewport()
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\UnrealClient.cpp` - FRenderTarget::ReadPixels() implementation using RHICmdList.ReadSurfaceData
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\UnrealClient.h` - FViewport class with GetViewportRHI() method (line 666), FViewportRHIRef member (line 799)
+- `H:\UE_5.6\Engine\Source\Runtime\Slate\Private\Widgets\SViewport.cpp` - SViewport widget with ShouldRenderDirectly() check for drawing viewport quad
+- `H:\UE_5.6\Engine\Source\Runtime\RHI\Public\DynamicRHI.h` - RHIGetViewportBackBuffer() pure virtual (line 680), inline implementation (line 1400-1402)
+- `H:\UE_5.6\Engine\Source\Runtime\RHI\Public\RHIFwd.h` - FViewportRHIRef = TRefCountPtr<FRHIViewport> (line 138)
+- `H:\UE_5.6\Engine\Source\Runtime\RHI\Public\RHIValidation.h` - RHI validation layer implementation
+
+## Session Context Files (2026-03-01)
+
 **Session Topic**: MQRC rendering pipeline upgrade - migrating from FCanvas to FSceneRenderBuilder, comparing with UE's SceneCaptureRendering pipeline, resolving FSceneRenderer private type access issues
 
 ### Sensor System (MQRC Rendering Pipeline)

@@ -194,6 +194,8 @@ DebugGame 控制台中支持的完整命令列表
   - vset /datasetautomation/config/b_load_scene_params_from_json [true/false] - 是否从JSON加载参数
   - vset /datasetautomation/config/foreground_move_speed [float] - 设置前景移动速度(cm/s)
   - vset /datasetautomation/config/foreground_move_angle_offset [float] - 设置前景移动角度偏移(度, 0=前进, 90=右, -90=左, 180=后退)
+  - vset /datasetautomation/config/b_exit_on_complete [true/false] - 批次生成完成后是否自动退出进程
+  - vget /datasetautomation/config/b_exit_on_complete - 获取 b_exit_on_complete 配置
 
   Control:
   - vset /datasetautomation/start - 启动自动化（使用当前Config）
