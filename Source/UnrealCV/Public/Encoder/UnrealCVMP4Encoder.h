@@ -20,6 +20,8 @@ public:
 
 	const FUnrealCVMP4EncoderOptions& GetOptions() const { return Options; }
 	bool IsInitialized() const { return bInitialized; }
+	int32 GetWidth() const { return Options.Width; }
+	int32 GetHeight() const { return Options.Height; }
 
 private:
 	bool InitializeEncoder();
@@ -50,6 +52,8 @@ public:
 
 	const FUnrealCVMP4EncoderOptions& GetOptions() const { static FUnrealCVMP4EncoderOptions Dummy; return Dummy; }
 	bool IsInitialized() const { return false; }
+	int32 GetWidth() const { return 0; }
+	int32 GetHeight() const { return 0; }
 };
 
 #endif

@@ -19,6 +19,7 @@
 #include "FlowCamSensor.h"
 #include "ShadowCatcherCamSensor.h"
 #include "StencilMaskCamSensor.h"
+#include "MainViewportRenderComponent.h"
 #include "BPFunctionLib/VisionBPLib.h"
 #include "BPFunctionLib/SerializeBPLib.h"
 #include "BPFunctionLib/RecordingBPLib.h"
@@ -75,7 +76,8 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	WarmUpFrames = WARM_UP_FRAMES;
 	WarmUpElapsedFrames = 0;
 
-	bUseMovieQualityRendering = true;
+	bUseMovieQualityRendering = false;
+	bRecordViaViewport = true;
 	MovieQualityRenderer = nullptr;
 
 	MP4EncodedFrameCount = 0;
@@ -483,8 +485,90 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 	if (RecordingDataTypes.bRecordRGB)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Recording RGB"));
+
+		if (bRecordViaViewport)
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("bRecordViaViewport: MP4Encoder.IsValid=%d"), MP4Encoder.IsValid());
+
+			auto* ViewportCapture = TargetSensor->GetMainViewportRenderComponent();
+			UE_LOG(LogUnrealCV, Log, TEXT("bRecordViaViewport: ViewportCapture=%p, IsInitialized=%d"),
+				ViewportCapture, ViewportCapture ? ViewportCapture->IsInitialized() : false);
+			if (ViewportCapture && ViewportCapture->IsInitialized())
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("bRecordViaViewport: ViewportCapture IsInitialized=true"));
 #if PLATFORM_WINDOWS
-		if (bUseMovieQualityRendering)
+				if (MP4Encoder && MP4Encoder->IsInitialized())
+				{
+					UE_LOG(LogUnrealCV, Log, TEXT("bRecordViaViewport: MP4Encoder IS initialized, using MP4 encoding"));
+					FIntPoint ViewportSize = ViewportCapture->GetViewportSize();
+					int32 EncoderWidth = MP4Encoder->GetWidth();
+					int32 EncoderHeight = MP4Encoder->GetHeight();
+
+					if (ViewportSize.X != EncoderWidth || ViewportSize.Y != EncoderHeight)
+					{
+						UE_LOG(LogUnrealCV, Warning, TEXT("Viewport size mismatch: Viewport=%dx%d, Encoder=%dx%d. Skipping frame."),
+							ViewportSize.X, ViewportSize.Y, EncoderWidth, EncoderHeight);
+					}
+					else
+					{
+						UE_LOG(LogUnrealCV, Log, TEXT("Viewport: Calling CaptureFrame. ViewportSize=%dx%d, Encoder=%dx%d, bWarmUp=%d, bLastFrame=%d"),
+							ViewportSize.X, ViewportSize.Y, EncoderWidth, EncoderHeight, bWarmUp, bLastFrame);
+						ViewportCapture->CaptureFrame([this, bWarmUp, bLastFrame, ViewportSize](TUniquePtr<FImagePixelData>&& InPixelData)
+						{
+							UE_LOG(LogUnrealCV, Log, TEXT("Viewport CaptureFrame callback: InPixelData.IsValid()=%d"), InPixelData.IsValid());
+
+							if (!InPixelData.IsValid())
+							{
+								UE_LOG(LogUnrealCV, Error, TEXT("Viewport: Invalid pixel data"));
+								return;
+							}
+
+							FIntPoint PixelDataSize = InPixelData->GetSize();
+							UE_LOG(LogUnrealCV, Log, TEXT("Viewport: PixelData size=%dx%d, Format=%d"), PixelDataSize.X, PixelDataSize.Y, (int32)InPixelData->GetType());
+
+							const void* RawData = nullptr;
+							int64 DataSize;
+							InPixelData->GetRawData(RawData, DataSize);
+							UE_LOG(LogUnrealCV, Log, TEXT("Viewport: RawData=%p, DataSize=%lld"), RawData, DataSize);
+
+							if (!bWarmUp && RawData && DataSize > 0)
+							{
+								UE_LOG(LogUnrealCV, Log, TEXT("Viewport: Writing frame to MP4. MP4Encoder.IsValid=%d, IsInitialized=%d"),
+									MP4Encoder.IsValid(), MP4Encoder->IsInitialized());
+
+								bool bSuccess = MP4Encoder->WriteFrame((const uint8*)RawData, InPixelData->GetType());
+								if (bSuccess)
+								{
+									MP4EncodedFrameCount++;
+									UE_LOG(LogUnrealCV, Log, TEXT("Viewport: WriteFrame SUCCESS. FrameCount=%d"), MP4EncodedFrameCount);
+								}
+								else
+								{
+									UE_LOG(LogUnrealCV, Error, TEXT("Viewport H.264: WriteFrame FAILED! FrameCount=%d"), MP4EncodedFrameCount);
+								}
+							}
+
+							if (bLastFrame)
+							{
+								MP4Encoder->Finalize();
+								MP4Encoder.Reset();
+								UE_LOG(LogUnrealCV, Log, TEXT("Viewport H.264 recording finished: %d frames -> %s"),
+									   MP4EncodedFrameCount, *MP4OutputPath);
+							}
+						});
+					}
+				}
+				else
+				{
+					UE_LOG(LogUnrealCV, Log, TEXT("bRecordViaViewport: MP4Encoder NOT initialized or invalid, using PNG fallback"));
+					FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png");
+					ViewportCapture->CaptureFrameToFile(FileNameRGB);
+				}
+#endif
+			}
+		}
+#if PLATFORM_WINDOWS
+		else if (bUseMovieQualityRendering)
 		{
 			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before GetMovieQualityRenderer()"));
 			auto* Renderer = TargetSensor->GetMovieQualityRenderer();
@@ -543,8 +627,8 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 				UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - After SaveLitToFile call"));
 			}
 		}
-		else
 #endif
+		else
 		{
 			if (MP4Encoder && MP4Encoder->IsInitialized())
 			{

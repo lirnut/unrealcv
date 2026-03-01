@@ -257,6 +257,10 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
 	bool bUseMovieQualityRendering;
 
+	/** Use main viewport capture for RGB instead of LitCamSensor or MovieQualityRenderer */
+	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
+	bool bRecordViaViewport;
+
 	/** Output folder for recorded files */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
 	FDirectoryPath DataFolder;

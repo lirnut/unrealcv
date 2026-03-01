@@ -1,8 +1,34 @@
 # UnrealCV File Path Index
 
-Auto-generated index of frequently accessed files. Last updated: 2026-02-28
+Auto-generated index of frequently accessed files. Last updated: 2026-03-01
 
 Use these shorthand paths in prompts instead of copy-pasting full paths.
+
+## Session Context Files (2026-03-01)
+
+**Session Topic**: MQRC rendering pipeline upgrade - migrating from FCanvas to FSceneRenderBuilder, comparing with UE's SceneCaptureRendering pipeline, resolving FSceneRenderer private type access issues
+
+### Sensor System (MQRC Rendering Pipeline)
+- `Source/UnrealCV/Private/Sensor/CameraSensor/MovieQualityRenderComponent.cpp` - MQRC implementation; attempted FSceneRenderBuilder migration (reverted); SetupViewFamily/SetupView calls in ExecuteCaptureFrame (line 439-444); SubmitToRendererWithCallback uses FCanvas path
+- `Source/UnrealCV/Public/Sensor/CameraSensor/MovieQualityRenderComponent.h` - FMovieQualityViewExtension class with BeginRenderViewFamily override
+- `Source/UnrealCV/Private/Sensor/CameraSensor/UnrealCVSurfaceReader.cpp` - Surface queue with OnRenderTargetReady_RenderThread for GPU readback
+
+### Build Configuration
+- `Source/UnrealCV/UnrealCV.Build.cs` - Module dependencies; attempted PrivateIncludePathModuleNames for Renderer Private access
+
+### UE5 Engine References (SceneRenderBuilder & Rendering Pipeline)
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneRenderBuilder.cpp` - CreateSceneRenderer (line 472); AddRenderer (line 562); Execute (line 1101); ViewExtension callbacks at line 506-523
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - SetupSceneViewExtensionsForSceneCapture (line 806-822); CreateSceneRendererForSceneCapture; AddRenderer lambda pattern for render capture
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneRendering.h` - FSceneRenderer class definition (line 2067, private type)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneRenderBuilderInterface.h` - ISceneRenderBuilder interface; CreateSceneRenderer; AddRenderer; FSceneRenderFunction type (line 48)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneViewExtension.h` - ISceneViewExtension with SetupViewFamily/SetupView/BeginRenderViewFamily/PostCreateSceneRenderer methods
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneView.h` - FSceneViewFamilyContext class (line 2576)
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Public\SceneRendererInterface.h` - ISceneRenderer interface (line 46)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\StereoRendering.h` - IStereoRendering for multi-view rendering
+
+### UE5 Engine References (Deferred Shading Renderer)
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\DeferredShadingRenderer.h` - FDeferredShadingSceneRenderer class (line 315): public FSceneRenderer
+- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\DeferredShadingRenderer.cpp` - Main deferred rendering implementation with Render() method; includes various rendering passes
 
 ## Session Context Files (2026-02-28)
 
