@@ -8,6 +8,7 @@
 TQueue<FString> UAutomationBPLib::CommandQueue;
 FGenericTickableObject* UAutomationBPLib::TickableObject = nullptr;
 bool UAutomationBPLib::bIsActive = false;
+double UAutomationBPLib::SleepTo = 0.0;
 
 void UAutomationBPLib::PushCommand(const FString& Command)
 {
@@ -94,6 +95,12 @@ void UAutomationBPLib::StartTicking()
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.HairStrands.ScreenTrace 1"));
 // #endif
 	PushCommand(TEXT("r.NGX.Automation.NonGameViews 1"));
+
+
+
+	PushCommand(TEXT("sleep 5"));
+	PushCommand(TEXT("vset /datasetautomation/config/b_exit_on_complete true"));
+	PushCommand(TEXT("vset /datasetautomation/start"));
 }
 
 void UAutomationBPLib::StopTicking()
@@ -135,9 +142,31 @@ void UAutomationBPLib::OnTick(double DeltaTime)
 
 void UAutomationBPLib::ProcessCommands()
 {
+	double CurrentTime = FPlatformTime::Seconds();
+	if ( SleepTo > 0 && (SleepTo - CurrentTime > 0) )
+	{
+		check( (SleepTo - CurrentTime) < (60 * 60 * 24) );
+		return;
+	}
+	else
+	{
+		SleepTo = 0.0;
+	}
+
+
 	FString Command;
 	while (CommandQueue.Dequeue(Command))
 	{
+		TArray<FString> Args;
+		Command.ParseIntoArray(Args, TEXT(" "));
+		if (Args.Num() >= 2 && Args[0] == TEXT("sleep"))
+		{
+			float SleepTime = FCString::Atof(*Args[1]);
+			SleepTo = CurrentTime + static_cast<double>(SleepTime);
+			break;
+		}
+
+
 		UE_LOG(LogUnrealCV, Log, TEXT("AutomationBPLib: Executing command: %s"), *Command);
 		if (Command == TEXT("MaxQuality"))
 		{

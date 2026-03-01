@@ -32,5 +32,7 @@ public:
 	FExecStatus SetConfigForegroundMoveSpeed(const TArray<FString>& Args);
 	FExecStatus SetConfigForegroundMoveAngleOffset(const TArray<FString>& Args);
 	FExecStatus SetConfigRecordingOptions(const TArray<FString>& Args);
+	FExecStatus SetConfigExitOnComplete(const TArray<FString>& Args);
+	FExecStatus GetConfigExitOnComplete(const TArray<FString>& Args);
 	FExecStatus GetCommandHistory(const TArray<FString>& Args);
 };

@@ -81,6 +81,9 @@ struct FAutomationConfig
 	float ForegroundMoveAngleOffset = 0.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	bool bExitOnComplete = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
 	FRecordingDataTypesConfig RecordingConfig;
 
 	FAutomationConfig() {}

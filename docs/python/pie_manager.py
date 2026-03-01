@@ -14,7 +14,8 @@ def try_connect(port, timeout=2.0):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
         result = sock.connect_ex(("127.0.0.1", port))
-        sock.close()
+        # sock.close()
+        sock._real_close()
         return result == 0
     except Exception:
         return False

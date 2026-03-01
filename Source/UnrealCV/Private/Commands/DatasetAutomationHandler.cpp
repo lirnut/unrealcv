@@ -96,6 +96,14 @@ void FDatasetAutomationHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::GetCommandHistory);
 	Help = "Get command execution history";
 	CommandDispatcher->BindCommand(TEXT("vget /datasetautomation/history"), Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigExitOnComplete);
+	Help = "Set config bExitOnComplete (exit process when batch generation completes)";
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/b_exit_on_complete [bool]"), Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::GetConfigExitOnComplete);
+	Help = "Get config bExitOnComplete";
+	CommandDispatcher->BindCommand(TEXT("vget /datasetautomation/config/b_exit_on_complete"), Cmd, Help);
 }
 
 FExecStatus FDatasetAutomationHandler::GetTaskName(const TArray<FString>& Args)
@@ -405,4 +413,22 @@ FExecStatus FDatasetAutomationHandler::GetCommandHistory(const TArray<FString>& 
 	}
 
 	return FExecStatus::OK(FString::Join(Results, TEXT("\n")));
+}
+
+FExecStatus FDatasetAutomationHandler::SetConfigExitOnComplete(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		return FExecStatus::Error(TEXT("Usage: vset /datasetautomation/config/b_exit_on_complete [true/false]"));
+	}
+
+	bool Value = Args[0].ToLower() == TEXT("true") || Args[0] == TEXT("1");
+	UDatasetAutomationBPLib::CurrentConfig.bExitOnComplete = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("Config.bExitOnComplete = %s"), Value ? TEXT("true") : TEXT("false")));
+}
+
+FExecStatus FDatasetAutomationHandler::GetConfigExitOnComplete(const TArray<FString>& Args)
+{
+	bool Value = UDatasetAutomationBPLib::CurrentConfig.bExitOnComplete;
+	return FExecStatus::OK(Value ? TEXT("true") : TEXT("false"));
 }

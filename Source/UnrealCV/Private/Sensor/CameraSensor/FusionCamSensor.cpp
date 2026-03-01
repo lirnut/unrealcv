@@ -201,6 +201,7 @@ void UFusionCamSensor::BeginPlay()
 	if (IsValid(OneObjectLitCamSensor))
 	{
 		OneObjectLitCamSensor->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
+		FusionSensors.Add(OneObjectLitCamSensor);
 	}
 
 	if (IsValid(ShadowCatcherCamSensor))

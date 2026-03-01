@@ -15,6 +15,7 @@
 #include "UnrealcvLog.h"
 #include "Kismet/GameplayStatics.h"
 #include "HAL/PlatformTime.h"
+#include "HAL/PlatformProcess.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
@@ -526,7 +527,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 			}
 			else
 			{
-				UE_LOG(LogUnrealCV, Error, TEXT("prepare_record: render_every_frame bad arg %s"), *Args[0]);
+				UE_LOG(LogUnrealCV, Error, TEXT("render_every_frame bad arg %s"), *Args[0]);
 				TransitionToState(EDatasetGenerationState::Error);
 				return;
 			}
@@ -537,7 +538,7 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		}
 		else
 		{
-			UE_LOG(LogUnrealCV, Error, TEXT("prepare_record: render_every_frame bad arg "));
+			UE_LOG(LogUnrealCV, Error, TEXT("render_every_frame bad arg "));
 			TransitionToState(EDatasetGenerationState::Error);
 			return;
 		}
@@ -752,6 +753,12 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		{
 			TransitionToState(EDatasetGenerationState::Completed);
 			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Completed all %d scenes"), CurrentStatus.TotalScenes);
+			if (CurrentConfig.bExitOnComplete)
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: bExitOnComplete is true, exiting process..."));
+				StopBatchGeneration();
+				FGenericPlatformMisc::RequestExit(true);
+			}
 		}
 		else
 		{
@@ -1284,7 +1291,9 @@ void UDatasetAutomationBPLib::ProcessState(double RealDeltaTime)
 	}
 
 	case EDatasetGenerationState::Error:
+		break;
 	case EDatasetGenerationState::Completed:
+		break;
 	case EDatasetGenerationState::Idle:
 	default:
 		break;

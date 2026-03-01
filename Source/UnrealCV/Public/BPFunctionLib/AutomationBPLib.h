@@ -29,6 +29,8 @@ private:
 	static FGenericTickableObject* TickableObject;
 	static bool bIsActive;
 
+	static double SleepTo;
+
 	static void OnTick(double DeltaTime);
 	static void ProcessCommands();
 };
