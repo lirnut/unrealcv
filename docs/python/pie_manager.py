@@ -24,6 +24,9 @@ def try_connect(port, timeout=2.0):
 def main():
     import unrealcv
 
+    pie_run_count = 0
+    pie_session_start = None
+
     print(f"[INFO] Connecting to editor on port {EDITOR_PORT}...")
     editor_client = unrealcv.Client(("127.0.0.1", EDITOR_PORT))
     if not editor_client.connect(timeout=10):
@@ -50,7 +53,10 @@ def main():
 
             for attempt in range(PIE_START_TIMEOUT // 5):
                 if try_connect(PIE_PORT):
+                    pie_run_count += 1
+                    pie_session_start = time.time()
                     print(f"[OK] PIE started on port {PIE_PORT}")
+                    print(f"[STATS] Run #{pie_run_count}")
                     break
                 print(f"[RETRY] Attempt {attempt + 1}, waiting 5s...")
                 time.sleep(5)
@@ -67,17 +73,23 @@ def main():
 
         # print("[OK] Connected to PIE")
 
-        while True:
-            # pie_client = unrealcv.Client(("127.0.0.1", PIE_PORT))
-            # if not pie_client.connect(timeout=10):
-            if not try_connect(PIE_PORT):
-                print("[INFO] PIE stopped or not accessible")
-                break
+        try:
+            while True:
+                # pie_client = unrealcv.Client(("127.0.0.1", PIE_PORT))
+                # if not pie_client.connect(timeout=10):
+                if not try_connect(PIE_PORT):
+                    elapsed = time.time() - pie_session_start if pie_session_start else 0
+                    print(f"[INFO] PIE stopped (run #{pie_run_count}, runtime: {elapsed:.1f}s)")
+                    pie_session_start = None
+                    break
 
-            print("[OK] Connected to PIE")
+                if pie_session_start:
+                    elapsed = time.time() - pie_session_start
+                    print(f"[OK] PIE running - Run #{pie_run_count}, time: {elapsed:.1f}s")
 
-
-            time.sleep(1.0)
+                time.sleep(1.0)
+        except KeyboardInterrupt:
+            break
 
         print("[INFO] PIE session ended, returning to check loop...")
 
