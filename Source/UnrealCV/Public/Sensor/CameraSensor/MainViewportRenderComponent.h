@@ -48,6 +48,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MainViewportRender")
 	float GetFOV() const { return FOV; }
 
+	UFUNCTION(BlueprintCallable, Category = "MainViewportRender")
+	float GetActualFOV() const;
+
 protected:
 	bool bIsInitialized = false;
 	float FOV = 90.0f;

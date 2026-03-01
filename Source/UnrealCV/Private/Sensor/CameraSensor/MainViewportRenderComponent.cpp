@@ -121,6 +121,20 @@ void UMainViewportRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 	}
 
 	bIsInitialized = true;
+
+	UWorld* World = GetWorld();
+	if (World && World->GetFirstPlayerController() && World->GetFirstPlayerController()->PlayerCameraManager)
+	{
+		APlayerCameraManager* CamMgr = World->GetFirstPlayerController()->PlayerCameraManager;
+		float CurrentAspectRatio = (float)ResolutionX / (float)ResolutionY;
+
+		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Setting initial AspectRatio %.4f for viewport %dx%d"),
+			CurrentAspectRatio, ResolutionX, ResolutionY);
+
+		CamMgr->DefaultAspectRatio = CurrentAspectRatio;
+		CamMgr->bDefaultConstrainAspectRatio = false;
+	}
+
 	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent initialized: %d x %d"), ResolutionX, ResolutionY);
 }
 
@@ -200,6 +214,16 @@ void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 		Pawn->SetActorLocation(ComponentLocation);
 	}
 
+	if (PC->PlayerCameraManager && FOV > 0.0f)
+	{
+		float CurrentFOV = PC->PlayerCameraManager->GetFOVAngle();
+		if (FMath::Abs(CurrentFOV - FOV) > 0.01f)
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRenderComponent: FOV mismatch (%.2f vs %.2f), reapplying..."),
+				CurrentFOV, FOV);
+			SetFOV(FOV);
+		}
+	}
 
 	if (!IsInitialized())
 	{
@@ -376,22 +400,58 @@ void UMainViewportRenderComponent::SetFOV(float InFOV)
 {
 	FOV = InFOV;
 	UWorld* World = GetWorld();
-	if (World && World->GetFirstPlayerController())
+	if (!World)
 	{
-		FString FOVCommand = FString::Printf(TEXT("FOV %.1f"), FOV);
-		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Executing '%s'"), *FOVCommand);
-		FString Result = World->GetFirstPlayerController()->ConsoleCommand(FOVCommand, true);
-		if (!Result.IsEmpty())
-		{
-			UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Command result: %s"), *Result);
-		}
-		else
-		{
-			UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: FOV command executed"));
-		}
+		UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent: World is null"));
+		return;
+	}
+
+	APlayerController* PC = World->GetFirstPlayerController();
+	if (!PC)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent: PlayerController is null"));
+		return;
+	}
+
+	APlayerCameraManager* CamMgr = PC->PlayerCameraManager;
+	if (!CamMgr)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent: PlayerCameraManager is null"));
+		return;
+	}
+
+	FIntPoint ViewportSize = GetViewportSize();
+	if (ViewportSize.X > 0 && ViewportSize.Y > 0)
+	{
+		float CurrentAspectRatio = (float)ViewportSize.X / (float)ViewportSize.Y;
+
+		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Before - AspectRatio: %.4f, bConstrainAspectRatio: %d, DefaultFOV: %.2f"),
+			CamMgr->DefaultAspectRatio, CamMgr->bDefaultConstrainAspectRatio, CamMgr->DefaultFOV);
+
+		CamMgr->DefaultAspectRatio = CurrentAspectRatio;
+		CamMgr->bDefaultConstrainAspectRatio = false;
+
+		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Setting FOV %.2f with AspectRatio %.4f (viewport %dx%d)"),
+			InFOV, CurrentAspectRatio, ViewportSize.X, ViewportSize.Y);
 	}
 	else
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent: Failed to get World or PlayerController"));
+		UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRenderComponent: Invalid viewport size %dx%d, using default AspectRatio"),
+			ViewportSize.X, ViewportSize.Y);
 	}
+
+	CamMgr->SetFOV(InFOV);
+
+	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: After - LockedFOV: %.2f, AspectRatio: %.4f"),
+		CamMgr->GetFOVAngle(), CamMgr->DefaultAspectRatio);
+}
+
+float UMainViewportRenderComponent::GetActualFOV() const
+{
+	UWorld* World = GetWorld();
+	if (World && World->GetFirstPlayerController() && World->GetFirstPlayerController()->PlayerCameraManager)
+	{
+		return World->GetFirstPlayerController()->PlayerCameraManager->GetFOVAngle();
+	}
+	return FOV;
 }
