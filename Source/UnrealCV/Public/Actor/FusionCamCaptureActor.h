@@ -253,13 +253,13 @@ public:
 	/** Backup camera ID for destroying camera when done */
 	int32 BackupCameraID;
 
-	/** Use MRQ rendering pipeline for RGB (higher quality) */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
-	bool bUseMovieQualityRendering;
+	// ========== Static Global Settings (TCP controllable) ==========
 
-	/** Use main viewport capture for RGB instead of LitCamSensor or MovieQualityRenderer */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
-	bool bRecordViaViewport;
+	/** Use MRQ rendering pipeline for RGB (higher quality) - global setting */
+	static bool bUseMovieQualityRendering;
+
+	/** Use main viewport capture for RGB instead of LitCamSensor or MovieQualityRenderer - global setting */
+	static bool bRecordViaViewport;
 
 	/** Output folder for recorded files */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")

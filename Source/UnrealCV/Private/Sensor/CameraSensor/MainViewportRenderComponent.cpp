@@ -6,6 +6,10 @@
 #include "Sensor/ImageWriteQueue.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
+#include "CoreGlobals.h"
+#include "HighResScreenshot.h"
+#include "Runtime\Engine\Public\Slate\SceneViewport.h"
+#include "RHI.h"
 
 UMainViewportRenderComponent::UMainViewportRenderComponent()
 {
@@ -47,9 +51,10 @@ void UMainViewportRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 
 	FIntPoint CurrentSize;
 
-	if (GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport)
+	if (GEngine && GEngine->GameViewport)
 	{
-		FViewport* Viewport = GEngine->GameViewport->Viewport;
+		SceneViewport = GEngine->GameViewport->GetGameViewport();
+		FViewport* Viewport = SceneViewport;
 		CurrentSize = Viewport->GetSizeXY();
 		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Current viewport size: %d x %d"), CurrentSize.X, CurrentSize.Y);
 
@@ -60,12 +65,12 @@ void UMainViewportRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 			return;
 		}
 
-		FViewportFrame* ViewportFrame = Viewport->GetViewportFrame();
-		if (ViewportFrame)
-		{
-			UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Method 1 - ResizeFrame"));
-			ViewportFrame->ResizeFrame(ResolutionX, ResolutionY, EWindowMode::Windowed);
-		}
+		// FViewportFrame* ViewportFrame = Viewport->GetViewportFrame();
+		// if (ViewportFrame)
+		// {
+		// 	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Method 1 - ResizeFrame"));
+		// 	ViewportFrame->ResizeFrame(ResolutionX, ResolutionY, EWindowMode::Windowed);
+		// }
 
 		// CurrentSize = Viewport->GetSizeXY();
 		// if (CurrentSize.X != ResolutionX || CurrentSize.Y != ResolutionY)
@@ -74,17 +79,26 @@ void UMainViewportRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 		// 	Viewport->UpdateViewportRHI(false, ResolutionX, ResolutionY, EWindowMode::Windowed, PF_A2B10G10R10);
 		// }
 
-		CurrentSize = Viewport->GetSizeXY();
-		if (CurrentSize.X != ResolutionX || CurrentSize.Y != ResolutionY)
+		// CurrentSize = Viewport->GetSizeXY();
+		// if (CurrentSize.X != ResolutionX || CurrentSize.Y != ResolutionY)
+		// {
+		// 	UWorld* World = GetWorld();
+		// 	if (World && World->GetFirstPlayerController())
+		// 	{
+		// 		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Method 3 - ConsoleCommand"));
+		// 		FString ResCommand = FString::Printf(TEXT("r.setres %dx%d"), ResolutionX, ResolutionY);
+		// 		FString Result = World->GetFirstPlayerController()->ConsoleCommand(ResCommand, true);
+		// 		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: ConsoleCommand result: %s"), *Result);
+		// 	}
+		// }
+
+
+		if (SceneViewport)
 		{
-			UWorld* World = GetWorld();
-			if (World && World->GetFirstPlayerController())
-			{
-				UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Method 3 - ConsoleCommand"));
-				FString ResCommand = FString::Printf(TEXT("r.setres %dx%d"), ResolutionX, ResolutionY);
-				FString Result = World->GetFirstPlayerController()->ConsoleCommand(ResCommand, true);
-				UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: ConsoleCommand result: %s"), *Result);
-			}
+			SceneViewport->SetViewportSize(ResolutionX, ResolutionY);
+
+			FIntPoint CSize = Viewport->GetSizeXY();
+			UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Viewport size set to: %d x %d"), CSize.X, CSize.Y);
 		}
 
 		CurrentSize = Viewport->GetSizeXY();
@@ -124,6 +138,45 @@ void UMainViewportRenderComponent::TickComponent(float DeltaTime, ELevelTick Tic
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	// UWorld* World = GetWorld();
+	// if (!World)
+	// {
+	// 	return;
+	// }
+
+	// APlayerController* PC = World->GetFirstPlayerController();
+	// if (!PC)
+	// {
+	// 	return;
+	// }
+
+	// FVector ComponentLocation = GetComponentLocation();
+	// FRotator ComponentRotation = GetComponentRotation();
+
+	// PC->ClientSetRotation(ComponentRotation);
+
+	// APawn* Pawn = PC->GetPawn();
+	// if (Pawn)
+	// {
+	// 	// Pawn->SetActorLocation(ComponentLocation, false, nullptr, ETeleportType::TeleportPhysics);
+    //   	FVector DeltaLocation = ComponentLocation - Pawn->GetActorLocation();
+    //   	Pawn->AddActorWorldOffset(DeltaLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	// }
+}
+
+FIntPoint UMainViewportRenderComponent::GetViewportSize() const
+{
+	if (ViewportClient && ViewportClient->Viewport)
+	{
+		return ViewportClient->Viewport->GetSizeXY();
+	}
+	return FIntPoint::ZeroValue;
+}
+
+void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
+{
+	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent::CaptureFrame called"));
+
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -144,22 +197,9 @@ void UMainViewportRenderComponent::TickComponent(float DeltaTime, ELevelTick Tic
 	APawn* Pawn = PC->GetPawn();
 	if (Pawn)
 	{
-		Pawn->SetActorLocation(ComponentLocation, false, nullptr, ETeleportType::TeleportPhysics);
+		Pawn->SetActorLocation(ComponentLocation);
 	}
-}
 
-FIntPoint UMainViewportRenderComponent::GetViewportSize() const
-{
-	if (ViewportClient && ViewportClient->Viewport)
-	{
-		return ViewportClient->Viewport->GetSizeXY();
-	}
-	return FIntPoint::ZeroValue;
-}
-
-void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
-{
-	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent::CaptureFrame called"));
 
 	if (!IsInitialized())
 	{
@@ -186,10 +226,79 @@ void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 	FIntPoint ViewportSize = Viewport->GetSizeXY();
 	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Viewport size = %d x %d"), ViewportSize.X, ViewportSize.Y);
 
+
+	bool bSuccess = false;
 	TArray<FColor> Bitmap;
-	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Calling GetViewportScreenShot..."));
-	bool bSuccess = GetViewportScreenShot(Viewport, Bitmap);
-	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: GetViewportScreenShot returned %d, Bitmap.Num()=%d"), bSuccess, Bitmap.Num());
+
+	if (SceneViewport)
+	{
+		Viewport->Draw();
+		FlushRenderingCommands();
+
+		FViewportRHIRef ViewportRHI = SceneViewport->GetViewportRHI();
+		if (IsValidRef(ViewportRHI))
+		{
+			UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: ViewportRHI is valid, reading backbuffer in render command"));
+
+			ENQUEUE_RENDER_COMMAND(ReadBackBufferAndPixels)(
+				[ViewportRHI_RT = ViewportRHI, ViewportSize_RT = ViewportSize, OutData_RT = &Bitmap](FRHICommandListImmediate& RHICmdList)
+				{
+					FTextureRHIRef BackBuffer = RHIGetViewportBackBuffer(ViewportRHI_RT);
+					if (BackBuffer.IsValid())
+					{
+						UE_LOG(LogUnrealCV, Log, TEXT("ReadBackBuffer: BackBuffer is valid: %d x %d"),
+							BackBuffer->GetSizeX(), BackBuffer->GetSizeY());
+
+						FIntRect ReadRect(0, 0, BackBuffer->GetSizeX(), BackBuffer->GetSizeY());
+						FReadSurfaceDataFlags Flags;
+						Flags.SetLinearToGamma(false);
+
+						RHICmdList.ReadSurfaceData(BackBuffer, ReadRect, *OutData_RT, Flags);
+
+						UE_LOG(LogUnrealCV, Log, TEXT("ReadBackBuffer: ReadSurfaceData done, Bitmap.Num()=%d"), OutData_RT->Num());
+					}
+					else
+					{
+						UE_LOG(LogUnrealCV, Error, TEXT("ReadBackBuffer: BackBuffer is invalid"));
+					}
+				});
+			FlushRenderingCommands();
+
+			bSuccess = Bitmap.Num() > 0;
+			UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Read backbuffer returned %d, Bitmap.Num()=%d"), bSuccess, Bitmap.Num());
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent: ViewportRHI is invalid"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("MainViewportRenderComponent: SceneViewport is null"));
+		bSuccess = false;
+	}
+
+	// if (Bitmap.Num() > 0)
+	// {
+	// 	int32 NonBlackPixels = 0;
+	// 	for (const auto& Color : Bitmap)
+	// 	{
+	// 		if (Color.R > 0 || Color.G > 0 || Color.B > 0)
+	// 		{
+	// 			NonBlackPixels++;
+	// 		}
+	// 	}
+	// 	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Non-black pixels: %d / %d"), NonBlackPixels, Bitmap.Num());
+	// }
+
+	// Viewport->Draw();
+	// FlushRenderingCommands();
+
+	// UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: Calling Viewport->ReadPixels..."));
+	// FReadSurfaceDataFlags Flags;
+	// Flags.SetLinearToGamma(false);
+	// bool bSuccess = Viewport->ReadPixels(Bitmap, Flags);
+	// UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: ReadPixels returned %d, Bitmap.Num()=%d"), bSuccess, Bitmap.Num());
 
 	if (!bSuccess || Bitmap.Num() == 0)
 	{
@@ -201,10 +310,10 @@ void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 		return;
 	}
 
-	for (auto& Color : Bitmap)
-	{
-		Color.A = 255;
-	}
+	// for (auto& Color : Bitmap)
+	// {
+	// 	Color.A = 255;
+	// }
 
 	TUniquePtr<FImagePixelData> ImageData = MakeUnique<TImagePixelData<FColor>>(
 		FIntPoint(ViewportSize.X, ViewportSize.Y),

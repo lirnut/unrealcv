@@ -60,6 +60,22 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::StopRecording);
 	Help = "Stop recording for a camera: vset /captureactor/[id]/stop_record";
 	BindCommandDualCameraID("vset /captureactor/[camera_id]/stop_record", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetUseMovieQualityRendering);
+	Help = "Get bUseMovieQualityRendering (global setting)";
+	CommandDispatcher->BindCommand("vget /captureactor/use_movie_quality_rendering", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetUseMovieQualityRendering);
+	Help = "Set bUseMovieQualityRendering (global setting): 0 or 1";
+	CommandDispatcher->BindCommand("vset /captureactor/use_movie_quality_rendering [uint]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetRecordViaViewport);
+	Help = "Get bRecordViaViewport (global setting)";
+	CommandDispatcher->BindCommand("vget /captureactor/record_via_viewport", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetRecordViaViewport);
+	Help = "Set bRecordViaViewport (global setting): 0 or 1";
+	CommandDispatcher->BindCommand("vset /captureactor/record_via_viewport [uint]", Cmd, Help);
 }
 
 FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
@@ -229,4 +245,38 @@ FExecStatus FCaptureActorHandler::StopRecording(const TArray<FString>& Args)
 	{
 		return FExecStatus::Error(FString::Printf(TEXT("Camera %s is not recording"), *IDString));
 	}
+}
+
+FExecStatus FCaptureActorHandler::GetUseMovieQualityRendering(const TArray<FString>& Args)
+{
+	return FExecStatus::OK(AFusionCamCaptureActor::bUseMovieQualityRendering ? TEXT("1") : TEXT("0"));
+}
+
+FExecStatus FCaptureActorHandler::SetUseMovieQualityRendering(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/use_movie_quality_rendering [0/1]");
+	}
+
+	int32 Value = FCString::Atoi(*Args[0]);
+	AFusionCamCaptureActor::bUseMovieQualityRendering = (Value != 0);
+	return FExecStatus::OK(FString::Printf(TEXT("bUseMovieQualityRendering = %d"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetRecordViaViewport(const TArray<FString>& Args)
+{
+	return FExecStatus::OK(AFusionCamCaptureActor::bRecordViaViewport ? TEXT("1") : TEXT("0"));
+}
+
+FExecStatus FCaptureActorHandler::SetRecordViaViewport(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/record_via_viewport [0/1]");
+	}
+
+	int32 Value = FCString::Atoi(*Args[0]);
+	AFusionCamCaptureActor::bRecordViaViewport = (Value != 0);
+	return FExecStatus::OK(FString::Printf(TEXT("bRecordViaViewport = %d"), Value));
 }

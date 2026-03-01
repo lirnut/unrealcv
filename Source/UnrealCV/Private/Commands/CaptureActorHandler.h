@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CommandHandler.h"
+#include "FusionCamCaptureActor.h"
 
 class FCaptureActorHandler : public FCommandHandler
 {
@@ -21,4 +22,12 @@ private:
 	FExecStatus IsRecording(const TArray<FString>& Args);
 
 	FExecStatus StopRecording(const TArray<FString>& Args);
+
+	FExecStatus GetUseMovieQualityRendering(const TArray<FString>& Args);
+
+	FExecStatus SetUseMovieQualityRendering(const TArray<FString>& Args);
+
+	FExecStatus GetRecordViaViewport(const TArray<FString>& Args);
+
+	FExecStatus SetRecordViaViewport(const TArray<FString>& Args);
 };

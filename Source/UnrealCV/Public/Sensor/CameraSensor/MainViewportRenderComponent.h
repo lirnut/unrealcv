@@ -6,6 +6,7 @@
 #include "MainViewportRenderComponent.generated.h"
 
 class UGameViewportClient;
+class FSceneViewport;
 class FUnrealCVImageWriteQueue;
 
 UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))
@@ -53,6 +54,8 @@ protected:
 
 	UPROPERTY()
 	UGameViewportClient* ViewportClient = nullptr;
+
+	FSceneViewport* SceneViewport = nullptr;
 
 	TSharedPtr<FUnrealCVImageWriteQueue> ImageWriteQueue;
 };

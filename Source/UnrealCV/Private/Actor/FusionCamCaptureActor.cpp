@@ -28,6 +28,9 @@
 #include "UnrealcvServer.h"
 #include "AudioMixerDevice.h"
 #include "Utils/Serialization.h"
+
+bool AFusionCamCaptureActor::bUseMovieQualityRendering = false;
+bool AFusionCamCaptureActor::bRecordViaViewport = false;
 #include "Utils/ImageUtil.h"
 #include "Utils/PythonExecutor.h"
 #include "Utils/GenericTickableObject.h"
@@ -125,7 +128,34 @@ void AFusionCamCaptureActor::Tick(float DeltaTime)
 		// TargetForeground->SetActorLocation(NewPos, false);
       	FVector Delta = LocalDir * ForegroundMoveSpeed * DeltaTime;
       	TargetForeground->AddActorLocalOffset(Delta);
+
+
+		FVector WorldDelta = TargetForeground->GetActorRotation().RotateVector(Delta);
+		UWorld* World = GetWorld();
+		if (!World)
+		{
+			return;
+		}
+		APlayerController* PC = World->GetFirstPlayerController();
+		if (!PC)
+		{
+			return;
+		}
+		if (IsValid(TargetSensor))
+		{
+			FRotator ComponentRotation = TargetSensor->GetSensorRotation();
+			PC->ClientSetRotation(ComponentRotation);
+
+			APawn* Pawn = PC->GetPawn();
+			if (Pawn)
+			{
+				Pawn->AddActorWorldOffset(WorldDelta);
+			}
+			TargetSensor->AddWorldOffset(WorldDelta);
+		}
+
 	}
+
 }
 
 void AFusionCamCaptureActor::SetSceneHandle(const FSceneHandle& InSceneHandle)
@@ -475,7 +505,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 	};
 
 
-	if (bUseMovieQualityRendering)
+	if (bUseMovieQualityRendering || bRecordViaViewport)
 	{
 		TargetSensor->SetAsyncCaptureNextFrame(false);
 	}
