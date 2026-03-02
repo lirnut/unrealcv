@@ -7,6 +7,7 @@ EDITOR_PORT = 9000
 PIE_PORT = 9001
 PIE_START_TIMEOUT = 30
 PIE_START_WAIT = 15
+PIE_LOAD_MAP_WAIT = 25
 
 
 def try_connect(port, timeout=2.0):
@@ -27,17 +28,17 @@ def main():
     pie_run_count = 0
     pie_session_start = None
 
-    print(f"[INFO] Connecting to editor on port {EDITOR_PORT}...")
-    editor_client = unrealcv.Client(("127.0.0.1", EDITOR_PORT))
-    if not editor_client.connect(timeout=10):
-        print("[ERROR] Failed to connect to editor")
-        return 1
-
-    print("[OK] Connected to editor")
-    version = editor_client.request("vget /unrealcv/version")
-    print(f"[VERSION] {version}")
-
     while True:
+        print(f"[INFO] Connecting to editor on port {EDITOR_PORT}...")
+        editor_client = unrealcv.Client(("127.0.0.1", EDITOR_PORT))
+        if not editor_client.connect(timeout=10):
+            print("[ERROR] Failed to connect to editor")
+            return 1
+
+        print("[OK] Connected to editor")
+        version = editor_client.request("vget /unrealcv/version")
+        print(f"[VERSION] {version}")
+    
         print(f"\n{'='*60}")
         print(f"[CHECK] Checking PIE status on port {PIE_PORT}...")
         print(f"{'='*60}")
@@ -50,6 +51,7 @@ def main():
 
             print(f"[WAIT] Waiting {PIE_START_WAIT}s for PIE to start...")
             time.sleep(PIE_START_WAIT)
+            editor_client.disconnect()
 
             for attempt in range(PIE_START_TIMEOUT // 5):
                 if try_connect(PIE_PORT):
@@ -64,14 +66,17 @@ def main():
                 print("[ERROR] PIE failed to start")
                 continue
         else:
+            editor_client.disconnect()
             print(f"[INFO] PIE already running on port {PIE_PORT}")
 
-        # pie_client = unrealcv.Client(("127.0.0.1", PIE_PORT))
-        # if not pie_client.connect(timeout=10):
-        #     print("[ERROR] Failed to connect to PIE")
-        #     continue
+        pie_client = unrealcv.Client(("127.0.0.1", PIE_PORT))
+        if not pie_client.connect(timeout=10):
+            print("[ERROR] Failed to connect to PIE")
+            continue
 
-        # print("[OK] Connected to PIE")
+        print("[OK] Connected to PIE")
+        time.sleep(PIE_LOAD_MAP_WAIT)
+        result = editor_client.request("vset /datasetautomation/start")
 
         try:
             while True:
@@ -87,13 +92,12 @@ def main():
                     elapsed = time.time() - pie_session_start
                     print(f"[OK] PIE running - Run #{pie_run_count}, time: {elapsed:.1f}s")
 
-                time.sleep(1.0)
+                time.sleep(2.0)
         except KeyboardInterrupt:
             break
 
         print("[INFO] PIE session ended, returning to check loop...")
 
-    editor_client.disconnect()
     return 0
 
 
