@@ -19,7 +19,7 @@ struct FDiscoveredAsset
 	FString AssetName;
 
 	UPROPERTY(BlueprintReadWrite)
-	bool bIsActorBlueprint;
+	bool bIsActorBlueprint = false;
 };
 
 UCLASS()
