@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+import sys
+import subprocess
+import socket
+import time
+import psutil
+import random
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PKG_DIR = Path("I:/HUAWEI_Project_UE56_PKG/Windows")
+EXE_PATH = PKG_DIR / "HUAWEI_Project.exe"
+
+PORT = 9000
+CONNECT_TIMEOUT = 180
+MAP_LOAD_WAIT = 45
+STATUS_POLL_INTERVAL = 2.0
+
+AVAILABLE_MAPS = [
+    "Tokyo",
+    "Chinese_mountain_town",
+    "Demo_Roof",
+    "Urban_RoadsideConstruction_Scene",
+    "Town",
+    "L_WillowLake",
+    "Jungle",
+    "TrainStation",
+    "Mountains_Map",
+    "Asian_town",
+    "Hutong",
+    "Midgardr_Free",
+    "Warehouse",
+    "Downtown_West",
+    "Downtown_West_Night",
+    "Bridge_P",
+]
+
+def kill_process(p):
+    try:
+        p.terminate()
+        _, alive = psutil.wait_procs([p,], timeout=0.01)
+        if len(alive):
+            _, alive = psutil.wait_procs(alive, timeout=0.10)
+            if len(alive):
+                for p in alive: p.kill()
+    except Exception as e:
+        print(f"[WARN] Kill process exception: {e}")
+
+def kill_process_and_its_children(p):
+    p = psutil.Process(p.pid)
+    if len(p.children()) > 0:
+        for child in p.children():
+            if hasattr(child, 'children') and len(child.children()) > 0:
+                kill_process_and_its_children(child)
+            else:
+                kill_process(child)
+    kill_process(p)
+
+def start_game():
+    if not EXE_PATH.exists():
+        print(f"[ERROR] Executable not found: {EXE_PATH}")
+        return None
+
+    selected_map = random.choice(AVAILABLE_MAPS)
+    cmd = [
+        str(EXE_PATH),
+        selected_map,
+        "-Log",
+        "-FullStdOutLogOutput",
+    ]
+
+    print(f"[INFO] Starting game on port {PORT}...")
+    print(f"[CMD] {' '.join(cmd)}")
+
+    proc = subprocess.Popen(
+        cmd,
+        cwd=str(EXE_PATH.parent),
+        stdout=None,
+        stderr=None,
+        text=True,
+        bufsize=1,
+    )
+    return proc
+
+def wait_for_server(proc, timeout):
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        poll = proc.poll()
+        if poll is not None:
+            print(f"[ERROR] Game exited with code {poll}")
+            return False
+
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex(("127.0.0.1", PORT))
+            sock.close()
+            if result == 0:
+                print(f"[OK] Server ready on port {PORT}")
+                return True
+        except Exception:
+            pass
+
+        time.sleep(2)
+
+        elapsed = int(time.time() - start_time)
+        if elapsed % 10 == 0 and elapsed > 0:
+            print(f"[WAIT] Waiting for server... ({elapsed}s)")
+
+    print(f"[ERROR] Timeout waiting for server")
+    return False
+
+def try_connect(port, timeout=2.0):
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        result = sock.connect_ex(("127.0.0.1", port))
+        sock.close()
+        return result == 0
+    except Exception:
+        return False
+
+def main():
+    import argparse
+    import unrealcv
+
+    parser = argparse.ArgumentParser(description="Binary manager for continuous dataset generation")
+    parser.add_argument("--scenes", type=int, default=10, help="Number of scenes per batch (default: 10)")
+    args = parser.parse_args()
+
+    run_count = 0
+
+    try:
+        while True:
+            print(f"\n{'='*60}")
+            print(f"Binary Session #{run_count + 1}")
+            print(f"{'='*60}")
+
+            game_proc = start_game()
+            if game_proc is None:
+                return 1
+
+            if not wait_for_server(game_proc, CONNECT_TIMEOUT):
+                print("[ERROR] Failed to start server, cleaning up...")
+                kill_process_and_its_children(game_proc)
+                print("[INFO] Retrying in 5s...")
+                time.sleep(5)
+                continue
+
+            client = unrealcv.Client(("127.0.0.1", PORT))
+            if not client.connect(timeout=10):
+                print("[ERROR] Failed to connect to UnrealCV")
+                kill_process_and_its_children(game_proc)
+                print("[INFO] Retrying in 5s...")
+                time.sleep(5)
+                continue
+
+            print("[OK] Connected to UnrealCV")
+
+            version = client.request("vget /unrealcv/version")
+            print(f"[VERSION] {version}")
+
+            print(f"[CONFIG] Setting batch size to {args.scenes} scenes")
+            result = client.request(f"vset /datasetautomation/config/total_scenes {args.scenes}")
+            print(f"[CONFIG] {result}")
+
+            print(f"[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
+            time.sleep(MAP_LOAD_WAIT)
+
+            result = client.request("vset /datasetautomation/start")
+            print(f"[START] {result}")
+
+            run_count += 1
+            session_start = time.time()
+
+            try:
+                while True:
+
+                    try:
+                        status = client.request("vget /datasetautomation/status")
+                        elapsed = time.time() - session_start
+                        print(f"[STATUS] Run #{run_count}, time: {elapsed:.1f}s - {status}")
+
+                        if "Completed" in status:
+                            print(f"[SUCCESS] Session completed")
+                            break
+                        elif "Error" in status:
+                            print(f"[ERROR] Session failed: {status}")
+                            break
+
+                    except Exception as e:
+                        print(f"[ERROR] Status check failed: {e}")
+                        break
+
+                    time.sleep(STATUS_POLL_INTERVAL)
+
+            except KeyboardInterrupt:
+                print("\n[INFO] Interrupted by user (Ctrl+C)")
+                raise
+
+            finally:
+                try:
+                    client.disconnect()
+                except:
+                    pass
+
+                print("[INFO] Stopping game and all child processes...")
+                kill_process_and_its_children(game_proc)
+
+            print(f"[INFO] Binary session #{run_count} ended")
+            print("[INFO] Restarting in 5s...")
+            time.sleep(5)
+
+    except KeyboardInterrupt:
+        print("\n[INFO] Shutdown requested, exiting...")
+        return 0
+
+    return 0
+
+if __name__ == "__main__":
+    import os
+    os._exit(main())
