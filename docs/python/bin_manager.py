@@ -15,6 +15,7 @@ PORT = 9000
 CONNECT_TIMEOUT = 180
 MAP_LOAD_WAIT = 45
 STATUS_POLL_INTERVAL = 2.0
+CONFIG_SLASH_TOTAL_SCENES = 10
 
 AVAILABLE_MAPS = [
     "Tokyo",
@@ -22,10 +23,10 @@ AVAILABLE_MAPS = [
     "Demo_Roof",
     "Urban_RoadsideConstruction_Scene",
     "Town",
-    "L_WillowLake",
-    "Jungle",
-    "TrainStation",
-    "Mountains_Map",
+    # "L_WillowLake",
+    # "Jungle",
+    # "TrainStation",
+    # "Mountains_Map",
     "Asian_town",
     "Hutong",
     "Midgardr_Free",
@@ -121,13 +122,7 @@ def try_connect(port, timeout=2.0):
         return False
 
 def main():
-    import argparse
     import unrealcv
-
-    parser = argparse.ArgumentParser(description="Binary manager for continuous dataset generation")
-    parser.add_argument("--scenes", type=int, default=10, help="Number of scenes per batch (default: 10)")
-    args = parser.parse_args()
-
     run_count = 0
 
     try:
@@ -160,8 +155,8 @@ def main():
             version = client.request("vget /unrealcv/version")
             print(f"[VERSION] {version}")
 
-            print(f"[CONFIG] Setting batch size to {args.scenes} scenes")
-            result = client.request(f"vset /datasetautomation/config/total_scenes {args.scenes}")
+            print(f"[CONFIG] Setting batch size to {CONFIG_SLASH_TOTAL_SCENES} scenes")
+            result = client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
             print(f"[CONFIG] {result}")
 
             print(f"[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
