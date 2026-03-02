@@ -286,10 +286,8 @@ void AFusionCamCaptureActor::StopRecord()
 
 		if (TimeDilationBackUp > 0.01f && TimeDilationBackUp > GetWorld()->GetWorldSettings()->TimeDilation)
 		{
-			GetWorld()->GetWorldSettings()->SetTimeDilation(TimeDilationBackUp);
+			SetTimeDilationSlomo(TimeDilationBackUp);
 		}
-		// GetWorld()->GetWorldSettings()->SetTimeDilation(1.0f);
-
 		// TriggerVideoGeneration();
 	}
 	else
@@ -430,14 +428,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	if (CurrentTrajectoryIndex < CurrentTrajectory.Num() && !FMath::IsNearlyZero(EffectiveTimeDilation))
 	{
 		EffectiveTimeDilation = TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation;
-		// if (FMath::Abs(EffectiveTimeDilation - WorldSettings->TimeDilation) < 0.05f)
-		// {
-			WorldSettings->SetTimeDilation(EffectiveTimeDilation);
-		// }
-		// else if (EffectiveTimeDilation != WorldSettings->TimeDilation)
-		// {
-		// 	WorldSettings->SetTimeDilation(0.2f * EffectiveTimeDilation + 0.8f * WorldSettings->TimeDilation);
-		// }
+		SetTimeDilationSlomo(EffectiveTimeDilation);
 	}
 
 
@@ -447,6 +438,16 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		StopRecord();
 		return;
 	}
+}
+
+void AFusionCamCaptureActor::SetTimeDilationSlomo(float TimeDilation)
+{
+	auto * World = GetWorld();
+	AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings();
+	WorldSettings->SetTimeDilation(TimeDilation);
+	FString Command = FString::Printf(TEXT("slomo %f"), TimeDilation);
+	FString Result = World->GetFirstPlayerController()->ConsoleCommand(Command, true);
+	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: ConsoleCommand %s result: %s"), *Command, *Result);
 }
 
 void AFusionCamCaptureActor::UpdateFocalDistance()
