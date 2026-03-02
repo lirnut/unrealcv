@@ -16,13 +16,13 @@ struct FVideoEncoderSettings
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	uint32 MeanBitRate = 35 * 1024 * 1024;
+	int32 MeanBitRate = 35 * 1024 * 1024;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	uint32 MaxBitRate = 60 * 1024 * 1024;
+	int32 MaxBitRate = 60 * 1024 * 1024;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	uint32 QualityVsSpeed = 100;
+	int32 QualityVsSpeed = 100;
 };
 
 USTRUCT(BlueprintType)
@@ -36,12 +36,9 @@ struct FRecordingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bRecordViaViewport = false;
 
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-#if PLATFORM_WINDOWS
 	bool bEnableH264Encoding = true;
-#else
-	bool bEnableH264Encoding = false;
-#endif
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bAutoGenerateVideo = true;
