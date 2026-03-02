@@ -76,6 +76,38 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetRecordViaViewport);
 	Help = "Set bRecordViaViewport (global setting): 0 or 1";
 	CommandDispatcher->BindCommand("vset /captureactor/record_via_viewport [uint]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetVideoEncoderBitrate);
+	Help = "Get video encoder bitrate settings (mean_mbps, max_mbps, quality)";
+	CommandDispatcher->BindCommand("vget /captureactor/video_encoder_bitrate", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetVideoEncoderBitrate);
+	Help = "Set video encoder bitrate (mean_mbps max_mbps quality): vset /captureactor/video_encoder_bitrate 35 60 100";
+	CommandDispatcher->BindCommand("vset /captureactor/video_encoder_bitrate [uint] [uint] [uint]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetH264Encoding);
+	Help = "Get H264 encoding enabled state";
+	CommandDispatcher->BindCommand("vget /captureactor/h264_encoding", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetH264Encoding);
+	Help = "Set H264 encoding enabled: 0 or 1";
+	CommandDispatcher->BindCommand("vset /captureactor/h264_encoding [uint]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetAutoGenerateVideo);
+	Help = "Get auto generate video after recording";
+	CommandDispatcher->BindCommand("vget /captureactor/auto_generate_video", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetAutoGenerateVideo);
+	Help = "Set auto generate video: 0 or 1";
+	CommandDispatcher->BindCommand("vset /captureactor/auto_generate_video [uint]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetWarmUpFrames);
+	Help = "Get warm up frames count";
+	CommandDispatcher->BindCommand("vget /captureactor/warmup_frames", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetWarmUpFrames);
+	Help = "Set warm up frames count";
+	CommandDispatcher->BindCommand("vset /captureactor/warmup_frames [uint]", Cmd, Help);
 }
 
 FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
@@ -249,7 +281,7 @@ FExecStatus FCaptureActorHandler::StopRecording(const TArray<FString>& Args)
 
 FExecStatus FCaptureActorHandler::GetUseMovieQualityRendering(const TArray<FString>& Args)
 {
-	return FExecStatus::OK(AFusionCamCaptureActor::bUseMovieQualityRendering ? TEXT("1") : TEXT("0"));
+	return FExecStatus::OK(AFusionCamCaptureActor::RecordingSettings.bUseMovieQualityRendering ? TEXT("1") : TEXT("0"));
 }
 
 FExecStatus FCaptureActorHandler::SetUseMovieQualityRendering(const TArray<FString>& Args)
@@ -260,13 +292,13 @@ FExecStatus FCaptureActorHandler::SetUseMovieQualityRendering(const TArray<FStri
 	}
 
 	int32 Value = FCString::Atoi(*Args[0]);
-	AFusionCamCaptureActor::bUseMovieQualityRendering = (Value != 0);
+	AFusionCamCaptureActor::RecordingSettings.bUseMovieQualityRendering = (Value != 0);
 	return FExecStatus::OK(FString::Printf(TEXT("bUseMovieQualityRendering = %d"), Value));
 }
 
 FExecStatus FCaptureActorHandler::GetRecordViaViewport(const TArray<FString>& Args)
 {
-	return FExecStatus::OK(AFusionCamCaptureActor::bRecordViaViewport ? TEXT("1") : TEXT("0"));
+	return FExecStatus::OK(AFusionCamCaptureActor::RecordingSettings.bRecordViaViewport ? TEXT("1") : TEXT("0"));
 }
 
 FExecStatus FCaptureActorHandler::SetRecordViaViewport(const TArray<FString>& Args)
@@ -277,6 +309,84 @@ FExecStatus FCaptureActorHandler::SetRecordViaViewport(const TArray<FString>& Ar
 	}
 
 	int32 Value = FCString::Atoi(*Args[0]);
-	AFusionCamCaptureActor::bRecordViaViewport = (Value != 0);
+	AFusionCamCaptureActor::RecordingSettings.bRecordViaViewport = (Value != 0);
 	return FExecStatus::OK(FString::Printf(TEXT("bRecordViaViewport = %d"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetVideoEncoderBitrate(const TArray<FString>& Args)
+{
+	uint32 MeanMbps = AFusionCamCaptureActor::RecordingSettings.VideoEncoder.MeanBitRate / (1024 * 1024);
+	uint32 MaxMbps = AFusionCamCaptureActor::RecordingSettings.VideoEncoder.MaxBitRate / (1024 * 1024);
+	uint32 Quality = AFusionCamCaptureActor::RecordingSettings.VideoEncoder.QualityVsSpeed;
+
+	return FExecStatus::OK(FString::Printf(TEXT("mean_bps=%d max_bps=%d quality=%d"), MeanMbps, MaxMbps, Quality));
+}
+
+FExecStatus FCaptureActorHandler::SetVideoEncoderBitrate(const TArray<FString>& Args)
+{
+	if (Args.Num() < 2)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/video_encoder_bitrate [mean_mbps] [max_mbps] [quality]\nExample: vset /captureactor/video_encoder_bitrate 35 60 100");
+	}
+
+	uint32 MeanMbps = FCString::Atoi(*Args[0]);
+	uint32 MaxMbps = FCString::Atoi(*Args[1]);
+	uint32 Quality = Args.Num() >= 3 ? FCString::Atoi(*Args[2]) : 100;
+
+	AFusionCamCaptureActor::RecordingSettings.VideoEncoder.MeanBitRate = MeanMbps * 1024 * 1024;
+	AFusionCamCaptureActor::RecordingSettings.VideoEncoder.MaxBitRate = MaxMbps * 1024 * 1024;
+	AFusionCamCaptureActor::RecordingSettings.VideoEncoder.QualityVsSpeed = Quality;
+
+	return FExecStatus::OK(FString::Printf(TEXT("Video encoder bitrate updated: mean=%d Mbps, max=%d Mbps, quality=%d"), MeanMbps, MaxMbps, Quality));
+}
+
+FExecStatus FCaptureActorHandler::GetH264Encoding(const TArray<FString>& Args)
+{
+	return FExecStatus::OK(AFusionCamCaptureActor::RecordingSettings.bEnableH264Encoding ? TEXT("1") : TEXT("0"));
+}
+
+FExecStatus FCaptureActorHandler::SetH264Encoding(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/h264_encoding [0/1]");
+	}
+
+	int32 Value = FCString::Atoi(*Args[0]);
+	AFusionCamCaptureActor::RecordingSettings.bEnableH264Encoding = (Value != 0);
+	return FExecStatus::OK(FString::Printf(TEXT("bEnableH264Encoding = %d"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetAutoGenerateVideo(const TArray<FString>& Args)
+{
+	return FExecStatus::OK(AFusionCamCaptureActor::RecordingSettings.bAutoGenerateVideo ? TEXT("1") : TEXT("0"));
+}
+
+FExecStatus FCaptureActorHandler::SetAutoGenerateVideo(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/auto_generate_video [0/1]");
+	}
+
+	int32 Value = FCString::Atoi(*Args[0]);
+	AFusionCamCaptureActor::RecordingSettings.bAutoGenerateVideo = (Value != 0);
+	return FExecStatus::OK(FString::Printf(TEXT("bAutoGenerateVideo = %d"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetWarmUpFrames(const TArray<FString>& Args)
+{
+	return FExecStatus::OK(FString::Printf(TEXT("%d"), AFusionCamCaptureActor::RecordingSettings.WarmUpFrames));
+}
+
+FExecStatus FCaptureActorHandler::SetWarmUpFrames(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/warmup_frames [uint]");
+	}
+
+	int32 Value = FCString::Atoi(*Args[0]);
+	AFusionCamCaptureActor::RecordingSettings.WarmUpFrames = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("WarmUpFrames = %d"), Value));
 }

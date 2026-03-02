@@ -30,4 +30,20 @@ private:
 	FExecStatus GetRecordViaViewport(const TArray<FString>& Args);
 
 	FExecStatus SetRecordViaViewport(const TArray<FString>& Args);
+
+	FExecStatus GetVideoEncoderBitrate(const TArray<FString>& Args);
+
+	FExecStatus SetVideoEncoderBitrate(const TArray<FString>& Args);
+
+	FExecStatus GetH264Encoding(const TArray<FString>& Args);
+
+	FExecStatus SetH264Encoding(const TArray<FString>& Args);
+
+	FExecStatus GetAutoGenerateVideo(const TArray<FString>& Args);
+
+	FExecStatus SetAutoGenerateVideo(const TArray<FString>& Args);
+
+	FExecStatus GetWarmUpFrames(const TArray<FString>& Args);
+
+	FExecStatus SetWarmUpFrames(const TArray<FString>& Args);
 };

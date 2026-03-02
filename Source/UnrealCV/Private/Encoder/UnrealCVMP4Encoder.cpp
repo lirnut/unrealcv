@@ -103,7 +103,7 @@ void FUnrealCVMP4Encoder::Finalize()
 		HRESULT Result = SinkWriter->Finalize();
 		if (!SUCCEEDED(Result))
 		{
-			UE_LOG(LogUnrealCV, Error, TEXT("Failed to finalize Sink Writer."));
+			UE_LOG(LogUnrealCV, Error, TEXT("Failed to finalize Sink Writer %ld"), Result);
 		}
 
 		SinkWriter->Release();
@@ -113,7 +113,7 @@ void FUnrealCVMP4Encoder::Finalize()
 	HRESULT Result = MFShutdown();
 	if (!SUCCEEDED(Result))
 	{
-		UE_LOG(LogUnrealCV, Error, TEXT("Failed to shut down Microsoft Media Foundation."));
+		UE_LOG(LogUnrealCV, Error, TEXT("Failed to shut down Microsoft Media Foundation %ld"), Result);
 	}
 
 	FWindowsPlatformMisc::CoUninitialize();

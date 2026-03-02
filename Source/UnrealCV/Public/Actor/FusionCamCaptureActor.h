@@ -10,6 +10,52 @@
 #include "Encoder/UnrealCVMP4Encoder.h"
 #include "FusionCamCaptureActor.generated.h"
 
+USTRUCT(BlueprintType)
+struct FVideoEncoderSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	uint32 MeanBitRate = 35 * 1024 * 1024;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	uint32 MaxBitRate = 60 * 1024 * 1024;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	uint32 QualityVsSpeed = 100;
+};
+
+USTRUCT(BlueprintType)
+struct FRecordingSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bUseMovieQualityRendering = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bRecordViaViewport = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+#if PLATFORM_WINDOWS
+	bool bEnableH264Encoding = true;
+#else
+	bool bEnableH264Encoding = false;
+#endif
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bAutoGenerateVideo = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString VideoGenScriptPath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 WarmUpFrames = 5;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVideoEncoderSettings VideoEncoder;
+};
+
 /**
  * Camera trajectory types for SOW camera movement requirements
  * 6 fixed trajectories + 4 random trajectories = 10 per scene
@@ -260,11 +306,7 @@ public:
 
 	// ========== Static Global Settings (TCP controllable) ==========
 
-	/** Use MRQ rendering pipeline for RGB (higher quality) - global setting */
-	static bool bUseMovieQualityRendering;
-
-	/** Use main viewport capture for RGB instead of LitCamSensor or MovieQualityRenderer - global setting */
-	static bool bRecordViaViewport;
+	static FRecordingSettings RecordingSettings;
 
 	/** Output folder for recorded files */
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture")
@@ -302,18 +344,6 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Recording")
 	int32 WarmUpFrames;
 
-	/** Automatically generate video from image sequences after recording */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Video Generation")
-	bool bAutoGenerateVideo;
-
-	/** Path to genvid.py script for video generation */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Video Generation")
-	FString VideoGenScriptPath;
-
-	/** Conda environment name for Python execution */
-	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Video Generation")
-	FString CondaEnvName;
-
 
 	FVector GetTargetLocationWithOffset(AActor* Target);
 
@@ -328,7 +358,6 @@ protected:
 	TUniquePtr<class FUnrealCVMP4Encoder> MP4Encoder;
 	FString MP4OutputPath;
 	int32 MP4EncodedFrameCount;
-	bool bEnableH264Encoding;
 
 	// Recording state
 	float TimeDilationBackUp;

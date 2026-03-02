@@ -29,8 +29,7 @@
 #include "AudioMixerDevice.h"
 #include "Utils/Serialization.h"
 
-bool AFusionCamCaptureActor::bUseMovieQualityRendering = false;
-bool AFusionCamCaptureActor::bRecordViaViewport = false;
+FRecordingSettings AFusionCamCaptureActor::RecordingSettings;
 #include "Utils/ImageUtil.h"
 #include "Utils/PythonExecutor.h"
 #include "Utils/GenericTickableObject.h"
@@ -49,7 +48,6 @@ bool AFusionCamCaptureActor::bRecordViaViewport = false;
 static const float ROTATE_BUFFER_DURATION_SECONDS = 0.0f;
 // static const int32 ROTATE_NUM_FRAMES_OVERRIDE = 121;
 // static const int32 WARM_UP_FRAMES = 45;
-static const int32 WARM_UP_FRAMES = 25;
 
 AFusionCamCaptureActor::AFusionCamCaptureActor()
 {
@@ -69,29 +67,14 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	TimeDilation = 0.25f;
 	TimeDilationBackUp = 1.0f;
 
-	bAutoGenerateVideo = true;
-	CondaEnvName = TEXT("uezoo");
-	TargetHeightOffset = 0.0f;
-	VideoGenScriptPath = TEXT("");
-
 	CurrentTrajectoryIndex = 0;
 	bPauseWorldDuringRecord = false;
-	WarmUpFrames = WARM_UP_FRAMES;
 	WarmUpElapsedFrames = 0;
 
-	bUseMovieQualityRendering = false;
-	bRecordViaViewport = true;
 	MovieQualityRenderer = nullptr;
 
 	MP4EncodedFrameCount = 0;
-#if PLATFORM_WINDOWS
-	bEnableH264Encoding = true;
-#else
-	bEnableH264Encoding = false;
-#endif
 
-	// OriginalCameraLocation =
-	// OriginalCameraRotation =
 
 	Billboard = CreateDefaultSubobject<UMaterialBillboardComponent>(TEXT("BillboardComponent"));
 	if (!IsRunningCommandlet() && (Billboard != nullptr))
@@ -168,7 +151,7 @@ void AFusionCamCaptureActor::StopRecord()
 	if (bIsRecording)
 	{
 
-		if (bUseMovieQualityRendering && IsValid(TargetSensor))
+		if (RecordingSettings.bUseMovieQualityRendering && IsValid(TargetSensor))
 		{
 			auto* Renderer = TargetSensor->GetMovieQualityRenderer();
 			if (Renderer && Renderer->IsInitialized())
@@ -288,7 +271,7 @@ void AFusionCamCaptureActor::StopRecord()
 		{
 			SetTimeDilationSlomo(TimeDilationBackUp);
 		}
-		// TriggerVideoGeneration();
+		TriggerVideoGeneration();
 	}
 	else
 	{
@@ -376,7 +359,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 
 			UpdateFocalDistance();
 
-			bool bWarmUp = ( WarmUpElapsedFrames < WarmUpFrames );
+			bool bWarmUp = ( WarmUpElapsedFrames < RecordingSettings.WarmUpFrames );
 			RecordFrame(bWarmUp);
 			FlushRenderingCommands();
 			if (bWarmUp)
@@ -412,7 +395,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 
 		UpdateFocalDistance();
 
-		bool bWarmUp = ( WarmUpElapsedFrames < WarmUpFrames );
+		bool bWarmUp = ( WarmUpElapsedFrames < RecordingSettings.WarmUpFrames );
 		RecordFrame(bWarmUp);
 		if (bWarmUp)
 		{
@@ -506,7 +489,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 	};
 
 
-	if (bUseMovieQualityRendering || bRecordViaViewport)
+	if (RecordingSettings.bUseMovieQualityRendering || RecordingSettings.bRecordViaViewport)
 	{
 		TargetSensor->SetAsyncCaptureNextFrame(false);
 	}
@@ -514,7 +497,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 #if PLATFORM_WINDOWS
 	if (bWarmUp)
 	{
-		if (bEnableH264Encoding && !MP4Encoder.IsValid())
+		if (RecordingSettings.bEnableH264Encoding && !MP4Encoder.IsValid())
 		{
 			InitializeH264Encoder(RecordFPS);
 		}
@@ -527,20 +510,20 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Recording RGB"));
 
-		if (bRecordViaViewport)
+		if (RecordingSettings.bRecordViaViewport)
 		{
-			UE_LOG(LogUnrealCV, Log, TEXT("bRecordViaViewport: MP4Encoder.IsValid=%d"), MP4Encoder.IsValid());
+			UE_LOG(LogUnrealCV, Log, TEXT("RecordingSettings.bRecordViaViewport: MP4Encoder.IsValid=%d"), MP4Encoder.IsValid());
 
 			auto* ViewportCapture = TargetSensor->GetMainViewportRenderComponent();
-			UE_LOG(LogUnrealCV, Log, TEXT("bRecordViaViewport: ViewportCapture=%p, IsInitialized=%d"),
+			UE_LOG(LogUnrealCV, Log, TEXT("RecordingSettings.bRecordViaViewport: ViewportCapture=%p, IsInitialized=%d"),
 				ViewportCapture, ViewportCapture ? ViewportCapture->IsInitialized() : false);
 			if (ViewportCapture && ViewportCapture->IsInitialized())
 			{
-				UE_LOG(LogUnrealCV, Log, TEXT("bRecordViaViewport: ViewportCapture IsInitialized=true"));
+				UE_LOG(LogUnrealCV, Log, TEXT("RecordingSettings.bRecordViaViewport: ViewportCapture IsInitialized=true"));
 #if PLATFORM_WINDOWS
 				if (MP4Encoder && MP4Encoder->IsInitialized())
 				{
-					UE_LOG(LogUnrealCV, Log, TEXT("bRecordViaViewport: MP4Encoder IS initialized, using MP4 encoding"));
+					UE_LOG(LogUnrealCV, Log, TEXT("RecordingSettings.bRecordViaViewport: MP4Encoder IS initialized, using MP4 encoding"));
 					FIntPoint ViewportSize = ViewportCapture->GetViewportSize();
 					int32 EncoderWidth = MP4Encoder->GetWidth();
 					int32 EncoderHeight = MP4Encoder->GetHeight();
@@ -601,7 +584,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 				}
 				else
 				{
-					UE_LOG(LogUnrealCV, Log, TEXT("bRecordViaViewport: MP4Encoder NOT initialized or invalid, using PNG fallback"));
+					UE_LOG(LogUnrealCV, Log, TEXT("RecordingSettings.bRecordViaViewport: MP4Encoder NOT initialized or invalid, using PNG fallback"));
 					FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png");
 					ViewportCapture->CaptureFrameToFile(FileNameRGB);
 				}
@@ -609,7 +592,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 			}
 		}
 #if PLATFORM_WINDOWS
-		else if (bUseMovieQualityRendering)
+		else if (RecordingSettings.bUseMovieQualityRendering)
 		{
 			UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before GetMovieQualityRenderer()"));
 			auto* Renderer = TargetSensor->GetMovieQualityRenderer();
@@ -1371,7 +1354,6 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	TargetForeground = Target;
 	bPauseWorldDuringRecord = bPauseWorldTime;
 	WarmUpElapsedFrames = 0;
-	WarmUpFrames = WARM_UP_FRAMES;
 
 	RealWorldTimeRecordingStart = FDateTime::Now();
 
@@ -1389,7 +1371,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 	SaveOverviewMetadata();
 
 #if PLATFORM_WINDOWS
-	if (bEnableH264Encoding && RecordingDataTypes.bRecordRGB)
+	if (RecordingSettings.bEnableH264Encoding && RecordingDataTypes.bRecordRGB)
 	{
 		InitializeH264Encoder(FPS);
 	}
@@ -1447,7 +1429,6 @@ void AFusionCamCaptureActor::StartSimpleRecording(const FString& FileName, int32
 	TargetForeground = nullptr;
 	bPauseWorldDuringRecord = false;
 	WarmUpElapsedFrames = 0;
-	WarmUpFrames = 0;
 	NumFrames = TotalFrames;
 
 	RealWorldTimeRecordingStart = FDateTime::Now();
@@ -1599,8 +1580,10 @@ void AFusionCamCaptureActor::InitializeH264Encoder(int32 FPS)
 	Options.Height = TargetSensor->GetFilmHeight();
 	Options.FrameRate = FFrameRate(FPS, 1);
 
-	Options.EncodingRateControl = EUnrealCVMP4EncodeRateControlMode::Quality;
-	Options.CommonConstantRateFactor = 18;
+	Options.EncodingRateControl = EUnrealCVMP4EncodeRateControlMode::VariableBitRate;
+	Options.CommonMeanBitRate = RecordingSettings.VideoEncoder.MeanBitRate;
+	Options.CommonMaxBitRate = RecordingSettings.VideoEncoder.MaxBitRate;
+	Options.CommonQualityVsSpeed = RecordingSettings.VideoEncoder.QualityVsSpeed;
 	Options.EncodingProfile = EUnrealCVMP4EncodeProfile::High;
 	Options.EncodingLevel = EUnrealCVMP4EncodeLevel::Auto;
 
@@ -2237,23 +2220,22 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRen
 
 void AFusionCamCaptureActor::TriggerVideoGeneration()
 {
-	if (!bAutoGenerateVideo)
+	if (!RecordingSettings.bAutoGenerateVideo)
 	{
 		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Auto video generation disabled"));
 		return;
 	}
 
-	if (VideoGenScriptPath.IsEmpty())
+	if (RecordingSettings.VideoGenScriptPath.IsEmpty())
 	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: VideoGenScriptPath not set, searching for genvid.py"));
+		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: RecordingSettings.VideoGenScriptPath not set, searching for genvid.py"));
 
-		FString PluginBaseDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectPluginsDir() / TEXT("unrealcv/Source/uezoo"));
-		FString AutoScriptPath = FPaths::Combine(PluginBaseDir, TEXT("genvid.py"));
+		FString AutoScriptPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("genvid.py"));
 
 		if (FPaths::FileExists(AutoScriptPath))
 		{
-			VideoGenScriptPath = AutoScriptPath;
-			UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Found genvid.py at %s"), *VideoGenScriptPath);
+			RecordingSettings.VideoGenScriptPath = AutoScriptPath;
+			UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Found genvid.py at %s"), *RecordingSettings.VideoGenScriptPath);
 		}
 		else
 		{
@@ -2266,10 +2248,10 @@ void AFusionCamCaptureActor::TriggerVideoGeneration()
 	int32 ProcessID = 0;
 
 	bool bSuccess = FPythonExecutor::ExecuteGenvidScript(
-		VideoGenScriptPath,
+		RecordingSettings.VideoGenScriptPath,
 		InputDir,
 		RecordFPS,
-		CondaEnvName,
+		TEXT(""),
 		&ProcessID
 	);
 
