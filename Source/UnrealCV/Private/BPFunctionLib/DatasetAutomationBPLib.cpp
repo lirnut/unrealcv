@@ -177,7 +177,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("125 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 0.5 2.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("4.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("6.0")));
 
 		TArray<FString> MattingTrajectoryOptions = {
 			TEXT("render_only"),

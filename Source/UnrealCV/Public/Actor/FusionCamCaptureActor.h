@@ -34,7 +34,7 @@ struct FRecordingSettings
 	bool bUseMovieQualityRendering = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bRecordViaViewport = false;
+	bool bRecordViaViewport = true;
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
