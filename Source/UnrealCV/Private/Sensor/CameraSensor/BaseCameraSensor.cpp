@@ -695,7 +695,8 @@ void UBaseCameraSensor::GetCameraView(float DeltaTime, FMinimalViewInfo& Desired
 	if (TextureTarget && TextureTarget->SizeX > 0 && TextureTarget->SizeY > 0)
 	{
 		DesiredView.AspectRatio = (float)TextureTarget->SizeX / (float)TextureTarget->SizeY;
-		DesiredView.bConstrainAspectRatio = true;
+		DesiredView.bConstrainAspectRatio = false;
+		DesiredView.AspectRatioAxisConstraint = EAspectRatioAxisConstraint::AspectRatio_MaintainYFOV;
 	}
 
 	DesiredView.PostProcessBlendWeight = PostProcessBlendWeight;
@@ -709,13 +710,26 @@ void UBaseCameraSensor::GetCameraView(float DeltaTime, FMinimalViewInfo& Desired
 		float ComputedAspectRatio = (float)TextureTarget->SizeX / (float)TextureTarget->SizeY;
 		FMatrix ProjectionMatrix = DesiredView.CalculateProjectionMatrix();
 
-		UE_LOG(LogUnrealCV, Warning, TEXT("BaseCameraSensor::GetCameraView PROJECTION DEBUG:"));
+		UE_LOG(LogUnrealCV, Warning, TEXT("BaseCameraSensor::GetCameraView CAMERA DEBUG:"));
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - Location: X=%.6f, Y=%.6f, Z=%.6f"), DesiredView.Location.X, DesiredView.Location.Y, DesiredView.Location.Z);
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - Rotation: P=%.6f, Y=%.6f, R=%.6f"), DesiredView.Rotation.Pitch, DesiredView.Rotation.Yaw, DesiredView.Rotation.Roll);
 		UE_LOG(LogUnrealCV, Warning, TEXT("  - TextureTarget Size: %dx%d"), TextureTarget->SizeX, TextureTarget->SizeY);
 		UE_LOG(LogUnrealCV, Warning, TEXT("  - FOV: %.6f"), DesiredView.FOV);
 		UE_LOG(LogUnrealCV, Warning, TEXT("  - AspectRatio (from view): %.6f"), DesiredView.AspectRatio);
 		UE_LOG(LogUnrealCV, Warning, TEXT("  - AspectRatio (computed): %.6f"), ComputedAspectRatio);
 		UE_LOG(LogUnrealCV, Warning, TEXT("  - bConstrainAspectRatio: %d"), DesiredView.bConstrainAspectRatio);
-		UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[0][0]: %.6f, M[1][1]: %.6f"), ProjectionMatrix.M[0][0], ProjectionMatrix.M[1][1]);
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - AspectRatioAxisConstraint: %d"), DesiredView.AspectRatioAxisConstraint.Get(EAspectRatioAxisConstraint::AspectRatio_MaintainXFOV));
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[0][0]: %.6f, M[0][1]: %.6f"), ProjectionMatrix.M[0][0], ProjectionMatrix.M[0][1]);
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[1][0]: %.6f, M[1][1]: %.6f"), ProjectionMatrix.M[1][0], ProjectionMatrix.M[1][1]);
+
+		float FovRad = FMath::DegreesToRadians(DesiredView.FOV);
+		float HalfHeight = TextureTarget->SizeY * 0.5f;
+		float HalfWidth = TextureTarget->SizeX * 0.5f;
+		float Fy = HalfHeight / FMath::Tan(FovRad * 0.5f);
+		float Fx = Fy / ComputedAspectRatio;
+		float Cx = HalfWidth;
+		float Cy = HalfHeight;
+		UE_LOG(LogUnrealCV, Warning, TEXT("  - Intrinsics K: fx=%.2f, fy=%.2f, cx=%.2f, cy=%.2f"), Fx, Fy, Cx, Cy);
 	}
 
 }

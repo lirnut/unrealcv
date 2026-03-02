@@ -391,18 +391,43 @@ void UMainViewportRenderComponent::CaptureFrameSync(TFunction<void(TUniquePtr<FI
 	FVector ComponentLocation = GetComponentLocation();
 	FRotator ComponentRotation = GetComponentRotation();
 
+	AActor* Owner = GetOwner();
+	FVector OwnerLocation = Owner ? Owner->GetActorLocation() : FVector::ZeroVector;
+
+	UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRC: ComponentLocation: X=%.6f, Y=%.6f, Z=%.6f"), ComponentLocation.X, ComponentLocation.Y, ComponentLocation.Z);
+	UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRC: Owner( FusionCamSensor ) Location: X=%.6f, Y=%.6f, Z=%.6f"), OwnerLocation.X, OwnerLocation.Y, OwnerLocation.Z);
+
 	PC->ClientSetRotation(ComponentRotation);
 
 	APawn* Pawn = PC->GetPawn();
 	if (Pawn)
 	{
 		Pawn->SetActorLocation(ComponentLocation);
+		UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRC: Pawn moved to: X=%.6f, Y=%.6f, Z=%.6f"), ComponentLocation.X, ComponentLocation.Y, ComponentLocation.Z);
 	}
 
 	APlayerCameraManager* CamMgr = PC->PlayerCameraManager;
 	if (CamMgr)
 	{
-		FIntPoint ViewportSize = ViewportClient ? ViewportClient->Viewport->GetSizeXY() : FIntPoint::ZeroValue;
+		FVector CurrentCamLoc = CamMgr->GetCameraLocation();
+		FVector Offset = ComponentLocation - CurrentCamLoc;
+		if (!Offset.IsNearlyZero())
+		{
+			CamMgr->ApplyWorldOffset(Offset, false);
+		}
+
+		FMinimalViewInfo POVInfo;
+		POVInfo.Location = ComponentLocation;
+		POVInfo.Rotation = ComponentRotation;
+		POVInfo.FOV = FOV;
+		POVInfo.AspectRatio = CamMgr->DefaultAspectRatio;
+		POVInfo.bConstrainAspectRatio = false;
+		CamMgr->FillCameraCache(POVInfo);
+	}
+
+	if (CamMgr && ViewportClient && ViewportClient->Viewport)
+	{
+		FIntPoint ViewportSize = ViewportClient->Viewport->GetSizeXY();
 		if (ViewportSize.X > 0 && ViewportSize.Y > 0)
 		{
 			float CurrentAspectRatio = (float)ViewportSize.X / (float)ViewportSize.Y;
@@ -421,12 +446,24 @@ void UMainViewportRenderComponent::CaptureFrameSync(TFunction<void(TUniquePtr<FI
 			POVInfo.bConstrainAspectRatio = CamMgr->bDefaultConstrainAspectRatio;
 			FMatrix ProjectionMatrix = POVInfo.CalculateProjectionMatrix();
 
-			UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRC::CaptureFrame PROJECTION DEBUG:"));
+			UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRC::CaptureFrameSync CAMERA DEBUG:"));
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - Location: X=%.6f, Y=%.6f, Z=%.6f"), POVInfo.Location.X, POVInfo.Location.Y, POVInfo.Location.Z);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - Rotation: P=%.6f, Y=%.6f, R=%.6f"), POVInfo.Rotation.Pitch, POVInfo.Rotation.Yaw, POVInfo.Rotation.Roll);
 			UE_LOG(LogUnrealCV, Warning, TEXT("  - ViewportSize: %dx%d"), ViewportSize.X, ViewportSize.Y);
 			UE_LOG(LogUnrealCV, Warning, TEXT("  - FOV: %.6f"), POVInfo.FOV);
 			UE_LOG(LogUnrealCV, Warning, TEXT("  - AspectRatio: %.6f"), POVInfo.AspectRatio);
 			UE_LOG(LogUnrealCV, Warning, TEXT("  - bConstrainAspectRatio: %d"), POVInfo.bConstrainAspectRatio);
-			UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[0][0]: %.6f, M[1][1]: %.6f"), ProjectionMatrix.M[0][0], ProjectionMatrix.M[1][1]);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[0][0]: %.6f, M[0][1]: %.6f"), ProjectionMatrix.M[0][0], ProjectionMatrix.M[0][1]);
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[1][0]: %.6f, M[1][1]: %.6f"), ProjectionMatrix.M[1][0], ProjectionMatrix.M[1][1]);
+
+			float FovRad = FMath::DegreesToRadians(POVInfo.FOV);
+			float HalfHeight = ViewportSize.Y * 0.5f;
+			float HalfWidth = ViewportSize.X * 0.5f;
+			float Fy = HalfHeight / FMath::Tan(FovRad * 0.5f);
+			float Fx = Fy / POVInfo.AspectRatio;
+			float Cx = HalfWidth;
+			float Cy = HalfHeight;
+			UE_LOG(LogUnrealCV, Warning, TEXT("  - Intrinsics K: fx=%.2f, fy=%.2f, cx=%.2f, cy=%.2f"), Fx, Fy, Cx, Cy);
 		}
 	}
 

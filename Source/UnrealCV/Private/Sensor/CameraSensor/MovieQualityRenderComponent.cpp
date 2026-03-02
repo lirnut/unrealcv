@@ -706,8 +706,8 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* VF)
 	UE_LOG(LogUnrealCV, Warning, TEXT("  - FOV: %.6f"), ViewInfo.FOV);
 	UE_LOG(LogUnrealCV, Warning, TEXT("  - AspectRatio: %.6f"), ViewInfo.AspectRatio);
 	UE_LOG(LogUnrealCV, Warning, TEXT("  - bConstrainAspectRatio: %d"), ViewInfo.bConstrainAspectRatio);
-	UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[0][0]: %.6f, M[1][1]: %.6f"),
-		ViewInitOptions.ProjectionMatrix.M[0][0], ViewInitOptions.ProjectionMatrix.M[1][1]);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[0][0]: %.6f, M[0][1]: %.6f"), ViewInitOptions.ProjectionMatrix.M[0][0], ViewInitOptions.ProjectionMatrix.M[0][1]);
+	UE_LOG(LogUnrealCV, Warning, TEXT("  - ProjectionMatrix M[1][0]: %.6f, M[1][1]: %.6f"), ViewInitOptions.ProjectionMatrix.M[1][0], ViewInitOptions.ProjectionMatrix.M[1][1]);
 
 	FSceneView* View = new FSceneView(ViewInitOptions);
 
@@ -887,7 +887,7 @@ FSceneView* UMovieQualityRenderComponent::CreateSceneView(FSceneViewFamily* VF)
 		View->ShowOnlyPrimitives = TOptional<TSet<FPrimitiveComponentId>>(VisiblePrimitives);
 	}
 
-	// View->FinalPostProcessSettings = FFinalPostProcessSettings();
+	View->FinalPostProcessSettings = FFinalPostProcessSettings();
 	VF->Views.Add(View);
 	// VF->AllViews.Add(View);
 

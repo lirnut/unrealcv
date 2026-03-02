@@ -77,6 +77,7 @@ void UAutomationBPLib::StartTicking()
 	PushCommand(TEXT("r.RayTracing.SceneCaptures 1"));
 
 	PushCommand(TEXT("r.Shadow.Denoiser 1"));
+	PushCommand(TEXT("r.MotionBlur.Amount 0"));
 
 	PushCommand(TEXT("r.AntiAliasingMethod 4"));
 	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.12"));

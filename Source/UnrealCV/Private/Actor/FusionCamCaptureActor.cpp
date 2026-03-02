@@ -1634,17 +1634,17 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTra
 		return CalculateRandomDirection(Target, InNumFrames, RandomSeed);
 	case ECameraTrajectoryType::RenderOnly:
 	case ECameraTrajectoryType::RenderOnly5S:
-		return CalculateRenderOnly(InNumFrames);
+		return AddHandheldShake(CalculateRenderOnly(InNumFrames));
 	case ECameraTrajectoryType::RenderLeftRotate:
-		return CalculateRenderLeftRotate(InNumFrames);
+		return AddHandheldShake(CalculateRenderLeftRotate(InNumFrames));
 	case ECameraTrajectoryType::RenderRightRotate:
-		return CalculateRenderRightRotate(InNumFrames);
+		return AddHandheldShake(CalculateRenderRightRotate(InNumFrames));
 	case ECameraTrajectoryType::RenderRotateLeft:
-		return CalculateRotateLeft(Target, InNumFrames, 30.0f, 1.0f);
+		return AddHandheldShake(CalculateRotateLeft(Target, InNumFrames, 30.0f, 1.0f));
 	case ECameraTrajectoryType::RenderRotateRight:
-		return CalculateRotateRight(Target, InNumFrames, -30.0f, 1.0f);
+		return AddHandheldShake(CalculateRotateRight(Target, InNumFrames, -30.0f, 1.0f));
 	case ECameraTrajectoryType::RenderRotateUp:
-		return CalculateRotateUp(Target, InNumFrames, 30.0f, 1.0f);
+		return AddHandheldShake(CalculateRotateUp(Target, InNumFrames, 30.0f, 1.0f));
 	default:
 		UE_LOG(LogUnrealCV, Error, TEXT("Unknown trajectory type"));
 		return TArray<FCameraPose>();
@@ -2152,7 +2152,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRen
 		Trajectory.Add(Pose);
 	}
 
-	return AddHandheldShake(Trajectory);
+	return Trajectory;
 }
 
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRenderLeftRotate(int32 InNumFrames)
@@ -2183,7 +2183,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRen
 		Trajectory.Add(Pose);
 	}
 
-	return AddHandheldShake(Trajectory);
+	return Trajectory;
 }
 
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRenderRightRotate(int32 InNumFrames)
@@ -2214,7 +2214,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRen
 		Trajectory.Add(Pose);
 	}
 
-	return AddHandheldShake(Trajectory);
+	return Trajectory;
 }
 
 
