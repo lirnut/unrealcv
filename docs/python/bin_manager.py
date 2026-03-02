@@ -3,6 +3,7 @@ import sys
 import subprocess
 import socket
 import time
+import json
 import psutil
 import random
 from pathlib import Path
@@ -122,6 +123,65 @@ def try_connect(port, timeout=2.0):
     except Exception:
         return False
 
+def build_matting_command_sequence():
+    """
+    Matting task command sequence (equivalent to DatasetAutomationBPLib.cpp lines 146-200)
+
+    This is the Python-side definition that replaces the hardcoded C++ sequence.
+    Matches the exact logic:
+    - 50% portrait (1080x1920, FOV 50-60) OR 50% landscape (1920x1080, FOV 80-90)
+    - Random trajectory: render_only, render_left_rotate, render_right_rotate, etc.
+    - ForegroundMoveSpeed: 70.0 cm/s @ 90° offset (perpendicular motion)
+    - Time dilation: 0.65x (slow-motion for hair dynamics)
+    - 90 frames @ 30fps = 3 seconds real-time, ~4.6 seconds in-game
+    """
+    if random.random() < 0.5:
+        resolution = "1080x1920"
+        fov_range = "50 60"
+    else:
+        resolution = "1920x1080"
+        fov_range = "80 90"
+
+    matting_trajectory_options = [
+        "render_only",
+        "render_left_rotate",
+        "render_right_rotate",
+        "render_rotate_left",
+        "render_rotate_right"
+    ]
+    chosen_trajectory = random.choice(matting_trajectory_options)
+
+    command_sequence = {
+        "task": "Matting",
+        "commands": [
+            {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.65"},
+            {"cmd": "load_scene_param_json"},
+            {"cmd": "random_scene_param_camera_height", "params": "120 155"},
+            {"cmd": "random_scene_param_camera_angle_offset", "params": "-60 60"},
+            {"cmd": "random_scene_param_camera_distance", "params": "75 100"},
+            {"cmd": "create_scene"},
+            {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_Run.ABP_Run_C"},
+            {"cmd": "prepare_groom"},
+            {"cmd": "sync_pawn_to_primary_camera"},
+            {"cmd": "delay", "params": "5.0"},
+            {"cmd": "random_resolution", "params": resolution},
+            {"cmd": "random_fov", "params": fov_range},
+            {"cmd": "aim_camera_at_foreground", "params": "125 175"},
+            {"cmd": "add_camera_rotation_noise", "params": "4.0 0.5 2.0"},
+            {"cmd": "prepare_record"},
+            {"cmd": "delay", "params": "10.0"},
+            {"cmd": "record_trajectory", "params": chosen_trajectory},
+            {"cmd": "sync_all_cameras"},
+            {"cmd": "delay", "params": "1.0"},
+            {"cmd": "clear_scene"},
+            {"cmd": "delay", "params": "0.5"},
+            {"cmd": "increment_counter"},
+            {"cmd": "check_completion"}
+        ]
+    }
+
+    return command_sequence
+
 def main():
     import unrealcv
     run_count = 0
@@ -156,11 +216,32 @@ def main():
             version = client.request("vget /unrealcv/version")
             print(f"[VERSION] {version}")
 
-            print(f"[CONFIG] Setting batch size to {CONFIG_SLASH_TOTAL_SCENES} scenes")
-            result = client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
-            print(f"[CONFIG] {result}")
+            print(f"\n{'='*60}")
+            print(f"[CONFIG] Configuring Matting task...")
+            print(f"{'='*60}")
 
-            print(f"[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
+            client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
+            client.request("vset /datasetautomation/config/trajectory_fps 30")
+            client.request("vset /datasetautomation/config/num_frames 90")
+            client.request("vset /datasetautomation/config/foreground_move_speed 70.0")
+            client.request("vset /datasetautomation/config/foreground_move_angle_offset 90.0")
+            client.request("vset /datasetautomation/config/recording_options lit,oneobjlit,metadata")
+
+            output_dir = str(PKG_DIR / "HUAWEI_Project" / "Saved" / "DatasetAutomationOutputDirectory")
+            client.request(f"vset /datasetautomation/config/output_directory {output_dir}")
+
+            print(f"[CONFIG] Output directory: {output_dir}")
+            print(f"[CONFIG] Batch size: {CONFIG_SLASH_TOTAL_SCENES} scenes")
+            print(f"[CONFIG] Recording: 90 frames @ 30fps (3s real-time)")
+            print(f"[CONFIG] Foreground motion: 70 cm/s @ 90° offset")
+
+            command_sequence = build_matting_command_sequence()
+            seq_json = json.dumps(command_sequence)
+            result = client.request(f"vset /datasetautomation/sequence {seq_json}")
+            print(f"[SEQUENCE] {result}")
+            print(f"[SEQUENCE] Uploaded {len(command_sequence['commands'])} commands")
+
+            print(f"\n[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
             time.sleep(MAP_LOAD_WAIT)
 
             result = client.request("vset /datasetautomation/start")
