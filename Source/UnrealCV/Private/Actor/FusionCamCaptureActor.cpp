@@ -440,12 +440,12 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	}
 }
 
-void AFusionCamCaptureActor::SetTimeDilationSlomo(float TimeDilation)
+void AFusionCamCaptureActor::SetTimeDilationSlomo(float TD)
 {
 	auto * World = GetWorld();
 	AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings();
-	WorldSettings->SetTimeDilation(TimeDilation);
-	FString Command = FString::Printf(TEXT("slomo %f"), TimeDilation);
+	WorldSettings->SetTimeDilation(TD);
+	FString Command = FString::Printf(TEXT("slomo %f"), TD);
 	FString Result = World->GetFirstPlayerController()->ConsoleCommand(Command, true);
 	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: ConsoleCommand %s result: %s"), *Command, *Result);
 }

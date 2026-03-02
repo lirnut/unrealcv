@@ -373,7 +373,7 @@ protected:
 
 	void OnTimerRecord();
 	void RecordFrame(bool bWarmUp = false);
-	void SetTimeDilationSlomo(float TimeDilation);
+	void SetTimeDilationSlomo(float TD);
 	void UpdateFocalDistance();
 
 	void SetDefaultParamsForTargetCamera();
