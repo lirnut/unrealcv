@@ -192,6 +192,10 @@ def main():
             print(f"\n[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
             time.sleep(MAP_LOAD_WAIT)
 
+            # Disable unnecessary warnings and messages
+            client.request("vrun DisableAllScreenMessages")
+            client.request("vrun r.Streaming.PoolSize.ShowWarnings 0")
+            
             result = client.request("vset /datasetautomation/start")
             print(f"[START] {result}")
 
