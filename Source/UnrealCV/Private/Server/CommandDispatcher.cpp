@@ -21,6 +21,7 @@ FCommandDispatcher::FCommandDispatcher()
 	TypeRegexp.Emplace("uint", UInt);
 	TypeRegexp.Emplace("float", Float);
 	TypeRegexp.Emplace("bool", Bool);
+	TypeRegexp.Emplace("Anything", Anything);
 
 	FDispatcherDelegate Cmd = FDispatcherDelegate::CreateRaw(this, &FCommandDispatcher::AliasHelper);
 	FString Uri = FString::Printf(TEXT("vrun [str]"));

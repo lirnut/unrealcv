@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 import socket
-import time
+import time, json
 from pathlib import Path
+# from sequence_builder import build_concatenated_matting_sequence
 
 EDITOR_PORT = 9000
 PIE_PORT = 9001
 PIE_START_TIMEOUT = 30
 PIE_START_WAIT = 15
 PIE_LOAD_MAP_WAIT = 25
+# CONFIG_SLASH_TOTAL_SCENES = 5
 
 
 def try_connect(port, timeout=2.0):
@@ -75,13 +77,27 @@ def main():
             continue
 
         print("[OK] Connected to PIE")
+
+
+        # command_sequence, scene_configs = build_concatenated_matting_sequence(CONFIG_SLASH_TOTAL_SCENES)
+        # seq_json = json.dumps(command_sequence, separators=(',', ':'))
+        # pie_client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
+        # result = pie_client.request(f"vset /datasetautomation/sequence {seq_json}")
+        # print(f"[SEQUENCE] {result}")
+        # print(f"[SEQUENCE] Total commands: {len(command_sequence['commands'])}")
+        # print(f"[SEQUENCE] Scenes: {CONFIG_SLASH_TOTAL_SCENES} (each with ~22 unique commands)")
+        # print()
+        # print("[SEQUENCE] Scene configurations:")
+        # for cfg in scene_configs:
+        #     print(f"  Scene {cfg['scene']:2d}: {cfg['resolution']:12s} | FOV {cfg['fov']:5s} | {cfg['trajectory']}")
+
         time.sleep(PIE_LOAD_MAP_WAIT)
-        result = editor_client.request("vset /datasetautomation/start")
+        result = pie_client.request("vset /datasetautomation/start")
+
+        pie_client.disconnect()
 
         try:
             while True:
-                # pie_client = unrealcv.Client(("127.0.0.1", PIE_PORT))
-                # if not pie_client.connect(timeout=10):
                 if not try_connect(PIE_PORT):
                     elapsed = time.time() - pie_session_start if pie_session_start else 0
                     print(f"[INFO] PIE stopped (run #{pie_run_count}, runtime: {elapsed:.1f}s)")
