@@ -17,7 +17,7 @@ bool FPythonExecutor::ExecutePythonScript(const FExecutionParams& Params, int32*
 		ArgsString += TEXT(" ") + Arg;
 	}
 
-	FString PythonExecutable = TEXT("H:\\.conda\\envs\\uezoo\\python.exe");
+	FString PythonExecutable = TEXT("python.exe");
 	FString PythonCommand = FString::Printf(TEXT("%s \"%s\" %s"), *PythonExecutable, *Params.ScriptPath, *ArgsString);
 	// FString FullCommand = FString::Printf(TEXT("conda activate %s && %s"), *Params.CondaEnvName, *PythonCommand);
 	FString FullCommand = PythonCommand;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys
+import sys, datetime
 import subprocess
 import socket
 import time
@@ -7,14 +7,16 @@ import json
 import psutil
 import random
 from pathlib import Path
+from sequence_builder import build_concatenated_matting_sequence
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PKG_DIR = Path("I:/HUAWEI_Project_UE56_PKG/Windows")
-EXE_PATH = PKG_DIR / "HUAWEI_Project.exe"
+PKG_DIR = Path(SCRIPT_DIR)
+# PKG_DIR = Path("I:/HUAWEI_Project_UE56_PKG")
+EXE_PATH = PKG_DIR / "Windows" / "HUAWEI_Project.exe"
 
 PORT = 9000
-CONNECT_TIMEOUT = 180
-MAP_LOAD_WAIT = 45
+CONNECT_TIMEOUT = 60
+MAP_LOAD_WAIT = 15
 STATUS_POLL_INTERVAL = 2.0
 CONFIG_SLASH_TOTAL_SCENES = 10
 
@@ -22,7 +24,7 @@ AVAILABLE_MAPS = [
     "Tokyo",
     "Chinese_mountain_town",
     "Demo_Roof",
-    "Urban_RoadsideConstruction_Scene",
+    # "Urban_RoadsideConstruction_Scene",
     "Town",
     # "L_WillowLake",
     # "Jungle",
@@ -61,7 +63,7 @@ def kill_process_and_its_children(p):
 def start_game():
     if not EXE_PATH.exists():
         print(f"[ERROR] Executable not found: {EXE_PATH}")
-        return None
+        return None, None
 
     selected_map = random.choice(AVAILABLE_MAPS)
     print(f"[INFO] Selected map {selected_map}...")
@@ -70,6 +72,7 @@ def start_game():
         selected_map,
         "-Log",
         "-FullStdOutLogOutput",
+        "-unattended"
     ]
 
     print(f"[INFO] Starting game on port {PORT}...")
@@ -83,7 +86,7 @@ def start_game():
         text=True,
         bufsize=1,
     )
-    return proc
+    return proc, selected_map
 
 def wait_for_server(proc, timeout):
     start_time = time.time()
@@ -123,65 +126,6 @@ def try_connect(port, timeout=2.0):
     except Exception:
         return False
 
-def build_matting_command_sequence():
-    """
-    Matting task command sequence (equivalent to DatasetAutomationBPLib.cpp lines 146-200)
-
-    This is the Python-side definition that replaces the hardcoded C++ sequence.
-    Matches the exact logic:
-    - 50% portrait (1080x1920, FOV 50-60) OR 50% landscape (1920x1080, FOV 80-90)
-    - Random trajectory: render_only, render_left_rotate, render_right_rotate, etc.
-    - ForegroundMoveSpeed: 70.0 cm/s @ 90° offset (perpendicular motion)
-    - Time dilation: 0.65x (slow-motion for hair dynamics)
-    - 90 frames @ 30fps = 3 seconds real-time, ~4.6 seconds in-game
-    """
-    if random.random() < 0.5:
-        resolution = "1080x1920"
-        fov_range = "50 60"
-    else:
-        resolution = "1920x1080"
-        fov_range = "80 90"
-
-    matting_trajectory_options = [
-        "render_only",
-        "render_left_rotate",
-        "render_right_rotate",
-        "render_rotate_left",
-        "render_rotate_right"
-    ]
-    chosen_trajectory = random.choice(matting_trajectory_options)
-
-    command_sequence = {
-        "task": "Matting",
-        "commands": [
-            {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.65"},
-            {"cmd": "load_scene_param_json"},
-            {"cmd": "random_scene_param_camera_height", "params": "120 155"},
-            {"cmd": "random_scene_param_camera_angle_offset", "params": "-60 60"},
-            {"cmd": "random_scene_param_camera_distance", "params": "75 100"},
-            {"cmd": "create_scene"},
-            {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_Run.ABP_Run_C"},
-            {"cmd": "prepare_groom"},
-            {"cmd": "sync_pawn_to_primary_camera"},
-            {"cmd": "delay", "params": "5.0"},
-            {"cmd": "random_resolution", "params": resolution},
-            {"cmd": "random_fov", "params": fov_range},
-            {"cmd": "aim_camera_at_foreground", "params": "125 175"},
-            {"cmd": "add_camera_rotation_noise", "params": "4.0 0.5 2.0"},
-            {"cmd": "prepare_record"},
-            {"cmd": "delay", "params": "10.0"},
-            {"cmd": "record_trajectory", "params": chosen_trajectory},
-            {"cmd": "sync_all_cameras"},
-            {"cmd": "delay", "params": "1.0"},
-            {"cmd": "clear_scene"},
-            {"cmd": "delay", "params": "0.5"},
-            {"cmd": "increment_counter"},
-            {"cmd": "check_completion"}
-        ]
-    }
-
-    return command_sequence
-
 def main():
     import unrealcv
     run_count = 0
@@ -192,7 +136,7 @@ def main():
             print(f"Binary Session #{run_count + 1}")
             print(f"{'='*60}")
 
-            game_proc = start_game()
+            game_proc, map_name = start_game()
             if game_proc is None:
                 return 1
 
@@ -227,19 +171,23 @@ def main():
             client.request("vset /datasetautomation/config/foreground_move_angle_offset 90.0")
             client.request("vset /datasetautomation/config/recording_options lit,oneobjlit,metadata")
 
-            output_dir = str(PKG_DIR / "HUAWEI_Project" / "Saved" / "DatasetAutomationOutputDirectory")
+            timecode = datetime.datetime.now().strftime(r"%y-%m-%d")
+            output_dir = str(PKG_DIR / "DatasetAutomationOutputDirectory" / timecode / map_name)
             client.request(f"vset /datasetautomation/config/output_directory {output_dir}")
 
             print(f"[CONFIG] Output directory: {output_dir}")
             print(f"[CONFIG] Batch size: {CONFIG_SLASH_TOTAL_SCENES} scenes")
-            print(f"[CONFIG] Recording: 90 frames @ 30fps (3s real-time)")
-            print(f"[CONFIG] Foreground motion: 70 cm/s @ 90° offset")
 
-            command_sequence = build_matting_command_sequence()
-            seq_json = json.dumps(command_sequence)
+            command_sequence, scene_configs = build_concatenated_matting_sequence(CONFIG_SLASH_TOTAL_SCENES)
+            seq_json = json.dumps(command_sequence, separators=(',', ':'))
             result = client.request(f"vset /datasetautomation/sequence {seq_json}")
             print(f"[SEQUENCE] {result}")
-            print(f"[SEQUENCE] Uploaded {len(command_sequence['commands'])} commands")
+            print(f"[SEQUENCE] Total commands: {len(command_sequence['commands'])}")
+            print(f"[SEQUENCE] Scenes: {CONFIG_SLASH_TOTAL_SCENES} (each with ~22 unique commands)")
+            print()
+            print("[SEQUENCE] Scene configurations:")
+            for cfg in scene_configs:
+                print(f"  Scene {cfg['scene']:2d}: {cfg['resolution']:12s} | FOV {cfg['fov']:5s} | {cfg['trajectory']}")
 
             print(f"\n[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
             time.sleep(MAP_LOAD_WAIT)

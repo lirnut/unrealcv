@@ -60,6 +60,8 @@ bool StartServerWithRetry(FUnrealcvServer &Server)
 
 void FUnrealCVPlugin::StartupModule()
 {
+	FCommandLine::Append(TEXT(" -UNATTENDED"));
+
 	FString Commandline = FCommandLine::Get();
 
 	FMetaHumanCacheManager::Get().RegisterWithAssetManager();

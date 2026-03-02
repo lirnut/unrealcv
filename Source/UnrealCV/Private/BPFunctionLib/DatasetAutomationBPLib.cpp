@@ -161,7 +161,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_Run.ABP_Run_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_groom")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("2.0")));
 		
 		if(FMath::RandRange(0.0f, 100.0f) < 50.0f)
 		{
@@ -177,7 +177,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("125 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 0.5 2.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("4.0")));
 
 		TArray<FString> MattingTrajectoryOptions = {
 			TEXT("render_only"),

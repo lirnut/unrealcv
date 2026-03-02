@@ -20,7 +20,7 @@ void FDatasetAutomationHandler::RegisterCommands()
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetSequence);
 	Help = "Set command sequence from JSON";
-	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/sequence [str]"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/sequence [Anything]"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::GetSequence);
 	Help = "Get current command sequence";
