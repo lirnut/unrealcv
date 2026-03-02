@@ -445,7 +445,7 @@ void AFusionCamCaptureActor::SetTimeDilationSlomo(float TD)
 	auto * World = GetWorld();
 	AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings();
 	WorldSettings->SetTimeDilation(TD);
-	FString Command = FString::Printf(TEXT("slomo %f"), TD);
+	FString Command = FString::Printf(TEXT("Slomo %f"), TD);
 	FString Result = World->GetFirstPlayerController()->ConsoleCommand(Command, true);
 	UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: ConsoleCommand %s result: %s"), *Command, *Result);
 }
@@ -511,6 +511,16 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 		TargetSensor->SetAsyncCaptureNextFrame(false);
 	}
 
+#if PLATFORM_WINDOWS
+	if (bWarmUp)
+	{
+		if (bEnableH264Encoding && !MP4Encoder.IsValid())
+		{
+			InitializeH264Encoder(RecordFPS);
+		}
+	}
+#endif
+
 	bool bLastFrame = (CurrentTrajectoryIndex == CurrentTrajectory.Num() - 1);
 
 	if (RecordingDataTypes.bRecordRGB)
@@ -544,7 +554,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 					{
 						UE_LOG(LogUnrealCV, Log, TEXT("Viewport: Calling CaptureFrame. ViewportSize=%dx%d, Encoder=%dx%d, bWarmUp=%d, bLastFrame=%d"),
 							ViewportSize.X, ViewportSize.Y, EncoderWidth, EncoderHeight, bWarmUp, bLastFrame);
-						ViewportCapture->CaptureFrameSync([this, bWarmUp, bLastFrame, ViewportSize](TUniquePtr<FImagePixelData>&& InPixelData)
+						ViewportCapture->CaptureFrame([this, bWarmUp, bLastFrame, ViewportSize](TUniquePtr<FImagePixelData>&& InPixelData)
 						{
 							UE_LOG(LogUnrealCV, Log, TEXT("Viewport CaptureFrame callback: InPixelData.IsValid()=%d"), InPixelData.IsValid());
 
@@ -1381,34 +1391,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 #if PLATFORM_WINDOWS
 	if (bEnableH264Encoding && RecordingDataTypes.bRecordRGB)
 	{
-		MP4OutputPath = FPaths::Combine(FPaths::ConvertRelativePathToFull(FinalDataFolder, RecordFileName), TEXT("rgb.mp4"));
-
-		FUnrealCVMP4EncoderOptions Options;
-		Options.OutputFilename = MP4OutputPath;
-		Options.Width = TargetSensor->GetFilmWidth();
-		Options.Height = TargetSensor->GetFilmHeight();
-		Options.FrameRate = FFrameRate(FPS, 1);
-
-		Options.EncodingRateControl = EUnrealCVMP4EncodeRateControlMode::Quality;
-		Options.CommonConstantRateFactor = 18;
-		Options.EncodingProfile = EUnrealCVMP4EncodeProfile::High;
-		Options.EncodingLevel = EUnrealCVMP4EncodeLevel::Auto;
-
-		Options.bIncludeAudio = false;
-
-		MP4Encoder = MakeUnique<FUnrealCVMP4Encoder>(Options);
-
-		if (MP4Encoder->Initialize())
-		{
-			MP4EncodedFrameCount = 0;
-			UE_LOG(LogUnrealCV, Log, TEXT("H.264 Encoder initialized: %s (%dx%d @ %d fps)"),
-				*MP4OutputPath, Options.Width, Options.Height, FPS);
-		}
-		else
-		{
-			UE_LOG(LogUnrealCV, Error, TEXT("Failed to initialize H.264 encoder"));
-			MP4Encoder.Reset();
-		}
+		InitializeH264Encoder(FPS);
 	}
 #endif
 
@@ -1487,7 +1470,6 @@ void AFusionCamCaptureActor::SetDefaultParamsForTargetCamera()
 		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: TargetSensor is not set!"));
 		return;
 	}
-
 
 	static auto CVarForceLOD = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ForceLOD"));
 	// static auto CVarViewDistanceScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ViewDistanceScale"));
@@ -1605,6 +1587,40 @@ void AFusionCamCaptureActor::CopySensorSettings(UFusionCamSensor* Source, UFusio
 	Source->GetBloomParams(BloomMethod, BloomIntensity);
 	Target->SetConvolutionBloom(BloomMethod, nullptr, BloomIntensity);
 }
+
+#if PLATFORM_WINDOWS
+void AFusionCamCaptureActor::InitializeH264Encoder(int32 FPS)
+{
+	MP4OutputPath = FPaths::Combine(FPaths::ConvertRelativePathToFull(FinalDataFolder, RecordFileName), TEXT("rgb.mp4"));
+
+	FUnrealCVMP4EncoderOptions Options;
+	Options.OutputFilename = MP4OutputPath;
+	Options.Width = TargetSensor->GetFilmWidth();
+	Options.Height = TargetSensor->GetFilmHeight();
+	Options.FrameRate = FFrameRate(FPS, 1);
+
+	Options.EncodingRateControl = EUnrealCVMP4EncodeRateControlMode::Quality;
+	Options.CommonConstantRateFactor = 18;
+	Options.EncodingProfile = EUnrealCVMP4EncodeProfile::High;
+	Options.EncodingLevel = EUnrealCVMP4EncodeLevel::Auto;
+
+	Options.bIncludeAudio = false;
+
+	MP4Encoder = MakeUnique<FUnrealCVMP4Encoder>(Options);
+
+	if (MP4Encoder->Initialize())
+	{
+		MP4EncodedFrameCount = 0;
+		UE_LOG(LogUnrealCV, Log, TEXT("H.264 Encoder initialized: %s (%dx%d @ %d fps)"),
+			*MP4OutputPath, Options.Width, Options.Height, FPS);
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Failed to initialize H.264 encoder"));
+		MP4Encoder.Reset();
+	}
+}
+#endif
 
 TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, int32 InNumFrames, int32 RandomSeed)
 {

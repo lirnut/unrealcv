@@ -63,6 +63,7 @@ Capture Modes
 | Sync Capture       | High (blocks)  | Low            | Debug, single  |
 | Fast Capture       | Low            | High           | Recording      |
 | Async Readback     | Very Low       | Highest        | Batch, 400K    |
+| MVRC Sync Capture  | Medium         | Medium         | Main viewport  |
 +--------------------+----------------+----------------+----------------+
 
 **Sync Capture (Legacy):**
@@ -92,6 +93,21 @@ Automatic with ``StartRecording()``. Configure via:
    MaxInFlight = 4;  // Frames in flight (default)
 
 Higher MaxInFlight = better parallelism, more memory.
+
+**MainViewportRenderComponent Sync Capture:**
+
+For capturing main game viewport, MVRC provides configurable sync mode:
+
+.. code-block:: python
+
+   # Enable synchronous capture for main viewport
+   client.request('vset /mvrc/use_sync_capture 1')
+
+   # Disable (use async mode, default)
+   client.request('vset /mvrc/use_sync_capture 0')
+
+When enabled, ``CaptureFrame()`` automatically redirects to ``CaptureFrameSync()``
+for immediate GPU readback. Use for frame-accurate captures from main viewport.
 
 Annotation Mode Performance
 --------------------------

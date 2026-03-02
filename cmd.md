@@ -355,3 +355,9 @@ DebugGame 控制台中支持的完整命令列表
   - vset /metahuman/update_cache - 扫描AssetRegistry并更新缓存文件
   - vget /metahuman/cache_path - 获取缓存文件路径
   - vget /metahuman/filter_batch - 从缓存中过滤批量生成的MetaHuman
+
+  MainViewportRenderComponent命令 (/mvrc/*)
+
+  - vget /mvrc/use_sync_capture - 获取主视口同步捕获模式状态 (0 或 1)
+  - vset /mvrc/use_sync_capture [uint] - 设置主视口同步捕获模式 (0=禁用异步捕获, 1=启用同步捕获)
+     说明: 当启用时，CaptureFrame() 调用会自动重定向到 CaptureFrameSync()，提供同步GPU回读

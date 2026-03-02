@@ -13,6 +13,8 @@
 #include "Sensor/CameraSensor/UnrealCVSurfaceReader.h"
 #include "MovieRenderPipelineDataTypes.h"
 
+FMVRCSettings UMainViewportRenderComponent::GlobalSettings;
+
 UMainViewportRenderComponent::UMainViewportRenderComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -234,6 +236,13 @@ FIntPoint UMainViewportRenderComponent::GetViewportSize() const
 
 void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImagePixelData>&&)> OnPixelDataReady)
 {
+	if (GlobalSettings.bUseSyncCapture)
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent::CaptureFrame - Redirecting to CaptureFrameSync (bUseSyncCapture=true)"));
+		CaptureFrameSync(MoveTemp(OnPixelDataReady));
+		return;
+	}
+
 	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent::CaptureFrame (async mode)"));
 
 	UWorld* World = GetWorld();

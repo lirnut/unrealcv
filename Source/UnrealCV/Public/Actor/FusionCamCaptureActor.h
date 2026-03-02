@@ -378,6 +378,10 @@ protected:
 
 	void SetDefaultParamsForTargetCamera();
 
+#if PLATFORM_WINDOWS
+	void InitializeH264Encoder(int32 FPS);
+#endif
+
 	// ========== Trajectory Calculation Functions (Separated from Rendering) ==========
 	TArray<FCameraPose> CalculateTrajectory(ECameraTrajectoryType TrajectoryType, AActor* Target, int32 InNumFrames, int32 RandomSeed);
 	void RenderTrajectory(const TArray<FCameraPose>& Trajectory, bool bPauseWorldTime);

@@ -10,12 +10,23 @@ class FSceneViewport;
 class FUnrealCVImageWriteQueue;
 struct FUnrealCVSurfaceQueue;
 
+USTRUCT()
+struct FMVRCSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bUseSyncCapture = true;
+};
+
 UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))
 class UNREALCV_API UMainViewportRenderComponent : public USceneComponent
 {
 	GENERATED_BODY()
 
 public:
+	static FMVRCSettings GlobalSettings;
+
 	UMainViewportRenderComponent();
 	virtual ~UMainViewportRenderComponent();
 
