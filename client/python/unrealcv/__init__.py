@@ -268,17 +268,23 @@ class Client:
                 threading.current_thread().name,
             )
 
-            self.sock.shutdown(socket.SHUT_RD)
-            # Because socket is on read in __receiving thread, need to call shutdown to force it to close
-            if self.sock:  # This may also be set to None in the __receiving thread
-                self.sock.close()
+            try:
+                self.sock.shutdown(socket.SHUT_RD)
+            except:
+                pass
+
+            if self.sock:
+                try:
+                    self.sock.close()
+                except:
+                    pass
                 self.sock = None
-            time.sleep(0.1)
 
         if getattr(self, 't', None):
             if self.t.is_alive():
                 self.recv_num_q.put(None)
-                self.t.join(timeout=2.0)
+                if threading.current_thread() != self.t:
+                    self.t.join(timeout=2.0)
 
     def receive(self):
         """
@@ -296,22 +302,15 @@ class Client:
             if not message:
                 print('BaseClient: remote disconnected, no more message')
                 _L.debug('BaseClient: remote disconnected, no more message')
-                # self.sock = None
-                self.disconnect()
 
-                # try reconnect
-                print('try reconnecting!')
-                for _ in range(5):
-                    flag = self.connect()
-                    if flag:
-                        print('reconnect succeed!')
-                        break
-                    else:
-                        print('reconnect fail! sleep 1s and retry...')
-                        time.sleep(1)
-                print('disconnecting...')
-                self.disconnect()
-                assert 0, 'exit because of abnormal disconnection'
+                if self.sock:
+                    try:
+                        self.sock.close()
+                    except:
+                        pass
+                    self.sock = None
+
+                return None
 
             return message
 
@@ -327,6 +326,10 @@ class Client:
                 # need results
                 for _ in range(-num):
                     raw_message = self.receive()
+                    if raw_message is None:
+                        print('Connection lost during receive, exiting receive loop')
+                        self.recv_data_q.put(None)
+                        return
                     message = self.raw_message_handler(raw_message)
                     self.recv_message_id += (
                         1  # Increment it only after the request/response cycle finished
@@ -336,6 +339,9 @@ class Client:
                 # do not need results
                 for _ in range(num):
                     raw_message = self.receive()
+                    if raw_message is None:
+                        print('Connection lost during receive, exiting receive loop')
+                        return
                     self.recv_message_id += 1
 
     def request_async(self, message):
@@ -351,14 +357,14 @@ class Client:
 
         raw_message = b'%d:%s' % (self.send_message_id, message)
         if not self.send(raw_message):
-            assert 0, 'failed send because of socket is closed'
-            # return None
+            _L.error('Failed to send async request, socket is closed')
+            return False
 
         self.send_message_id += 1
 
         self.recv_num_q.put(1)
         # self.message_id += 1
-        return None
+        return True
 
     def request_batch_async(self, batch):
         """
@@ -369,7 +375,8 @@ class Client:
 
         Returns
         -------
-        None
+        bool
+            True if all requests sent successfully, False otherwise
         """
         for message in batch:
             if sys.version_info[0] == 3:
@@ -378,12 +385,12 @@ class Client:
 
             raw_message = b'%d:%s' % (self.send_message_id, message)
             if not self.send(raw_message):
-                assert 0, 'failed send because of socket is closed'
-            # self.send(raw_message)
+                _L.error('Failed to send batch async request, socket is closed')
+                return False
             self.send_message_id += 1
 
         self.recv_num_q.put(len(batch))
-        return None
+        return True
 
     def request_batch(self, batch):
         """
@@ -409,8 +416,8 @@ class Client:
 
             raw_message = b'%d:%s' % (self.send_message_id, message)
             if not self.send(raw_message):
-                assert 0, 'failed send because of socket is closed'
-                # return None
+                _L.error('Failed to send batch request, socket is closed')
+                return None
             self.send_message_id += 1
 
         self.recv_num_q.put(-len(batch))  # negative number indicates need results
@@ -418,6 +425,9 @@ class Client:
         batch_res = []
         for i in range(len(batch)):
             message = self.recv_data_q.get()
+            if message is None:
+                _L.error('Connection lost during batch receive')
+                return None
             batch_res.append(message)
 
         return batch_res
@@ -468,13 +478,16 @@ class Client:
         raw_message = b'%d:%s' % (self.send_message_id, message)
         # _L.debug('Request: %s', raw_message.decode("utf-8"))
         if not self.send(raw_message):
-            assert 0, 'failed send because of socket is closed'
-            # return None
+            _L.error('Failed to send request, socket is closed')
+            return None
 
         self.send_message_id += 1
 
         self.recv_num_q.put(-1)  # negative number indicates need results
         message = self.recv_data_q.get()
+
+        if message is None:
+            _L.error('Connection lost, no response received')
 
         return message
 
