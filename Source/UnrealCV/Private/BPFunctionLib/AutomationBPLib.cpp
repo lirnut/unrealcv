@@ -101,6 +101,11 @@ void UAutomationBPLib::StartTicking()
 
 	PushCommand(TEXT("vset /datasetautomation/config/b_exit_on_complete true"));
 
+#ifndef WITH_EDITOR
+	PushCommand(TEXT("vrun DisableAllScreenMessages"));
+	PushCommand(TEXT("vrun r.Streaming.PoolSize.ShowWarnings 0"));
+#endif
+
 	// PushCommand(TEXT("sleep 20"));
 	// PushCommand(TEXT("vset /datasetautomation/start"));
 }

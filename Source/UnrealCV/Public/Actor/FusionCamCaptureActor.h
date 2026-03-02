@@ -16,10 +16,10 @@ struct FVideoEncoderSettings
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 MeanBitRate = 6 * 1024 * 1024;
+	int32 MeanBitRate = 30 * 1024 * 1024;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 MaxBitRate = 15 * 1024 * 1024;
+	int32 MaxBitRate = 35 * 1024 * 1024;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 QualityVsSpeed = 100;

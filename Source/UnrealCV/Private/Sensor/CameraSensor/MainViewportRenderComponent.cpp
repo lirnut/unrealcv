@@ -150,11 +150,11 @@ void UMainViewportRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 	SurfaceQueue = MakeShared<FUnrealCVSurfaceQueue, ESPMode::ThreadSafe>(
 		ViewportSize,
 		PF_B8G8R8A8,
-		10,
+		20,
 		false
 	);
 
-	SurfaceQueue->SetFrameResolveLatency(0);
+	SurfaceQueue->SetFrameResolveLatency(2);
 
 	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: SurfaceQueue ZERO latency - synchronous readback for frame sync with BaseCameraSensor"));
 
@@ -349,7 +349,7 @@ void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 	}
 
 	Viewport->Draw(false);
-	FlushRenderingCommands();
+	// FlushRenderingCommands();
 
 	FViewportRHIRef ViewportRHI = SceneViewport->GetViewportRHI();
 	if (!IsValidRef(ViewportRHI))

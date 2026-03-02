@@ -15,6 +15,7 @@ public:
 
 	bool Initialize();
 	void Finalize();
+	bool TryFinalize();
 	bool WriteFrame(const uint8* InFrameData, EImagePixelType InPixelFormat = EImagePixelType::Float16);
 	bool WriteAudioSample(const TArrayView<int16>& InAudioSamples);
 
@@ -47,6 +48,7 @@ public:
 
 	bool Initialize() { return false; }
 	void Finalize() {}
+	bool TryFinalize() { return false; }
 	bool WriteFrame(const uint8* InFrameData, EImagePixelType InPixelFormat = EImagePixelType::Float16) { return false; }
 	bool WriteAudioSample(const TArrayView<int16>& InAudioSamples) { return false; }
 

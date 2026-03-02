@@ -16,7 +16,7 @@ struct FMVRCSettings
 	GENERATED_BODY()
 
 	UPROPERTY()
-	bool bUseSyncCapture = true;
+	bool bUseSyncCapture = false;
 };
 
 UCLASS(ClassGroup = (UnrealCV), meta = (BlueprintSpawnableComponent))

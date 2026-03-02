@@ -33,7 +33,7 @@ AVAILABLE_MAPS = [
     "Asian_town",
     "Hutong",
     "Midgardr_Free",
-    "Warehouse",
+    # "Warehouse",
     "Downtown_West",
     "Downtown_West_Night",
     "Bridge_P",

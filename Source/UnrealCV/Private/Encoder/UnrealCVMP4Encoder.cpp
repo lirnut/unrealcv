@@ -121,6 +121,87 @@ void FUnrealCVMP4Encoder::Finalize()
 	bFinalized = true;
 }
 
+bool FUnrealCVMP4Encoder::TryFinalize()
+{
+	if (bFinalized || !bInitialized)
+	{
+		return true;
+	}
+
+	bool bAllSuccess = true;
+
+	if (SinkWriter)
+	{
+		HRESULT Result = SinkWriter->Finalize();
+		if (!SUCCEEDED(Result))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("TryFinalize: Failed to finalize Sink Writer %ld"), Result);
+			bAllSuccess = false;
+		}
+	}
+
+	{
+		HRESULT Result = MFShutdown();
+		if (!SUCCEEDED(Result))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("TryFinalize: Failed to shut down Microsoft Media Foundation %ld"), Result);
+			bAllSuccess = false;
+		}
+	}
+
+	if (!bAllSuccess)
+	{
+		auto TryFinalizeRecursive = [this](auto&& Self, int32 RemainingRetries) -> void
+		{
+			if (RemainingRetries <= 0)
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("TryFinalize: All async retry attempts exhausted"));
+				return;
+			}
+
+			AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, &Self, RemainingRetries]()
+			{
+				bool bSinkSuccess = true;
+				bool bMFSuccess = true;
+
+				if (SinkWriter)
+				{
+					HRESULT Result = SinkWriter->Finalize();
+					if (!SUCCEEDED(Result))
+					{
+						UE_LOG(LogUnrealCV, Error, TEXT("TryFinalize: Retry %d: Failed to finalize Sink Writer %ld"), RemainingRetries, Result);
+						bSinkSuccess = false;
+					}
+				}
+
+				{
+					HRESULT Result = MFShutdown();
+					if (!SUCCEEDED(Result))
+					{
+						UE_LOG(LogUnrealCV, Error, TEXT("TryFinalize: Retry %d: Failed to shut down MF %ld"), RemainingRetries, Result);
+						bMFSuccess = false;
+					}
+				}
+
+				if (bSinkSuccess && bMFSuccess)
+				{
+					UE_LOG(LogUnrealCV, Log, TEXT("TryFinalize: Async retry %d succeeded"), RemainingRetries);
+				}
+				else
+				{
+					UE_LOG(LogUnrealCV, Warning, TEXT("TryFinalize: Retry %d failed, continuing with next attempt"), RemainingRetries);
+					Self(Self, RemainingRetries - 1);
+				}
+			});
+		};
+
+		TryFinalizeRecursive(TryFinalizeRecursive, 5);
+		UE_LOG(LogUnrealCV, Warning, TEXT("TryFinalize: Initial attempt failed, scheduled 5 async retry attempts"));
+	}
+
+	return bAllSuccess;
+}
+
 bool FUnrealCVMP4Encoder::WriteFrame(const uint8* InFrameData, EImagePixelType InPixelFormat)
 {
 	// TRACE_CPUPROFILER_EVENT_SCOPE(UnrealCVMP4Encoder_WriteFrame);

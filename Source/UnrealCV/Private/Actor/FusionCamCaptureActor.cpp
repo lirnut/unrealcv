@@ -547,6 +547,8 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 								return;
 							}
 
+						AsyncTask(ENamedThreads::AnyThread, [this, bWarmUp, bLastFrame, ViewportSize, InPixelData = MoveTemp(InPixelData)]() mutable
+						{
 							FIntPoint PixelDataSize = InPixelData->GetSize();
 							UE_LOG(LogUnrealCV, Log, TEXT("Viewport: PixelData size=%dx%d, Format=%d"), PixelDataSize.X, PixelDataSize.Y, (int32)InPixelData->GetType());
 
@@ -574,11 +576,11 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 
 							if (bLastFrame)
 							{
-								MP4Encoder->Finalize();
-								MP4Encoder.Reset();
+								MP4Encoder->TryFinalize();
 								UE_LOG(LogUnrealCV, Log, TEXT("Viewport H.264 recording finished: %d frames -> %s"),
 									   MP4EncodedFrameCount, *MP4OutputPath);
 							}
+						});
 						});
 					}
 				}
@@ -627,8 +629,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 
 					if (bLastFrame)
 					{
-						MP4Encoder->Finalize();
-						MP4Encoder.Reset();
+						MP4Encoder->TryFinalize();
 						UE_LOG(LogUnrealCV, Log, TEXT("H.264 recording finished: %d frames -> %s"),
 							   MP4EncodedFrameCount, *MP4OutputPath);
 					}
@@ -672,8 +673,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 					}
 					if (bLastFrame)
 					{
-						MP4Encoder->Finalize();
-						MP4Encoder.Reset();
+						MP4Encoder->TryFinalize();
 						UE_LOG(LogUnrealCV, Log, TEXT("H.264 recording finished: %d frames -> %s"),
 							   MP4EncodedFrameCount, *MP4OutputPath);
 					}
