@@ -63,6 +63,7 @@ def start_game():
         return None
 
     selected_map = random.choice(AVAILABLE_MAPS)
+    print(f"[INFO] Selected map {selected_map}...")
     cmd = [
         str(EXE_PATH),
         selected_map,
