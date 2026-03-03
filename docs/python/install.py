@@ -1,20 +1,21 @@
 import os, re
 import shutil
+from pathlib import Path
 
 SOURCE_DIR = r"."
 TARGET_DIR = r"I:\HUAWEI_Project_UE56_PKG"
 # TARGET_DIR = r"D:\codes\CitySample_PKG"
-
+# TARGET_DIR = r"C:\Users\Administrator\Desktop\HillsideSampleProject_PKG"
 
 platform = "Windows"
 
-platform_files = os.listdir(TARGET_DIR / platform)
+platform_files = os.listdir(os.path.join(TARGET_DIR , platform))
 pattern_no_suffix = re.compile(r'^.+$')
 
 PROJ = "not found"
 for f in platform_files:
     if  pattern_no_suffix.match(f):
-        fp = TARGET_DIR / platform / f
+        fp = os.path.join(TARGET_DIR , platform , f)
         if os.path.isdir(fp):
             PROJ = f
             print("found proj", PROJ)
