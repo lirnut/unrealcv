@@ -21,6 +21,8 @@ void FDeferredTaskScheduler::Tick(float DeltaTime)
 
 		double CurrentTime = FPlatformTime::Seconds();
 
+		UE_LOG(LogTemp, Warning, TEXT("FDeferredTaskScheduler::Tick, delta time %f"), DeltaTime)
+
 		for (int32 i = PendingTasks.Num() - 1; i >= 0; --i)
 		{
 			FScheduledTask& Task = PendingTasks[i];

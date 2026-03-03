@@ -1,5 +1,12 @@
 #include "RuntimeActorSetterBPLib.h"
 #include "Components/PrimitiveComponent.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "EngineUtils.h"
+#include "UnrealcvLog.h"
+
+TArray<TWeakObjectPtr<AActor>> URuntimeActorSetterBPLib::PausedActors;
+TArray<TWeakObjectPtr<UActorComponent>> URuntimeActorSetterBPLib::PausedComponents;
 
 void URuntimeActorSetterBPLib::CollectPrimitiveComponentsRecursive(USceneComponent* SceneComponent, TArray<UPrimitiveComponent*>& OutComponents)
 {
@@ -112,4 +119,119 @@ bool URuntimeActorSetterBPLib::GetActorComponents(AActor* Actor, TArray<UPrimiti
 {
     FindAllPrimitiveComponentsInActor(Actor, OutComponents);
     return OutComponents.Num() > 0;
+}
+
+void URuntimeActorSetterBPLib::PauseAllActorsExceptPawn(UObject* WorldContextObject)
+{
+    UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+    if (!World)
+    {
+        UE_LOG(LogUnrealCV, Error, TEXT("PauseAllActorsExceptPawn: Invalid world context"));
+        return;
+    }
+
+    APlayerController* PlayerController = World->GetFirstPlayerController();
+    APawn* PlayerPawn = PlayerController ? PlayerController->GetPawn() : nullptr;
+
+    PausedActors.Empty();
+    PausedComponents.Empty();
+
+    for (FActorIterator It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!IsValid(Actor))
+        {
+            continue;
+        }
+
+        if (Actor == PlayerPawn)
+        {
+            continue;
+        }
+
+        if (Actor->IsActorTickEnabled())
+        {
+            PausedActors.Add(Actor);
+            Actor->SetActorTickEnabled(false);
+        }
+
+        TArray<UActorComponent*> AllComponents;
+        Actor->GetComponents(AllComponents);
+
+        for (UActorComponent* Comp : AllComponents)
+        {
+            if (!IsValid(Comp))
+            {
+                continue;
+            }
+
+            if (Comp->IsComponentTickEnabled())
+            {
+                PausedComponents.Add(Comp);
+                Comp->SetComponentTickEnabled(false);
+            }
+        }
+    }
+
+    UE_LOG(LogUnrealCV, Log, TEXT("PauseAllActorsExceptPawn: Paused %d actors, %d components"),
+        PausedActors.Num(), PausedComponents.Num());
+}
+
+void URuntimeActorSetterBPLib::ResumeAllActors()
+{
+    for (const TWeakObjectPtr<AActor>& WeakActor : PausedActors)
+    {
+        if (AActor* Actor = WeakActor.Get())
+        {
+            Actor->SetActorTickEnabled(true);
+        }
+    }
+
+    for (const TWeakObjectPtr<UActorComponent>& WeakComp : PausedComponents)
+    {
+        if (UActorComponent* Comp = WeakComp.Get())
+        {
+            Comp->SetComponentTickEnabled(true);
+        }
+    }
+
+    UE_LOG(LogUnrealCV, Log, TEXT("ResumeAllActors: Resumed %d actors, %d components"),
+        PausedActors.Num(), PausedComponents.Num());
+
+    PausedActors.Empty();
+    PausedComponents.Empty();
+}
+
+void URuntimeActorSetterBPLib::SetCustomTimeDilationAllActorsExceptPawn(UObject* WorldContextObject, float TimeDilation)
+{
+    UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+    if (!World)
+    {
+        UE_LOG(LogUnrealCV, Error, TEXT("SetCustomTimeDilationAllActorsExceptPawn: Invalid world context"));
+        return;
+    }
+
+    APlayerController* PlayerController = World->GetFirstPlayerController();
+    APawn* PlayerPawn = PlayerController ? PlayerController->GetPawn() : nullptr;
+
+    int32 Count = 0;
+    for (FActorIterator It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!IsValid(Actor))
+        {
+            continue;
+        }
+
+        if (Actor == PlayerPawn)
+        {
+            continue;
+        }
+
+        Actor->CustomTimeDilation = TimeDilation;
+        Count++;
+    }
+
+    UE_LOG(LogUnrealCV, Log, TEXT("SetCustomTimeDilationAllActorsExceptPawn: Set %.2f for %d actors"),
+        TimeDilation, Count);
 }

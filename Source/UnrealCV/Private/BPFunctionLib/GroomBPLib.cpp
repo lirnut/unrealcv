@@ -1,6 +1,7 @@
 #include "GroomBPLib.h"
 #include "GroomComponent.h"
 #include "GroomAssetPhysics.h"
+#include "NiagaraComponent.h"
 
 namespace
 {
@@ -219,6 +220,92 @@ bool UGroomBPLib::ResetHairSimulation(AActor* Actor)
         if (IsValid(GroomComp))
         {
             GroomComp->ResetSimulation();
+        }
+    }
+    return true;
+}
+
+bool UGroomBPLib::PauseHairSimulation(AActor* Actor)
+{
+    TArray<UGroomComponent*> GroomComponents;
+    FindAllGroomComponentsInActor(Actor, GroomComponents);
+
+    if (GroomComponents.Num() == 0)
+    {
+        return false;
+    }
+
+    for (UGroomComponent* GroomComp : GroomComponents)
+    {
+        if (IsValid(GroomComp))
+        {
+            int32 GroupCount = GroomComp->GetGroupCount();
+            for (int32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
+            {
+                UNiagaraComponent* NiagaraComp = GroomComp->GetNiagaraComponent(GroupIndex);
+                if (IsValid(NiagaraComp))
+                {
+                    NiagaraComp->SetPaused(true);
+                }
+            }
+            GroomComp->SetComponentTickEnabled(false);
+        }
+    }
+    return true;
+}
+
+bool UGroomBPLib::ResumeHairSimulation(AActor* Actor)
+{
+    TArray<UGroomComponent*> GroomComponents;
+    FindAllGroomComponentsInActor(Actor, GroomComponents);
+
+    if (GroomComponents.Num() == 0)
+    {
+        return false;
+    }
+
+    for (UGroomComponent* GroomComp : GroomComponents)
+    {
+        if (IsValid(GroomComp))
+        {
+            int32 GroupCount = GroomComp->GetGroupCount();
+            for (int32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
+            {
+                UNiagaraComponent* NiagaraComp = GroomComp->GetNiagaraComponent(GroupIndex);
+                if (IsValid(NiagaraComp))
+                {
+                    NiagaraComp->SetPaused(false);
+                }
+            }
+            GroomComp->SetComponentTickEnabled(true);
+        }
+    }
+    return true;
+}
+
+bool UGroomBPLib::SetHairSimulationTimeDilation(AActor* Actor, float TimeDilation)
+{
+    TArray<UGroomComponent*> GroomComponents;
+    FindAllGroomComponentsInActor(Actor, GroomComponents);
+
+    if (GroomComponents.Num() == 0)
+    {
+        return false;
+    }
+
+    for (UGroomComponent* GroomComp : GroomComponents)
+    {
+        if (IsValid(GroomComp))
+        {
+            int32 GroupCount = GroomComp->GetGroupCount();
+            for (int32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
+            {
+                UNiagaraComponent* NiagaraComp = GroomComp->GetNiagaraComponent(GroupIndex);
+                if (IsValid(NiagaraComp))
+                {
+                    NiagaraComp->SetCustomTimeDilation(TimeDilation);
+                }
+            }
         }
     }
     return true;

@@ -75,6 +75,9 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 
 	MP4EncodedFrameCount = 0;
 
+	InterpolationAlpha = 0.0f;
+	LastTrajectoryCaptureTime = 0.0f;
+	bHasValidPrevPose = false;
 
 	Billboard = CreateDefaultSubobject<UMaterialBillboardComponent>(TEXT("BillboardComponent"));
 	if (!IsRunningCommandlet() && (Billboard != nullptr))
@@ -95,50 +98,110 @@ void AFusionCamCaptureActor::BeginPlay()
 void AFusionCamCaptureActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	// Move foreground actor if movement is enabled
+
+	static const bool bUseOffsetForInterpolation = true;
+
+	if (!bIsRecording || !IsValid(TargetSensor))
+	{
+		return;
+	}
+
+	if (CurrentTrajectoryIndex < CurrentTrajectory.Num() && bHasValidPrevPose)
+	{
+		float TimePerFrame = 1.0f / RecordFPS;
+		float CurrentTime = GetWorld()->GetTimeSeconds();
+		float TimeSinceLastCapture = CurrentTime - LastTrajectoryCaptureTime;
+
+		if (TimePerFrame > 0.0f)
+		{
+			InterpolationAlpha = FMath::Clamp(TimeSinceLastCapture / TimePerFrame, 0.0f, 1.0f);
+		}
+
+		FVector ForegroundDisplacement = FVector::ZeroVector;
+		if (bTrackForegroundMovement && IsValid(TargetForeground))
+		{
+			ForegroundDisplacement = TargetForeground->GetActorLocation() - ForegroundStartPos;
+		}
+
+		FVector InterpLocation = FMath::Lerp(PrevTrajectoryLocation, TargetTrajectoryLocation, InterpolationAlpha);
+		FRotator InterpRotation = FMath::Lerp(PrevTrajectoryRotation, TargetTrajectoryRotation, InterpolationAlpha);
+
+		InterpLocation += ForegroundDisplacement;
+		if (FMath::Abs(ForegroundMoveSpeed) < 0.1)
+		{
+			FVector CurrentLocation = TargetSensor->GetSensorLocation();
+			FRotator CurrentRotation = TargetSensor->GetSensorRotation();
+
+			FVector DeltaLocation = InterpLocation - CurrentLocation;
+			FRotator DeltaRotation = InterpRotation - CurrentRotation;
+			DeltaRotation.Normalize();
+
+			if (bUseOffsetForInterpolation)
+			{
+				if (!DeltaLocation.IsNearlyZero())
+				{
+					TargetSensor->AddWorldOffset(DeltaLocation);
+				}
+				if (!DeltaRotation.IsNearlyZero())
+				{
+					TargetSensor->AddWorldRotation(DeltaRotation);
+				}
+			}
+			else
+			{
+				TargetSensor->SetSensorLocation(InterpLocation);
+				TargetSensor->SetSensorRotation(InterpRotation);
+			}
+
+			UWorld* World = GetWorld();
+			if (!World)
+			{
+				check(false);
+			}
+			APlayerController* PC = World->GetFirstPlayerController();
+			if (!PC)
+			{
+				UE_LOG(LogUnrealCV, Error, TEXT("PC is null ..."));
+				return;
+			}
+			PC->ClientSetRotation(InterpRotation);
+
+			APawn* Pawn = PC->GetPawn();
+			if (Pawn)
+			{
+				Pawn->AddActorWorldOffset(InterpLocation - Pawn->GetActorLocation());
+			}
+		}
+	}
+
 	if (bTrackForegroundMovement && ForegroundMoveSpeed > 0 && IsValid(TargetForeground))
 	{
-		// float DeltaTime = 1.0f / RecordFPS;
-
-		// Calculate direction based on actor forward + angle offset
 		FRotator OffsetRotator(0, ForegroundMoveAngleOffset, 0);
 		FVector LocalDir = OffsetRotator.RotateVector(FVector::ForwardVector);
-		// FVector WorldOffset = TargetForeground->GetActorRotation().RotateVector(LocalDir);
-
-		// FVector NewPos = TargetForeground->GetActorLocation() +
-		//                  WorldOffset * ForegroundMoveSpeed * DeltaTime;
-		// TargetForeground->SetActorLocation(NewPos, true);  // sweep=true to prevent clipping
-		// TargetForeground->SetActorLocation(NewPos, false);
-      	FVector Delta = LocalDir * ForegroundMoveSpeed * DeltaTime;
-      	TargetForeground->AddActorLocalOffset(Delta);
-
+		FVector Delta = LocalDir * ForegroundMoveSpeed * DeltaTime;
+		TargetForeground->AddActorLocalOffset(Delta);
 
 		FVector WorldDelta = TargetForeground->GetActorRotation().RotateVector(Delta);
 		UWorld* World = GetWorld();
 		if (!World)
 		{
-			return;
+			check(false);
 		}
 		APlayerController* PC = World->GetFirstPlayerController();
 		if (!PC)
 		{
+			UE_LOG(LogUnrealCV, Error, TEXT("PC is null ..."));
 			return;
 		}
-		if (IsValid(TargetSensor))
+		FRotator ComponentRotation = TargetSensor->GetSensorRotation();
+		PC->ClientSetRotation(ComponentRotation);
+
+		APawn* Pawn = PC->GetPawn();
+		if (Pawn)
 		{
-			FRotator ComponentRotation = TargetSensor->GetSensorRotation();
-			PC->ClientSetRotation(ComponentRotation);
-
-			APawn* Pawn = PC->GetPawn();
-			if (Pawn)
-			{
-				Pawn->AddActorWorldOffset(WorldDelta);
-			}
-			TargetSensor->AddWorldOffset(WorldDelta);
+			Pawn->AddActorWorldOffset(WorldDelta);
 		}
-
 	}
-
 }
 
 void AFusionCamCaptureActor::SetSceneHandle(const FSceneHandle& InSceneHandle)
@@ -179,69 +242,11 @@ void AFusionCamCaptureActor::StopRecord()
 				TargetSensor->SetSensorRotation(OriginalCameraRotation);
 			}
 
-		// 	if (IsValid(TargetSensor->GetLitCamSensor()))
-		// 	{
-		// 		TargetSensor->GetLitCamSensor()->CleanCaptureCache();
-		// 	}
-		// 	if (IsValid(TargetSensor->GetDepthCamSensor()))
-		// 	{
-		// 		TargetSensor->GetDepthCamSensor()->CleanCaptureCache();
-		// 	}
-		// 	if (IsValid(TargetSensor->GetAnnotationCamSensor()))
-		// 	{
-		// 		TargetSensor->GetAnnotationCamSensor()->CleanCaptureCache();
-		// 	}
-		// 	if (IsValid(TargetSensor->GetNormalCamSensor()))
-		// 	{
-		// 		TargetSensor->GetNormalCamSensor()->CleanCaptureCache();
-		// 	}
-		// 	if (IsValid(TargetSensor->GetFlowCamSensor()))
-		// 	{
-		// 		TargetSensor->GetFlowCamSensor()->CleanCaptureCache();
-		// 	}
-		// }
-
-		// if (IsValid(BackupSensor))
-		// {
-		// 	if (IsValid(BackupSensor->GetLitCamSensor()))
-		// 	{
-		// 		BackupSensor->GetLitCamSensor()->CleanCaptureCache();
-		// 	}
-		// 	if (IsValid(BackupSensor->GetDepthCamSensor()))
-		// 	{
-		// 		BackupSensor->GetDepthCamSensor()->CleanCaptureCache();
-		// 	}
-		// 	if (IsValid(BackupSensor->GetAnnotationCamSensor()))
-		// 	{
-		// 		BackupSensor->GetAnnotationCamSensor()->CleanCaptureCache();
-		// 	}
-		// 	if (IsValid(BackupSensor->GetNormalCamSensor()))
-		// 	{
-		// 		BackupSensor->GetNormalCamSensor()->CleanCaptureCache();
-		// 	}
-		// 	if (IsValid(BackupSensor->GetFlowCamSensor()))
-		// 	{
-		// 		BackupSensor->GetFlowCamSensor()->CleanCaptureCache();
-		// 	}
 		}
 
 		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: Stop recording. %d frames recorded. Real Duration: %.2fs, Real FPS: %.2f"),
 			ElapsedSteps, RealWorldTimeDurationSeconds, RealWorldTimeFPS);
 
-
-
-// #if PLATFORM_WINDOWS
-// 		if (MP4Encoder && MP4Encoder->IsInitialized())
-// 		{
-// 			// World->GetTimerManager().SetTimerForNextTick([this]() {
-// 			MP4Encoder->Finalize();
-// 			MP4Encoder.Reset();
-// 			UE_LOG(LogUnrealCV, Log, TEXT("H.264 recording finished: %d frames -> %s"),
-// 					MP4EncodedFrameCount, *MP4OutputPath);
-// 			// });
-			
-// 		}
-// #endif
 
 		if (RecordingDataTypes.bRecordAudio)
 		{
@@ -255,6 +260,13 @@ void AFusionCamCaptureActor::StopRecord()
 		TargetForeground = nullptr;
 		CurrentTrajectory.Empty();
 		CurrentTrajectoryIndex = 0;
+
+		bHasValidPrevPose = false;
+		InterpolationAlpha = 0.0f;
+		PrevTrajectoryLocation = FVector::ZeroVector;
+		PrevTrajectoryRotation = FRotator::ZeroRotator;
+		TargetTrajectoryLocation = FVector::ZeroVector;
+		TargetTrajectoryRotation = FRotator::ZeroRotator;
 
 		if (IsValid(BackupSensor))
 		{
@@ -289,6 +301,11 @@ void AFusionCamCaptureActor::OnTimerRecord()
 {
 	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] OnTimerRecord START - CurrentTrajectoryIndex: %d, ElapsedSteps: %d"), CurrentTrajectoryIndex, ElapsedSteps);
 
+	if (bPaused)
+	{
+		return;
+	}
+
 	if (!IsValid(TargetSensor))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: TargetSensor became invalid during recording!"));
@@ -305,7 +322,6 @@ void AFusionCamCaptureActor::OnTimerRecord()
 
 	UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] OnTimerRecord - Before MoveTo lambda"));
 
-	// Calculate foreground displacement for moving foreground tracking
 	FVector ForegroundDisplacement = FVector::ZeroVector;
 	if (bTrackForegroundMovement && IsValid(TargetForeground))
 	{
@@ -318,23 +334,17 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		FRotator Rotation
 	)
 	{
-		// Apply foreground displacement to trajectory position
 		FVector FinalLocation = TrajectoryLocation + ForegroundDisplacement;
 		TargetSensor->SetSensorLocation(FinalLocation);
 		TargetSensor->SetSensorRotation(Rotation);
-	};
 
-	// if (WarmUpElapsedFrames < WarmUpFrames)
-	// {
-	// 	if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
-	// 	{
-	// 		TargetSensor->SetSensorLocation(CurrentTrajectory[CurrentTrajectoryIndex].Location);
-	// 		TargetSensor->SetSensorRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation);
-	// 	}
-	// 	// CurrentTrajectoryIndex++;
-	// 	WarmUpElapsedFrames++;
-	// 	return;
-	// }
+		PrevTrajectoryLocation = TrajectoryLocation;
+		PrevTrajectoryRotation = Rotation;
+		TargetTrajectoryLocation = TrajectoryLocation;
+		TargetTrajectoryRotation = Rotation;
+		LastTrajectoryCaptureTime = GetWorld()->GetTimeSeconds();
+		bHasValidPrevPose = true;
+	};
 
 	float EffectiveTimeDilation = TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation;
 
@@ -343,10 +353,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 	if (FMath::IsNearlyZero(EffectiveTimeDilation))
 	{
 		WorldSettings->SetTimeDilation(0.0f);
-		// TargetSensor->GetMovieQualityRenderer()->bRenderImmediately = true;
 
-		// while (CurrentTrajectoryIndex < CurrentTrajectory.Num() &&
-		// 	   FMath::IsNearlyZero(TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation))
 		{
 			if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 			{
@@ -366,7 +373,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 			{
 				WarmUpElapsedFrames++;
 			}
-			else 
+			else
 			{
 				ElapsedSteps++;
 				CurrentTrajectoryIndex++;
@@ -378,19 +385,32 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		{
 			FDeferredTaskScheduler::Get().ScheduleTask([this]() {
 				OnTimerRecord();
-			}, 0.1);
+			}, 0.01);
 		}
 	}
 	else
 	{
-		// TargetSensor->GetMovieQualityRenderer()->bRenderImmediately = false;
 		if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 		{
-			MoveTo(
-				TargetSensor->GetSensorLocation(),
-				CurrentTrajectory[CurrentTrajectoryIndex].Location,
-				CurrentTrajectory[CurrentTrajectoryIndex].Rotation
-			);
+			if (bHasValidPrevPose)
+			{
+				PrevTrajectoryLocation = TargetTrajectoryLocation;
+				PrevTrajectoryRotation = TargetTrajectoryRotation;
+			}
+			else
+			{
+				PrevTrajectoryLocation = CurrentTrajectory[CurrentTrajectoryIndex].Location;
+				PrevTrajectoryRotation = CurrentTrajectory[CurrentTrajectoryIndex].Rotation;
+			}
+
+			TargetTrajectoryLocation = CurrentTrajectory[CurrentTrajectoryIndex].Location;
+			TargetTrajectoryRotation = CurrentTrajectory[CurrentTrajectoryIndex].Rotation;
+			LastTrajectoryCaptureTime = GetWorld()->GetTimeSeconds();
+			bHasValidPrevPose = true;
+
+			FVector FinalLocation = TargetTrajectoryLocation + ForegroundDisplacement;
+			TargetSensor->SetSensorLocation(FinalLocation);
+			TargetSensor->SetSensorRotation(TargetTrajectoryRotation);
 		}
 
 		UpdateFocalDistance();
@@ -401,7 +421,7 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		{
 			WarmUpElapsedFrames++;
 		}
-		else 
+		else
 		{
 			ElapsedSteps++;
 			CurrentTrajectoryIndex++;
@@ -1347,6 +1367,7 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 
 	PrepareTrajectoryRecord(Target, FPS);
 
+	bPaused = false;
 	RecordFileName = FileName;
 	RecordFPS = FPS;
 	ElapsedSteps = 0;
@@ -1422,6 +1443,7 @@ void AFusionCamCaptureActor::StartSimpleRecording(const FString& FileName, int32
 		SimpleTrajectory.Add(Pose);
 	}
 
+	bPaused = false;
 	RecordFileName = FileName;
 	RecordFPS = FPS;
 	ElapsedSteps = 0;
@@ -1451,49 +1473,6 @@ void AFusionCamCaptureActor::SetDefaultParamsForTargetCamera()
 		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: TargetSensor is not set!"));
 		return;
 	}
-
-	static auto CVarForceLOD = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ForceLOD"));
-	// static auto CVarViewDistanceScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ViewDistanceScale"));
-	// static auto CVarShadowQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShadowQuality"));
-	// static auto CVarPostProcessQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PostProcessQuality"));
-	// static auto CVarTextureQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TextureQuality"));
-	// static auto CVarEffectsQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EffectsQuality"));
-	// static auto CVarFoliageQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.FoliageQuality"));
-	// static auto CVarShadingQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShadingQuality"));
-	// static auto CVarAntiAliasingQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AntiAliasingQuality"));
-	// static auto CVarMotionBlurQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MotionBlurQuality"));
-	// static auto CVarAmbientOcclusionLevels = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientOcclusionLevels"));
-	// static auto CVarSSRQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SSR.Quality"));
-	// static auto CVarBloomQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BloomQuality"));
-	// static auto CVarDepthOfFieldQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DepthOfFieldQuality"));
-	// static auto CVarLightShaftQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LightShaftQuality"));
-	// static auto CVarRefractionQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RefractionQuality"));
-	// static auto CVarTranslucencyLightingVolume = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TranslucencyLightingVolume"));
-	// static auto CVarMaxAnisotropy = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MaxAnisotropy"));
-	// static auto CVarDynamicGlobalIlluminationMethod = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DynamicGlobalIlluminationMethod"));
-	// static auto CVarLumenReflectionsAllow = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.Reflections.Allow"));
-
-	if (CVarForceLOD) { CVarForceLOD->Set(0); }
-	// if (CVarViewDistanceScale) { CVarViewDistanceScale->Set(1.0f); }
-	// if (CVarShadowQuality) { CVarShadowQuality->Set(5); }
-	// if (CVarPostProcessQuality) { CVarPostProcessQuality->Set(5); }
-	// if (CVarTextureQuality) { CVarTextureQuality->Set(5); }
-	// if (CVarEffectsQuality) { CVarEffectsQuality->Set(5); }
-	// if (CVarFoliageQuality) { CVarFoliageQuality->Set(5); }
-	// if (CVarShadingQuality) { CVarShadingQuality->Set(5); }
-	// if (CVarAntiAliasingQuality) { CVarAntiAliasingQuality->Set(5); }
-	// if (CVarMotionBlurQuality) { CVarMotionBlurQuality->Set(4); }
-	// if (CVarAmbientOcclusionLevels) { CVarAmbientOcclusionLevels->Set(3); }
-	// if (CVarSSRQuality) { CVarSSRQuality->Set(4); }
-	// if (CVarBloomQuality) { CVarBloomQuality->Set(5); }
-	// if (CVarDepthOfFieldQuality) { CVarDepthOfFieldQuality->Set(4); }
-	// if (CVarLightShaftQuality) { CVarLightShaftQuality->Set(1); }
-	// if (CVarRefractionQuality) { CVarRefractionQuality->Set(2); }
-	// if (CVarTranslucencyLightingVolume) { CVarTranslucencyLightingVolume->Set(1); }
-	// if (CVarMaxAnisotropy) { CVarMaxAnisotropy->Set(16); }
-	// if (CVarDynamicGlobalIlluminationMethod) { CVarDynamicGlobalIlluminationMethod->Set(1); }
-	// if (CVarLumenReflectionsAllow) { CVarLumenReflectionsAllow->Set(1); }
-
 	TargetSensor->GetLitCamSensor()->ConfigureMaxQualityLumen();
 	TargetSensor->SetReflectionMethod(EReflectionMethod::Type::Lumen);
     TargetSensor->SetGlobalIlluminationMethod(EDynamicGlobalIlluminationMethod::Type::Lumen);
@@ -1610,28 +1589,28 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateTra
 	switch (TrajectoryType)
 	{
 	case ECameraTrajectoryType::RotateLeft45:
-		return CalculateRotateLeft(Target, InNumFrames, 45.0f);
+		return CalculateRotateLeft(Target, InNumFrames, 45.0f, 0.0f);
 	case ECameraTrajectoryType::RotateLeft30:
-		return CalculateRotateLeft(Target, InNumFrames, 30.0f);
+		return CalculateRotateLeft(Target, InNumFrames, 30.0f, 0.0f);
 	case ECameraTrajectoryType::RotateRight45:
-		return CalculateRotateRight(Target, InNumFrames, -45.0f);
+		return CalculateRotateRight(Target, InNumFrames, -45.0f, 0.0f);
 	case ECameraTrajectoryType::RotateRight30:
-		return CalculateRotateRight(Target, InNumFrames, -30.0f);
+		return CalculateRotateRight(Target, InNumFrames, -30.0f, 0.0f);
 	case ECameraTrajectoryType::RotateUp45:
-		return CalculateRotateUp(Target, InNumFrames, 45.0f);
+		return CalculateRotateUp(Target, InNumFrames, 45.0f, 0.0f);
 	case ECameraTrajectoryType::RotateUp30:
-		return CalculateRotateUp(Target, InNumFrames, 30.0f);
+		return CalculateRotateUp(Target, InNumFrames, 30.0f, 0.0f);
 	case ECameraTrajectoryType::Rotate360:
-		return CalculateRotate360(Target, InNumFrames);
+		return CalculateRotate360(Target, InNumFrames, 0.0f);
 	case ECameraTrajectoryType::ZoomIn:
-		return CalculateZoomIn(Target, InNumFrames);
+		return CalculateZoomIn(Target, InNumFrames, 0.0f);
 	case ECameraTrajectoryType::ZoomOut:
-		return CalculateZoomOut(Target, InNumFrames);
+		return CalculateZoomOut(Target, InNumFrames, 0.0f);
 	case ECameraTrajectoryType::RandomDirection1:
 	case ECameraTrajectoryType::RandomDirection2:
 	case ECameraTrajectoryType::RandomDirection3:
 	case ECameraTrajectoryType::RandomDirection4:
-		return CalculateRandomDirection(Target, InNumFrames, RandomSeed);
+		return CalculateRandomDirection(Target, InNumFrames, RandomSeed, 0.0f);
 	case ECameraTrajectoryType::RenderOnly:
 	case ECameraTrajectoryType::RenderOnly5S:
 		return AddHandheldShake(CalculateRenderOnly(InNumFrames));
@@ -1966,7 +1945,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 	return AddRotateBufferFrames(CoreTrajectory);
 }
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotate360(AActor* Target, int32 InNumFrames)
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRotate360(AActor* Target, int32 InNumFrames, float DesiredEstTimeDilation)
 {
 	TArray<FCameraPose> CoreTrajectory;
 	FVector TargetLocation = UnifiedTargetLocation;
@@ -1992,14 +1971,14 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
-		Pose.DesiredEstTimeDilation = 0.0f;
+		Pose.DesiredEstTimeDilation = DesiredEstTimeDilation;
 		CoreTrajectory.Add(Pose);
 	}
 
 	return AddRotateBufferFrames(CoreTrajectory);
 }
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomIn(AActor* Target, int32 InNumFrames)
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomIn(AActor* Target, int32 InNumFrames, float DesiredEstTimeDilation)
 {
 	TArray<FCameraPose> Trajectory;
 	FVector TargetLocation = UnifiedTargetLocation;
@@ -2019,19 +1998,18 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 
 		FVector NewOffset = Offset.GetSafeNormal() * CurrentDistance;
 		FVector NewLocation = TargetLocation + NewOffset;
-		// FRotator NewRotation = (TargetLocation - NewLocation).Rotation();
 
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = OriginalRotation;
-		Pose.DesiredEstTimeDilation = 0.0f;
+		Pose.DesiredEstTimeDilation = DesiredEstTimeDilation;
 		Trajectory.Add(Pose);
 	}
 
 	return AddRotateBufferFrames(Trajectory);
 }
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomOut(AActor* Target, int32 InNumFrames)
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoomOut(AActor* Target, int32 InNumFrames, float DesiredEstTimeDilation)
 {
 	TArray<FCameraPose> Trajectory;
 	FVector TargetLocation = UnifiedTargetLocation;
@@ -2051,19 +2029,18 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateZoo
 
 		FVector NewOffset = Offset.GetSafeNormal() * CurrentDistance;
 		FVector NewLocation = TargetLocation + NewOffset;
-		// FRotator NewRotation = (TargetLocation - NewLocation).Rotation();
 
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = OriginalRotation;
-		Pose.DesiredEstTimeDilation = 0.0f;
+		Pose.DesiredEstTimeDilation = DesiredEstTimeDilation;
 		Trajectory.Add(Pose);
 	}
 
 	return AddRotateBufferFrames(Trajectory);
 }
 
-TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRandomDirection(AActor* Target, int32 InNumFrames, int32 RandomSeed)
+TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRandomDirection(AActor* Target, int32 InNumFrames, int32 RandomSeed, float DesiredEstTimeDilation)
 {
 	TArray<FCameraPose> Trajectory;
 	FVector TargetLocation = UnifiedTargetLocation;
@@ -2099,9 +2076,6 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 		float Alpha = static_cast<float>(i) / (NumFrames - 1);
 		float CurrentDeg = FMath::Min(DegreesPerFrame * i, TotalRotationDeg);
 
-		// FQuat RotationQuat = FQuat(RandomAxis, FMath::DegreesToRadians(CurrentDeg));
-		// FVector NewOffset = RotationQuat.RotateVector(Offset);
-
 		FVector ToCamera = Offset.GetSafeNormal();
 		FVector RightVector = FVector::CrossProduct(ToCamera, FVector::UpVector).GetSafeNormal();
 		FQuat RotationQuatHori = FQuat(FVector::UpVector, FMath::DegreesToRadians(CurrentDeg * HoriParam));
@@ -2116,18 +2090,13 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 			NewOffset = NewOffset.GetSafeNormal() * CurrentDistance;
 		}
 
-		// float NewHeight = 25.;
 		FVector NewLocation = TargetLocation + NewOffset;
-		// if (NewLocation.Z < NewHeight)
-		// {
-		// 	NewLocation.Z = NewHeight;
-		// }
 		FRotator NewRotation = (TargetLocation - NewLocation).Rotation() + InitRotation;
 
 		FCameraPose Pose;
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
-		Pose.DesiredEstTimeDilation = 0.0f;
+		Pose.DesiredEstTimeDilation = DesiredEstTimeDilation;
 		Trajectory.Add(Pose);
 	}
 

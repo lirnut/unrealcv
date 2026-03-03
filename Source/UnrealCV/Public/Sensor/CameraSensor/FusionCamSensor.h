@@ -117,6 +117,12 @@ public:
 	void SetSensorRotation(FRotator Rotator);
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void AddWorldOffset(FVector Delta);
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void AddWorldRotation(FRotator DeltaRotation);
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	void SetFilmSize(int Width, int Height);
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")

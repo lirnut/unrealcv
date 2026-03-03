@@ -25,7 +25,19 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UnrealCV|RuntimeActor")
     static bool GetActorComponents(AActor* Actor, TArray<UPrimitiveComponent*>& OutComponents);
 
+    UFUNCTION(BlueprintCallable, Category = "UnrealCV|RuntimeActor", meta = (WorldContext = "WorldContextObject"))
+    static void PauseAllActorsExceptPawn(UObject* WorldContextObject);
+
+    UFUNCTION(BlueprintCallable, Category = "UnrealCV|RuntimeActor")
+    static void ResumeAllActors();
+
+    UFUNCTION(BlueprintCallable, Category = "UnrealCV|RuntimeActor", meta = (WorldContext = "WorldContextObject"))
+    static void SetCustomTimeDilationAllActorsExceptPawn(UObject* WorldContextObject, float TimeDilation);
+
 private:
     static void CollectPrimitiveComponentsRecursive(USceneComponent* SceneComponent, TArray<UPrimitiveComponent*>& OutComponents);
     static void FindAllPrimitiveComponentsInActor(AActor* Actor, TArray<UPrimitiveComponent*>& OutComponents);
+
+    static TArray<TWeakObjectPtr<AActor>> PausedActors;
+    static TArray<TWeakObjectPtr<UActorComponent>> PausedComponents;
 };

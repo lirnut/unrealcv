@@ -47,7 +47,7 @@ struct FRecordingSettings
 	FString VideoGenScriptPath;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 WarmUpFrames = 5;
+	int32 WarmUpFrames = 2;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVideoEncoderSettings VideoEncoder;
@@ -341,6 +341,9 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "FusionCamCapture| Recording")
 	int32 WarmUpFrames;
 
+	UPROPERTY(BlueprintReadWrite, Category = "FusionCamCapture| Recording")
+	bool bPaused = false;
+
 
 	FVector GetTargetLocationWithOffset(AActor* Target);
 
@@ -368,6 +371,15 @@ protected:
 	int32 RecordFPS;
 	AActor* TargetForeground;
 	int32 NumFrames;
+
+	// Smooth trajectory interpolation state
+	float InterpolationAlpha;
+	float LastTrajectoryCaptureTime;
+	FVector PrevTrajectoryLocation;
+	FRotator PrevTrajectoryRotation;
+	FVector TargetTrajectoryLocation;
+	FRotator TargetTrajectoryRotation;
+	bool bHasValidPrevPose;
 
 	FDateTime RealWorldTimeRecordingStart;
 	FDateTime RealWorldTimeRecordingEnd;
@@ -422,10 +434,10 @@ protected:
 	TArray<FCameraPose> CalculateRotateUp(AActor* Target, int32 InNumFrames, float RotationDegs, float DesiredEstTimeDilation = 0.0f);
 	// TArray<FCameraPose> CalculateRotateUp45(AActor* Target, int32 InNumFrames);
 	// TArray<FCameraPose> CalculateRotateUp30(AActor* Target, int32 InNumFrames);
-	TArray<FCameraPose> CalculateRotate360(AActor* Target, int32 InNumFrames);
-	TArray<FCameraPose> CalculateZoomIn(AActor* Target, int32 InNumFrames);
-	TArray<FCameraPose> CalculateZoomOut(AActor* Target, int32 InNumFrames);
-	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, int32 InNumFrames, int32 RandomSeed);
+	TArray<FCameraPose> CalculateRotate360(AActor* Target, int32 InNumFrames, float DesiredEstTimeDilation = 0.0f);
+	TArray<FCameraPose> CalculateZoomIn(AActor* Target, int32 InNumFrames, float DesiredEstTimeDilation = 0.0f);
+	TArray<FCameraPose> CalculateZoomOut(AActor* Target, int32 InNumFrames, float DesiredEstTimeDilation = 0.0f);
+	TArray<FCameraPose> CalculateRandomDirection(AActor* Target, int32 InNumFrames, int32 RandomSeed, float DesiredEstTimeDilation = 0.0f);
 	TArray<FCameraPose> CalculateRenderOnly(int32 InNumFrames);
 	TArray<FCameraPose> CalculateRenderLeftRotate(int32 InNumFrames);
 	TArray<FCameraPose> CalculateRenderRightRotate(int32 InNumFrames);

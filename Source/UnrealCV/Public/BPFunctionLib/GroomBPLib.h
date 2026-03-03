@@ -39,4 +39,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UnrealCV|Groom")
     static bool ResetHairSimulation(AActor* Actor);
 
+    UFUNCTION(BlueprintCallable, Category = "UnrealCV|Groom")
+    static bool PauseHairSimulation(AActor* Actor);
+
+    UFUNCTION(BlueprintCallable, Category = "UnrealCV|Groom")
+    static bool ResumeHairSimulation(AActor* Actor);
+
+    UFUNCTION(BlueprintCallable, Category = "UnrealCV|Groom")
+    static bool SetHairSimulationTimeDilation(AActor* Actor, float TimeDilation);
+
 };

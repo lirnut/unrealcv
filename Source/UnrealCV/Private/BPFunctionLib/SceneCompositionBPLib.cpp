@@ -1845,3 +1845,111 @@ TArray<FVector> USceneCompositionBPLib::GetSafePointsForScene(const FString& Sce
 	return SafePoints;
 }
 
+AActor* USceneCompositionBPLib::PreviewSafePoint(
+	UObject* WorldContextObject,
+	FVector Location,
+	const FString& ForegroundPathSpec,
+	const FString& ForegroundCategory,
+	float Yaw)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("PreviewSafePoint: Invalid world context"));
+		return nullptr;
+	}
+
+	FAssetPoolManager& AssetPool = FAssetPoolManager::Get();
+
+	FString ResolvedCategory = ForegroundCategory;
+	TMap<FString, FString> ForegroundMetadata;
+
+	if (!ForegroundPathSpec.IsEmpty())
+	{
+		ForegroundMetadata = AssetPool.GetAssetMetadataByPath(ForegroundPathSpec);
+		if (ForegroundMetadata.Num() == 0)
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("PreviewSafePoint: Asset path '%s' not found in asset pool"), *ForegroundPathSpec);
+			return nullptr;
+		}
+		ResolvedCategory = AssetPool.GetCategoryByAssetPath(ForegroundPathSpec);
+	}
+	else
+	{
+		TArray<FString> AssetsInCategory = AssetPool.GetAssetsInCategory(ForegroundCategory);
+		if (AssetsInCategory.Num() == 0)
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("PreviewSafePoint: No assets in category '%s'"), *ForegroundCategory);
+			return nullptr;
+		}
+		ForegroundMetadata = AssetPool.GetAssetMetadataByPath(AssetsInCategory[0]);
+	}
+
+	if (ForegroundMetadata.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("PreviewSafePoint: Failed to get asset metadata"));
+		return nullptr;
+	}
+
+	FRotator ForegroundRotation = FRotator::ZeroRotator;
+	float FinalYaw = (Yaw == -1.0f) ? FMath::RandRange(0.0f, 360.0f) : Yaw;
+	ForegroundRotation.Yaw = FinalYaw - 90.0f;
+
+	AActor* PreviewActor = SpawnActorFromMetadata(World, ForegroundMetadata, Location, ForegroundRotation);
+	if (!IsValid(PreviewActor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("PreviewSafePoint: Failed to spawn preview actor"));
+		return nullptr;
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("PreviewSafePoint: Spawned preview actor '%s' at (%.2f, %.2f, %.2f)"),
+		*PreviewActor->GetName(), Location.X, Location.Y, Location.Z);
+
+	return PreviewActor;
+}
+
+AActor* USceneCompositionBPLib::PreviewSafePointWithSceneConfig(UObject* WorldContextObject, FVector Location)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("PreviewSafePointWithSceneConfig: Invalid world context"));
+		return nullptr;
+	}
+
+	FSceneGenerationParams Params;
+	if (!CreateSceneParamsFromJson(WorldContextObject, TEXT(""), Params))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("PreviewSafePointWithSceneConfig: Failed to load scene params from config"));
+		return nullptr;
+	}
+
+	return PreviewSafePoint(WorldContextObject, Location, Params.ForegroundPathSpec, Params.ForegroundCategory, Params.ForegroundYaw);
+}
+
+AActor* USceneCompositionBPLib::PreviewLastSafePoint()
+{
+	UWorld* World = GWorld;
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("PreviewLastSafePoint: Invalid world"));
+		return nullptr;
+	}
+
+	FString CurrentMapPath = World->GetMapName();
+	FString CurrentMapName = FJsonConfigHelper::ExtractMapNameFromPath(CurrentMapPath);
+
+	TArray<FVector> SafePoints = GetSafePointsForScene(CurrentMapName);
+	if (SafePoints.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("PreviewLastSafePoint: No safe points found for scene '%s'"), *CurrentMapName);
+		return nullptr;
+	}
+
+	FVector LastSafePoint = SafePoints.Last();
+	UE_LOG(LogUnrealCV, Log, TEXT("PreviewLastSafePoint: Previewing last safe point (%.2f, %.2f, %.2f)"),
+		LastSafePoint.X, LastSafePoint.Y, LastSafePoint.Z);
+
+	return PreviewSafePointWithSceneConfig(World, LastSafePoint);
+}
+

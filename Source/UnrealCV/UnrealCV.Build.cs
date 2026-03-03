@@ -63,6 +63,8 @@ public class UnrealcvBuildConfig
 			"AssetRegistry", // For MetaHuman asset discovery
 			"HairStrandsCore", // For GroomComponent annotation support
 			"Renderer", // For HairStrands interface functions
+			"Niagara", // For GroomComponent physics control
+			"NiagaraCore",
 			"MovieRenderPipelineCore",
 			"PakFile", // For runtime pak mounting
 			"Landscape" // For manual Landscape LOD computation

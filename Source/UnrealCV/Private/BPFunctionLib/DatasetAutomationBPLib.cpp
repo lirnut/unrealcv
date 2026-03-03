@@ -8,6 +8,7 @@
 #include "AnnotationBPLib.h"
 #include "AnimationBPLib.h"
 #include "GroomBPLib.h"
+#include "RuntimeActorSetterBPLib.h"
 #include "FusionCameraActor.h"
 #include "NavAgentController.h"
 #include "Engine/World.h"
@@ -80,15 +81,16 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeTrajectoryConfig();
 		CurrentConfig.NumFrames = 121;
 		CurrentConfig.TrajectoryFPS = 30;
- 		CurrentConfig.ForegroundMoveSpeed = 0.0f;
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /mqrc/render_immediately true")));
-		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.5")));
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.7")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_speed"), TEXT("0.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_angle_offset"), TEXT("0.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("250 400")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
-		CommandQueue.Add(FAutomationStep(TEXT("render_every_frame"), TEXT("true")));
+		// CommandQueue.Add(FAutomationStep(TEXT("render_every_frame"), TEXT("true")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
@@ -105,30 +107,56 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
 		float SyncFrame = FMath::RandRange(50.f, 70.f);
 		CommandQueue.Add(FAutomationStep(TEXT("special_wait"), FString::SanitizeFloat(SyncFrame)));
-		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
+		CommandQueue.Add(FAutomationStep(TEXT("pause_primary_capture_actor")));
+
+		// CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
+		// CommandQueue.Add(FAutomationStep(TEXT("pause_all_actors_except_pawn")));
+		CommandQueue.Add(FAutomationStep(TEXT("pause_groom_physics")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("0.0")));
+
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_30")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_30")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_360")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
 
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+
+		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("resume_groom_physics")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("1.0")));
+		// CommandQueue.Add(FAutomationStep(TEXT("resume_all_actors")));
+		CommandQueue.Add(FAutomationStep(TEXT("resume_primary_capture_actor")));
+
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
@@ -148,9 +176,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeMattingConfig();
 		CurrentConfig.NumFrames = 90;
 		CurrentConfig.TrajectoryFPS = 30;
- 		CurrentConfig.ForegroundMoveSpeed = 70.0f;
-		CurrentConfig.ForegroundMoveAngleOffset = 90.0f;
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.65")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_speed"), TEXT("70.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_angle_offset"), TEXT("90.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("120 155")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-60 60")));
@@ -203,8 +231,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeOmnimatteConfig();
 		CurrentConfig.NumFrames = 240;
 		CurrentConfig.TrajectoryFPS = 24;
- 		CurrentConfig.ForegroundMoveSpeed = 0.0f;
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.5")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_speed"), TEXT("0.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_angle_offset"), TEXT("0.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
@@ -231,7 +260,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeSpeedTestConfig();
 		CurrentConfig.NumFrames = 240;
 		CurrentConfig.TrajectoryFPS = 60;
- 		CurrentConfig.ForegroundMoveSpeed = 0.0f;
+		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_speed"), TEXT("0.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_angle_offset"), TEXT("0.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
@@ -793,6 +823,57 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		}
 		ExecuteNextCommand();
 	}
+	else if (Step.Command == TEXT("set_custom_time_dilation_except_pawn"))
+	{
+		float Dilation = FCString::Atof(*Step.StringParam);
+		URuntimeActorSetterBPLib::SetCustomTimeDilationAllActorsExceptPawn(WorldContext, Dilation);
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set custom time dilation %.2f for all actors except pawn"), Dilation);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("set_foreground_move_speed"))
+	{
+		CurrentStatus.ForegroundMoveSpeed = FCString::Atof(*Step.StringParam);
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set foreground move speed to %.2f"), CurrentStatus.ForegroundMoveSpeed);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("set_foreground_move_angle_offset"))
+	{
+		CurrentStatus.ForegroundMoveAngleOffset = FCString::Atof(*Step.StringParam);
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set foreground move angle offset to %.2f"), CurrentStatus.ForegroundMoveAngleOffset);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("pause_primary_capture_actor"))
+	{
+		int32 PrimaryCameraID = CurrentConfig.SceneParams.CameraID;
+		FString PrimaryCID = USensorBPLib::GetSensorNewFormatID(USensorBPLib::GetSensorById(PrimaryCameraID));
+		AFusionCamCaptureActor* PrimaryCaptureActor = URecordingBPLib::GetCaptureActor(PrimaryCID);
+		if (IsValid(PrimaryCaptureActor))
+		{
+			PrimaryCaptureActor->bPaused = true;
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Paused primary capture actor (camera %d)"), PrimaryCameraID);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: pause_primary_capture_actor - Primary capture actor not found"));
+		}
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("resume_primary_capture_actor"))
+	{
+		int32 PrimaryCameraID = CurrentConfig.SceneParams.CameraID;
+		FString PrimaryCID = USensorBPLib::GetSensorNewFormatID(USensorBPLib::GetSensorById(PrimaryCameraID));
+		AFusionCamCaptureActor* PrimaryCaptureActor = URecordingBPLib::GetCaptureActor(PrimaryCID);
+		if (IsValid(PrimaryCaptureActor))
+		{
+			PrimaryCaptureActor->bPaused = false;
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Resumed primary capture actor (camera %d)"), PrimaryCameraID);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: resume_primary_capture_actor - Primary capture actor not found"));
+		}
+		ExecuteNextCommand();
+	}
 	else if (Step.Command == TEXT("sync_secondary_cameras"))
 	{
 		bool AllFinished = true;
@@ -990,6 +1071,44 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		float Value = FCString::Atof(*Step.StringParam);
 		UGroomBPLib::SetHairStrandsViscosity(CurrentScene.ForegroundActor, Value);
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set groom strands viscosity to %.3f"), Value);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("pause_groom_physics"))
+	{
+		if (IsValid(CurrentScene.ForegroundActor))
+		{
+			UGroomBPLib::PauseHairSimulation(CurrentScene.ForegroundActor);
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Paused groom physics"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Cannot pause groom physics - ForegroundActor is null"));
+		}
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("resume_groom_physics"))
+	{
+		if (IsValid(CurrentScene.ForegroundActor))
+		{
+			UGroomBPLib::ResumeHairSimulation(CurrentScene.ForegroundActor);
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Resumed groom physics"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: Cannot resume groom physics - ForegroundActor is null"));
+		}
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("pause_all_actors_except_pawn"))
+	{
+		URuntimeActorSetterBPLib::PauseAllActorsExceptPawn(WorldContext);
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Paused all actors except pawn"));
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("resume_all_actors"))
+	{
+		URuntimeActorSetterBPLib::ResumeAllActors();
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Resumed all actors"));
 		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("load_random_level_every_n_scenes"))
@@ -1428,6 +1547,12 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 		check(PrimaryCam);
 		AllocatedCam->SetSensorLocation(PrimaryCam->GetSensorLocation());
 		AllocatedCam->SetSensorRotation(PrimaryCam->GetSensorRotation());
+		CaptureActor->ForegroundMoveSpeed = 0.0f;
+	}
+	else
+	{
+		CaptureActor->ForegroundMoveSpeed = CurrentStatus.ForegroundMoveSpeed;
+		CaptureActor->ForegroundMoveAngleOffset = CurrentStatus.ForegroundMoveAngleOffset;
 	}
 
 	CaptureActor->TargetHeightOffset = CurrentStatus.RandomTargetHeight;
@@ -1450,10 +1575,6 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	check(Target);
 	check(FPS > 0);
 	check(NumFrames > 0);
-
-	// FixMe: while mult-cam recording, the forground offset can be tick multiple times
-	CaptureActor->ForegroundMoveSpeed = CurrentConfig.ForegroundMoveSpeed;
-	CaptureActor->ForegroundMoveAngleOffset = CurrentConfig.ForegroundMoveAngleOffset;
 
 	CaptureActor->StartTrajectoryRecord(FileName, TrajectoryEnum, Target, FPS, NumFrames, RandomSeed, false);
 	return true;

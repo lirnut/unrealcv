@@ -43,12 +43,16 @@ void FMovieQualityViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewF
 	{
 		if (InViewFamily.Views.Num() > 0 && InViewFamily.Views[0] != nullptr)
 		{
-			Component->CachedMainViewPostProcessSettings = InViewFamily.Views[0]->FinalPostProcessSettings;
-			Component->CachedMainViewPostProcessSettings.BlendableManager = FBlendableManager();
+			static uint32 Counter = 0;
+			if (Counter % 100 == 0)
+			{
+				Component->CachedMainViewPostProcessSettings = InViewFamily.Views[0]->FinalPostProcessSettings;
+				Component->CachedMainViewPostProcessSettings.BlendableManager = FBlendableManager();
 
-			Component->bHasCachedMainViewPostProcessSettings = true;
-			Component->LastMainViewportFrameNumber = InViewFamily.FrameNumber;
-			UE_LOG(LogTemp, Log, TEXT("FMovieQualityViewExtension::BeginRenderViewFamily: sucessfully set CachedMainViewPostProcessSettings"));
+				Component->bHasCachedMainViewPostProcessSettings = true;
+				Component->LastMainViewportFrameNumber = InViewFamily.FrameNumber;
+				UE_LOG(LogTemp, Log, TEXT("FMovieQualityViewExtension::BeginRenderViewFamily: sucessfully set CachedMainViewPostProcessSettings"));
+			}
 		}
 		else
 		{

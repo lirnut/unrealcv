@@ -263,6 +263,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|SceneComposition")
 	static FString GetSceneConfigFilePath();
 
+	// ========== Safe Point Preview ==========
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
+	static AActor* PreviewSafePoint(
+		UObject* WorldContextObject,
+		FVector Location,
+		const FString& ForegroundPathSpec,
+		const FString& ForegroundCategory,
+		float Yaw = -1.0f
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
+	static AActor* PreviewSafePointWithSceneConfig(UObject* WorldContextObject, FVector Location);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition")
+	static AActor* PreviewLastSafePoint();
+
 	// ========== Actor Spawning ==========
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))

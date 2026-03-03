@@ -529,6 +529,16 @@ void UFusionCamSensor::SetSensorRotation(FRotator Rotator)
 	this->SetWorldRotation(Rotator);
 }
 
+void UFusionCamSensor::AddWorldOffset(FVector Delta)
+{
+	this->AddLocalOffset(Delta);
+}
+
+void UFusionCamSensor::AddWorldRotation(FRotator DeltaRotation)
+{
+	this->AddLocalRotation(DeltaRotation);
+}
+
 void UFusionCamSensor::SetFilmSize(int Width, int Height)
 {
 	this->FilmWidth = Width;

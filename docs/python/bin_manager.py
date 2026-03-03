@@ -63,6 +63,9 @@ else:
         "Downtown_West",
         "Downtown_West_Night",
         "Bridge_P",
+        "LV_Exterior",
+        "LV_Exterior_Night",
+        "LV_Exterior_Sunrise",
     ]
 
     # AVAILABLE_MAPS = [
@@ -114,8 +117,8 @@ def start_game():
         "-FullStdOutLogOutput",
         "-unattended",
         "-windowed",
-	    "-resx=1920",
-	    "-resy=1920"
+	    # "-resx=1920",
+	    # "-resy=1920"
     ]
 
     print(f"[INFO] Starting game on port {PORT}...")
@@ -216,8 +219,6 @@ def main():
             client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
             client.request("vset /datasetautomation/config/trajectory_fps 30")
             client.request("vset /datasetautomation/config/num_frames 90")
-            client.request("vset /datasetautomation/config/foreground_move_speed 70.0")
-            client.request("vset /datasetautomation/config/foreground_move_angle_offset 90.0")
             client.request("vset /datasetautomation/config/recording_options lit,oneobjlit,metadata")
 
             timecode = datetime.datetime.now().strftime(r"%y-%m-%d")
@@ -236,7 +237,7 @@ def main():
             print()
             print("[SEQUENCE] Scene configurations:")
             for cfg in scene_configs:
-                print(f"  Scene {cfg['scene']:2d}: {cfg['resolution']:12s} | FOV {cfg['fov']:5s} | {cfg['trajectory']}")
+                print(f"  Scene {cfg['scene']:2d}: {cfg['resolution']:12s} | FOV {cfg['fov']:5s} | {cfg['trajectory']:25s} | Mode {cfg.get('animation_mode', 'Unknown')}")
 
             print(f"\n[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
             time.sleep(MAP_LOAD_WAIT)

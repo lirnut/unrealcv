@@ -352,8 +352,8 @@ FExecStatus FDatasetAutomationHandler::SetConfigForegroundMoveSpeed(const TArray
 	}
 
 	float Value = FCString::Atof(*Args[0]);
-	UDatasetAutomationBPLib::CurrentConfig.ForegroundMoveSpeed = Value;
-	return FExecStatus::OK(FString::Printf(TEXT("Config.ForegroundMoveSpeed = %.2f cm/s"), Value));
+	UDatasetAutomationBPLib::CurrentStatus.ForegroundMoveSpeed = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("Status.ForegroundMoveSpeed = %.2f cm/s"), Value));
 }
 
 FExecStatus FDatasetAutomationHandler::SetConfigForegroundMoveAngleOffset(const TArray<FString>& Args)
@@ -364,8 +364,8 @@ FExecStatus FDatasetAutomationHandler::SetConfigForegroundMoveAngleOffset(const 
 	}
 
 	float Value = FCString::Atof(*Args[0]);
-	UDatasetAutomationBPLib::CurrentConfig.ForegroundMoveAngleOffset = Value;
-	return FExecStatus::OK(FString::Printf(TEXT("Config.ForegroundMoveAngleOffset = %.2f degrees"), Value));
+	UDatasetAutomationBPLib::CurrentStatus.ForegroundMoveAngleOffset = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("Status.ForegroundMoveAngleOffset = %.2f degrees"), Value));
 }
 
 FExecStatus FDatasetAutomationHandler::SetConfigRecordingOptions(const TArray<FString>& Args)
