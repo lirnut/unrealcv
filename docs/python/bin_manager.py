@@ -36,24 +36,34 @@ MAP_LOAD_WAIT = 15
 STATUS_POLL_INTERVAL = 2.0
 CONFIG_SLASH_TOTAL_SCENES = 10
 
-AVAILABLE_MAPS = [
-    "Tokyo",
-    "Chinese_mountain_town",
-    "Demo_Roof",
-    # "Urban_RoadsideConstruction_Scene",
-    "Town",
-    # "L_WillowLake",
-    # "Jungle",
-    # "TrainStation",
-    # "Mountains_Map",
-    "Asian_town",
-    # "Hutong",
-    "Midgardr_Free",
-    "Warehouse",
-    "Downtown_West",
-    "Downtown_West_Night",
-    "Bridge_P",
-]
+
+if EXE_PATH.endswith("HillsideSampleProject.exe"):
+    AVAILABLE_MAPS = [
+        "LV_Exterior"
+    ]
+elif EXE_PATH.endswith("CitySample.exe"):
+    AVAILABLE_MAPS = [
+        "Small_City_LVL"
+    ]
+else:
+    AVAILABLE_MAPS = [
+        "Tokyo",
+        "Chinese_mountain_town",
+        "Demo_Roof",
+        # "Urban_RoadsideConstruction_Scene",
+        "Town",
+        # "L_WillowLake",
+        # "Jungle",
+        # "TrainStation",
+        # "Mountains_Map",
+        "Asian_town",
+        # "Hutong",
+        "Midgardr_Free",
+        "Warehouse",
+        "Downtown_West",
+        "Downtown_West_Night",
+        "Bridge_P",
+    ]
 
 def kill_process(p):
     try:
@@ -91,7 +101,10 @@ def start_game():
         selected_map,
         "-Log",
         "-FullStdOutLogOutput",
-        "-unattended"
+        "-unattended",
+        "-windowed",
+	    "-resx=1920",
+	    "-resy=1920"
     ]
 
     print(f"[INFO] Starting game on port {PORT}...")
