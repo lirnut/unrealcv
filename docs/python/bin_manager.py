@@ -32,7 +32,7 @@ for f in platform_files:
 
 PORT = 9000
 CONNECT_TIMEOUT = 60
-MAP_LOAD_WAIT = 15
+MAP_LOAD_WAIT = 8
 STATUS_POLL_INTERVAL = 2.0
 CONFIG_SLASH_TOTAL_SCENES = 10
 
@@ -89,6 +89,9 @@ def kill_process_and_its_children(p):
         p = psutil.Process(p.pid)
         if len(p.children()) > 0:
             for child in p.children():
+                child_name = child.name().lower()
+                if 'python' in child_name:
+                    continue
                 if hasattr(child, 'children') and len(child.children()) > 0:
                     kill_process_and_its_children(child)
                 else:
@@ -255,6 +258,10 @@ def main():
                         status = client.request("vget /datasetautomation/status")
                         elapsed = time.time() - session_start
                         print(f"[STATUS] Run #{run_count}, time: {elapsed:.1f}s - {status}")
+
+                        if status is None:
+                            print(f"[WARNING] Status is None")
+                            break
 
                         if "Completed" in status:
                             print(f"[SUCCESS] Session completed")

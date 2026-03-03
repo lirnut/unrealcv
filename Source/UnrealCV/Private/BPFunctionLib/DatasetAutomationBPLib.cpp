@@ -932,6 +932,66 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		}
 		ExecuteNextCommand();
 	}
+	else if (Step.Command == TEXT("set_groom_gravity"))
+	{
+		FVector Vec;
+		if (ParseVector3D(Step.StringParam, Vec))
+		{
+			UGroomBPLib::SetHairGravity(CurrentScene.ForegroundActor, Vec);
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set groom gravity to (%.1f, %.1f, %.1f)"), Vec.X, Vec.Y, Vec.Z);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Invalid groom gravity format: %s"), *Step.StringParam);
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("set_groom_air_velocity"))
+	{
+		FVector Vec;
+		if (ParseVector3D(Step.StringParam, Vec))
+		{
+			UGroomBPLib::SetHairAirVelocity(CurrentScene.ForegroundActor, Vec);
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set groom air velocity to (%.1f, %.1f, %.1f)"), Vec.X, Vec.Y, Vec.Z);
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: Invalid groom air velocity format: %s"), *Step.StringParam);
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("set_groom_air_drag"))
+	{
+		float Value = FCString::Atof(*Step.StringParam);
+		UGroomBPLib::SetHairAirDrag(CurrentScene.ForegroundActor, Value);
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set groom air drag to %.3f"), Value);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("set_groom_bend_damping"))
+	{
+		float Value = FCString::Atof(*Step.StringParam);
+		UGroomBPLib::SetHairBendDamping(CurrentScene.ForegroundActor, Value);
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set groom bend damping to %.6f"), Value);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("set_groom_bend_stiffness"))
+	{
+		float Value = FCString::Atof(*Step.StringParam);
+		UGroomBPLib::SetHairBendStiffness(CurrentScene.ForegroundActor, Value);
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set groom bend stiffness to %.3f"), Value);
+		ExecuteNextCommand();
+	}
+	else if (Step.Command == TEXT("set_groom_strands_viscosity"))
+	{
+		float Value = FCString::Atof(*Step.StringParam);
+		UGroomBPLib::SetHairStrandsViscosity(CurrentScene.ForegroundActor, Value);
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set groom strands viscosity to %.3f"), Value);
+		ExecuteNextCommand();
+	}
 	else if (Step.Command == TEXT("load_random_level_every_n_scenes"))
 	{
 		int32 N = FCString::Atoi(*Step.StringParam);
@@ -1515,11 +1575,17 @@ bool UDatasetAutomationBPLib::AreAllCamerasIdle()
 
 bool UDatasetAutomationBPLib::ParseVector3D(const FString& Str, FVector& OutVector)
 {
+	FString CleanStr = Str.TrimStartAndEnd();
 	TArray<FString> Parts;
-	Str.ParseIntoArray(Parts, TEXT(","));
+	CleanStr.ParseIntoArray(Parts, TEXT(","));
 	if (Parts.Num() != 3)
 	{
-		return false;
+		Parts.Empty();
+		CleanStr.ParseIntoArray(Parts, TEXT(" "));
+		if (Parts.Num() != 3)
+		{
+			return false;
+		}
 	}
 
 	float X, Y, Z;

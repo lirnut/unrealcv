@@ -175,8 +175,10 @@ void UMainViewportRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 
 	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent initialized: %d x %d"), ResolutionX, ResolutionY);
 
-
-	Viewport->Draw(false);
+	if (ViewportClient && ViewportClient->Viewport)
+	{
+		ViewportClient->Viewport->Draw(false);
+	}
 	FlushRenderingCommands();
 }
 

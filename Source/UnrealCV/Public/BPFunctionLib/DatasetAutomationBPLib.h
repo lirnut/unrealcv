@@ -122,6 +122,13 @@ struct FAutomationStatus
 	UPROPERTY(BlueprintReadOnly, Category = "Automation")
 	float RandomTargetHeight = 0.0f;
 
+	// FVector GroomGravity;
+	// FVector GroomAirVelocity;
+	// float GroomAirDrag;
+	// float GroomBendDamping;
+	// float GroomBendStiffness;
+	// float GroomStrandsViscosity;
+
 };
 
 UCLASS()
