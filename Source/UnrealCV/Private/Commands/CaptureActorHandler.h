@@ -46,4 +46,8 @@ private:
 	FExecStatus GetWarmUpFrames(const TArray<FString>& Args);
 
 	FExecStatus SetWarmUpFrames(const TArray<FString>& Args);
+
+	FExecStatus GetVideoGenScriptPath(const TArray<FString>& Args);
+
+	FExecStatus SetVideoGenScriptPath(const TArray<FString>& Args);
 };

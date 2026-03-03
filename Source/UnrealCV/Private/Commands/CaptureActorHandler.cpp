@@ -108,6 +108,14 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetWarmUpFrames);
 	Help = "Set warm up frames count";
 	CommandDispatcher->BindCommand("vset /captureactor/warmup_frames [uint]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetVideoGenScriptPath);
+	Help = "Get video generation script path";
+	CommandDispatcher->BindCommand("vget /captureactor/video_gen_script_path", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetVideoGenScriptPath);
+	Help = "Set video generation script path: vset /captureactor/video_gen_script_path [path/to/genvid.py]";
+	CommandDispatcher->BindCommand("vset /captureactor/video_gen_script_path [str]", Cmd, Help);
 }
 
 FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
@@ -389,4 +397,20 @@ FExecStatus FCaptureActorHandler::SetWarmUpFrames(const TArray<FString>& Args)
 	int32 Value = FCString::Atoi(*Args[0]);
 	AFusionCamCaptureActor::RecordingSettings.WarmUpFrames = Value;
 	return FExecStatus::OK(FString::Printf(TEXT("WarmUpFrames = %d"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetVideoGenScriptPath(const TArray<FString>& Args)
+{
+	return FExecStatus::OK(AFusionCamCaptureActor::RecordingSettings.VideoGenScriptPath);
+}
+
+FExecStatus FCaptureActorHandler::SetVideoGenScriptPath(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/video_gen_script_path [path/to/genvid.py]");
+	}
+
+	AFusionCamCaptureActor::RecordingSettings.VideoGenScriptPath = Args[0];
+	return FExecStatus::OK(FString::Printf(TEXT("VideoGenScriptPath = %s"), *Args[0]));
 }

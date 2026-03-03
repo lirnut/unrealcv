@@ -191,7 +191,7 @@ def main():
 
     sequences = defaultdict(list)
 
-    for filename in os.listdir(args.input_dir) + os.listdir(os.path.join(args.input_dir , "rgb")):
+    for filename in os.listdir(args.input_dir):
         lower_filename = filename.lower()
         if lower_filename.endswith('.png'):
             suffix = 'png'
@@ -211,6 +211,21 @@ def main():
             if suffix == 'npy': seq_name += '_npy'
             file_path = os.path.join(args.input_dir, filename)
             sequences[seq_name].append((frame_num, file_path))
+
+    for filename in os.listdir(os.path.join(args.input_dir , "rgb")):
+        lower_filename = filename.lower()
+        if lower_filename.endswith('.png'):
+            suffix = 'png'
+            match = pattern_png.match(filename)
+        else:
+            continue
+
+        if match:
+            frame_num = int(match.group(1))
+            seq_name = match.group(2)
+            file_path = os.path.join(args.input_dir, "rgb", filename)
+            sequences[seq_name].append((frame_num, file_path))
+            print(file_path)
 
     if not sequences:
         print("未找到符合格式的图片序列（格式应为：n_xxx.png）")
@@ -245,4 +260,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+    print("main() returned")
+    time.sleep(2)
     

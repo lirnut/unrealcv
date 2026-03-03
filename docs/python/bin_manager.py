@@ -31,7 +31,7 @@ AVAILABLE_MAPS = [
     # "TrainStation",
     # "Mountains_Map",
     "Asian_town",
-    "Hutong",
+    # "Hutong",
     "Midgardr_Free",
     "Warehouse",
     "Downtown_West",
@@ -51,13 +51,16 @@ def kill_process(p):
         print(f"[WARN] Kill process exception: {e}")
 
 def kill_process_and_its_children(p):
-    p = psutil.Process(p.pid)
-    if len(p.children()) > 0:
-        for child in p.children():
-            if hasattr(child, 'children') and len(child.children()) > 0:
-                kill_process_and_its_children(child)
-            else:
-                kill_process(child)
+    try:
+        p = psutil.Process(p.pid)
+        if len(p.children()) > 0:
+            for child in p.children():
+                if hasattr(child, 'children') and len(child.children()) > 0:
+                    kill_process_and_its_children(child)
+                else:
+                    kill_process(child)
+    except Exception as e:
+        print(f"[WARN] Kill process and it's children exception: {e}")
     kill_process(p)
 
 def start_game():
@@ -161,6 +164,12 @@ def main():
             print(f"[VERSION] {version}")
 
             print(f"\n{'='*60}")
+            print(f"[CONFIG] Configuring Video Encoder...")
+            print(f"{'='*60}")
+            print(client.request("vset /captureactor/h264_encoding 0"))
+            print(client.request("vset /captureactor/auto_generate_video 1"))
+
+            print(f"\n{'='*60}")
             print(f"[CONFIG] Configuring Matting task...")
             print(f"{'='*60}")
 
@@ -243,7 +252,9 @@ def main():
     except KeyboardInterrupt:
         print("\n[INFO] Shutdown requested, exiting...")
         return 0
-
+    except Exception as err:
+        print(f"\n[Error] Unknown error {err}")
+        return 1
     return 0
 
 if __name__ == "__main__":

@@ -393,6 +393,7 @@ void UMainViewportRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 				FramePayload_RT,
 				MoveTemp(OnPixelDataReady_RT)
 			);
+			// RTV→SRVMask
 
 			UE_LOG(LogUnrealCV, Log, TEXT("Enqueued to SurfaceQueue"));
 		}
