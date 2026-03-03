@@ -37,18 +37,18 @@ STATUS_POLL_INTERVAL = 2.0
 CONFIG_SLASH_TOTAL_SCENES = 10
 
 
-if EXE_PATH.endswith("HillsideSampleProject.exe"):
+if EXE_PATH.__str__().endswith("HillsideSampleProject.exe"):
     AVAILABLE_MAPS = [
         "LV_Exterior"
     ]
-elif EXE_PATH.endswith("CitySample.exe"):
+elif EXE_PATH.__str__().endswith("CitySample.exe"):
     AVAILABLE_MAPS = [
         "Small_City_LVL"
     ]
 else:
     AVAILABLE_MAPS = [
         "Tokyo",
-        "Chinese_mountain_town",
+        # "Chinese_mountain_town",
         "Demo_Roof",
         # "Urban_RoadsideConstruction_Scene",
         "Town",
@@ -64,6 +64,14 @@ else:
         "Downtown_West_Night",
         "Bridge_P",
     ]
+
+    # AVAILABLE_MAPS = [
+    #     "Chinese_mountain_town",]
+print(f"\n{'='*60}")
+print(f"Available Maps")
+print(f"{'='*60}")
+for m in AVAILABLE_MAPS:
+    print(f"\t{m}")
 
 def kill_process(p):
     try:

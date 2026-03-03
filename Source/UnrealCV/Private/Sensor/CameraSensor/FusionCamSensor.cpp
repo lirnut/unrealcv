@@ -225,7 +225,6 @@ void UFusionCamSensor::BeginPlay()
 	if (IsValid(MainViewportRenderComponent))
 	{
 		MainViewportRenderComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-		MainViewportRenderComponent->Initialize(FilmWidth, FilmHeight);
 	}
 
 	SetFilmSize(FilmWidth, FilmHeight);
@@ -570,10 +569,8 @@ void UFusionCamSensor::SetFilmSize(int Width, int Height)
 	// check(OneObjectLitCamSensor);
 	// OneObjectLitCamSensor->Initialize(Width, Height);
 
-	if (IsValid(MainViewportRenderComponent) && MainViewportRenderComponent->IsInitialized())
-	{
-		MainViewportRenderComponent->Initialize(Width, Height);
-	}
+	check(IsValid(MainViewportRenderComponent));
+	MainViewportRenderComponent->Initialize(Width, Height);
 }
 
 float UFusionCamSensor::GetSensorFOV()
@@ -594,10 +591,8 @@ void UFusionCamSensor::SetSensorFOV(float fov)
 	check(MovieQualityRenderer);
 	MovieQualityRenderer->SetFOV(FOV);
 
-	if (IsValid(MainViewportRenderComponent))
-	{
-		MainViewportRenderComponent->SetFOV(FOV);
-	}
+	check(IsValid(MainViewportRenderComponent))
+	MainViewportRenderComponent->SetFOV(FOV);
 	// check(OneObjectLitCamSensor);
 	// OneObjectLitCamSensor->SetFOV(FOV);
 }

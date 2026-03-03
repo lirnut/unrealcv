@@ -156,7 +156,7 @@ void UMainViewportRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 
 	SurfaceQueue->SetFrameResolveLatency(2);
 
-	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: SurfaceQueue ZERO latency - synchronous readback for frame sync with BaseCameraSensor"));
+	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent: SurfaceQueue SetFrameResolveLatency"));
 
 	bIsInitialized = true;
 
@@ -175,6 +175,8 @@ void UMainViewportRenderComponent::Initialize(int32 ResolutionX, int32 Resolutio
 
 	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent initialized: %d x %d"), ResolutionX, ResolutionY);
 
+
+	Viewport->Draw(false);
 	FlushRenderingCommands();
 }
 
