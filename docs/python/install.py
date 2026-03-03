@@ -16,7 +16,7 @@ PROJ = "not found"
 for f in platform_files:
     if  pattern_no_suffix.match(f):
         fp = os.path.join(TARGET_DIR , platform , f)
-        if os.path.isdir(fp):
+        if os.path.isdir(fp) and (not f.startswith("Engine")):
             PROJ = f
             print("found proj", PROJ)
             break
