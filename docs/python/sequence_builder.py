@@ -24,7 +24,7 @@ def build_single_matting_scene():
     chosen_trajectory = random.choice(matting_trajectory_options)
 
     commands = [
-        {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.65"},
+        {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.85"},
         {"cmd": "load_scene_param_json"},
         {"cmd": "random_scene_param_camera_height", "params": "120 155"},
         {"cmd": "random_scene_param_camera_angle_offset", "params": "-90 90"},

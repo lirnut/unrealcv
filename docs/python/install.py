@@ -1,12 +1,14 @@
 import os
 import shutil
 
-SOURCE_DIR = r"G:\HUAWEI_Project_UE56\Plugins\unrealcv\docs\python"
+SOURCE_DIR = r"."
 TARGET_DIR = r"I:\HUAWEI_Project_UE56_PKG"
 
 SPECIAL_PATHS = {
     "genvid.py": "Windows/HUAWEI_Project/Saved",
 }
+
+UnrealCV_Client_Path = "../../client/python/unrealcv"
 
 EXCLUDE_DIRS = {"__pycache__", ".git", ".pytest_cache"}
 EXCLUDE_FILES = {".pyc", ".pyo", ".pyi"}
@@ -45,6 +47,14 @@ def install_files(src: str, dst: str):
 
             print(f"Copying {src_path} -> {dst_path}")
             shutil.copy2(src_path, dst_path)
+    
+    unrealcv_target = os.path.join(dst, "unrealcv")
+    if os.path.exists(unrealcv_target):
+        print("remove ", unrealcv_target)
+        shutil.rmtree(unrealcv_target)
+    
+    shutil.copytree(UnrealCV_Client_Path, unrealcv_target)
+    print(f"Copying {UnrealCV_Client_Path} -> {unrealcv_target}")
 
 if __name__ == "__main__":
     print(f"Installing from {SOURCE_DIR} to {TARGET_DIR}")

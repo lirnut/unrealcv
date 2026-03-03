@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, datetime
+import sys, datetime, os, re
 import subprocess
 import socket
 import time
@@ -12,7 +12,20 @@ from sequence_builder import build_concatenated_matting_sequence
 SCRIPT_DIR = Path(__file__).resolve().parent
 PKG_DIR = Path(SCRIPT_DIR)
 # PKG_DIR = Path("I:/HUAWEI_Project_UE56_PKG")
-EXE_PATH = PKG_DIR / "Windows" / "HUAWEI_Project.exe"
+platform = "Windows"
+
+platform_files = os.listdir(PKG_DIR / platform)
+pattern_exe = re.compile(r'^.+\.exe$')
+pattern_no_suffix = re.compile(r'^.+$')
+
+EXE_PATH = "not found"
+for f in platform_files:
+    if pattern_exe.match(f) or pattern_no_suffix.match(f):
+        EXE_PATH = PKG_DIR / platform / f
+        print("found exe", EXE_PATH)
+        break
+
+
 
 PORT = 9000
 CONNECT_TIMEOUT = 60
