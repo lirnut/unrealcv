@@ -21,7 +21,10 @@ pattern_no_suffix = re.compile(r'^.+$')
 EXE_PATH = "not found"
 for f in platform_files:
     if pattern_exe.match(f) or pattern_no_suffix.match(f):
-        EXE_PATH = PKG_DIR / platform / f
+        fp = PKG_DIR / platform / f
+        if os.path.isdir(fp):
+            continue
+        EXE_PATH = fp
         print("found exe", EXE_PATH)
         break
 

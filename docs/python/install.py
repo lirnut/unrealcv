@@ -1,11 +1,29 @@
-import os
+import os, re
 import shutil
 
 SOURCE_DIR = r"."
 TARGET_DIR = r"I:\HUAWEI_Project_UE56_PKG"
+# TARGET_DIR = r"D:\codes\CitySample_PKG"
+
+
+platform = "Windows"
+
+platform_files = os.listdir(TARGET_DIR / platform)
+pattern_no_suffix = re.compile(r'^.+$')
+
+PROJ = "not found"
+for f in platform_files:
+    if  pattern_no_suffix.match(f):
+        fp = TARGET_DIR / platform / f
+        if os.path.isdir(fp):
+            PROJ = f
+            print("found proj", PROJ)
+            break
+
+
 
 SPECIAL_PATHS = {
-    "genvid.py": "Windows/HUAWEI_Project/Saved",
+    "genvid.py": f"{platform}/{f}/Saved",
 }
 
 UnrealCV_Client_Path = "../../client/python/unrealcv"
