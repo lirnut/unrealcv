@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
 from typing import List, Dict, Tuple
@@ -258,7 +259,8 @@ def main():
                         "python",
                         str(genvid_script),
                         "--input-dir", render_path,
-                        "--fps", str(args.fps)
+                        "--fps", str(args.fps),
+                        "--time_delay", str(abs(min(5 * 60, started_count * 8)))
                     ]
 
                     process = subprocess.Popen(
@@ -271,6 +273,7 @@ def main():
 
                     print(f"✓ Started genvid (PID {process.pid}): {render_path}")
                     started_count += 1
+                    time.sleep(2)
                 except Exception as e:
                     print(f"✗ Failed to start genvid for {render_path}: {e}")
 
