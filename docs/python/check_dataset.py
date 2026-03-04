@@ -12,6 +12,10 @@ DATASET_ROOT = Path("./DatasetAutomationOutputDirectory")
 EXPECTED_ONEOBJLIT_FILES = 90
 EXPECTED_RGB_PNG_FILES = 90
 
+DATEDIRT_TO_EXCLUDE = [
+    "26-03-05"
+]
+
 
 def check_render_directory(render_path: Path) -> Dict[str, any]:
     issues = []
@@ -27,6 +31,13 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
     overview_json = render_path / "overview.json"
     if not overview_json.exists():
         issues.append("Missing overview.json")
+        should_delete = True
+
+    
+    metadata_dir = render_path / "metadata"
+    if not metadata_dir.exists():
+        issues.append("Missing metadata directory")
+        should_delete = True
 
     oneobjlit_dir = render_path / "oneobjlit"
     if not oneobjlit_dir.exists():
@@ -36,15 +47,26 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
         oneobjlit_count = file_count
         if file_count != EXPECTED_ONEOBJLIT_FILES:
             issues.append(f"oneobjlit has {file_count} files (expected {EXPECTED_ONEOBJLIT_FILES})")
-            if 1 <= file_count < EXPECTED_ONEOBJLIT_FILES:
+            if  file_count < EXPECTED_ONEOBJLIT_FILES:
                 should_delete = True
 
     rgb_dir = render_path / "rgb"
     if rgb_dir.exists() and rgb_dir.is_dir():
         png_files = list(rgb_dir.glob("*.png"))
         rgb_png_count = len(png_files)
-        if rgb_png_count == EXPECTED_RGB_PNG_FILES and not rgb_mp4.exists():
+        if rgb_png_count == EXPECTED_RGB_PNG_FILES:
             need_genvid = True
+        elif 1 <= rgb_png_count < EXPECTED_RGB_PNG_FILES:
+            issues.append(f"rgb count incorrect {rgb_png_count}")
+            should_delete = True
+        elif rgb_png_count == 0:
+            if not rgb_mp4.exists():
+                issues.append("0 rgb png while no rgb.mp4")
+                should_delete = True
+    else:
+        if not rgb_mp4.exists():
+            issues.append("no rgb folder while no rgb.mp4")
+            should_delete = True
 
     return {
         "path": str(render_path),
@@ -64,6 +86,9 @@ def get_all_render_paths() -> List[Path]:
         if not date_dir.is_dir():
             continue
 
+        if date_dir.name in DATEDIRT_TO_EXCLUDE:
+            continue
+
         for scene_dir in date_dir.iterdir():
             if not scene_dir.is_dir():
                 continue
@@ -71,9 +96,11 @@ def get_all_render_paths() -> List[Path]:
             for scene_instance_dir in scene_dir.iterdir():
                 if not scene_instance_dir.is_dir():
                     continue
+                if not scene_instance_dir.name.startswith("scene_"):
+                    continue
 
                 for render_dir in scene_instance_dir.iterdir():
-                    if render_dir.is_dir() and render_dir.name.startswith("render_"):
+                    if render_dir.is_dir():
                         render_paths.append(render_dir)
 
     return render_paths
@@ -84,7 +111,9 @@ def main():
     parser.add_argument("--path", type=str, default="./DatasetAutomationOutputDirectory",
                         help="Path to dataset root directory (default: ./DatasetAutomationOutputDirectory)")
     parser.add_argument("--delete", action="store_true",
-                        help="Delete entire scene folders with incomplete oneobjlit (1 <= files < 90)")
+                        help="Delete scene folders with: missing overview.json, oneobjlit==0, or 1<=oneobjlit<90")
+    parser.add_argument("--delete-all", action="store_true",
+                        help="Delete ALL inconsistent scene folders (any scene with issues)")
     parser.add_argument("--genvid", action="store_true",
                         help="Run genvid.py for renders with exactly 90 png files in rgb folder but missing rgb.mp4")
     parser.add_argument("--fps", type=int, default=30,
@@ -97,7 +126,9 @@ def main():
     print(f"{'='*80}")
     print(f"Dataset Consistency Checker")
     if args.delete:
-        print(f"MODE: DELETE INCOMPLETE SCENES")
+        print(f"MODE: DELETE SPECIFIC SCENES (no overview.json / oneobjlit==0 / 1<=oneobjlit<90)")
+    if args.delete_all:
+        print(f"MODE: DELETE ALL INCONSISTENT SCENES")
     if args.genvid:
         print(f"MODE: AUTO GENVID (FPS={args.fps})")
     print(f"{'='*80}\n")
@@ -153,6 +184,7 @@ def main():
 
     scene_render_status = defaultdict(lambda: defaultdict(list))
     scenes_to_delete = set()
+    scenes_to_delete_all = set()
     renders_need_genvid = []
 
     for result in results:
@@ -165,6 +197,9 @@ def main():
 
         if result["should_delete"]:
             scenes_to_delete.add(scene_folder_str)
+
+        if not result["valid"]:
+            scenes_to_delete_all.add(scene_folder_str)
 
         if result["need_genvid"]:
             renders_need_genvid.append(result["path"])
@@ -248,13 +283,16 @@ def main():
                 print(f"  {render_path}")
             print(f"\nUse --genvid flag to auto-run genvid.py for these renders")
 
-    if args.delete and len(scenes_to_delete) > 0:
-        print(f"\n{'='*80}")
-        print(f"Scenes to Delete (incomplete oneobjlit):")
-        print(f"{'='*80}")
-        print(f"Total scenes to delete: {len(scenes_to_delete)}")
+    if (args.delete and len(scenes_to_delete) > 0) or (args.delete_all and len(scenes_to_delete_all) > 0):
+        deletion_target = scenes_to_delete_all if args.delete_all else scenes_to_delete
+        deletion_mode = "ALL INCONSISTENT" if args.delete_all else "SPECIFIC (no overview.json / oneobjlit==0 / 1<=oneobjlit<90)"
 
-        for scene_path in sorted(scenes_to_delete):
+        print(f"\n{'='*80}")
+        print(f"Scenes to Delete ({deletion_mode}):")
+        print(f"{'='*80}")
+        print(f"Total scenes to delete: {len(deletion_target)}")
+
+        for scene_path in sorted(deletion_target):
             print(f"  {scene_path}")
 
         print(f"\n{'='*80}")
@@ -264,7 +302,7 @@ def main():
         deleted_count = 0
         failed_count = 0
 
-        for scene_path in scenes_to_delete:
+        for scene_path in deletion_target:
             try:
                 shutil.rmtree(scene_path)
                 print(f"✓ Deleted: {scene_path}")
@@ -302,9 +340,15 @@ def main():
 
         if len(scenes_to_delete) > 0:
             print(f"\n{'='*80}")
-            print(f"Incomplete oneobjlit scenes: {len(scenes_to_delete)}")
-            if not args.delete:
+            print(f"Scenes matching --delete criteria: {len(scenes_to_delete)}")
+            if not args.delete and not args.delete_all:
                 print(f"Use --delete flag to remove these scenes")
+
+        if len(scenes_to_delete_all) > 0:
+            print(f"\n{'='*80}")
+            print(f"All inconsistent scenes: {len(scenes_to_delete_all)}")
+            if not args.delete_all:
+                print(f"Use --delete-all flag to remove ALL inconsistent scenes")
 
         print(f"\n{'='*80}")
         print(f"Saving inconsistent paths to 'inconsistent_renders.json'...")
@@ -313,7 +357,8 @@ def main():
             "total_inconsistent": invalid_count,
             "issue_types": {k: len(v) for k, v in issue_types.items()},
             "details": [r for r in results if not r["valid"]],
-            "scenes_with_incomplete_oneobjlit": sorted(list(scenes_to_delete)),
+            "scenes_matching_delete_criteria": sorted(list(scenes_to_delete)),
+            "scenes_all_inconsistent": sorted(list(scenes_to_delete_all)),
             "renders_need_genvid": renders_need_genvid
         }
 

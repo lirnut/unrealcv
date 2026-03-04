@@ -8,23 +8,23 @@ ANIMATION_MODES = {
         "prob": 0.4,
         "distance": "75 100",
         "height": "110 165",
-        "aim_height": ""
+        "aim_height": "",
     },
     "B": {
         "bp_path": "/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C",
         "move_speed": "0.0",
         "prob": 0.2,
         "distance": "90 140",
-        "height": "120 155"
-        "aim_height": "125 175"
+        "height": "120 155",
+        "aim_height": "125 175",
     },
     "C": {
         "bp_path": "/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C",
         "move_speed": "0.0",
         "prob": 0.4,
         "distance": "90 140",
-        "height": "120 155"
-        "aim_height": "135 160"
+        "height": "120 155",
+        "aim_height": "135 160",
     }
 }
 

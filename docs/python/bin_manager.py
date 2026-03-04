@@ -10,7 +10,6 @@ from pathlib import Path
 from multiprocessing import Process, Event, Value
 from sequence_builder import build_concatenated_matting_sequence
 
-SESSION_TIMEOUT = 600
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PKG_DIR = Path(SCRIPT_DIR)
@@ -37,8 +36,8 @@ PORT = 9000
 CONNECT_TIMEOUT = 60
 MAP_LOAD_WAIT = 8
 STATUS_POLL_INTERVAL = 2.0
-CONFIG_SLASH_TOTAL_SCENES = 10
-
+CONFIG_SLASH_TOTAL_SCENES = 70
+SESSION_TIMEOUT = CONFIG_SLASH_TOTAL_SCENES * 30
 
 if EXE_PATH.__str__().endswith("HillsideSampleProject.exe"):
     AVAILABLE_MAPS: list[tuple[str, float]] = [
@@ -57,9 +56,9 @@ else:
         ("Town", 1.0),
         # ("L_WillowLake", 1.0),
         ("Jungle", 1.0),
-        # ("TrainStation", 1.0),
-        # ("Mountains_Map", 1.0),
-        ("Asian_town", 1.0),
+        ("TrainStation", 1.0),
+        ("Mountains_Map", 1.0),
+        ("Asian_town", 2.0),
         # ("Hutong", 1.0),
         ("Midgardr_Free", 1.0),
         ("Warehouse", 1.0),
@@ -163,8 +162,8 @@ def start_game():
         "-FullStdOutLogOutput",
         "-unattended",
         "-windowed",
-	    # "-resx=1920",
-	    # "-resy=1920"
+	    "-resx=1920",
+	    "-resy=1920"
     ]
 
     print(f"[INFO] Starting game on port {PORT}...")
@@ -252,15 +251,19 @@ def main():
             version = client.request("vget /unrealcv/version")
             print(f"[VERSION] {version}")
 
+            
+            print(f"\n{'='*60}")
+            print(f"[CONFIG] Scalability...")
+            print(client.request("r.ScreenPercentage 67.0"))
+
+
             print(f"\n{'='*60}")
             print(f"[CONFIG] Configuring Video Encoder...")
-            print(f"{'='*60}")
             print(client.request("vset /captureactor/h264_encoding 0"))
             print(client.request("vset /captureactor/auto_generate_video 1"))
 
             print(f"\n{'='*60}")
             print(f"[CONFIG] Configuring Matting task...")
-            print(f"{'='*60}")
 
             client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
             client.request("vset /datasetautomation/config/trajectory_fps 30")
