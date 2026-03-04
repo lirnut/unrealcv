@@ -15,7 +15,7 @@
 #include "ShadowCatcherCamSensor.h"
 #include "StencilMaskCamSensor.h"
 #include "MovieQualityRenderComponent.h"
-#include "MovieQualityLitCamSensor.h"
+#include "OneObjectLitCamSensor.h"
 #include "MainViewportRenderComponent.h"
 
 #include "Utils/UObjectUtils.h"
@@ -23,6 +23,7 @@
 #include "Utils/ImageUtil.h"
 #include "SensorBPLib.h"
 #include "MaterialBPLib.h"
+#include "GroomComponent.h"
 
 static void CollectShowOnlyForActor(
     AActor* Actor, UWorld* World,
@@ -56,6 +57,25 @@ static void CollectAllPrimitiveComponentsForActor(
     Actor->GetComponents<UPrimitiveComponent>(PrimitiveComps, /*bIncludeFromChildActors*/ true);
 
     for (UPrimitiveComponent* C : PrimitiveComps)
+    {
+        if (IsValid(C) && C->IsRegistered() && C->GetWorld() == World)
+        {
+            OutComponents.Add(C);
+        }
+    }
+}
+
+static void CollectAllGroomComponentsForActor(
+    AActor* Actor, UWorld* World,
+    TArray<TWeakObjectPtr<UPrimitiveComponent>>& OutComponents)
+{
+    OutComponents.Reset();
+    if (!IsValid(World) || !IsValid(Actor)) return;
+
+    TArray<UGroomComponent*> GroomComps;
+    Actor->GetComponents<UGroomComponent>(GroomComps, /*bIncludeFromChildActors*/ true);
+
+    for (UGroomComponent* C : GroomComps)
     {
         if (IsValid(C) && C->IsRegistered() && C->GetWorld() == World)
         {
@@ -113,27 +133,7 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	// FusionSensors.Add(OneObjectMaskCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("OneObjectLitCamSensor"));
-	// OneObjectLitCamSensor = CreateDefaultSubobject<UMovieQualityLitCamSensor>(*ComponentName);
-	OneObjectLitCamSensor = CreateDefaultSubobject<ULitCamSensor>(*ComponentName);
-	// BUG FIX: Delay attachment to BeginPlay() to avoid template component attachment issues
-	// OneObjectLitCamSensor->SetupAttachment(this);
-	OneObjectLitCamSensor->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-	OneObjectLitCamSensor->CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
-	OneObjectLitCamSensor->ShowFlags.SetLighting(false);
-	OneObjectLitCamSensor->ShowFlags.SetSkyLighting(false);
-	OneObjectLitCamSensor->ShowFlags.SetFog(false);
-	OneObjectLitCamSensor->ShowFlags.SetVolumetricFog(false);
-	OneObjectLitCamSensor->ShowFlags.SetPostProcessing(false);
-	OneObjectLitCamSensor->ShowFlags.SetCloud(false);
-	OneObjectLitCamSensor->ShowFlags.SetAtmosphere(false);
-	OneObjectLitCamSensor->ShowFlags.SetLumenGlobalIllumination(false);
-	OneObjectLitCamSensor->ShowFlags.SetGlobalIllumination(false);
-	OneObjectLitCamSensor->ShowFlags.SetLumenReflections(false);
-	OneObjectLitCamSensor->ShowFlags.SetScreenSpaceReflections(false);
-	OneObjectLitCamSensor->ShowFlags.SetDistanceFieldAO(false);
-	OneObjectLitCamSensor->ShowFlags.SetScreenSpaceAO(false);
-	OneObjectLitCamSensor->ShowFlags.SetAntiAliasing(true);
-	OneObjectLitCamSensor->ShowFlags.SetTemporalAA(true);
+	OneObjectLitCamSensor = CreateDefaultSubobject<UOneObjectLitCamSensor>(*ComponentName);
 	// FusionSensors.Add(OneObjectLitCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("ShadowCatcherCamSensor"));
@@ -403,6 +403,18 @@ void UFusionCamSensor::SaveOneObjLitToFile(AActor* Actor, const FString& Filenam
 	// UMaterialBPLib::ShowOnlyActorMaterial(Actor, FUnrealcvServer::Get().GetGameWorld());
 }
 
+void UFusionCamSensor::SaveOneObjGroomLitToFile(AActor* Actor, const FString& Filename)
+{
+	if (!IsValid(Actor))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::SaveOneObjGroomLitToFile input Actor is not valid"));
+		return;
+	}
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> ComponentList;
+	CollectAllGroomComponentsForActor(Actor, FUnrealcvServer::Get().GetWorld(), ComponentList);
+	OneObjectLitCamSensor->ShowOnlyComponents = ComponentList;
+	OneObjectLitCamSensor->CaptureLitToFile(Filename);
+}
 
 void UFusionCamSensor::GetShadowCatcher(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight)
 {

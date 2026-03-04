@@ -24,6 +24,8 @@
 #include "GroomComponent.h"
 #include "ExtraSceneProxies/HairStrandsSceneProxy.h"
 
+#include "Server/ServerConfig.h"
+#include "Server/UnrealcvServer.h"
 
 
 
@@ -874,6 +876,8 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 	// 	*ParentComponent->GetName(),
 	// 	*ParentComponent->GetClass()->GetName());
 
+	FServerConfig& Config = FUnrealcvServer::Get().Config;
+
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(ParentComponent);
 	USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ParentComponent);
 	UGroomComponent* GroomComponent = Cast<UGroomComponent>(ParentComponent);
@@ -889,8 +893,15 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 	}
 	else if (IsValid(GroomComponent))
 	{
-		bRefreshRenderState = true;
-		return CreateSceneProxy(GroomComponent);
+		if (Config.DisableGroomAnnotation)
+		{
+			return nullptr;
+		}
+		else
+		{
+			bRefreshRenderState = true;
+			return CreateSceneProxy(GroomComponent);
+		}
 	}
 	// else if (IsValid(CableComponent))
 	// {

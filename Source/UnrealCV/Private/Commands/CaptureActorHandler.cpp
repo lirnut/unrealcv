@@ -47,7 +47,7 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::StartSimpleRecording);
 	Help = "Start simple recording: vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] [record_options]";
 	Help += "\nRecord options (comma-separated): lit/rgb, mask/seg, normal, depth, optical_flow/flow,";
-	Help += "\n                 oneobjmask, oneobjlit, shadowcatcher, stencilmask, metadata, audio, woTarget";
+	Help += "\n                 oneobjmask, oneobjlit, oneobjgroomlit, shadowcatcher, stencilmask, metadata, audio, woTarget";
 	Help += "\nExample: vset /captureactor/0/record ./output 30 10 lit,mask,oneobjlit,metadata";
 	Help += "\n         vset /captureactor/0/record ./output 30 10 (empty for default: rgb only)";
 	BindCommandDualCameraID("vset /captureactor/[camera_id]/record [str] [uint] [float]", Cmd, Help);
@@ -219,6 +219,7 @@ FExecStatus FCaptureActorHandler::StartSimpleRecording(const TArray<FString>& Ar
 		if (RecordingConfig.bRecordFlow) RecordTypes += TEXT("flow,");
 		if (RecordingConfig.bRecordOneObjectMask) RecordTypes += TEXT("oneobjmask,");
 		if (RecordingConfig.bRecordOneObjectLit) RecordTypes += TEXT("oneobjlit,");
+		if (RecordingConfig.bRecordOneObjectGroomLit) RecordTypes += TEXT("oneobjgroomlit,");
 		if (RecordingConfig.bRecordShadowCatcher) RecordTypes += TEXT("shadowcatcher,");
 		if (RecordingConfig.bRecordStencilMask) RecordTypes += TEXT("stencilmask,");
 		if (RecordingConfig.bRecordMetadata) RecordTypes += TEXT("metadata,");

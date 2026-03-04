@@ -64,6 +64,9 @@ public:
 	// void GetOneObjLit(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
 	void SaveOneObjLitToFile(AActor* Actor, const FString& Filename);
 
+	/** Get one object groom lit data */
+	void SaveOneObjGroomLitToFile(AActor* Actor, const FString& Filename);
+
 	/** Get shadow catcher data (object RGB + shadow) */
 	UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void GetShadowCatcher(AActor* Actor, TArray<FColor>& Data, int& InOutWidth, int& InOutHeight);
@@ -247,8 +250,7 @@ protected:
 	class UAnnotationCamSensor* OneObjectMaskCamSensor;
 
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
-	// class UMovieQualityLitCamSensor* OneObjectLitCamSensor;
-	class ULitCamSensor* OneObjectLitCamSensor;
+	class UOneObjectLitCamSensor* OneObjectLitCamSensor;
 
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
 	class UShadowCatcherCamSensor* ShadowCatcherCamSensor;

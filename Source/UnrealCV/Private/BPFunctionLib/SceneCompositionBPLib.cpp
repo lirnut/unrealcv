@@ -225,7 +225,7 @@ float USceneCompositionBPLib::GetLandHeight(UWorld* World, float X, float Y, flo
 	}
 
 	FHitResult HitResult;
-	bool bHit = PerformHeightTrace(World, X, Y, InitialHeight, 10000.0f, QueryParams, HitResult);
+	bool bHit = PerformHeightTrace(World, X, Y, InitialHeight, 1000.0f, QueryParams, HitResult);
 
 	if (bHit && HitResult.bBlockingHit)
 	{
@@ -287,7 +287,7 @@ void USceneCompositionBPLib::SettleActorToGround(AActor* Actor, UWorld* World, f
 	}
 
 	FHitResult HitResult;
-	bool bHit = PerformHeightTrace(World, ActorLocation.X, ActorLocation.Y, InitialHeight, 10000.0f, QueryParams, HitResult);
+	bool bHit = PerformHeightTrace(World, ActorLocation.X, ActorLocation.Y, InitialHeight, 300.0f, QueryParams, HitResult);
 
 	if (bHit && HitResult.bBlockingHit)
 	{
@@ -1239,7 +1239,7 @@ AActor* USceneCompositionBPLib::SpawnActorFromMetadata(UWorld* World, const TMap
 		AUnrealcvWorldController* WorldController = FUnrealcvServer::Get().WorldController.Get();
 		if (IsValid(WorldController))
 		{
-			SettleActorToGround(SpawnedActor, World, Location.Z + 200.0f);
+			SettleActorToGround(SpawnedActor, World, Location.Z + 150.0f);
 			EnableCollisionOnly(SpawnedActor);
 		}
 		else

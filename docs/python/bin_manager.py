@@ -7,7 +7,10 @@ import json
 import psutil
 import random
 from pathlib import Path
+from multiprocessing import Process, Event, Value
 from sequence_builder import build_concatenated_matting_sequence
+
+SESSION_TIMEOUT = 600
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PKG_DIR = Path(SCRIPT_DIR)
@@ -38,43 +41,43 @@ CONFIG_SLASH_TOTAL_SCENES = 10
 
 
 if EXE_PATH.__str__().endswith("HillsideSampleProject.exe"):
-    AVAILABLE_MAPS = [
-        "LV_Exterior"
+    AVAILABLE_MAPS: list[tuple[str, float]] = [
+        ("LV_Exterior", 1.0)
     ]
 elif EXE_PATH.__str__().endswith("CitySample.exe"):
-    AVAILABLE_MAPS = [
-        "Small_City_LVL"
+    AVAILABLE_MAPS: list[tuple[str, float]] = [
+        ("Small_City_LVL", 1.0)
     ]
 else:
-    AVAILABLE_MAPS = [
-        "Tokyo",
-        # "Chinese_mountain_town",
-        "Demo_Roof",
-        # "Urban_RoadsideConstruction_Scene",
-        "Town",
-        # "L_WillowLake",
-        # "Jungle",
-        # "TrainStation",
-        # "Mountains_Map",
-        "Asian_town",
-        # "Hutong",
-        "Midgardr_Free",
-        "Warehouse",
-        "Downtown_West",
-        "Downtown_West_Night",
-        "Bridge_P",
-        "LV_Exterior",
-        "LV_Exterior_Night",
-        "LV_Exterior_Sunrise",
+    AVAILABLE_MAPS: list[tuple[str, float]] = [
+        ("Tokyo", 1.0),
+        # ("Chinese_mountain_town", 1.0),
+        ("Demo_Roof", 1.0),
+        # ("Urban_RoadsideConstruction_Scene", 1.0),
+        ("Town", 1.0),
+        # ("L_WillowLake", 1.0),
+        # ("Jungle", 1.0),
+        # ("TrainStation", 1.0),
+        # ("Mountains_Map", 1.0),
+        ("Asian_town", 1.0),
+        # ("Hutong", 1.0),
+        ("Midgardr_Free", 1.0),
+        ("Warehouse", 1.0),
+        ("Downtown_West", 1.0),
+        ("Downtown_West_Night", 1.0),
+        ("Bridge_P", 1.0),
+        ("LV_Exterior", 1.0),
+        ("LV_Exterior_Night", 1.0),
+        ("LV_Exterior_Sunrise", 1.0),
     ]
 
     # AVAILABLE_MAPS = [
-    #     "Chinese_mountain_town",]
+    #     ("Chinese_mountain_town", 1.0),]
 print(f"\n{'='*60}")
 print(f"Available Maps")
 print(f"{'='*60}")
-for m in AVAILABLE_MAPS:
-    print(f"\t{m}")
+for m, w in AVAILABLE_MAPS:
+    print(f"\t{m} (weight: {w})")
 
 def kill_process(p):
     try:
@@ -103,12 +106,55 @@ def kill_process_and_its_children(p):
         print(f"[WARN] Kill process and it's children exception: {e}")
     kill_process(p)
 
+def watchdog_worker(game_pid, timeout_seconds, stop_event, last_alive_timestamp):
+    """Separate process that monitors and kills game if timeout reached."""
+    import time
+    try:
+        while not stop_event.is_set():
+            time.sleep(1)
+
+            if stop_event.is_set():
+                break
+
+            current_time = time.time()
+            last_alive = last_alive_timestamp.value
+
+            if current_time - last_alive > timeout_seconds:
+                print(f"[WATCHDOG] Timeout reached ({timeout_seconds}s), killing game process {game_pid}")
+                try:
+                    proc = psutil.Process(game_pid)
+                    for child in proc.children(recursive=True):
+                        child.kill()
+                    proc.kill()
+                    print(f"[WATCHDOG] Game process {game_pid} killed")
+                except psutil.NoSuchProcess:
+                    print(f"[WATCHDOG] Game process {game_pid} already terminated")
+                except Exception as e:
+                    print(f"[WATCHDOG] Error killing process: {e}")
+                break
+    except KeyboardInterrupt:
+        pass
+    print("[WATCHDOG] Watchdog process exiting")
+
+def weighted_random_choice(maps: list[tuple[str, float]]) -> str:
+    """Select a map based on probability weights."""
+    if not maps:
+        raise ValueError("Empty map list")
+    total_weight = sum(weight for _, weight in maps)
+    r = random.uniform(0, total_weight)
+    cumulative = 0.0
+    for map_name, weight in maps:
+        cumulative += weight
+        if r <= cumulative:
+            return map_name
+    return maps[-1][0]
+
 def start_game():
     if not EXE_PATH.exists():
         print(f"[ERROR] Executable not found: {EXE_PATH}")
         return None, None
 
-    selected_map = random.choice(AVAILABLE_MAPS)
+    selected_map = weighted_random_choice(AVAILABLE_MAPS)
     print(f"[INFO] Selected map {selected_map}...")
     cmd = [
         str(EXE_PATH),
@@ -219,7 +265,8 @@ def main():
             client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
             client.request("vset /datasetautomation/config/trajectory_fps 30")
             client.request("vset /datasetautomation/config/num_frames 90")
-            client.request("vset /datasetautomation/config/recording_options lit,oneobjlit,metadata")
+            # client.request("vset /datasetautomation/config/recording_options lit,oneobjlit,mask,oneobjgroomlit,metadata")
+            client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,metadata")
 
             timecode = datetime.datetime.now().strftime(r"%y-%m-%d")
             output_dir = str(PKG_DIR / "DatasetAutomationOutputDirectory" / timecode / map_name)
@@ -252,11 +299,20 @@ def main():
             run_count += 1
             session_start = time.time()
 
+            watchdog_stop = Event()
+            last_alive = Value('d', time.time())
+            watchdog_proc = Process(
+                target=watchdog_worker,
+                args=(game_proc.pid, SESSION_TIMEOUT, watchdog_stop, last_alive)
+            )
+            watchdog_proc.start()
+            print(f"[WATCHDOG] Started watchdog process (PID: {watchdog_proc.pid}, timeout: {SESSION_TIMEOUT}s)")
+
             try:
                 while True:
-
                     try:
                         status = client.request("vget /datasetautomation/status")
+                        last_alive.value = time.time()
                         elapsed = time.time() - session_start
                         print(f"[STATUS] Run #{run_count}, time: {elapsed:.1f}s - {status}")
 
@@ -282,6 +338,12 @@ def main():
                 raise
 
             finally:
+                watchdog_stop.set()
+                watchdog_proc.join(timeout=2.0)
+                if watchdog_proc.is_alive():
+                    watchdog_proc.terminate()
+                    watchdog_proc.join(timeout=1.0)
+
                 try:
                     client.disconnect()
                 except:

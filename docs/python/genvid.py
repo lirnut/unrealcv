@@ -1,4 +1,5 @@
 import os
+import json
 import time
 import re
 import argparse
@@ -9,6 +10,18 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
 import sys
+
+
+
+parser = argparse.ArgumentParser(description='使用cv2将n_xxx.png格式的图片序列转换为xxx.mp4视频')
+parser.add_argument('--input-dir')
+parser.add_argument('--fps', type=int, default=25)
+parser.add_argument('--time_delay', type=float, default=0.0)
+parser.add_argument('--max-workers', type=int, default=4)
+args = parser.parse_args()
+
+
+
 def run_bg_genvid(input_dir, fps):
     cmd = ["python", f"{os.path.dirname(__file__)}/genvid.py"]
     cmd.extend(["--input-dir", input_dir])
@@ -65,6 +78,19 @@ def combine_3vids(video1_path, video2_path, video3_path, output_path):
     cap2.release()
     cap3.release()
     out.release()
+
+def process_alpha_only_frames(sorted_files: list) -> tuple:
+    for file_path in sorted_files:
+        try:
+            img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
+            if img is None:
+                continue
+            if len(img.shape) == 3 and img.shape[2] == 4:
+                img[:, :, :3] = 0
+                cv2.imwrite(file_path, img)
+        except Exception:
+            pass
+    return (True, f"已处理 {len(sorted_files)} 张图片")
 
 def run_combine_3vids(target_dir):
     video_combinations = [
@@ -171,13 +197,6 @@ def delete_all(sorted_files):
             pass
 
 def main():
-    parser = argparse.ArgumentParser(description='使用cv2将n_xxx.png格式的图片序列转换为xxx.mp4视频')
-    parser.add_argument('--input-dir')
-    parser.add_argument('--fps', type=int, default=25)
-    parser.add_argument('--time_delay', type=float, default=0.0)
-    parser.add_argument('--max-workers', type=int, default=4)
-    args = parser.parse_args()
-
     if args.time_delay > 0:
         print(f"Warning: time_delay is set to {args.time_delay} seconds")
         time.sleep(args.time_delay)
@@ -255,11 +274,109 @@ def main():
     except Exception:
         print("Combine failed")
 
+def extra():
+
+    overview_path = os.path.join(args.input_dir, "overview.json")
+    overview = None
+    if os.path.exists(overview_path):
+        with open(overview_path, "r+") as f:
+            overview = json.load(f)
+    else:
+        print("overview.json not found!!!")
+        time.sleep(2)
+
+
+    for filename in os.listdir(args.input_dir):
+        if  filename == 'oneobjlit' or filename == 'oneobjgroomlit':
+            pngs = os.listdir(os.path.join(args.input_dir, filename))
+            pngs = [os.path.join(args.input_dir, filename, f) for f in pngs]
+            process_alpha_only_frames(pngs)
+
+    oneobjgroomlit_files = None
+    mask_files = None
+
+    for dirname in os.listdir(args.input_dir):
+        if dirname == 'oneobjgroomlit':
+            pngs = os.listdir(os.path.join(args.input_dir, dirname))
+            pattern_png = re.compile(r'^(\d+)_(.+)\.png$')
+
+            frame_list = []
+            for png in pngs:
+                match = pattern_png.match(png)
+                if match:
+                    frame_num = int(match.group(1))
+                    frame_list.append((frame_num, os.path.join(args.input_dir, dirname, png)))
+
+            frame_list.sort(key=lambda x: x[0])
+            oneobjgroomlit_files = [f[1] for f in frame_list]
+
+    for dirname in os.listdir(args.input_dir):
+        if dirname == 'mask':
+            pngs = os.listdir(os.path.join(args.input_dir, dirname))
+            pattern_png = re.compile(r'^(\d+)_(.+)\.png$')
+
+            frame_list = []
+            for png in pngs:
+                match = pattern_png.match(png)
+                if match:
+                    frame_num = int(match.group(1))
+                    frame_list.append((frame_num, os.path.join(args.input_dir, dirname, png)))
+
+            frame_list.sort(key=lambda x: x[0])
+            mask_files = [f[1] for f in frame_list]
 
 
 
+    if oneobjgroomlit_files is None or mask_files is None:
+        print("oneobjgroomlit_files is None or mask_files is None")
+        time.sleep(2)
+    else:
+        if len(oneobjgroomlit_files) != len(mask_files):
+            print(f"len(oneobjgroomlit_files) != len(mask_files): {len(oneobjgroomlit_files)} vs {len(mask_files)}")
+            time.sleep(2)
+        else:
+            if overview is not None:
+                foreground_color = overview["ForegroundColor"].split(",")
+                assert len(foreground_color) == 3, f"foreground_color = {len(foreground_color)}"
+                foreground_color = np.array([int(c) for c in foreground_color])
+
+                output_gen_dir = os.path.join(args.input_dir, 'oneobjlit')
+                if os.path.exists(output_gen_dir):
+                    output_gen_dir = os.path.join(args.input_dir, 'oneobjlit_gen')
+                os.makedirs(output_gen_dir, exist_ok=True)
+
+                for i in range(len(oneobjgroomlit_files)):
+                    oneobjgroom_img = cv2.imread(oneobjgroomlit_files[i], cv2.IMREAD_UNCHANGED)
+                    mask_img = cv2.imread(mask_files[i], cv2.IMREAD_COLOR)
+
+                    if oneobjgroom_img is None or mask_img is None:
+                        continue
+
+                    mask_matches = np.all(mask_img == foreground_color[::-1], axis=2).astype(np.uint8) * 255
+
+                    alpha_channel = oneobjgroom_img[:, :, 3] if oneobjgroom_img.shape[2] == 4 else np.ones(oneobjgroom_img.shape[:2], dtype=np.uint8) * 255
+
+                    alpha_channel = 255 - alpha_channel
+
+                    result_alpha = np.where(mask_matches == 0, alpha_channel, mask_matches)
+
+                    result_img = np.ones((oneobjgroom_img.shape[0], oneobjgroom_img.shape[1], 4), dtype=np.uint8) * 255
+                    result_img[:, :, 3] = 255 -result_alpha
+
+                    output_path = os.path.join(output_gen_dir, f"{i}_oneobjlit.png")
+                    cv2.imwrite(output_path, result_img)
+
+                print(f"已生成 {len(oneobjgroomlit_files)} 张图片到 {output_gen_dir}")
+
+                
 if __name__ == "__main__":
-    main()
-    print("main() returned")
+    try:
+        main()
+        extra()
+    except Exception as e:
+        print(e)
+        time.sleep(2)
+
+    print("genvid returned")
     time.sleep(2)
     

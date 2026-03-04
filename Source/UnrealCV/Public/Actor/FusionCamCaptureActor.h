@@ -109,6 +109,9 @@ struct FRecordingDataTypesConfig
 	bool bRecordOneObjectLit = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Recording")
+	bool bRecordOneObjectGroomLit = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Recording")
 	bool bRecordShadowCatcher = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Recording")
@@ -140,7 +143,8 @@ struct FRecordingDataTypesConfig
 		Config.bRecordAudio = false;
 		Config.bRecordRGB = true;
 		Config.bRecordMask = true;
-		Config.bRecordOneObjectLit = true;
+		Config.bRecordOneObjectLit = false;
+		Config.bRecordOneObjectGroomLit = true;
 		Config.bRecordMetadata = true;
 		return Config;
 	}
@@ -212,6 +216,10 @@ struct FRecordingDataTypesConfig
 			{
 				Config.bRecordOneObjectLit = true;
 			}
+			else if (Trimmed == TEXT("one_object_groom_lit") || Trimmed == TEXT("oneobjgroomlit"))
+			{
+				Config.bRecordOneObjectGroomLit = true;
+			}
 			else if (Trimmed == TEXT("shadow_catcher") || Trimmed == TEXT("shadowcatcher"))
 			{
 				Config.bRecordShadowCatcher = true;
@@ -236,7 +244,7 @@ struct FRecordingDataTypesConfig
 
 		if (!Config.bRecordRGB && !Config.bRecordMask && !Config.bRecordNormal &&
 		    !Config.bRecordDepth && !Config.bRecordFlow && !Config.bRecordOneObjectMask &&
-		    !Config.bRecordOneObjectLit && !Config.bRecordShadowCatcher && !Config.bRecordStencilMask)
+		    !Config.bRecordOneObjectLit && !Config.bRecordOneObjectGroomLit && !Config.bRecordShadowCatcher && !Config.bRecordStencilMask)
 		{
 			Config.bRecordRGB = true;
 		}

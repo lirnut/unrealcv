@@ -89,7 +89,7 @@ void FDatasetAutomationHandler::RegisterCommands()
 	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/foreground_move_angle_offset [float]"), Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetConfigRecordingOptions);
-	Help = "Set recording data types options (comma-separated): lit/rgb, mask/seg, normal, depth, flow, oneobjmask, oneobjlit, shadowcatcher, stencilmask, metadata, audio, woTarget";
+	Help = "Set recording data types options (comma-separated): lit/rgb, mask/seg, normal, depth, flow, oneobjmask, oneobjlit, oneobjgroomlit, shadowcatcher, stencilmask, metadata, audio, woTarget";
 	Help += "\nExample: vset /datasetautomation/config/recording_options lit,mask,oneobjlit,metadata";
 	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/config/recording_options [str]"), Cmd, Help);
 
@@ -386,6 +386,7 @@ FExecStatus FDatasetAutomationHandler::SetConfigRecordingOptions(const TArray<FS
 	if (RecordingConfig.bRecordFlow) EnabledTypes.Add(TEXT("Flow"));
 	if (RecordingConfig.bRecordOneObjectMask) EnabledTypes.Add(TEXT("OneObjMask"));
 	if (RecordingConfig.bRecordOneObjectLit) EnabledTypes.Add(TEXT("OneObjLit"));
+	if (RecordingConfig.bRecordOneObjectGroomLit) EnabledTypes.Add(TEXT("OneObjGroomLit"));
 	if (RecordingConfig.bRecordShadowCatcher) EnabledTypes.Add(TEXT("ShadowCatcher"));
 	if (RecordingConfig.bRecordStencilMask) EnabledTypes.Add(TEXT("StencilMask"));
 	if (RecordingConfig.bRecordMetadata) EnabledTypes.Add(TEXT("Metadata"));

@@ -751,6 +751,12 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 		TargetSensor->SaveOneObjLitToFile(TargetForeground, OneObjLitFilename);
 	}
 
+	if (RecordingDataTypes.bRecordOneObjectGroomLit && IsValid(TargetForeground))
+	{
+		FString OneObjGroomLitFilename = MakeFilenameNewWithFolder("oneobjgroomlit", ".png");
+		TargetSensor->SaveOneObjGroomLitToFile(TargetForeground, OneObjGroomLitFilename);
+	}
+
 	if (RecordingDataTypes.bRecordShadowCatcher && IsValid(TargetForeground))
 	{
 		FString ShadowCatcherFilename = MakeFilenameNewWithFolder("shadowcatcher", ".png");

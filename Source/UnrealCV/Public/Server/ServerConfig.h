@@ -17,6 +17,7 @@ public:
 	float FOV;
 	bool AnnotateWorld;
 	bool DisableSKMAnnotation;
+	bool DisableGroomAnnotation;
 	bool EnableInput;
 	bool ExitOnFailure;
 	bool EnableRightEye;

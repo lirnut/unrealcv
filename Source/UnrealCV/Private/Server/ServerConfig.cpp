@@ -24,6 +24,7 @@ FServerConfig::FServerConfig()
 	FOV = 90.0f;
 	AnnotateWorld = true;
 	DisableSKMAnnotation = false;
+	DisableGroomAnnotation = true;
 	EnableInput = true;
 	ExitOnFailure = false;
 	EnableRightEye = false;
@@ -53,6 +54,7 @@ FServerConfig::FServerConfig()
 	UE_LOG(LogUnrealCV, Warning, TEXT("FOV: %f"), this->FOV);
 	UE_LOG(LogUnrealCV, Warning, TEXT("AnnotateWorld: %s"), *BoolToString(this->AnnotateWorld));
 	UE_LOG(LogUnrealCV, Warning, TEXT("DisableSKMAnnotation: %s"), *BoolToString(this->DisableSKMAnnotation));
+	UE_LOG(LogUnrealCV, Warning, TEXT("DisableGroomAnnotation: %s"), *BoolToString(this->DisableGroomAnnotation));
 	UE_LOG(LogUnrealCV, Warning, TEXT("EnableInput: %s"), *BoolToString(this->EnableInput));
 	UE_LOG(LogUnrealCV, Warning, TEXT("EnableRightEye: %s"), *BoolToString(this->EnableRightEye));
 	UE_LOG(LogUnrealCV, Warning, TEXT("UseFastCapture: %s"), *BoolToString(this->UseFastCapture));
@@ -124,6 +126,7 @@ FString FServerConfig::ToString() {
 	Msg += FString::Printf(TEXT("FOV: %f\n"), this->FOV);
 	Msg += FString::Printf(TEXT("AnnotateWorld: %s\n"), *BoolToString(this->AnnotateWorld));
 	Msg += FString::Printf(TEXT("DisableSKMAnnotation: %s\n"), *BoolToString(this->DisableSKMAnnotation));
+	Msg += FString::Printf(TEXT("DisableGroomAnnotation: %s\n"), *BoolToString(this->DisableGroomAnnotation));
 	Msg += FString::Printf(TEXT("EnableInput: %s\n"), *BoolToString(this->EnableInput));
 	Msg += FString::Printf(TEXT("EnableRightEye: %s\n"), *BoolToString(this->EnableRightEye));
 	Msg += FString::Printf(TEXT("UseFastCapture: %s\n"), *BoolToString(this->UseFastCapture));
@@ -146,6 +149,7 @@ bool FServerConfig::Load() {
 	GConfig->GetFloat(*CoreSection, TEXT("FOV"), this->FOV, this->ConfigFile);
 	GConfig->GetBool(*CoreSection, TEXT("AnnotateWorld"), this->AnnotateWorld, this->ConfigFile);
 	GConfig->GetBool(*CoreSection, TEXT("DisableSKMAnnotation"), this->DisableSKMAnnotation, this->ConfigFile);
+	GConfig->GetBool(*CoreSection, TEXT("DisableGroomAnnotation"), this->DisableGroomAnnotation, this->ConfigFile);
 	GConfig->GetBool(*CoreSection, TEXT("EnableInput"), this->EnableInput, this->ConfigFile);
 	GConfig->GetBool(*CoreSection, TEXT("EnableRightEye"), this->EnableRightEye, this->ConfigFile);
 	GConfig->GetBool(*CoreSection, TEXT("UseFastCapture"), this->UseFastCapture, this->ConfigFile);
@@ -168,6 +172,7 @@ bool FServerConfig::Save()
 	GConfig->SetFloat(*CoreSection, TEXT("FOV"), this->FOV, this->ConfigFile);
 	GConfig->SetBool(*CoreSection, TEXT("AnnotateWorld"), this->AnnotateWorld, this->ConfigFile);
 	GConfig->SetBool(*CoreSection, TEXT("DisableSKMAnnotation"), this->DisableSKMAnnotation, this->ConfigFile);
+	GConfig->SetBool(*CoreSection, TEXT("DisableGroomAnnotation"), this->DisableGroomAnnotation, this->ConfigFile);
 	GConfig->SetBool(*CoreSection, TEXT("EnableInput"), this->EnableInput, this->ConfigFile);
 	GConfig->SetBool(*CoreSection, TEXT("EnableRightEye"), this->EnableRightEye, this->ConfigFile);
 	GConfig->SetBool(*CoreSection, TEXT("UseFastCapture"), this->UseFastCapture, this->ConfigFile);
