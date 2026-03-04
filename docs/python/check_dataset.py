@@ -64,10 +64,22 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
             if not rgb_mp4.exists():
                 issues.append("0 rgb png while no rgb.mp4")
                 should_delete = True
+            else:
+                mp4_sz = os.path.getsize(rgb_mp4)
+                if mp4_sz < 20 * 1024: # 20 K Byte
+                    issues.append(f"0 rgb png while rgb.mp4 size invalid {mp4_sz/1024}KB")
+                    should_delete = True
+
     else:
         if not rgb_mp4.exists():
             issues.append("no rgb folder while no rgb.mp4")
             should_delete = True
+        else:
+            mp4_sz = os.path.getsize(rgb_mp4)
+            if mp4_sz < 20 * 1024: # 20 K Byte
+                issues.append(f"no rgb folder while rgb.mp4 size invalid {mp4_sz/1024}KB")
+                should_delete = True
+
 
     return {
         "path": str(render_path),
