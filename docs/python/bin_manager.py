@@ -56,7 +56,7 @@ else:
         # ("Urban_RoadsideConstruction_Scene", 1.0),
         ("Town", 1.0),
         # ("L_WillowLake", 1.0),
-        # ("Jungle", 1.0),
+        ("Jungle", 1.0),
         # ("TrainStation", 1.0),
         # ("Mountains_Map", 1.0),
         ("Asian_town", 1.0),
@@ -66,8 +66,8 @@ else:
         ("Downtown_West", 1.0),
         ("Downtown_West_Night", 1.0),
         ("Bridge_P", 1.0),
-        ("LV_Exterior", 1.0),
-        ("LV_Exterior_Night", 1.0),
+        ("LV_Exterior", 2.0),
+        ("LV_Exterior_Night", 2.0),
         ("LV_Exterior_Sunrise", 1.0),
     ]
 

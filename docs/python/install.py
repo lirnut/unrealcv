@@ -25,6 +25,7 @@ for f in platform_files:
 
 SPECIAL_PATHS = {
     "genvid.py": f"{platform}/{f}/Saved",
+    "MetaHumanCache.json": f"{platform}/{f}/Saved",
 }
 
 UnrealCV_Client_Path = "../../client/python/unrealcv"
