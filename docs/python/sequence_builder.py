@@ -5,17 +5,26 @@ ANIMATION_MODES = {
     "A": {
         "bp_path": "/Game/MetaHumans/ABP_Run.ABP_Run_C",
         "move_speed": "70.0",
-        "prob": 0.4
+        "prob": 0.4,
+        "distance": "75 100",
+        "height": "110 165",
+        "aim_height": ""
     },
     "B": {
         "bp_path": "/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C",
         "move_speed": "0.0",
-        "prob": 0.2
+        "prob": 0.2,
+        "distance": "90 140",
+        "height": "120 155"
+        "aim_height": "125 175"
     },
     "C": {
         "bp_path": "/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C",
         "move_speed": "0.0",
-        "prob": 0.4
+        "prob": 0.4,
+        "distance": "90 140",
+        "height": "120 155"
+        "aim_height": "135 160"
     }
 }
 
@@ -60,9 +69,9 @@ def build_single_matting_scene():
     commands = [
         {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.85"},
         {"cmd": "load_scene_param_json"},
-        {"cmd": "random_scene_param_camera_height", "params": "120 155"},
+        {"cmd": "random_scene_param_camera_height", "params": anim_config["height"]},
         {"cmd": "random_scene_param_camera_angle_offset", "params": "-90 90"},
-        {"cmd": "random_scene_param_camera_distance", "params": "75 100"},
+        {"cmd": "random_scene_param_camera_distance", "params": anim_config["distance"]},
         {"cmd": "create_scene"},
         {"cmd": "set_animation_bp", "params": anim_config["bp_path"]},
         {"cmd": "prepare_groom"},
@@ -72,7 +81,7 @@ def build_single_matting_scene():
         {"cmd": "delay", "params": "2.0"},
         {"cmd": "random_resolution", "params": resolution},
         {"cmd": "random_fov", "params": fov_range},
-        {"cmd": "aim_camera_at_foreground", "params": "125 175"},
+        {"cmd": "aim_camera_at_foreground", "params": anim_config["aim_height"]},
         {"cmd": "add_camera_rotation_noise", "params": "12.0 4.0 6.0"},
         {"cmd": "prepare_record"},
         {"cmd": "delay", "params": "4.0"},

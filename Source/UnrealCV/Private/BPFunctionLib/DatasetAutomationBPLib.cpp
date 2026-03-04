@@ -501,15 +501,31 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		}
 
 		FVector TargetLocation = CurrentScene.ForegroundActor->GetActorLocation();
-		TargetLocation.Z = GetForegroundActorTopZ();
+
+		TArray<FString> Args;
+		Step.StringParam.ParseIntoArray(Args, TEXT(" "));
+		if (Args.Num() >= 2)
+		{
+			float MinOffset = FCString::Atof(*Args[0]);
+			float MaxOffset = FCString::Atof(*Args[1]);
+			FBox ActorBounds = CurrentScene.ForegroundActor->GetComponentsBoundingBox();
+			float RandomOffset = FMath::RandRange(MinOffset, MaxOffset);
+			TargetLocation.Z = ActorBounds.Min.Z + RandomOffset;
+			UE_LOG(LogUnrealCV, Log, TEXT("aim_camera_at_foreground: Aiming at Z=%.1f (MinZ=%.1f + RandomOffset=%.1f, range %.1f-%.1f)"),
+				TargetLocation.Z, ActorBounds.Min.Z, RandomOffset, MinOffset, MaxOffset);
+		}
+		else
+		{
+			TargetLocation.Z = GetForegroundActorTopZ();
+			UE_LOG(LogUnrealCV, Log, TEXT("aim_camera_at_foreground: Aiming at top Z=%.1f (bounds-based 86%%)"),
+				TargetLocation.Z);
+		}
 
 		FVector CameraToTarget = (TargetLocation - PrimaryCam->GetSensorLocation()).GetSafeNormal();
 		FRotator TargetRotation = CameraToTarget.Rotation();
 		TargetRotation.Roll = 0.0f;
 		PrimaryCam->SetSensorRotation(TargetRotation);
 
-		UE_LOG(LogUnrealCV, Log, TEXT("aim_camera_at_foreground: Aiming at top Z=%.1f (bounds-based)"),
-			TargetLocation.Z);
 		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("add_camera_rotation_noise"))

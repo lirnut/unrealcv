@@ -24,7 +24,7 @@ parser.add_argument('--max-workers', type=int, default=4)
 args = parser.parse_args()
 
 # ── 视频编码全局配置 ──
-THIS_IS_A_CONFIG_CRF = 12            # CRF值，0=无损, 18≈视觉无损, 23=默认, 越小质量越高
+THIS_IS_A_CONFIG_CRF = 18            # CRF值，0=无损, 18≈视觉无损, 23=默认, 越小质量越高
 THIS_IS_A_CONFIG_PRESET = 'slower'   # 编码预设: ultrafast~veryslow, 越慢质量越高
 
 
