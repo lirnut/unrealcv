@@ -11,15 +11,21 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
 import sys
 
+# ── 唯一新增依赖：pip install imageio imageio-ffmpeg ──
+# imageio-ffmpeg 自带静态编译的 ffmpeg 二进制，无需系统安装
+import imageio_ffmpeg
 
 
-parser = argparse.ArgumentParser(description='使用cv2将n_xxx.png格式的图片序列转换为xxx.mp4视频')
+parser = argparse.ArgumentParser(description='使用ffmpeg将n_xxx.png格式的图片序列转换为xxx.mp4视频')
 parser.add_argument('--input-dir')
 parser.add_argument('--fps', type=int, default=25)
 parser.add_argument('--time_delay', type=float, default=0.0)
 parser.add_argument('--max-workers', type=int, default=4)
 args = parser.parse_args()
 
+# ── 视频编码全局配置 ──
+THIS_IS_A_CONFIG_CRF = 12            # CRF值，0=无损, 18≈视觉无损, 23=默认, 越小质量越高
+THIS_IS_A_CONFIG_PRESET = 'slower'   # 编码预设: ultrafast~veryslow, 越慢质量越高
 
 
 def run_bg_genvid(input_dir, fps):
@@ -34,11 +40,50 @@ def run_bg_genvid(input_dir, fps):
         shell=False,
         start_new_session=True
     )
-    
+
     print(f"已启动后台进程，进程ID: {process.pid}")
     return process
 
-VIDEO_QUALITY = 100
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  核心：用 imageio-ffmpeg 管道替代 cv2.VideoWriter
+#  imageio_ffmpeg.write_frames() 返回 generator，通过 .send() 写帧
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def create_ffmpeg_writer(output_path: str, width: int, height: int, fps: float):
+    """
+    创建 ffmpeg 管道 writer。
+    内部使用 imageio-ffmpeg 自带的 ffmpeg 二进制。
+    """
+    writer = imageio_ffmpeg.write_frames(
+        output_path,
+        (width, height),
+        fps=fps,
+        codec='libx264',
+        pix_fmt_in='bgr24',       # cv2 imread 默认 BGR
+        pix_fmt_out='yuv420p',     # 播放器兼容性最好
+        macro_block_size=1, 
+        output_params=[
+            '-crf', str(THIS_IS_A_CONFIG_CRF),
+            '-preset', THIS_IS_A_CONFIG_PRESET,
+            '-movflags', '+faststart',
+        ],
+    )
+    writer.send(None)  # 初始化 generator
+    return writer
+
+
+def write_frame(writer, frame: np.ndarray):
+    """向 ffmpeg 管道写入一帧 (BGR numpy array)"""
+    writer.send(frame.tobytes())
+
+
+def close_writer(writer):
+    """关闭管道，等待 ffmpeg 完成编码"""
+    writer.close()
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def combine_3vids(video1_path, video2_path, video3_path, output_path):
     cap1 = cv2.VideoCapture(video1_path)
@@ -49,9 +94,7 @@ def combine_3vids(video1_path, video2_path, video3_path, output_path):
     width = int(cap1.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap1.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width*3, height))
-    out.set(cv2.VIDEOWRITER_PROP_QUALITY, VIDEO_QUALITY)
+    writer = create_ffmpeg_writer(output_path, width * 3, height, fps)
 
     frames_buffer = []
     buffer_size = 30
@@ -68,16 +111,17 @@ def combine_3vids(video1_path, video2_path, video3_path, output_path):
 
         if len(frames_buffer) >= buffer_size:
             for combined in frames_buffer:
-                out.write(combined)
+                write_frame(writer, combined)
             frames_buffer.clear()
 
     for combined in frames_buffer:
-        out.write(combined)
+        write_frame(writer, combined)
 
+    close_writer(writer)
     cap1.release()
     cap2.release()
     cap3.release()
-    out.release()
+
 
 def process_alpha_only_frames(sorted_files: list) -> tuple:
     for file_path in sorted_files:
@@ -91,6 +135,7 @@ def process_alpha_only_frames(sorted_files: list) -> tuple:
         except Exception:
             pass
     return (True, f"已处理 {len(sorted_files)} 张图片")
+
 
 def run_combine_3vids(target_dir):
     video_combinations = [
@@ -118,10 +163,12 @@ def run_combine_3vids(target_dir):
         if check_file:
             break
 
+
 def process_sequence(seq_name: str, frames: list, args, output_dir: str) -> tuple:
     frames.sort(key=lambda x: x[0])
     sorted_files = [f[1] for f in frames]
     is_npy = sorted_files[0].endswith('.npy')
+
     if not is_npy:
         output_file = os.path.join(output_dir, f"{seq_name}.mp4")
 
@@ -131,12 +178,8 @@ def process_sequence(seq_name: str, frames: list, args, output_dir: str) -> tupl
 
         height, width = first_frame.shape[:2]
 
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_file, fourcc, args.fps, (width, height))
-        out.set(cv2.VIDEOWRITER_PROP_QUALITY, VIDEO_QUALITY)
-
-        if not out.isOpened():
-            return (seq_name, False, f"无法创建视频文件: {output_file}")
+        # ── ffmpeg 管道替代 cv2.VideoWriter ──
+        writer = create_ffmpeg_writer(output_file, width, height, args.fps)
 
         need_resize = False
         frames_buffer = []
@@ -156,26 +199,26 @@ def process_sequence(seq_name: str, frames: list, args, output_dir: str) -> tupl
 
             if len(frames_buffer) >= buffer_size:
                 for buffered_frame in frames_buffer:
-                    out.write(buffered_frame)
+                    write_frame(writer, buffered_frame)
                 frames_buffer.clear()
 
         for buffered_frame in frames_buffer:
-            out.write(buffered_frame)
+            write_frame(writer, buffered_frame)
 
-        out.release()
+        close_writer(writer)
 
-    # rename_to_dir(output_dir, seq_name, sorted_files)
     if is_npy:
-        # all npy to one npz
         output_file = os.path.join(output_dir, f"{seq_name}.npz")
         np.savez(output_file, *[np.load(f, allow_pickle=True) for f in sorted_files])
-    keys_to_save_png = ('mask',) #'oneobj', 'depth')
+
+    keys_to_save_png = ('mask',)
     if any(key in seq_name.lower() for key in keys_to_save_png):
         rename_to_dir(output_dir, seq_name, sorted_files)
     else:
         delete_all(sorted_files)
 
     return (seq_name, True, f"成功生成视频: {output_file}")
+
 
 def rename_to_dir(output_dir, seq_name, sorted_files):
     seq_name_dir = os.path.join(output_dir, seq_name)
@@ -188,6 +231,7 @@ def rename_to_dir(output_dir, seq_name, sorted_files):
             print(f"失败: {file_path}")
             pass
 
+
 def delete_all(sorted_files):
     for file_path in sorted_files:
         try:
@@ -196,6 +240,7 @@ def delete_all(sorted_files):
             print(f"删除失败: {file_path}")
             pass
 
+
 def main():
     if args.time_delay > 0:
         print(f"Warning: time_delay is set to {args.time_delay} seconds")
@@ -203,6 +248,10 @@ def main():
 
     output_dir = args.input_dir
     os.makedirs(output_dir, exist_ok=True)
+
+    # 打印 ffmpeg 路径，确认使用 imageio-ffmpeg 自带的二进制
+    print(f"FFmpeg 路径: {imageio_ffmpeg.get_ffmpeg_exe()}")
+    print(f"编码参数: libx264 | CRF={THIS_IS_A_CONFIG_CRF} | preset={THIS_IS_A_CONFIG_PRESET}")
 
     pattern_png = re.compile(r'^(\d+)_(.+)\.png$')
     pattern_bmp = re.compile(r'^(\d+)_(.+)\.bmp$')
@@ -231,7 +280,7 @@ def main():
             file_path = os.path.join(args.input_dir, filename)
             sequences[seq_name].append((frame_num, file_path))
 
-    for filename in os.listdir(os.path.join(args.input_dir , "rgb")):
+    for filename in os.listdir(os.path.join(args.input_dir, "rgb")):
         lower_filename = filename.lower()
         if lower_filename.endswith('.png'):
             suffix = 'png'
@@ -274,6 +323,7 @@ def main():
     except Exception:
         print("Combine failed")
 
+
 def extra():
 
     overview_path = os.path.join(args.input_dir, "overview.json")
@@ -285,9 +335,8 @@ def extra():
         print("overview.json not found!!!")
         time.sleep(2)
 
-
     for filename in os.listdir(args.input_dir):
-        if  filename == 'oneobjlit' or filename == 'oneobjgroomlit':
+        if filename == 'oneobjlit' or filename == 'oneobjgroomlit':
             pngs = os.listdir(os.path.join(args.input_dir, filename))
             pngs = [os.path.join(args.input_dir, filename, f) for f in pngs]
             process_alpha_only_frames(pngs)
@@ -325,8 +374,6 @@ def extra():
             frame_list.sort(key=lambda x: x[0])
             mask_files = [f[1] for f in frame_list]
 
-
-
     if oneobjgroomlit_files is None or mask_files is None:
         print("oneobjgroomlit_files is None or mask_files is None")
         time.sleep(2)
@@ -361,14 +408,14 @@ def extra():
                     result_alpha = np.where(mask_matches == 0, alpha_channel, mask_matches)
 
                     result_img = np.ones((oneobjgroom_img.shape[0], oneobjgroom_img.shape[1], 4), dtype=np.uint8) * 255
-                    result_img[:, :, 3] = 255 -result_alpha
+                    result_img[:, :, 3] = 255 - result_alpha
 
                     output_path = os.path.join(output_gen_dir, f"{i}_oneobjlit.png")
                     cv2.imwrite(output_path, result_img)
 
                 print(f"已生成 {len(oneobjgroomlit_files)} 张图片到 {output_gen_dir}")
 
-                
+
 if __name__ == "__main__":
     try:
         main()
@@ -379,4 +426,3 @@ if __name__ == "__main__":
 
     print("genvid returned")
     time.sleep(2)
-    
