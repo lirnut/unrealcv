@@ -14,7 +14,6 @@ EXPECTED_ONEOBJLIT_FILES = 90
 EXPECTED_RGB_PNG_FILES = 90
 
 DATEDIRT_TO_EXCLUDE = [
-    "26-03-05"
 ]
 
 
@@ -263,7 +262,14 @@ def main():
             print(f"{'='*80}")
 
             genvid_script = Path(__file__).parent / "genvid.py"
-            started_count = 0
+            if not genvid_script.exists():
+                genvid_script = Path(__file__).parent / "Windows" / "HUAWEI_Project" / "Saved" /"genvid.py"
+            if not genvid_script.exists():
+                genvid_script = Path(__file__).parent / "Windows" / "HillsideSampleProject" / "Saved" /"genvid.py"
+            if not genvid_script.exists():
+                genvid_script = Path(__file__).parent / "Windows" / "CitySample" / "Saved" /"genvid.py"
+            success_count = 0
+            failed_count = 0
 
             for render_path in renders_need_genvid:
                 try:
@@ -272,27 +278,31 @@ def main():
                         str(genvid_script),
                         "--input-dir", render_path,
                         "--fps", str(args.fps),
-                        "--time_delay", str(abs(min(5 * 60, started_count * 8)))
+                        "--time_delay", "0"
                     ]
 
-                    process = subprocess.Popen(
+                    result = subprocess.run(
                         cmd,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        shell=False,
-                        start_new_session=True
+                        stdout=None,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        shell=False
                     )
 
-                    print(f"✓ Started genvid (PID {process.pid}): {render_path}")
-                    started_count += 1
-                    time.sleep(2)
+                    if result.returncode == 0:
+                        success_count += 1
+                    else:
+                        print(f"✗ genvid failed: {render_path}")
+                        print(f"   stderr: {result.stderr.strip()}")
+                        failed_count += 1
                 except Exception as e:
-                    print(f"✗ Failed to start genvid for {render_path}: {e}")
+                    print(f"✗ Exception for {render_path}: {e}")
+                    failed_count += 1
 
             print(f"\n{'='*80}")
             print(f"Genvid Summary:")
             print(f"{'='*80}")
-            print(f"Successfully started: {started_count} processes")
+            print(f"Success: {success_count}, Failed: {failed_count}")
         else:
             for render_path in renders_need_genvid:
                 print(f"  {render_path}")

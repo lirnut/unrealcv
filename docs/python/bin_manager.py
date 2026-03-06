@@ -50,7 +50,7 @@ elif EXE_PATH.__str__().endswith("CitySample.exe"):
 else:
     AVAILABLE_MAPS: list[tuple[str, float]] = [
         ("Tokyo", 1.0),
-        # ("Chinese_mountain_town", 1.0),
+        ("Chinese_mountain_town", 1.0),
         ("Demo_Roof", 1.0),
         # ("Urban_RoadsideConstruction_Scene", 1.0),
         ("Town", 0.2),
@@ -278,7 +278,8 @@ def main():
             
             print(f"\n{'='*60}")
             print(f"[CONFIG] Scalability...")
-            print(client.request("r.ScreenPercentage 67.0"))
+            print(client.request("vrun r.ScreenPercentage 67.0"))
+            print(client.request("vrun r.Shadow.Virtual.Enable 0"))
 
 
             print(f"\n{'='*60}")

@@ -263,7 +263,16 @@ TArray<FMaterialSemanticMetadata> UMetaDataBPLib::GetActorMaterialsMetadata(AAct
                     }
                 }
 
-                // Get double vector parameter values (if any)
+                // Get static switch parameter values from MaterialInterface (UE5.5+ compatible)
+                TMap<FMaterialParameterInfo, FMaterialParameterMetadata> StaticSwitchParams;
+                MatInterface->GetAllParametersOfType(EMaterialParameterType::StaticSwitch, StaticSwitchParams);
+                for (const auto& Pair : StaticSwitchParams)
+                {
+                    bool Value = Pair.Value.Value.AsStaticSwitch();
+                    MatMetadata.StaticSwitchParameters.Add(Pair.Key.Name.ToString(), Value);
+                }
+
+                // Get double vector parameter values
                 for (const FDoubleVectorParameterValue& DoubleVectorParam : MatInstance->DoubleVectorParameterValues)
                 {
                     FVector4d Value = DoubleVectorParam.ParameterValue;
@@ -566,6 +575,80 @@ FJsonObjectBP UMetaDataBPLib::MaterialMetadataToJson(const FMaterialSemanticMeta
     }
     Keys.Add(TEXT("VectorParameters"));
     Values.Add(USerializeBPLib::TMapToJson(VectorKeys, VectorValues));
+
+    // Static switch parameters
+    TArray<FString> StaticSwitchKeys;
+    TArray<FJsonObjectBP> StaticSwitchValues;
+    for (const auto& Pair : Metadata.StaticSwitchParameters)
+    {
+        StaticSwitchKeys.Add(Pair.Key);
+        StaticSwitchValues.Add(FJsonObjectBP(Pair.Value ? 1 : 0));
+    }
+    Keys.Add(TEXT("StaticSwitchParameters"));
+    Values.Add(USerializeBPLib::TMapToJson(StaticSwitchKeys, StaticSwitchValues));
+
+    // Add comprehensive AllParameters section with type info and override status
+    TMap<FString, FJsonObjectBP> AllParamsMap;
+
+    // Scalar parameters with metadata
+    TArray<FJsonObjectBP> ScalarParamsDetailed;
+    for (const auto& Pair : Metadata.ScalarParameters)
+    {
+        TMap<FString, FJsonObjectBP> ParamDetail;
+        ParamDetail.Add(TEXT("Name"), FJsonObjectBP(Pair.Key));
+        ParamDetail.Add(TEXT("Value"), FJsonObjectBP(Pair.Value));
+        ParamDetail.Add(TEXT("Type"), FJsonObjectBP(TEXT("Scalar")));
+        ParamDetail.Add(TEXT("bOverride"), FJsonObjectBP(1));  // If in this list, it's overridden
+        ScalarParamsDetailed.Add(FJsonObjectBP(ParamDetail));
+    }
+    AllParamsMap.Add(TEXT("Scalars"), FJsonObjectBP(ScalarParamsDetailed));
+
+    // Vector parameters with metadata
+    TArray<FJsonObjectBP> VectorParamsDetailed;
+    for (const auto& Pair : Metadata.VectorParameters)
+    {
+        TMap<FString, FJsonObjectBP> ParamDetail;
+        ParamDetail.Add(TEXT("Name"), FJsonObjectBP(Pair.Key));
+        TMap<FString, FJsonObjectBP> ColorMap;
+        ColorMap.Add(TEXT("R"), FJsonObjectBP(Pair.Value.R));
+        ColorMap.Add(TEXT("G"), FJsonObjectBP(Pair.Value.G));
+        ColorMap.Add(TEXT("B"), FJsonObjectBP(Pair.Value.B));
+        ColorMap.Add(TEXT("A"), FJsonObjectBP(Pair.Value.A));
+        ParamDetail.Add(TEXT("Value"), FJsonObjectBP(ColorMap));
+        ParamDetail.Add(TEXT("Type"), FJsonObjectBP(TEXT("Vector")));
+        ParamDetail.Add(TEXT("bOverride"), FJsonObjectBP(1));
+        VectorParamsDetailed.Add(FJsonObjectBP(ParamDetail));
+    }
+    AllParamsMap.Add(TEXT("Vectors"), FJsonObjectBP(VectorParamsDetailed));
+
+    // Texture parameters with metadata
+    TArray<FJsonObjectBP> TextureParamsDetailed;
+    for (const auto& Pair : Metadata.TextureMaps)
+    {
+        TMap<FString, FJsonObjectBP> ParamDetail;
+        ParamDetail.Add(TEXT("Name"), FJsonObjectBP(Pair.Key));
+        ParamDetail.Add(TEXT("Value"), FJsonObjectBP(Pair.Value));
+        ParamDetail.Add(TEXT("Type"), FJsonObjectBP(TEXT("Texture")));
+        ParamDetail.Add(TEXT("bOverride"), FJsonObjectBP(1));
+        TextureParamsDetailed.Add(FJsonObjectBP(ParamDetail));
+    }
+    AllParamsMap.Add(TEXT("Textures"), FJsonObjectBP(TextureParamsDetailed));
+
+    // Static switch parameters with metadata
+    TArray<FJsonObjectBP> SwitchParamsDetailed;
+    for (const auto& Pair : Metadata.StaticSwitchParameters)
+    {
+        TMap<FString, FJsonObjectBP> ParamDetail;
+        ParamDetail.Add(TEXT("Name"), FJsonObjectBP(Pair.Key));
+        ParamDetail.Add(TEXT("Value"), FJsonObjectBP(Pair.Value ? 1 : 0));
+        ParamDetail.Add(TEXT("Type"), FJsonObjectBP(TEXT("StaticSwitch")));
+        ParamDetail.Add(TEXT("bOverride"), FJsonObjectBP(1));
+        SwitchParamsDetailed.Add(FJsonObjectBP(ParamDetail));
+    }
+    AllParamsMap.Add(TEXT("StaticSwitches"), FJsonObjectBP(SwitchParamsDetailed));
+
+    Keys.Add(TEXT("AllParameters"));
+    Values.Add(FJsonObjectBP(AllParamsMap));
 
     return USerializeBPLib::TMapToJson(Keys, Values);
 }

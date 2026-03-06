@@ -25,7 +25,11 @@ args = parser.parse_args()
 
 # ── 视频编码全局配置 ──
 THIS_IS_A_CONFIG_CRF = 18            # CRF值，0=无损, 18≈视觉无损, 23=默认, 越小质量越高
-THIS_IS_A_CONFIG_PRESET = 'slower'   # 编码预设: ultrafast~veryslow, 越慢质量越高
+# THIS_IS_A_CONFIG_PRESET = 'slower'   # 编码预设: ultrafast~veryslow, 越慢质量越高
+# THIS_IS_A_CONFIG_PRESET = 'ultrafast'
+# THIS_IS_A_CONFIG_PRESET = 'veryfast'
+# THIS_IS_A_CONFIG_PRESET = 'fast'
+THIS_IS_A_CONFIG_PRESET = 'medium'
 
 
 def run_bg_genvid(input_dir, fps):
@@ -295,6 +299,21 @@ def main():
             sequences[seq_name].append((frame_num, file_path))
             print(file_path)
 
+    for filename in os.listdir(os.path.join(args.input_dir, "depth")):
+        lower_filename = filename.lower()
+        if lower_filename.endswith('.png'):
+            suffix = 'png'
+            match = pattern_png.match(filename)
+        else:
+            continue
+
+        if match:
+            frame_num = int(match.group(1))
+            seq_name = match.group(2)
+            file_path = os.path.join(args.input_dir, "depth", filename)
+            sequences[seq_name].append((frame_num, file_path))
+            print(file_path)
+
     if not sequences:
         print("未找到符合格式的图片序列（格式应为：n_xxx.png）")
         return
@@ -333,7 +352,8 @@ def extra():
             overview = json.load(f)
     else:
         print("overview.json not found!!!")
-        time.sleep(2)
+        if args.time_delay > 0:
+            time.sleep(2)
 
     for filename in os.listdir(args.input_dir):
         if filename == 'oneobjlit' or filename == 'oneobjgroomlit':
@@ -376,11 +396,13 @@ def extra():
 
     if oneobjgroomlit_files is None or mask_files is None:
         print("oneobjgroomlit_files is None or mask_files is None")
-        time.sleep(2)
+        if args.time_delay > 0:
+            time.sleep(2)
     else:
         if len(oneobjgroomlit_files) != len(mask_files):
             print(f"len(oneobjgroomlit_files) != len(mask_files): {len(oneobjgroomlit_files)} vs {len(mask_files)}")
-            time.sleep(2)
+            if args.time_delay > 0:
+                time.sleep(2)
         else:
             if overview is not None:
                 foreground_color = overview["ForegroundColor"].split(",")
@@ -421,12 +443,15 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print(e)
-        time.sleep(2)
+        if args.time_delay > 0:
+            time.sleep(2)
     try:
         extra()
     except Exception as e:
         print(e)
-        time.sleep(2)
+        if args.time_delay > 0:
+            time.sleep(2)
 
     print("genvid returned")
-    time.sleep(2)
+    if args.time_delay > 0:
+        time.sleep(2)

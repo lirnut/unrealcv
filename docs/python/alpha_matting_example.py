@@ -1,11 +1,11 @@
-import cv2
+import cv2, sys, os
 import numpy as np
 from pathlib import Path
 
 
 
-workdir = "./scene_0000_3C49CF9E/render_only/"
-workdir = "G:/HUAWEI_Project_UE56/Saved/DatasetAutomationOutputDirectory/scene_0000_C365AB43/render_only/"
+workdir = os.path.realpath(sys.argv[1])
+workdir = os.path.join(workdir, os.listdir(workdir)[0]) + "/"
 
 
 def apply_alpha_to_rgb():

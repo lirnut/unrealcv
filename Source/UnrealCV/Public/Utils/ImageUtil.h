@@ -12,9 +12,11 @@ enum EFilenameType
 	Npy,
 	Exr,
 	Bmp,
+	Jpg,
 	PngBinary,
 	NpyBinary,
 	BmpBinary,
+	JpgBinary,
 	Invalid, // Unrecognized filename type
 };
 
@@ -95,3 +97,21 @@ void ConvertDepthToPNG_RGB24(
     float GlobalMaxDepth
 );
 float DecodeDepthFromRGB24(FColor C, float GlobalMinDepth, float GlobalMaxDepth);
+
+void ConvertDepthToPNG_RGB24_Interleaved(
+    const TArray<float>& DepthData,
+    TArray<FColor>& Out,
+    float GlobalMinDepth,
+    float GlobalMaxDepth
+);
+float DecodeDepthFromRGB24_Interleaved(FColor C, float GlobalMinDepth, float GlobalMaxDepth);
+
+void ConvertDepthToPNG_Hue(
+    const TArray<float>& DepthData,
+    TArray<FColor>& Out,
+    float GlobalMinDepth,
+    float GlobalMaxDepth,
+    bool bInverseMapping = false,
+    float Exponent = 1.0f
+);
+float DecodeDepthFromHue(FColor C, float GlobalMinDepth, float GlobalMaxDepth, bool bInverseMapping = false, float Exponent = 1.0f);

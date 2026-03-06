@@ -1,10 +1,33 @@
 # UnrealCV File Path Index
 
-Auto-generated index of frequently accessed files. Last updated: 2026-03-01
+Auto-generated index of frequently accessed files. Last updated: 2026-03-06
 
 Use these shorthand paths in prompts instead of copy-pasting full paths.
 
-## Session Context Files (2026-03-01)
+## Session Context Files (2026-03-06)
+
+**Session Topic**: Semantic annotation system implementation - adding material and texture metadata extraction for dataset generation; created MetaDataBPLib with physical material properties (Roughness, Metallic, BaseColor, etc.)
+
+### Blueprint Function Libraries (Semantic Annotation)
+- `Source/UnrealCV/Public/BPFunctionLib/MetaDataBPLib.h` - FMaterialSemanticMetadata/FTextureSemanticMetadata structs with physical properties (Roughness, Metallic, BaseColor, EmissiveColor); JSON serialization helpers
+- `Source/UnrealCV/Private/BPFunctionLib/MetaDataBPLib.cpp` - Material parameter extraction from ScalarParameterValues/VectorParameterValues; texture metadata from UTexture resource
+
+### Recording & Capture (Metadata Integration)
+- `Source/UnrealCV/Private/Actor/FusionCamCaptureActor.cpp` - SaveOverviewMetadata() integration with semantic annotations via UMetaDataBPLib::GetSemanticAnnotationsJson()
+- `Source/UnrealCV/Public/Actor/FusionCamCaptureActor.h`
+
+### UE5 Engine References (Material System)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInterface.h` - UMaterialInterface base class with GetBlendMode(), GetShadingModels(), IsTwoSided(), GetOpacityMaskClipValue()
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\Material.h` - UMaterial class with MaterialDomain, GetBaseMaterial()
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInstance.h` - UMaterialInstance with ScalarParameterValues, VectorParameterValues, TextureParameterValues arrays; BasePropertyOverrides struct
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialCachedData.h` - FMaterialCachedExpressionData with bHasMaterialLayers, bHasSceneColor, ReferencedTextures array
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInstanceBasePropertyOverrides.h` - FMaterialInstanceBasePropertyOverrides with override flags for BlendMode, ShadingModel, OpacityMaskClipValue
+
+### UE5 Engine References (Texture System)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Engine\Texture.h` - UTexture base class with CompressionSettings, SRGB property; GetResource() for size info; GetTextureClass() enum
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\TextureResource.h` - FTextureResource with GetSizeX(), GetSizeY(), GetCurrentMipCount()
+
+## Previous Session Files (2026-03-01)
 
 **Session Topic**: MainViewportRenderComponent async GPU readback implementation - migrating from synchronous ReadSurfaceData to FUnrealCVSurfaceQueue for 30-50% performance improvement; fixed camera projection matrix mismatch causing RGB/mask misalignment
 

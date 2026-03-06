@@ -153,6 +153,8 @@ EFilenameType ParseFilenameType(const FString& Filename)
 		if (FileExtension == TEXT("png")) return EFilenameType::PngBinary;
 		if (FileExtension == TEXT("bmp")) return EFilenameType::BmpBinary;
 		if (FileExtension == TEXT("npy")) return EFilenameType::NpyBinary;
+		if (FileExtension == TEXT("jpg")) return EFilenameType::JpgBinary;
+		if (FileExtension == TEXT("jpeg")) return EFilenameType::JpgBinary;
 	}
 	else
 	{
@@ -160,6 +162,8 @@ EFilenameType ParseFilenameType(const FString& Filename)
 		if (FileExtension == TEXT("bmp")) return EFilenameType::Bmp;
 		if (FileExtension == TEXT("npy")) return EFilenameType::Npy;
 		if (FileExtension == TEXT("exr")) return EFilenameType::Exr;
+		if (FileExtension == TEXT("jpg")) return EFilenameType::Jpg;
+		if (FileExtension == TEXT("jpeg")) return EFilenameType::Jpg;
 	}
 	return EFilenameType::Invalid;
 }
@@ -191,6 +195,12 @@ FExecStatus SerializeData(const TArray<FColor>& Data, int Width, int Height, con
 		return FExecStatus::Binary(BinaryData, true);
 	case EFilenameType::Png:
 		ImageUtil.SavePngFile(Data, Width, Height, Filename);
+		return FExecStatus::OK(Filename);
+	case EFilenameType::JpgBinary:
+		ImageUtil.ConvertToJpg(Data, Width, Height, BinaryData);
+		return FExecStatus::Binary(BinaryData, true);
+	case EFilenameType::Jpg:
+		ImageUtil.SaveJpgFile(Data, Width, Height, Filename);
 		return FExecStatus::OK(Filename);
 	}
 	return FExecStatus::Error(FString::Printf(TEXT("Invalid filename type, filename %s"), *Filename));
@@ -305,6 +315,193 @@ float DecodeDepthFromRGB24(FColor C, float GlobalMinDepth, float GlobalMaxDepth)
     return Normalized * (GlobalMaxDepth - GlobalMinDepth) + GlobalMinDepth;
 }
 
+void ConvertDepthToPNG_RGB24_Interleaved(
+    const TArray<float>& DepthData,
+    TArray<FColor>& Out,
+    float GlobalMinDepth,
+    float GlobalMaxDepth)
+{
+    Out.SetNum(DepthData.Num());
+
+    const float DepthRange = FMath::Max(GlobalMaxDepth - GlobalMinDepth, 1e-6f);
+
+    for (int32 i = 0; i < DepthData.Num(); i++)
+    {
+        float Depth = DepthData[i];
+
+        float Normalized = (Depth - GlobalMinDepth) / DepthRange;
+        Normalized = FMath::Clamp(Normalized, 0.0f, 1.0f);
+
+        uint32 Depth24 = static_cast<uint32>(Normalized * 16777215.0f);
+
+        uint8 R = 0, G = 0, B = 0;
+        for (int bit = 0; bit < 8; bit++)
+        {
+            int srcPos = bit * 3;
+            R |= ((Depth24 >> (23 - srcPos)) & 1) << (7 - bit);
+            G |= ((Depth24 >> (22 - srcPos)) & 1) << (7 - bit);
+            B |= ((Depth24 >> (21 - srcPos)) & 1) << (7 - bit);
+        }
+
+        Out[i] = FColor(R, G, B, 255);
+    }
+}
+
+float DecodeDepthFromRGB24_Interleaved(FColor C, float GlobalMinDepth, float GlobalMaxDepth)
+{
+    uint32 Depth24 = 0;
+    for (int bit = 0; bit < 8; bit++)
+    {
+        int dstPos = 23 - bit * 3;
+        Depth24 |= ((C.R >> (7 - bit)) & 1) << dstPos;
+        Depth24 |= ((C.G >> (7 - bit)) & 1) << (dstPos - 1);
+        Depth24 |= ((C.B >> (7 - bit)) & 1) << (dstPos - 2);
+    }
+
+    float Normalized = Depth24 / 16777215.0f;
+
+    return Normalized * (GlobalMaxDepth - GlobalMinDepth) + GlobalMinDepth;
+}
+
+
+// Based on Intel RealSense depth compression technique:
+// https://dev.realsenseai.com/docs/depth-image-compression-by-colorization-for-intel-realsense-depth-cameras
+// Uses HSV hue colorization with 1529 discrete levels (~10.5 bits)
+// S=V=255 ensures image never becomes too dark for lossy compression
+// Exponent controls the curve steepness: 1.0 = 1/Depth, 0.5 = 1/sqrt(Depth), etc.
+// For 0.1m-500m range with 10m precision at 500m, use Exponent = 0.28
+void ConvertDepthToPNG_Hue(
+    const TArray<float>& DepthData,
+    TArray<FColor>& Out,
+    float GlobalMinDepth,
+    float GlobalMaxDepth,
+    bool bInverseMapping,
+    float Exponent)
+{
+    Out.SetNum(DepthData.Num());
+
+    const float DepthRange = FMath::Max(GlobalMaxDepth - GlobalMinDepth, 1e-6f);
+    const int32 MaxHue = 1529;
+
+    for (int32 i = 0; i < DepthData.Num(); i++)
+    {
+        float Depth = DepthData[i];
+        float Normalized;
+
+        if (bInverseMapping && Exponent > 0.0f)
+        {
+            // Power-law inverse mapping: Hue ~ 1/Depth^Exponent
+            float PowDepth = FMath::Pow(FMath::Max(Depth, 1.0f), -Exponent);
+            float PowMin = FMath::Pow(GlobalMaxDepth, -Exponent);
+            float PowMax = FMath::Pow(FMath::Max(GlobalMinDepth, 1.0f), -Exponent);
+            Normalized = (PowDepth - PowMin) / FMath::Max(PowMax - PowMin, 1e-6f);
+        }
+        else
+        {
+            // Linear mapping
+            Normalized = (Depth - GlobalMinDepth) / DepthRange;
+        }
+
+        Normalized = FMath::Clamp(Normalized, 0.0f, 1.0f);
+        int32 Hue = static_cast<int32>(Normalized * MaxHue);
+
+        uint8 R = 0, G = 0, B = 0;
+        int32 Hi = Hue / 255;
+        int32 Hf = Hue % 255;
+
+        switch (Hi)
+        {
+        case 0:
+            R = 255;
+            G = static_cast<uint8>(Hf);
+            B = 0;
+            break;
+        case 1:
+            R = static_cast<uint8>(255 - Hf);
+            G = 255;
+            B = 0;
+            break;
+        case 2:
+            R = 0;
+            G = 255;
+            B = static_cast<uint8>(Hf);
+            break;
+        case 3:
+            R = 0;
+            G = static_cast<uint8>(255 - Hf);
+            B = 255;
+            break;
+        case 4:
+            R = static_cast<uint8>(Hf);
+            G = 0;
+            B = 255;
+            break;
+        case 5:
+            R = 255;
+            G = 0;
+            B = static_cast<uint8>(255 - Hf);
+            break;
+        default:
+            R = 255;
+            G = 0;
+            B = 0;
+            break;
+        }
+
+        Out[i] = FColor(R, G, B, 255);
+    }
+}
+
+float DecodeDepthFromHue(FColor C, float GlobalMinDepth, float GlobalMaxDepth, bool bInverseMapping, float Exponent)
+{
+    int32 R = C.R;
+    int32 G = C.G;
+    int32 B = C.B;
+    int32 Hue = 0;
+
+    int32 MaxVal = FMath::Max3(R, G, B);
+    int32 MinVal = FMath::Min3(R, G, B);
+
+    if (MaxVal == MinVal)
+    {
+        Hue = 0;
+    }
+    else if (MaxVal == R && G >= B)
+    {
+        Hue = (G * 255) / (MaxVal - MinVal);
+    }
+    else if (MaxVal == R && G < B)
+    {
+        Hue = 1529 - (B * 255) / (MaxVal - MinVal);
+    }
+    else if (MaxVal == G)
+    {
+        Hue = 510 + ((B - R) * 255) / (MaxVal - MinVal);
+    }
+    else if (MaxVal == B)
+    {
+        Hue = 1020 + ((R - G) * 255) / (MaxVal - MinVal);
+    }
+    else
+    {
+        Hue = 0;
+    }
+
+    Hue = FMath::Clamp(Hue, 0, 1529);
+    float Normalized = Hue / 1529.0f;
+
+    if (bInverseMapping)
+    {
+        float PowMax = FMath::Pow(GlobalMaxDepth, -Exponent);
+        float PowMin = FMath::Pow(GlobalMinDepth, -Exponent);
+        float PowDepth = PowMax + Normalized * (PowMin - PowMax);
+        return FMath::Pow(PowDepth, -1.0f / Exponent);
+    }
+    else
+    {
+        return GlobalMinDepth + Normalized * (GlobalMaxDepth - GlobalMinDepth);
+    }
+}
 
 void ConvertDepthToPreview(const TArray<float>& DepthData, TArray<FColor>& OutPreview)
 {
