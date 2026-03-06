@@ -293,7 +293,7 @@ def main():
             client.request("vset /datasetautomation/config/trajectory_fps 30")
             client.request("vset /datasetautomation/config/num_frames 90")
             # client.request("vset /datasetautomation/config/recording_options lit,oneobjlit,mask,metadata")
-            client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,metadata")
+            client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,depth,metadata")
 
             timecode = datetime.datetime.now().strftime(r"%y-%m-%d")
             output_dir = str(PKG_DIR / "DatasetAutomationOutputDirectory" / timecode / map_name)
