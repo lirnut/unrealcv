@@ -28,6 +28,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Stencil")
 	static int32 GetCustomDepthStencilValue(AActor* TargetActor);
 
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|Stencil")
+	static void EnableCustomDepthForAllActors(int32 StencilValue = 1);
+
 // private:
 	// struct FStencilBackup
 	// {

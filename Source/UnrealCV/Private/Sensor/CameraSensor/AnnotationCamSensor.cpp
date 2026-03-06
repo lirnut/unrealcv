@@ -12,9 +12,12 @@
 #include "SetAlpha.h"
 #include "BPFunctionLib/AnnotationBPLib.h"
 #include "Controller/ObjectAnnotator.h"
+#include "UnrealcvServer.h"
+#include "Server/ServerConfig.h"
 
 static const FString GTMaterialPath = TEXT("Material'/UnrealCV/Carla/GTMaterial.GTMaterial'");
 static const FString GTMaterialPathAlt = TEXT("Material'/UnrealCV/GTMaterial.GTMaterial'");
+static const FString StencilPPMPath = TEXT("Material'/UnrealCV/ProxyAnnotatorStencilPPM.ProxyAnnotatorStencilPPM'");
 
 UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
@@ -54,18 +57,49 @@ UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectIniti
 	}
 	else
 	{
+		// this->ShowFlags.SetPostProcessing(true);
 		this->ShowFlags.SetPostProcessing(false);
 		this->ShowFlags.SetMaterials(false);
-		UE_LOG(LogUnrealCV, Log, TEXT("[AnnotationCamSensor] ProxyAnnotation mode - PostProcessing disabled"));
+		this->ShowFlags.SetTonemapper(false);
+		this->ShowFlags.SetEyeAdaptation(false);
+
+		// this->PostProcessSettings.bOverride_AutoExposureMethod = true;
+		// this->PostProcessSettings.AutoExposureMethod = AEM_Manual;
+
+		// UMaterialInterface* StencilMaterial = LoadObject<UMaterialInterface>(nullptr, *StencilPPMPath);
+		// if (StencilMaterial)
+		// {
+		// 	SetPostProcessMaterial(StencilMaterial);
+		// 	UE_LOG(LogUnrealCV, Log, TEXT("[AnnotationCamSensor] ProxyAnnotation mode - StencilPPM loaded"));
+		// }
+		// else
+		// {
+		// 	UE_LOG(LogUnrealCV, Warning, TEXT("[AnnotationCamSensor] Failed to load StencilPPM for ProxyAnnotation"));
+		// }
 	}
 
-	bRenderInMainRenderer = true;
+	FServerConfig& Config = FUnrealcvServer::Get().Config;
+	bRenderInMainRenderer = Config.bRenderInMainRenderer;
 }
 
 
 void UAnnotationCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 {
 	InitUInt8TextureTarget(filmWidth, filmHeight, true);
+
+	// if (!FObjectAnnotator::IsUsingDirectAnnotation())
+	// {
+	// 	UMaterialInterface* StencilMaterial = LoadObject<UMaterialInterface>(nullptr, *StencilPPMPath);
+	// 	if (StencilMaterial)
+	// 	{
+	// 		SetPostProcessMaterial(StencilMaterial);
+	// 		UE_LOG(LogUnrealCV, Log, TEXT("[AnnotationCamSensor] InitTextureTarget - StencilPPM applied"));
+	// 	}
+	// 	else
+	// 	{
+	// 		UE_LOG(LogUnrealCV, Error, TEXT("[AnnotationCamSensor] Failed to load StencilPPM in InitTextureTarget"));
+	// 	}
+	// }
 }
 
 void UAnnotationCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * T)

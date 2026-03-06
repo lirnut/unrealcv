@@ -2,11 +2,14 @@
 #include "NormalCamSensor.h"
 #include "SetAlpha.h"
 #include "UnrealcvLog.h"
+#include "UnrealcvServer.h"
+#include "Server/ServerConfig.h"
 
 UNormalCamSensor::UNormalCamSensor(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
-	bRenderInMainRenderer = true;  // optimization
+	FServerConfig& Config = FUnrealcvServer::Get().Config;
+	bRenderInMainRenderer = Config.bRenderInMainRenderer;
 	this->ShowFlags.SetPostProcessing(true);
 	this->ShowFlags.SetPostProcessMaterial(true);
 

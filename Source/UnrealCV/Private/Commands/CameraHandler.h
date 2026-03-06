@@ -95,6 +95,10 @@ private:
 
 	FExecStatus SetUseFastCapture(const TArray<FString>& Args);
 
+	FExecStatus GetRenderInMainRenderer(const TArray<FString>& Args);
+
+	FExecStatus SetRenderInMainRenderer(const TArray<FString>& Args);
+
 	FExecStatus GetCameraPanoramic(const TArray<FString>& Args);
 
 	FExecStatus SpawnPanoramicCamera(const TArray<FString>& Args);

@@ -923,3 +923,23 @@ void UFusionCamSensor::GetBloomParams(EBloomMethod& OutBloomMethod, float& OutBl
 	OutBloomMethod = LitCamSensor->PostProcessSettings.BloomMethod;
 	OutBloomIntensity = LitCamSensor->PostProcessSettings.BloomIntensity;
 }
+
+bool UFusionCamSensor::GetRenderInMainRenderer() const
+{
+	if (FusionSensors.Num() > 0 && IsValid(FusionSensors[0]))
+	{
+		return FusionSensors[0]->bRenderInMainRenderer;
+	}
+	return false;
+}
+
+void UFusionCamSensor::SetRenderInMainRenderer(bool bEnabled)
+{
+	for (UBaseCameraSensor* Sensor : FusionSensors)
+	{
+		if (IsValid(Sensor))
+		{
+			Sensor->bRenderInMainRenderer = bEnabled;
+		}
+	}
+}

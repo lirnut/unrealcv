@@ -37,6 +37,7 @@ FRecordingSettings AFusionCamCaptureActor::RecordingSettings;
 #include "Misc/FileHelper.h"
 #include "Serialization/BufferArchive.h"
 #include "BPFunctionLib/LineTraceBPLib.h"
+#include "BPFunctionLib/MetaDataBPLib.h"
 #include "MovieQualityRenderComponent.h"
 #include "MovieQualityRenderSubsystem.h"
 #if PLATFORM_WINDOWS
@@ -222,6 +223,17 @@ void AFusionCamCaptureActor::StopRecord()
 				UE_LOG(LogUnrealCV, Log, TEXT("Flushing pending GPU readback frames..."));
 				Renderer->FlushPendingFrames();
 				UE_LOG(LogUnrealCV, Log, TEXT("GPU readback flush completed"));
+			}
+		}
+
+		if (RecordingSettings.bRecordViaViewport && IsValid(TargetSensor))
+		{
+			auto* ViewportRenderer = TargetSensor->GetMainViewportRenderComponent();
+			if (ViewportRenderer && ViewportRenderer->IsInitialized())
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("Flushing pending GPU readback frames (MainViewportRenderer)..."));
+				ViewportRenderer->FlushPendingFrames();
+				UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderer flush completed"));
 			}
 		}
 
@@ -607,7 +619,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 				else
 				{
 					UE_LOG(LogUnrealCV, Log, TEXT("RecordingSettings.bRecordViaViewport: MP4Encoder NOT initialized or invalid, using PNG fallback"));
-					FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png");
+					FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png", bWarmUp);
 					ViewportCapture->CaptureFrameToFile(FileNameRGB);
 				}
 #endif
@@ -657,7 +669,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 			}
 			else
 			{
-				FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png");
+				FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png", bWarmUp);
 				UE_LOG(LogUnrealCV, Warning, TEXT("[CHECKPOINT] RecordFrame - Before SaveLitToFile call"));
 				Renderer->CaptureFrameToFile(
 					FileNameRGB,
@@ -701,7 +713,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 			}
 			else
 			{
-				FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png");
+				FString FileNameRGB = MakeFilenameNewWithFolder("rgb", ".png", bWarmUp);
 				TargetSensor->SaveLitToFile(FileNameRGB);
 			}
 
@@ -716,57 +728,56 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 
 	if (RecordingDataTypes.bRecordMask)
 	{
-		FString FileNameMask = MakeFilenameNewWithFolder("mask", ".png");
+		FString FileNameMask = MakeFilenameNewWithFolder("mask", ".png", bWarmUp);
 		TargetSensor->SaveSegToFile(FileNameMask);
-		// SaveSegToFile(TargetSensor, FileNameMask);
 	}
 
 	if (RecordingDataTypes.bRecordDepth)
 	{
-		FString DepthFilename = MakeFilenameNewWithFolder("depth", ".npy");
+		FString DepthFilename = MakeFilenameNewWithFolder("depth", ".npy", bWarmUp);
 		TargetSensor->SaveDepthToFile(DepthFilename);
 	}
 
 	if (RecordingDataTypes.bRecordNormal)
 	{
-		FString NormalFilename = MakeFilenameNewWithFolder("normal", ".png");
+		FString NormalFilename = MakeFilenameNewWithFolder("normal", ".png", bWarmUp);
 		TargetSensor->SaveNormalToFile(NormalFilename);
 	}
 
 	if (RecordingDataTypes.bRecordFlow)
 	{
-		FString FlowFilename = MakeFilenameNewWithFolder("flow", ".png");
+		FString FlowFilename = MakeFilenameNewWithFolder("flow", ".png", bWarmUp);
 		TargetSensor->SaveFlowToFile(FlowFilename);
 	}
 
 	if (RecordingDataTypes.bRecordOneObjectMask && IsValid(TargetForeground))
 	{
-		FString OneObjFilename = MakeFilenameNewWithFolder("oneobjmask", ".png");
+		FString OneObjFilename = MakeFilenameNewWithFolder("oneobjmask", ".png", bWarmUp);
 		TargetSensor->SaveOneObjMaskToFile(TargetForeground, OneObjFilename);
 	}
 
 	if (RecordingDataTypes.bRecordOneObjectLit && IsValid(TargetForeground))
 	{
-		FString OneObjLitFilename = MakeFilenameNewWithFolder("oneobjlit", ".png");
+		FString OneObjLitFilename = MakeFilenameNewWithFolder("oneobjlit", ".png", bWarmUp);
 		TargetSensor->SaveOneObjLitToFile(TargetForeground, OneObjLitFilename);
 	}
 
 	if (RecordingDataTypes.bRecordOneObjectGroomLit && IsValid(TargetForeground))
 	{
-		FString OneObjGroomLitFilename = MakeFilenameNewWithFolder("oneobjgroomlit", ".png");
+		FString OneObjGroomLitFilename = MakeFilenameNewWithFolder("oneobjgroomlit", ".png", bWarmUp);
 		TargetSensor->SaveOneObjGroomLitToFile(TargetForeground, OneObjGroomLitFilename);
 	}
 
 	if (RecordingDataTypes.bRecordShadowCatcher && IsValid(TargetForeground))
 	{
-		FString ShadowCatcherFilename = MakeFilenameNewWithFolder("shadowcatcher", ".png");
+		FString ShadowCatcherFilename = MakeFilenameNewWithFolder("shadowcatcher", ".png", bWarmUp);
 		TargetSensor->SaveShadowCatcherToFile(TargetForeground, ShadowCatcherFilename);
 		TargetSensor->GetShadowCatcherCamSensor()->Cleanup(TargetForeground);
 	}
 
 	if (RecordingDataTypes.bRecordStencilMask && IsValid(TargetForeground))
 	{
-		FString StencilMaskFilename = MakeFilenameNewWithFolder("stencilmask", ".png");
+		FString StencilMaskFilename = MakeFilenameNewWithFolder("stencilmask", ".png", bWarmUp);
 		TargetSensor->SaveStencilMaskToFile(TargetForeground, StencilMaskFilename);
 		TargetSensor->GetStencilMaskCamSensor()->Cleanup(TargetForeground);
 	}
@@ -792,33 +803,33 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 
 			if (RecordingDataTypes.bRecordRGB)
 			{
-				FString FileNameRGB = MakeFilenameNewWithFolder("rgb_woTarget", ".png");
+				FString FileNameRGB = MakeFilenameNewWithFolder("rgb_woTarget", ".png", bWarmUp);
 				BackupSensor->SaveLitToFile(FileNameRGB);
 				// SaveRGBToFile(BackupSensor, FileNameRGB);
 			}
 
 			if (RecordingDataTypes.bRecordMask)
 			{
-				FString FileNameMask = MakeFilenameNewWithFolder("mask_woTarget", ".png");
+				FString FileNameMask = MakeFilenameNewWithFolder("mask_woTarget", ".png", bWarmUp);
 				BackupSensor->SaveSegToFile(FileNameMask);
 				// SaveSegToFile(BackupSensor, FileNameMask);
 			}
 
 			if (RecordingDataTypes.bRecordDepth)
 			{
-				FString DepthFilename = MakeFilenameNewWithFolder("depth_woTarget", ".npy");
+				FString DepthFilename = MakeFilenameNewWithFolder("depth_woTarget", ".npy", bWarmUp);
 				BackupSensor->SaveDepthToFile(DepthFilename);
 			}
 
 			if (RecordingDataTypes.bRecordNormal)
 			{
-				FString NormalFilename = MakeFilenameNewWithFolder("normal_woTarget", ".png");
+				FString NormalFilename = MakeFilenameNewWithFolder("normal_woTarget", ".png", bWarmUp);
 				BackupSensor->SaveNormalToFile(NormalFilename);
 			}
 
 			if (RecordingDataTypes.bRecordFlow)
 			{
-				FString FlowFilename = MakeFilenameNewWithFolder("flow_woTarget", ".png");
+				FString FlowFilename = MakeFilenameNewWithFolder("flow_woTarget", ".png", bWarmUp);
 				BackupSensor->SaveFlowToFile(FlowFilename);
 			}
 		}
@@ -829,7 +840,7 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 
 	if (RecordingDataTypes.bRecordMetadata)
 	{
-		SaveCameraMetadata();
+		SaveCameraMetadata(bWarmUp);
 	}
 }
 
@@ -955,10 +966,10 @@ FString AFusionCamCaptureActor::MakeFilenameNew(FString DataType, FString FileEx
 	return FileName;
 }
 
-FString AFusionCamCaptureActor::MakeFilenameNewWithFolder(FString DataType, FString FileExtension)
+FString AFusionCamCaptureActor::MakeFilenameNewWithFolder(FString DataType, FString FileExtension, bool bWarmUp)
 {
 	// Find the position to insert frame number
-	
+
 
 	if (FileExtension.StartsWith(".")) {
 		FileExtension.RemoveAt(0);
@@ -967,7 +978,15 @@ FString AFusionCamCaptureActor::MakeFilenameNewWithFolder(FString DataType, FStr
 	// Create filename with frame number and data type
 	FString FileName = RecordFileName;
 	FString FileBaseName = FString::Printf(TEXT("%d_%s.%s"), ElapsedSteps, *DataType, *FileExtension);
-	FString FileFolder = FString::Printf(TEXT("%s"), *DataType);
+	FString FileFolder;
+	if (bWarmUp)
+	{
+		FileFolder = FString::Printf(TEXT("warmup/%s"), *DataType);
+	}
+	else
+	{
+		FileFolder = FString::Printf(TEXT("%s"), *DataType);
+	}
 	FileName = FPaths::Combine(FileName, FileFolder);
 	FileName = FPaths::Combine(FileName, FileBaseName);
 	// Combine with output folder
@@ -1113,8 +1132,11 @@ void AFusionCamCaptureActor::SaveOverviewMetadata()
 		"CameraSettingsString",
 		"ForegroundColor",
 		"AnnotationColors",
-		"RealWorldTimeRecordingStart"
+		"RealWorldTimeRecordingStart",
+		"SemanticAnnotations"
 	};
+
+	FJsonObjectBP SemanticAnnotationsJson = UMetaDataBPLib::GetSemanticAnnotationsJson(GetWorld());
 
 	TArray<FJsonObjectBP> Values = {
 		FJsonObjectBP(RecordFileName),
@@ -1132,7 +1154,8 @@ void AFusionCamCaptureActor::SaveOverviewMetadata()
 		FJsonObjectBP(CameraSettingsStringMap),
 		FJsonObjectBP(ForegroundColor),
 		FJsonObjectBP(ColorMap),
-		FJsonObjectBP(RealWorldTimeStartStr)
+		FJsonObjectBP(RealWorldTimeStartStr),
+		SemanticAnnotationsJson
 	};
 
 	FJsonObjectBP JsonObject = USerializeBPLib::TMapToJson(Keys, Values);
@@ -1145,7 +1168,7 @@ void AFusionCamCaptureActor::SaveOverviewMetadata()
 	});
 }
 
-void AFusionCamCaptureActor::SaveCameraMetadata()
+void AFusionCamCaptureActor::SaveCameraMetadata(bool bWarmUp)
 {
 	if (!IsValid(TargetSensor))
 	{
@@ -1266,7 +1289,7 @@ void AFusionCamCaptureActor::SaveCameraMetadata()
 
 	FJsonObjectBP JsonObject = USerializeBPLib::TMapToJson(Keys, Values);
 	FString JsonStr = USerializeBPLib::JsonToStr(JsonObject);
-	FString JsonFilename = MakeFilenameNewWithFolder("metadata", ".json");
+	FString JsonFilename = MakeFilenameNewWithFolder("metadata", ".json", bWarmUp);
 
 	AsyncTask(ENamedThreads::AnyThread, [JsonStr, JsonFilename]()
 	{

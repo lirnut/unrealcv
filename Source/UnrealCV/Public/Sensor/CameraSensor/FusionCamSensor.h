@@ -339,4 +339,10 @@ public:
 
 	// UFUNCTION(BlueprintPure, Category = "unrealcv")
 	void GetBloomParams(EBloomMethod& OutBloomMethod, float& OutBloomIntensity) const;
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	bool GetRenderInMainRenderer() const;
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void SetRenderInMainRenderer(bool bEnabled);
 };

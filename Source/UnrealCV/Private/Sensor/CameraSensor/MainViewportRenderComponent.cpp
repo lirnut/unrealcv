@@ -691,3 +691,19 @@ float UMainViewportRenderComponent::GetActualFOV() const
 	}
 	return FOV;
 }
+
+void UMainViewportRenderComponent::FlushPendingFrames()
+{
+	if (!SurfaceQueue.IsValid())
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("MainViewportRenderComponent::FlushPendingFrames - no SurfaceQueue"));
+		return;
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent::FlushPendingFrames - Starting flush of pending GPU readback frames"));
+
+	SurfaceQueue->Shutdown();
+
+
+	UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderComponent::FlushPendingFrames - Flush completed"));
+}

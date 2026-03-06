@@ -484,6 +484,32 @@ FExecStatus FCameraHandler::SetUseFastCapture(const TArray<FString>& Args)
 	return FExecStatus::OK(FString::Printf(TEXT("FastCapture set to %d"), bEnable ? 1 : 0));
 }
 
+FExecStatus FCameraHandler::GetRenderInMainRenderer(const TArray<FString>& Args)
+{
+	FExecStatus ExecStatus = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) return ExecStatus;
+
+	bool bValue = FusionCamSensor->GetRenderInMainRenderer();
+	return FExecStatus::OK(bValue ? TEXT("true") : TEXT("false"));
+}
+
+FExecStatus FCameraHandler::SetRenderInMainRenderer(const TArray<FString>& Args)
+{
+	FExecStatus ExecStatus = FExecStatus::OK();
+	UFusionCamSensor* FusionCamSensor = GetCamera(Args, ExecStatus);
+	if (!IsValid(FusionCamSensor)) return ExecStatus;
+
+	if (Args.Num() != 2)
+	{
+		return FExecStatus::Error("Usage: vset /camera/[camera_id]/render_in_main_renderer [true|false|1|0]");
+	}
+
+	bool bEnable = (Args[1] == TEXT("true") || Args[1] == TEXT("1"));
+	FusionCamSensor->SetRenderInMainRenderer(bEnable);
+	return FExecStatus::OK(bEnable ? TEXT("true") : TEXT("false"));
+}
+
 FExecStatus FCameraHandler::MoveTo(const TArray<FString>& Args)
 {
 	// FExecStatus ExecStatus = FExecStatus::OK();
@@ -1901,6 +1927,18 @@ void FCameraHandler::RegisterCommands()
 		"vset /camera/[camera_id]/use_fast_capture [uint]",
 		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetUseFastCapture),
 		"Set fast capture mode (0=disabled, 1=enabled)"
+	);
+
+	BindCommandDualCameraID(
+		"vget /camera/[camera_id]/render_in_main_renderer",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::GetRenderInMainRenderer),
+		"Get whether sensors render in main renderer for optimization (0 or 1)"
+	);
+
+	BindCommandDualCameraID(
+		"vset /camera/[camera_id]/render_in_main_renderer [uint]",
+		FDispatcherDelegate::CreateRaw(this, &FCameraHandler::SetRenderInMainRenderer),
+		"Set whether sensors render in main renderer (0=disabled, 1=enabled)"
 	);
 
 

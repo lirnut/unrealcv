@@ -145,6 +145,7 @@ struct FRecordingDataTypesConfig
 		Config.bRecordMask = true;
 		Config.bRecordOneObjectLit = false;
 		Config.bRecordOneObjectGroomLit = true;
+		Config.bRecordDepth = true;
 		Config.bRecordMetadata = true;
 		return Config;
 	}
@@ -459,9 +460,9 @@ protected:
 
 	// Utility functions
 	FString MakeFilenameNew(FString DataType, FString FileExtension);
-	FString MakeFilenameNewWithFolder(FString DataType, FString FileExtension);
+	FString MakeFilenameNewWithFolder(FString DataType, FString FileExtension, bool bIsWarmUp = false);
 	void SaveOverviewMetadata();
-	void SaveCameraMetadata();
+	void SaveCameraMetadata(bool bWarmUp = false);
 
 private:
 	UPROPERTY()

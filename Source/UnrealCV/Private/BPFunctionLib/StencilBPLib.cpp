@@ -5,6 +5,8 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "GroomComponent.h"
 #include "UnrealcvLog.h"
+#include "GameFramework/DefaultPawn.h"
+#include "EngineUtils.h"
 
 // TArray<UStencilBPLib::FStencilBackup> UStencilBPLib::StencilBackups;
 
@@ -143,3 +145,38 @@ int32 UStencilBPLib::GetCustomDepthStencilValue(AActor* TargetActor)
 
 	return 0;
 }
+
+void UStencilBPLib::EnableCustomDepthForAllActors(int32 StencilValue)
+{
+	UWorld* World = GEngine->GetCurrentPlayWorld();
+	if (!IsValid(World))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("EnableCustomDepthForAllActors: Invalid world"));
+		return;
+	}
+
+	int32 ModifiedCount = 0;
+	int32 SkippedCount = 0;
+
+	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		AActor* Actor = *ActorItr;
+		if (!IsValid(Actor))
+		{
+			continue;
+		}
+
+		if (Actor->IsA<ADefaultPawn>())
+		{
+			SkippedCount++;
+			continue;
+		}
+
+		EnableCustomDepthForActor(Actor, StencilValue);
+		ModifiedCount++;
+	}
+
+	UE_LOG(LogUnrealCV, Log, TEXT("EnableCustomDepthForAllActors: Modified %d actors, skipped %d DefaultPawn actors"),
+		ModifiedCount, SkippedCount);
+}
+

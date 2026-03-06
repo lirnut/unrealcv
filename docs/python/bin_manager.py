@@ -34,7 +34,7 @@ for f in platform_files:
 
 PORT = 9000
 CONNECT_TIMEOUT = 60
-MAP_LOAD_WAIT = 8
+MAP_LOAD_WAIT = 12
 STATUS_POLL_INTERVAL = 2.0
 CONFIG_SLASH_TOTAL_SCENES = 70
 SESSION_TIMEOUT = CONFIG_SLASH_TOTAL_SCENES * 30
@@ -53,21 +53,23 @@ else:
         # ("Chinese_mountain_town", 1.0),
         ("Demo_Roof", 1.0),
         # ("Urban_RoadsideConstruction_Scene", 1.0),
-        ("Town", 1.0),
-        # ("L_WillowLake", 1.0),
-        ("Jungle", 1.0),
-        ("TrainStation", 1.0),
-        ("Mountains_Map", 1.0),
+        ("Town", 0.2),
+        ("L_WillowLake", 1.0),
+        # ("Jungle", 1.0),
+        ("TrainStation", 1.5),
+        ("Mountains_Map", 0.8),
         ("Asian_town", 2.0),
         # ("Hutong", 1.0),
         ("Midgardr_Free", 1.0),
         ("Warehouse", 1.0),
-        ("Downtown_West", 1.0),
-        ("Downtown_West_Night", 1.0),
+        ("Downtown_West", 0.3),
+        ("Downtown_West_Night", 1.7),
         ("Bridge_P", 1.0),
-        ("LV_Exterior", 2.0),
-        ("LV_Exterior_Night", 2.0),
-        ("LV_Exterior_Sunrise", 1.0),
+        ("LV_Exterior", 0.3),
+        ("LV_Exterior_Night", 0.2),
+        ("LV_Exterior_Sunrise", 0.5),
+        ("Beach_P", 1.0),
+        ("UNIVERSITY_CLASSROOM", 1.0),
     ]
 
     # AVAILABLE_MAPS = [
@@ -108,6 +110,11 @@ def kill_process_and_its_children(p):
 def watchdog_worker(game_pid, timeout_seconds, stop_event, last_alive_timestamp):
     """Separate process that monitors and kills game if timeout reached."""
     import time
+    import sys
+
+    start_time = time.time()
+    last_status_time = start_time
+
     try:
         while not stop_event.is_set():
             time.sleep(1)
@@ -117,23 +124,40 @@ def watchdog_worker(game_pid, timeout_seconds, stop_event, last_alive_timestamp)
 
             current_time = time.time()
             last_alive = last_alive_timestamp.value
+            elapsed_since_alive = current_time - last_alive
 
-            if current_time - last_alive > timeout_seconds:
-                print(f"[WATCHDOG] Timeout reached ({timeout_seconds}s), killing game process {game_pid}")
+            # Print status every 30 seconds
+            if current_time - last_status_time >= 30:
+                watchdog_elapsed = current_time - start_time
+                try:
+                    proc = psutil.Process(game_pid)
+                    proc_status = "alive" if proc.is_running() else "terminated"
+                    mem_info = proc.memory_info().rss / (1024 * 1024)  # MB
+                    status_line = f"[WATCHDOG] Status @ {watchdog_elapsed:.0f}s | Game PID {game_pid} ({proc_status}, {mem_info:.0f}MB) | Last alive: {elapsed_since_alive:.1f}s ago | Timeout: {timeout_seconds}s"
+                except psutil.NoSuchProcess:
+                    status_line = f"[WATCHDOG] Status @ {watchdog_elapsed:.0f}s | Game PID {game_pid} (not found) | Last alive: {elapsed_since_alive:.1f}s ago | Timeout: {timeout_seconds}s"
+                except Exception as e:
+                    status_line = f"[WATCHDOG] Status @ {watchdog_elapsed:.0f}s | Game PID {game_pid} (error: {e}) | Last alive: {elapsed_since_alive:.1f}s ago | Timeout: {timeout_seconds}s"
+
+                print(status_line, flush=True)
+                last_status_time = current_time
+
+            if elapsed_since_alive > timeout_seconds:
+                print(f"[WATCHDOG] Timeout reached ({timeout_seconds}s), killing game process {game_pid}", flush=True)
                 try:
                     proc = psutil.Process(game_pid)
                     for child in proc.children(recursive=True):
                         child.kill()
                     proc.kill()
-                    print(f"[WATCHDOG] Game process {game_pid} killed")
+                    print(f"[WATCHDOG] Game process {game_pid} killed", flush=True)
                 except psutil.NoSuchProcess:
-                    print(f"[WATCHDOG] Game process {game_pid} already terminated")
+                    print(f"[WATCHDOG] Game process {game_pid} already terminated", flush=True)
                 except Exception as e:
-                    print(f"[WATCHDOG] Error killing process: {e}")
+                    print(f"[WATCHDOG] Error killing process: {e}", flush=True)
                 break
     except KeyboardInterrupt:
         pass
-    print("[WATCHDOG] Watchdog process exiting")
+    print("[WATCHDOG] Watchdog process exiting", flush=True)
 
 def weighted_random_choice(maps: list[tuple[str, float]]) -> str:
     """Select a map based on probability weights."""
@@ -268,7 +292,7 @@ def main():
             client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
             client.request("vset /datasetautomation/config/trajectory_fps 30")
             client.request("vset /datasetautomation/config/num_frames 90")
-            # client.request("vset /datasetautomation/config/recording_options lit,oneobjlit,mask,oneobjgroomlit,metadata")
+            # client.request("vset /datasetautomation/config/recording_options lit,oneobjlit,mask,metadata")
             client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,metadata")
 
             timecode = datetime.datetime.now().strftime(r"%y-%m-%d")

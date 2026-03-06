@@ -24,6 +24,9 @@
 #include "GroomComponent.h"
 #include "ExtraSceneProxies/HairStrandsSceneProxy.h"
 
+#include "LandscapeComponent.h"
+#include "LandscapeRender.h"
+
 #include "Server/ServerConfig.h"
 #include "Server/UnrealcvServer.h"
 
@@ -611,6 +614,65 @@ public:
 
 
 
+
+class FLandscapeAnnotationSceneProxy : public FPrimitiveSceneProxy
+{
+public:
+	FMaterialRenderProxy* AnnotationMaterialRenderProxy;
+	FLandscapeComponentSceneProxy* OriginalProxy;
+
+	FLandscapeAnnotationSceneProxy(ULandscapeComponent* InComponent, UMaterialInterface* AnnotationMID, FLandscapeComponentSceneProxy* InOriginalProxy)
+		: FPrimitiveSceneProxy(InComponent, NAME_None)
+		, OriginalProxy(InOriginalProxy)
+	{
+		AnnotationMaterialRenderProxy = AnnotationMID->GetRenderProxy();
+		this->bVerifyUsedMaterials = false;
+	}
+
+	virtual ~FLandscapeAnnotationSceneProxy() {}
+
+	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
+	{
+		FPrimitiveViewRelevance Result;
+
+		if (!View->Family->EngineShowFlags.Materials)
+		{
+			// Visible in annotation pass
+			Result.bDrawRelevance = true;
+			Result.bDynamicRelevance = true;
+			Result.bStaticRelevance = true;
+		}
+		else
+		{
+			Result.bDrawRelevance = false;
+		}
+
+		return Result;
+	}
+
+	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
+	{
+		// Do not delegate to original proxy - it has complex internal state
+		// that can't be safely accessed from a different proxy.
+		// For now, landscape annotation is not fully supported.
+	}
+
+	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override
+	{
+		// Do not delegate to original proxy - causes state corruption
+	}
+
+	virtual uint32 GetMemoryFootprint() const override
+	{
+		return sizeof(*this);
+	}
+
+	virtual SIZE_T GetTypeHash() const override
+	{
+		return reinterpret_cast<SIZE_T>(this);
+	}
+};
+
 // FString MeterialPath = TEXT("MaterialInstanceConstant'/UnrealCV/AnnotationColor_Inst.AnnotationColor_Inst'");
 // static ConstructorHelpers::FObjectFinder<UMaterialInstanceDynamic> AnnotationMaterialObject(*MaterialPath);
 UAnnotationComponent::UAnnotationComponent(const FObjectInitializer& ObjectInitializer)
@@ -638,6 +700,17 @@ UAnnotationComponent::UAnnotationComponent(const FObjectInitializer& ObjectIniti
 	else
 	{
 		GroomAnnotationMaterial = GroomAnnotationMaterialObject.Object;
+	}
+
+	FString LandscapeMaterialPath = TEXT("Material'/UnrealCV/AnnotationColor.AnnotationColor'");
+	static ConstructorHelpers::FObjectFinder<UMaterial> LandscapeAnnotationMaterialObject(*LandscapeMaterialPath);
+	if (LandscapeAnnotationMaterialObject.Object == nullptr)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("LandscapeAnnotationColor material is not valid."));
+	}
+	else
+	{
+		LandscapeAnnotationMaterial = LandscapeAnnotationMaterialObject.Object;
 	}
 
 	this->PrimaryComponentTick.bCanEverTick = true;
@@ -676,6 +749,15 @@ void UAnnotationComponent::OnRegister()
 	{
 		GroomAnnotationMID->SetVectorParameterValue("AnnotationColor", LinearAnnotationColor);
 	}
+
+	if (IsValid(LandscapeAnnotationMaterial))
+	{
+		LandscapeAnnotationMID = UMaterialInstanceDynamic::Create(LandscapeAnnotationMaterial, this, TEXT("LandscapeAnnotationMaterialMID"));
+		if (IsValid(LandscapeAnnotationMID))
+		{
+			LandscapeAnnotationMID->SetVectorParameterValue("AnnotationColor", LinearAnnotationColor);
+		}
+	}
 }
 
 /** 
@@ -701,6 +783,15 @@ void UAnnotationComponent::SetAnnotationColor(FColor NewAnnotationColor)
 	if (IsValid(GroomAnnotationMID))
 	{
 		GroomAnnotationMID->SetVectorParameterValue("AnnotationColor", LinearAnnotationColor);
+	}
+
+	if (IsValid(LandscapeAnnotationMaterial))
+	{
+		LandscapeAnnotationMID = UMaterialInstanceDynamic::Create(LandscapeAnnotationMaterial, this, TEXT("LandscapeAnnotationMaterialMID"));
+		if (IsValid(LandscapeAnnotationMID))
+		{
+			LandscapeAnnotationMID->SetVectorParameterValue("AnnotationColor", LinearAnnotationColor);
+		}
 	}
 }
 
@@ -855,6 +946,33 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UGroomComponent* Gr
 }
 
 
+FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(ULandscapeComponent* LandscapeComponent)
+{
+	UMaterialInterface* ProxyMaterial = LandscapeAnnotationMID;
+
+	if (!IsValid(ProxyMaterial))
+	{
+		ProxyMaterial = AnnotationMID;
+	}
+
+	if (!IsValid(ProxyMaterial))
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("CreateSceneProxy failed for LandscapeComponent %s: No valid material"), *LandscapeComponent->GetName());
+		return nullptr;
+	}
+
+	// Get the original landscape proxy from the component's scene info
+	FLandscapeComponentSceneProxy* OriginalProxy = nullptr;
+	if (LandscapeComponent->GetSceneProxy())
+	{
+		OriginalProxy = static_cast<FLandscapeComponentSceneProxy*>(LandscapeComponent->GetSceneProxy());
+	}
+
+	FPrimitiveSceneProxy* Proxy = ::new FLandscapeAnnotationSceneProxy(LandscapeComponent, ProxyMaterial, OriginalProxy);
+	return Proxy;
+}
+
+
 // TODO: This needs to be involked when the ParentComponent refresh its render state, otherwise it will crash the engine
 FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 {
@@ -881,6 +999,7 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(ParentComponent);
 	USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ParentComponent);
 	UGroomComponent* GroomComponent = Cast<UGroomComponent>(ParentComponent);
+	ULandscapeComponent* LandscapeComponent = Cast<ULandscapeComponent>(ParentComponent);
 	// UCableComponent* CableComponent = Cast<UCableComponent>(ParentComponent);
 	if (IsValid(StaticMeshComponent))
 	{
@@ -902,6 +1021,10 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy()
 			bRefreshRenderState = true;
 			return CreateSceneProxy(GroomComponent);
 		}
+	}
+	else if (IsValid(LandscapeComponent))
+	{
+		return CreateSceneProxy(LandscapeComponent);
 	}
 	// else if (IsValid(CableComponent))
 	// {
@@ -945,6 +1068,12 @@ FBoxSphereBounds UAnnotationComponent::CalcBounds(const FTransform & LocalToWorl
 	if (IsValid(GroomComponent))
 	{
 		return GroomComponent->CalcBounds(LocalToWorld);
+	}
+
+	ULandscapeComponent* LandscapeComponent = Cast<ULandscapeComponent>(Parent);
+	if (IsValid(LandscapeComponent))
+	{
+		return LandscapeComponent->CalcBounds(LocalToWorld);
 	}
 
 	// UE_LOG(LogTemp, Error, TEXT("The type of ParentMeshComponent : %s can not be supported."), *Parent->GetClass()->GetName());

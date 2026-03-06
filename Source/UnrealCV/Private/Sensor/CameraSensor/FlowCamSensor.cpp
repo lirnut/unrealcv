@@ -2,11 +2,13 @@
 #include "FlowCamSensor.h"
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
+#include "Server/ServerConfig.h"
 
 UFlowCamSensor::UFlowCamSensor(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
-	bRenderInMainRenderer = true;  // optimization
+	FServerConfig& Config = FUnrealcvServer::Get().Config;
+	bRenderInMainRenderer = Config.bRenderInMainRenderer;
 	FString OpticalFlowPPMaterialPath = TEXT("Material'/UnrealCV/OpticalFlowMaterialNative.OpticalFlowMaterialNative'");
 
 	// Assertion failed: IsInGameThread() [File:D:\build\++UE5\Sync\Engine\Source\Runtime\CoreUObject\Private\Serialization\AsyncLoading.cpp] [Line: 7453] 
@@ -26,7 +28,6 @@ UFlowCamSensor::UFlowCamSensor(const FObjectInitializer& ObjectInitializer)
 		{
 			UE_LOG(LogTemp, Error, TEXT("%s: Could not create the material instance dynamic"), *FString(__FUNCTION__))
 		} else {
-			FServerConfig& Config = FUnrealcvServer::Get().Config;
 			PostProcessMaterialInstance->SetScalarParameterValue(TEXT("OpticalFlowScale"), Config.OpticalFlowScale);
 			SetPostProcessMaterial(PostProcessMaterialInstance);
 		}

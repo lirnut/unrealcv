@@ -31,8 +31,9 @@ FServerConfig::FServerConfig()
 	UseFastCapture = true;
 	bLitUseBGRA8 = true;
 	OpticalFlowScale = 500.0f;
-	bIgnoreTransparentObjects = false;
+	bIgnoreTransparentObjects = true;
 	UseDirectAnnotation = false;
+	bRenderInMainRenderer = true;
 
 	SupportedModes.Add(TEXT("lit"));
 	SupportedModes.Add(TEXT("depth"));

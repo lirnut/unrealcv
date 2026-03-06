@@ -948,6 +948,18 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		UAnnotationBPLib::AnnotateWorld();
 		ExecuteNextCommand();
 	}
+	else if (Step.Command == TEXT("annotate_foreground"))
+	{
+		if (!IsValid(CurrentScene.ForegroundActor))
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("DatasetAutomation: annotate_foreground - ForegroundActor is null"));
+			TransitionToState(EDatasetGenerationState::Error);
+			return;
+		}
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Annotating foreground actor: %s"), *CurrentScene.ForegroundActor->GetName());
+		UAnnotationBPLib::AnnotateActor(CurrentScene.ForegroundActor);
+		ExecuteNextCommand();
+	}
 	else if (Step.Command == TEXT("set_animation_bp"))
 	{
 		FString AnimBPPath = Step.StringParam;

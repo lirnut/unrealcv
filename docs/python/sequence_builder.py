@@ -1,5 +1,18 @@
 import random
 
+def generate_groom_params():
+    gravity_z = random.uniform(80.0, 180.0)
+
+    wind_x = 0
+    wind_y = 0
+    wind_z = random.uniform(-40.0, 200.0)
+
+    return {
+        "gravity": f"0.0,0.0,{gravity_z:.2f}",
+        "air_velocity": f"{wind_x:.2f},{wind_y:.2f},{wind_z:.2f}"
+    }
+
+
 # Animation mode configurations
 ANIMATION_MODES = {
     "A": {
@@ -13,7 +26,7 @@ ANIMATION_MODES = {
     "B": {
         "bp_path": "/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C",
         "move_speed": "0.0",
-        "prob": 0.2,
+        "prob": 0.3,
         "distance": "90 140",
         "height": "120 155",
         "aim_height": "125 175",
@@ -21,9 +34,9 @@ ANIMATION_MODES = {
     "C": {
         "bp_path": "/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C",
         "move_speed": "0.0",
-        "prob": 0.4,
-        "distance": "90 140",
-        "height": "120 155",
+        "prob": 0.3,
+        "distance": "110 140",
+        "height": "135 155",
         "aim_height": "135 160",
     }
 }
@@ -47,7 +60,7 @@ def build_single_matting_scene():
     Returns a list of commands for ONE scene.
     Each call generates different random parameters.
     """
-    if random.random() < 0.5:
+    if random.random() < 0.2:
         resolution = "1080x1920"
         fov_range = "50 60"
     else:
@@ -66,6 +79,9 @@ def build_single_matting_scene():
     anim_mode = select_animation_mode()
     anim_config = ANIMATION_MODES[anim_mode]
 
+    # Generate randomized groom parameters for hair movement
+    groom_params = generate_groom_params()
+
     commands = [
         {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.85"},
         {"cmd": "load_scene_param_json"},
@@ -73,18 +89,21 @@ def build_single_matting_scene():
         {"cmd": "random_scene_param_camera_angle_offset", "params": "-90 90"},
         {"cmd": "random_scene_param_camera_distance", "params": anim_config["distance"]},
         {"cmd": "create_scene"},
+        {"cmd": "annotate_world"},
         {"cmd": "set_animation_bp", "params": anim_config["bp_path"]},
         {"cmd": "prepare_groom"},
+        {"cmd": "set_groom_gravity", "params": groom_params["gravity"]},
+        {"cmd": "set_groom_air_velocity", "params": groom_params["air_velocity"]},
         {"cmd": "set_foreground_move_speed", "params": anim_config["move_speed"]},
         {"cmd": "set_foreground_move_angle_offset", "params": "90.0"},
         {"cmd": "sync_pawn_to_primary_camera"},
-        {"cmd": "delay", "params": "2.0"},
+        {"cmd": "delay", "params": "1.0"},
         {"cmd": "random_resolution", "params": resolution},
         {"cmd": "random_fov", "params": fov_range},
         {"cmd": "aim_camera_at_foreground", "params": anim_config["aim_height"]},
         {"cmd": "add_camera_rotation_noise", "params": "12.0 4.0 6.0"},
         {"cmd": "prepare_record"},
-        {"cmd": "delay", "params": "4.0"},
+        {"cmd": "delay", "params": "2.5"},
         {"cmd": "record_trajectory", "params": chosen_trajectory},
         {"cmd": "sync_all_cameras"},
         {"cmd": "delay", "params": "0.5"},
@@ -99,7 +118,8 @@ def build_single_matting_scene():
         "trajectory": chosen_trajectory,
         "animation_mode": anim_mode,
         "animation_bp": anim_config["bp_path"],
-        "move_speed": anim_config["move_speed"]
+        "move_speed": anim_config["move_speed"],
+        "groom_params": groom_params
     }
 
 

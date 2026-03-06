@@ -65,6 +65,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MainViewportRender")
 	float GetActualFOV() const;
 
+	void FlushPendingFrames();
+
 protected:
 	bool bIsInitialized = false;
 	float FOV = 90.0f;

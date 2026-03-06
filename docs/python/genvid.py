@@ -419,6 +419,10 @@ def extra():
 if __name__ == "__main__":
     try:
         main()
+    except Exception as e:
+        print(e)
+        time.sleep(2)
+    try:
         extra()
     except Exception as e:
         print(e)

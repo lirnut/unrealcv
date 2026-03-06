@@ -67,13 +67,15 @@ public class UnrealcvBuildConfig
 			"NiagaraCore",
 			"MovieRenderPipelineCore",
 			"PakFile", // For runtime pak mounting
-			"Landscape" // For manual Landscape LOD computation
+			"Landscape", // For manual Landscape LOD computation
+			"Foliage" // For InstancedFoliageActor annotation support
 		});
 
 		EditorPrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"UnrealEd", // To support GetGameWorld
+				"Landscape", // For Landscape annotation support
 				// This is only available for Editor build
 			}
 		);
@@ -111,9 +113,11 @@ namespace UnrealBuildTool.Rules
 			// PrivateDependency only available in Private folder
 			// Reference: https://answers.unrealengine.com/questions/23384/what-is-the-difference-between-publicdependencymod.html
 			// if (UEBuildConfiguration.bBuildEditor == true)
+			PrivateDependencyModuleNames.Add("Landscape"); // For Landscape annotation support
+
 			if (Target.bBuildEditor == true)
 			{
-				PrivateDependencyModuleNames = BuildConfig.EditorPrivateDependencyModuleNames;
+				PrivateDependencyModuleNames.AddRange(BuildConfig.EditorPrivateDependencyModuleNames);
 			}
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)

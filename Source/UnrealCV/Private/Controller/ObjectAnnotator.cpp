@@ -258,6 +258,7 @@ FColor FColorGenerator::GetColorFromColorMap(int32 ObjectIndex)
     while (ColorMap.Num() <= ObjectIndex && BuiltMaxChannel < NumPerChannel)
     {
         int32 MaxVal = BuiltMaxChannel;
+        int32 PrevNum = ColorMap.Num();
 
         GetColors(MaxVal, false, false, true,  ColorMap);
         GetColors(MaxVal, false, true,  false, ColorMap);
@@ -267,7 +268,22 @@ FColor FColorGenerator::GetColorFromColorMap(int32 ObjectIndex)
         GetColors(MaxVal, true,  true,  false, ColorMap);
         GetColors(MaxVal, true,  true,  true,  ColorMap);
 
+        // Remove white and black colors from newly added entries
+        for (int32 i = ColorMap.Num() - 1; i >= PrevNum; --i)
+        {
+            if (ColorMap[i] == FColor::White || ColorMap[i] == FColor::Black)
+            {
+                ColorMap.RemoveAt(i);
+            }
+        }
+
         BuiltMaxChannel++;
+    }
+
+    if (ObjectIndex >= ColorMap.Num())
+    {
+        UE_LOG(LogUnrealCV, Warning, TEXT("ObjectIndex %d exceeds available non-white colors %d, returning black"), ObjectIndex, ColorMap.Num());
+        return FColor::Black;
     }
 
     return ColorMap[ObjectIndex];

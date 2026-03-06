@@ -12,7 +12,8 @@ DECLARE_CYCLE_STAT(TEXT("UOneObjMaskCamSensor::CaptureOneObjMask"), STAT_Capture
 UOneObjMaskCamSensor::UOneObjMaskCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
-	bRenderInMainRenderer = true;  // optimization
+	FServerConfig& Config = FUnrealcvServer::Get().Config;
+	bRenderInMainRenderer = Config.bRenderInMainRenderer;
 	CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
 	ShowFlags.SetLighting(false);

@@ -4,6 +4,9 @@
 #include "UnrealcvServer.h"
 #include "UnrealcvLog.h"
 #include "Controller/ObjectAnnotator.h"
+#include "LandscapeComponent.h"
+#include "Components/PrimitiveComponent.h"
+#include "InstancedFoliageActor.h"
 
 FProxyAnnotator::FProxyAnnotator()
 {
@@ -66,6 +69,7 @@ void FProxyAnnotator::DeannotateWorld(UWorld* World)
 
 	int32 DestroyedCount = 0;
 	int32 ComponentCount = 0;
+	int32 StencilResetCount = 0;
 
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
 	{
@@ -90,14 +94,25 @@ void FProxyAnnotator::DeannotateWorld(UWorld* World)
 				}
 			}
 		}
+
+		TArray<UActorComponent*> LandscapeComponents = Actor->K2_GetComponentsByClass(ULandscapeComponent::StaticClass());
+		for (UActorComponent* Component : LandscapeComponents)
+		{
+			ULandscapeComponent* LandscapeComponent = Cast<ULandscapeComponent>(Component);
+			if (IsValid(LandscapeComponent))
+			{
+				LandscapeComponent->SetRenderCustomDepth(false);
+				++StencilResetCount;
+			}
+		}
 	}
 
 	AnnotationColors.Empty();
 
 	FlushRenderingCommands();
 
-	UE_LOG(LogUnrealCV, Log, TEXT("[ProxyAnnotator] Destroyed %d annotation components out of %d found"),
-		DestroyedCount, ComponentCount);
+	UE_LOG(LogUnrealCV, Log, TEXT("[ProxyAnnotator] Destroyed %d annotation components, reset %d landscape stencils"),
+		DestroyedCount, StencilResetCount);
 }
 
 int32 FProxyAnnotator::SetAnnotationColor(AActor* Actor, const FColor& AnnotationColor)
@@ -174,10 +189,12 @@ void FProxyAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& Ann
 	}
 
 	TArray<UActorComponent*> MeshComponents = Actor->K2_GetComponentsByClass(UMeshComponent::StaticClass());
-	if (MeshComponents.Num() > 0)
+	TArray<UActorComponent*> LandscapeComponents = Actor->K2_GetComponentsByClass(ULandscapeComponent::StaticClass());
+
+	if (MeshComponents.Num() > 0 || LandscapeComponents.Num() > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ProxyAnnotator] Annotate actor %s with color %s, MeshComponents: %d"),
-			*Actor->GetActorNameOrLabel(), *AnnotationColor.ToString(), MeshComponents.Num());
+		UE_LOG(LogTemp, Log, TEXT("[ProxyAnnotator] Annotate actor %s with color %s, MeshComponents: %d, LandscapeComponents: %d"),
+			*Actor->GetActorNameOrLabel(), *AnnotationColor.ToString(), MeshComponents.Num(), LandscapeComponents.Num());
 
 		for (UActorComponent* Component : MeshComponents)
 		{
@@ -203,6 +220,30 @@ void FProxyAnnotator::CreateAnnotationComponent(AActor* Actor, const FColor& Ann
 			AnnotationComponent->SetAnnotationColor(AnnotationColor);
 			AnnotationComponent->RegisterComponent();
 			AnnotationComponent->MarkRenderStateDirty();
+		}
+
+		for (UActorComponent* Component : LandscapeComponents)
+		{
+			ULandscapeComponent* LandscapeComponent = Cast<ULandscapeComponent>(Component);
+			if (!IsValid(LandscapeComponent))
+			{
+				continue;
+			}
+
+			UE_LOG(LogUnrealCV, Log, TEXT("[ProxyAnnotator]   LandscapeComponent: %s"),
+				*LandscapeComponent->GetName());
+
+			UAnnotationComponent* AnnotationComponent = NewObject<UAnnotationComponent>(LandscapeComponent);
+			AnnotationComponent->SetupAttachment(LandscapeComponent);
+			AnnotationComponent->SetAnnotationColor(AnnotationColor);
+			AnnotationComponent->RegisterComponent();
+			AnnotationComponent->MarkRenderStateDirty();
+
+			if (AnnotationColor == FColor::White)
+			{
+				LandscapeComponent->SetRenderCustomDepth(true);
+				LandscapeComponent->SetCustomDepthStencilValue(254);
+			}
 		}
 	}
 }
@@ -230,6 +271,17 @@ FColor FProxyAnnotator::GetDefaultColor(AActor* Actor)
 	if (AnnotationColors.Contains(ActorName))
 	{
 		return AnnotationColors[ActorName];
+	}
+
+	if (Actor->IsA<AInstancedFoliageActor>())
+	{
+		return FColor::Black;
+	}
+
+	TArray<UActorComponent*> LandscapeComponents = Actor->K2_GetComponentsByClass(ULandscapeComponent::StaticClass());
+	if (LandscapeComponents.Num() > 0)
+	{
+		return FColor::White;
 	}
 
 	int ColorIndex = AnnotationColors.Num();

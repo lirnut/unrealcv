@@ -26,6 +26,7 @@ public:
 	float OpticalFlowScale;
 	bool bIgnoreTransparentObjects;
 	bool UseDirectAnnotation;
+	bool bRenderInMainRenderer;
 
 	TArray<FString> SupportedModes;
 

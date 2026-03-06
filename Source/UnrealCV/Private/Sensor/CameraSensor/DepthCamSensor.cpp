@@ -8,18 +8,20 @@
 #include "UnrealcvLog.h"
 #include "RHISurfaceDataConversionOpt.h"
 #include "BPFunctionLib/AnnotationBPLib.h"
+#include "Server/ServerConfig.h"
 #include "UnrealcvServer.h"
 // #include "ServerConfig.h"
 
 UDepthCamSensor::UDepthCamSensor(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
-	bRenderInMainRenderer = true;  // optimization
+	FServerConfig& Config = FUnrealcvServer::Get().Config;
+	bRenderInMainRenderer = Config.bRenderInMainRenderer;
 	this->ShowFlags.SetPostProcessing(true);
 	this->ShowFlags.SetPostProcessMaterial(true);
 
-	FString NormalPPMaterialPath = TEXT("Material'/UnrealCV/SceneDepthNative.SceneDepthNative'");
-	ConstructorHelpers::FObjectFinder<UMaterial> Material(*NormalPPMaterialPath);
+	FString PPMaterialPath = TEXT("Material'/UnrealCV/SceneDepthNative.SceneDepthNative'");
+	ConstructorHelpers::FObjectFinder<UMaterial> Material(*PPMaterialPath);
 	if (IsValid(Material.Object))
 	{
 		this->DepthPPMaterial = Material.Object;
@@ -27,10 +29,9 @@ UDepthCamSensor::UDepthCamSensor(const FObjectInitializer& ObjectInitializer) :
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load normal post process material: %s"), *NormalPPMaterialPath);
+		UE_LOG(LogTemp, Error, TEXT("Failed to load normal post process material: %s"), *PPMaterialPath);
 	}
 
-	FServerConfig& Config = FUnrealcvServer::Get().Config;
 	bIgnoreTransparentObjects = Config.bIgnoreTransparentObjects;
 }
 
@@ -39,7 +40,10 @@ void UDepthCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 	EPixelFormat PixelFormat = EPixelFormat::PF_FloatRGBA;
 	bool bUseLinearGamma = true;
 	TextureTarget->InitCustomFormat(filmWidth, filmHeight, EPixelFormat::PF_FloatRGBA, bUseLinearGamma);
-	SetPostProcessMaterial(DepthPPMaterial);
+	if (IsValid(DepthPPMaterial))
+	{
+		SetPostProcessMaterial(DepthPPMaterial);
+	}
 }
 
 void UDepthCamSensor::CaptureDepth(TArray<float>& DepthData, int& Width, int& Height)
@@ -175,15 +179,15 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 					double SerializeStartTime = FPlatformTime::Seconds();
 					FString OutputPathBase = OutputPath.Replace(TEXT(".npy"), TEXT(""));
 					FString OutputPathPNG1KM = OutputPathBase + TEXT("1km.png");
-					FString OutputPathPNG20KM = OutputPathBase + TEXT("20km.png");
-					FString DepthPreviewPath = OutputPathBase + TEXT("_preview.png");
-					FString DepthNpyPath = OutputPathBase + TEXT(".npy");
-					TArray<FColor> DepthPreview;
+					// FString OutputPathPNG20KM = OutputPathBase + TEXT("20km.png");
+					// FString DepthPreviewPath = OutputPathBase + TEXT("_preview.png");
+					// FString DepthNpyPath = OutputPathBase + TEXT(".npy");
+					// TArray<FColor> DepthPreview;
 					TArray<FColor> DepthPNG1KM;
-					TArray<FColor> DepthPNG20KM;
+					// TArray<FColor> DepthPNG20KM;
 					ConvertDepthToPNG_RGB24(DepthData, DepthPNG1KM, 0.0f, 100000.0f);
-					ConvertDepthToPNG_RGB24(DepthData, DepthPNG20KM, 0.0f, 2000000.0f);
-					ConvertDepthToPreview(DepthData, DepthPreview);
+					// ConvertDepthToPNG_RGB24(DepthData, DepthPNG20KM, 0.0f, 2000000.0f);
+					// ConvertDepthToPreview(DepthData, DepthPreview);
 					// | 你能接受的误差（cm）   | 对应的 MaxDepth（cm）                     |
 					// | ------------- | ------------------------------------ |
 					// | 100 cm（1 m）   | **3,355,443,000 cm**  ≈ 33,554 km    |
@@ -193,9 +197,9 @@ void UDepthCamSensor::CaptureDepthToFile(const FString& Filename)
 					// | 2000 cm（20 m） | **67,108,860,000 cm** ≈ 671,088 km   |
 					// | 4000 cm（40 m） | **134,217,720,000 cm**≈ 1,342,177 km |
 					SerializeData(DepthPNG1KM, Width, Height, OutputPathPNG1KM);
-					SerializeData(DepthPNG20KM, Width, Height, OutputPathPNG20KM);
-					SerializeData(DepthPreview, Width, Height, DepthPreviewPath);
-					SerializeData(DepthData, Width, Height, DepthNpyPath);
+					// SerializeData(DepthPNG20KM, Width, Height, OutputPathPNG20KM);
+					// SerializeData(DepthPreview, Width, Height, DepthPreviewPath);
+					// SerializeData(DepthData, Width, Height, DepthNpyPath);
 					double SerializeTime = FPlatformTime::Seconds() - SerializeStartTime;
 					UE_LOG(LogTemp, Log, TEXT("[CaptureToFile] Saved async capture to %s in %.3f ms"), *OutputPath, SerializeTime * 1000.0);
 				}
