@@ -1,11 +1,11 @@
 import random
 
 def generate_groom_params():
-    gravity_z = random.uniform(80.0, 180.0)
+    gravity_z = random.uniform(50.0, 280.0)
 
     wind_x = 0
     wind_y = 0
-    wind_z = random.uniform(-40.0, 200.0)
+    wind_z = random.uniform(-40.0, 280.0)
 
     return {
         "gravity": f"0.0,0.0,{gravity_z:.2f}",
@@ -29,7 +29,7 @@ ANIMATION_MODES = {
         "prob": 0.3,
         "distance": "90 140",
         "height": "120 155",
-        "aim_height": "125 175",
+        "aim_height": "125 155",
     },
     "C": {
         "bp_path": "/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C",
@@ -37,7 +37,7 @@ ANIMATION_MODES = {
         "prob": 0.3,
         "distance": "110 140",
         "height": "135 155",
-        "aim_height": "135 160",
+        "aim_height": "125 145",
     }
 }
 
@@ -97,13 +97,14 @@ def build_single_matting_scene():
         {"cmd": "set_foreground_move_speed", "params": anim_config["move_speed"]},
         {"cmd": "set_foreground_move_angle_offset", "params": "90.0"},
         {"cmd": "sync_pawn_to_primary_camera"},
-        {"cmd": "delay", "params": "0.5"},
+        {"cmd": "delay", "params": "2.0"},
+        {"cmd": "block_until_all_work_finished"},
         {"cmd": "random_resolution", "params": resolution},
         {"cmd": "random_fov", "params": fov_range},
         {"cmd": "aim_camera_at_foreground", "params": anim_config["aim_height"]},
         {"cmd": "add_camera_rotation_noise", "params": "12.0 4.0 6.0"},
         {"cmd": "prepare_record"},
-        {"cmd": "delay", "params": "4.5"},
+        {"cmd": "delay", "params": "6.0"},
         {"cmd": "record_trajectory", "params": chosen_trajectory},
         {"cmd": "sync_all_cameras"},
         {"cmd": "delay", "params": "0.5"},

@@ -6,22 +6,39 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 
 ## Session Context Files (2026-03-06)
 
-**Session Topic**: Semantic annotation system implementation - adding material and texture metadata extraction for dataset generation; created MetaDataBPLib with physical material properties (Roughness, Metallic, BaseColor, etc.)
+**Session Topic**: Depth encoding optimization - implementing bit-interleaved RGB24 and Hue colorization with adjustable Exponent for precision control
+
+### Utilities (Image Processing & Depth Encoding)
+- `Source/UnrealCV/Public/Utils/ImageUtil.h` - Depth-to-image encoding functions: ConvertDepthToPNG_RGB24_Interleaved (24-bit bit-interleaved), ConvertDepthToPNG_Hue (HSV colorization with Exponent parameter), DecodeDepthFromHue, JPG/PNG/BMP serialization support
+- `Source/UnrealCV/Private/Utils/ImageUtil.cpp` - Implementation of bit-interleaved encoding for spatial continuity, Hue encoding with power-law inverse mapping (Exponent controls curve steepness), Intel RealSense-inspired depth compression
+- `Source/UnrealCV/Private/Sensor/CameraSensor/DepthCamSensor.cpp` - Depth sensor with ConvertDepthToPNG_RGB24_Interleaved integration for high-precision depth output
+
+### Sensor System (Depth Capture)
+- `Source/UnrealCV/Public/Sensor/CameraSensor/DepthCamSensor.h` - UDepthCamSensor class with CaptureDepthToFile method
+- `Source/UnrealCV/Private/Sensor/CameraSensor/DepthCamSensor.cpp` - Async GPU readback for depth capture, JPG output support
+
+### Documentation References
+- https://dev.realsenseai.com/docs/depth-image-compression-by-colorization-for-intel-realsense-depth-cameras - Intel RealSense depth compression technique reference
+
+## Previous Session Files (2026-03-06)
+
+**Session Topic**: UE5.6 API migration - fixing MetaDataBPLib compilation errors; StaticSwitchParameterValues removed from UMaterialInstance, using GetAllParametersOfType() from MaterialInterface
 
 ### Blueprint Function Libraries (Semantic Annotation)
 - `Source/UnrealCV/Public/BPFunctionLib/MetaDataBPLib.h` - FMaterialSemanticMetadata/FTextureSemanticMetadata structs with physical properties (Roughness, Metallic, BaseColor, EmissiveColor); JSON serialization helpers
-- `Source/UnrealCV/Private/BPFunctionLib/MetaDataBPLib.cpp` - Material parameter extraction from ScalarParameterValues/VectorParameterValues; texture metadata from UTexture resource
+- `Source/UnrealCV/Private/BPFunctionLib/MetaDataBPLib.cpp` - Material parameter extraction from ScalarParameterValues/VectorParameterValues; texture metadata from UTexture resource; UE5.6 API fixes for static switch parameters
 
 ### Recording & Capture (Metadata Integration)
 - `Source/UnrealCV/Private/Actor/FusionCamCaptureActor.cpp` - SaveOverviewMetadata() integration with semantic annotations via UMetaDataBPLib::GetSemanticAnnotationsJson()
 - `Source/UnrealCV/Public/Actor/FusionCamCaptureActor.h`
 
 ### UE5 Engine References (Material System)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInterface.h` - UMaterialInterface base class with GetBlendMode(), GetShadingModels(), IsTwoSided(), GetOpacityMaskClipValue()
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInterface.h` - UMaterialInterface base class with GetBlendMode(), GetShadingModels(), IsTwoSided(), GetOpacityMaskClipValue(), GetAllParametersOfType() ENGINE_API
 - `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\Material.h` - UMaterial class with MaterialDomain, GetBaseMaterial()
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInstance.h` - UMaterialInstance with ScalarParameterValues, VectorParameterValues, TextureParameterValues arrays; BasePropertyOverrides struct
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialCachedData.h` - FMaterialCachedExpressionData with bHasMaterialLayers, bHasSceneColor, ReferencedTextures array
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInstance.h` - UMaterialInstance with ScalarParameterValues, VectorParameterValues, TextureParameterValues, DoubleVectorParameterValues arrays; BasePropertyOverrides struct; StaticSwitchParameterValues REMOVED in UE5.5+
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialCachedData.h` - FMaterialCachedExpressionData with bHasMaterialLayers, bHasSceneColor, ReferencedTextures array, StaticSwitchValues TArray<bool>
 - `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInstanceBasePropertyOverrides.h` - FMaterialInstanceBasePropertyOverrides with override flags for BlendMode, ShadingModel, OpacityMaskClipValue
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\MaterialTypes.h` - FMaterialParameterMetadata, FMaterialParameterValue with AsStaticSwitch() method; EMaterialParameterType enum
 
 ### UE5 Engine References (Texture System)
 - `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Engine\Texture.h` - UTexture base class with CompressionSettings, SRGB property; GetResource() for size info; GetTextureClass() enum

@@ -24,6 +24,11 @@
 #include "Dom/JsonObject.h"
 #include "JsonConfigHelper.h"
 #include "MovieQualityRenderComponent.h"
+#include "ContentStreaming.h"
+#include "AssetCompilingManager.h"
+#include "Materials/MaterialInterface.h"
+#include "RendererInterface.h"
+#include "EngineModule.h"
 
 FAutomationConfig UDatasetAutomationBPLib::CurrentConfig;
 FAutomationStatus UDatasetAutomationBPLib::CurrentStatus;
@@ -190,7 +195,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_groom")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("2.0")));
-		
+		CommandQueue.Add(FAutomationStep(TEXT("block_until_all_work_finished")));
+
 		if(FMath::RandRange(0.0f, 100.0f) < 50.0f)
 		{
 			CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1080x1920")));
@@ -794,6 +800,49 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		DelayDuration = FCString::Atof(*Step.StringParam);
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Delaying %.1f seconds"), DelayDuration);
 		TransitionToState(EDatasetGenerationState::WaitingAsync);
+	}
+	else if (Step.Command == TEXT("block_until_all_work_finished"))
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Blocking until all async work finishes..."));
+
+		UWorld* World = FUnrealcvServer::Get().GetGameWorld();
+		if (World)
+		{
+			// 1. Virtual Texture Tiles
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Flushing Virtual Texture tiles..."));
+			ERHIFeatureLevel::Type FeatureLevel = World->GetFeatureLevel();
+			ENQUEUE_RENDER_COMMAND(FlushVirtualTextureTiles)(
+				[FeatureLevel](FRHICommandListImmediate& RHICmdList)
+				{
+					GetRendererModule().LoadPendingVirtualTextureTiles(RHICmdList, FeatureLevel);
+				});
+			FlushRenderingCommands();
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Virtual Texture tiles flushed"));
+
+			// 2. Streaming Managers (Texture, Nanite, etc.)
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Flushing Streaming Managers..."));
+			IStreamingManager& StreamingManager = IStreamingManager::Get();
+			StreamingManager.UpdateResourceStreaming(World->GetDeltaSeconds(), true);
+			StreamingManager.BlockTillAllRequestsFinished();
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Streaming Managers flushed"));
+
+			// 3. Asset Compilation (Shaders, Materials)
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Flushing Asset Compiler..."));
+			FAssetCompilingManager::Get().FinishAllCompilation();
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Asset Compiler flushed"));
+
+			// 4. Shader Compilation
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Flushing Shader Compiler..."));
+			UMaterialInterface::SubmitRemainingJobsForWorld(World);
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Shader Compiler flushed"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("DatasetAutomation: block_until_all_work_finished - World is null, skipping flush operations"));
+		}
+
+		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: All async work finished, proceeding to next command"));
+		ExecuteNextCommand();
 	}
 	else if (Step.Command == TEXT("increment_counter"))
 	{

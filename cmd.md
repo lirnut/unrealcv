@@ -237,6 +237,7 @@ DebugGame 控制台中支持的完整命令列表
   | save_videos | - | 保存所有视频 |
   | annotate_world | - | 标注世界物体 |
   | delay | 秒数 | 等待指定秒数 |
+  | block_until_all_work_finished | - | 阻塞直到所有异步工作完成 (shader编译, texture加载等) |
   | set_pause | true/false | 暂停/恢复游戏 |
   | set_time_dilation | 数值 | 设置时间膨胀 (0.1-10.0) |
   | load_level | 关卡名 | 加载指定关卡 |

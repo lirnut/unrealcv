@@ -278,8 +278,8 @@ def main():
             
             print(f"\n{'='*60}")
             print(f"[CONFIG] Scalability...")
-            print(client.request("vrun r.ScreenPercentage 67.0"))
-            print(client.request("vrun r.Shadow.Virtual.Enable 0"))
+            # print(client.request("vrun r.ScreenPercentage 67.0"))
+            # print(client.request("vrun r.Shadow.Virtual.Enable 0"))
 
 
             print(f"\n{'='*60}")
