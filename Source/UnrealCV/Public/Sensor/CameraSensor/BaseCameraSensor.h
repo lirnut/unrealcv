@@ -36,6 +36,8 @@ public:
 
 	virtual void PostInitProperties() override;
 
+	virtual void BeginPlay() override;
+
 	/** Get/set the sensor location / rotation */
 	FVector GetSensorLocation()
 	{
