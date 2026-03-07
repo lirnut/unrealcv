@@ -97,7 +97,9 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		// CommandQueue.Add(FAutomationStep(TEXT("render_every_frame"), TEXT("true")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("2.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("block_until_all_work_finished")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("3.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("55 70")));
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("155 175")));
@@ -167,7 +169,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("resume_groom_physics")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));

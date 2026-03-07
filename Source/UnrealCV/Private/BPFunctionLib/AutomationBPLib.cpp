@@ -38,6 +38,7 @@ void UAutomationBPLib::StartTicking()
 
 // #if WITH_EDITOR
 	PushCommand(TEXT("vset /captureactor/spawn_free_cam"));
+	PushCommand(TEXT("vset /captureactor/spawn_free_cam"));
 // #endif
 
 	PushCommand(TEXT("r.ForceLOD 0"));
@@ -45,14 +46,21 @@ void UAutomationBPLib::StartTicking()
 
 	// https://dev.epicgames.com/community/learning/tutorials/Ya6o/unreal-engine-rendering-hair-fur
 	// https://www.reddit.com/r/unrealengine/comments/154wry8/why_default_skylight_adds_too_much_noise_to_the/
-	PushCommand(TEXT("r.HairStrands.Skylighting 0"));
-	// PushCommand(TEXT("r.HairStrands.SkyLighting.SampleCount 256"));
+	// PushCommand(TEXT("r.HairStrands.Skylighting 0"));
+	PushCommand(TEXT("r.HairStrands.SkyLighting.SampleCount 32"));
 	// PushCommand(TEXT("r.HairStrands.SkyLighting.IntegrationType 0"));
 	PushCommand(TEXT("r.HairStrands.Voxelization.Virtual.VoxelWorldSize 0.1"));
 	PushCommand(TEXT("r.HairStrands.RasterizationScale 0.5"));
 	PushCommand(TEXT("r.HairStrands.Voxelization.Raymarching.SteppingScale 1.15"));
 	// PushCommand(TEXT("r.HairStrands.Visibility.PPLL 1 "));
-	// PushCommand(TEXT("r.HairStrands.DeepShadow.SuperSampling 1"));
+	// PushCommand(TEXT("r.HairStrands.Components.GlobalScattering 0"));
+	// PushCommand(TEXT("r.HairStrands.Components.R 1"));
+	// PushCommand(TEXT("r.HairStrands.BoundMode 2"));
+
+	PushCommand(TEXT("r.HairStrands.DOFDepth 0"));
+	PushCommand(TEXT("r.HairStrands.DeepShadow.SuperSampling 1"));
+	PushCommand(TEXT("r.HairStrands.DeepShadow.Resolution 4096"));
+	PushCommand(TEXT("r.HairStrands.SwapType 0"));
 
 	PushCommand(TEXT("r.SceneCapture.AllowRenderInMainRenderer 1"));
 	PushCommand(TEXT("r.SceneCapture.CubeSinglePass 1"));

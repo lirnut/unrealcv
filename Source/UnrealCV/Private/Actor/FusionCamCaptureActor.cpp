@@ -23,6 +23,7 @@
 #include "BPFunctionLib/VisionBPLib.h"
 #include "BPFunctionLib/SerializeBPLib.h"
 #include "BPFunctionLib/RecordingBPLib.h"
+#include "BPFunctionLib/SensorBPLib.h"
 #include "Controller/ActorController.h"
 #include "UnrealcvLog.h"
 #include "UnrealcvServer.h"
@@ -38,6 +39,7 @@ FRecordingSettings AFusionCamCaptureActor::RecordingSettings;
 #include "Serialization/BufferArchive.h"
 #include "BPFunctionLib/LineTraceBPLib.h"
 #include "BPFunctionLib/MetaDataBPLib.h"
+#include "BPFunctionLib/GroomBPLib.h"
 #include "MovieQualityRenderComponent.h"
 #include "MovieQualityRenderSubsystem.h"
 #if PLATFORM_WINDOWS
@@ -118,12 +120,21 @@ void AFusionCamCaptureActor::Tick(float DeltaTime)
 		return;
 	}
 
-
 	if (!IsValid(TargetForeground))
 	{
 		UE_LOG(LogUnrealCV, Error, TEXT("TargetForeground is null ..."));
 		return;
 	}
+
+
+	UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - Update Groom Render State, DeltaTime: %f"), DeltaTime);
+	UGroomBPLib::UpdateGroomRenderState(TargetForeground, true, true, true, true);
+	UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - Refresh All Groom Shadows, DeltaTime: %f"), DeltaTime);
+
+	FString PrimaryCamID = USensorBPLib::GetSensorNewFormatID(TargetSensor);
+	UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - DeltaTime: %f"), DeltaTime);
+	UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - Primary Cam CID: %s"), *PrimaryCamID);
+	UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - Primary Cam Index: %d"), USensorBPLib::GetIndexByAnyID(PrimaryCamID));
 
 	// the second if here particular for matting task will be deprecated, only with the first universal one
 	if (CurrentTrajectoryIndex < CurrentTrajectory.Num())
@@ -1119,6 +1130,7 @@ void AFusionCamCaptureActor::SaveOverviewMetadata()
 		"ForegroundColor",
 		"AnnotationColors",
 		"RealWorldTimeRecordingStart",
+		"UnifiedTargetLocation",
 		"SemanticAnnotations"
 	};
 
@@ -1141,6 +1153,7 @@ void AFusionCamCaptureActor::SaveOverviewMetadata()
 		FJsonObjectBP(ForegroundColor),
 		FJsonObjectBP(ColorMap),
 		FJsonObjectBP(RealWorldTimeStartStr),
+		FJsonObjectBP(UnifiedTargetLocation),
 		SemanticAnnotationsJson
 	};
 
@@ -1989,7 +2002,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
 		Pose.DesiredEstTimeDilation = DesiredEstTimeDilation;
-		Pose.PausedTickIntervalCoef = 10.0f;
+		Pose.PausedTickIntervalCoef = 6.0f;
 		CoreTrajectory.Add(Pose);
 	}
 

@@ -48,4 +48,30 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UnrealCV|Groom")
     static bool SetHairSimulationTimeDilation(AActor* Actor, float TimeDilation);
 
+    /**
+     * Force update Groom rendering state when TimeDilation=0 or game is paused.
+     * This ensures shadows and voxelization are updated correctly.
+     *
+     * @param Actor - The actor containing GroomComponents
+     * @param bUpdateTransform - Mark render transform dirty (bounds recalculation)
+     * @param bUpdateDynamicData - Mark dynamic data dirty (buffer swap for skinning/deformation)
+     * @param bInvalidateRenderState - Fully invalidate and recreate render state
+     * @param bUpdateHairGroupsDesc - Update hair groups description (shadow density, raytracing settings)
+     * @return true if any GroomComponent was found and updated
+     */
+    UFUNCTION(BlueprintCallable, Category = "UnrealCV|Groom")
+    static bool UpdateGroomRenderState(
+        AActor* Actor,
+        bool bUpdateTransform = true,
+        bool bUpdateDynamicData = true,
+        bool bInvalidateRenderState = false,
+        bool bUpdateHairGroupsDesc = false);
+
+    /**
+     * Force refresh all Groom shadows in the world.
+     * Call this after moving camera when game is paused.
+     */
+    UFUNCTION(BlueprintCallable, Category = "UnrealCV|Groom")
+    static bool RefreshAllGroomShadows(UObject* WorldContextObject);
+
 };
