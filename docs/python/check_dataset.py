@@ -8,6 +8,7 @@ import json
 import argparse
 import shutil
 import subprocess
+import gzip
 
 DATASET_ROOT = Path("./DatasetAutomationOutputDirectory")
 EXPECTED_ONEOBJLIT_FILES = 90
@@ -29,11 +30,13 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
         issues.append("Missing rgb.mp4")
 
     overview_json = render_path / "overview.json"
-    if not overview_json.exists():
-        issues.append("Missing overview.json")
+    overview_json_gz = render_path / "overview.json.gz"
+
+    if not overview_json.exists() and not overview_json_gz.exists():
+        issues.append("Missing overview.json (or overview.json.gz)")
         should_delete = True
 
-    
+
     metadata_dir = render_path / "metadata"
     if not metadata_dir.exists():
         issues.append("Missing metadata directory")
@@ -132,6 +135,12 @@ def main():
                         help="FPS for genvid.py (default: 30)")
     parser.add_argument("--delete-mode-dir", type=str, metavar="DIRNAME",
                         help="Delete specific subdirectory (e.g., 'rgb') from all render directories recursively")
+    parser.add_argument("--compress", action="store_true",
+                        help="Compress overview.json files to overview.json.gz (gzip)")
+    parser.add_argument("--decompress", action="store_true",
+                        help="Decompress overview.json.gz files back to overview.json")
+    parser.add_argument("--compress-remove-original", action="store_true",
+                        help="Remove original overview.json after compression")
     args = parser.parse_args()
 
     global DATASET_ROOT
@@ -147,6 +156,10 @@ def main():
         print(f"MODE: AUTO GENVID (FPS={args.fps})")
     if args.delete_mode_dir:
         print(f"MODE: DELETE MODE DIR '{args.delete_mode_dir}' from all render directories")
+    if args.compress:
+        print(f"MODE: COMPRESS overview.json -> overview.json.gz")
+    if args.decompress:
+        print(f"MODE: DECOMPRESS overview.json.gz -> overview.json")
     print(f"{'='*80}\n")
 
     print(f"Dataset root: {DATASET_ROOT.resolve()}")
@@ -192,6 +205,93 @@ def main():
         if failed_dirs > 0:
             print(f"Failed to delete: {failed_dirs} directories")
         print(f"\nDelete mode dir operation complete!")
+        return
+
+    if args.compress or args.decompress:
+        print(f"\n{'='*80}")
+        if args.compress:
+            print(f"Compressing overview.json files...")
+        else:
+            print(f"Decompressing overview.json.gz files...")
+        print(f"{'='*80}")
+
+        processed_count = 0
+        skipped_count = 0
+        failed_count = 0
+        total_size_before = 0
+        total_size_after = 0
+
+        for render_path in render_paths:
+            if args.compress:
+                json_file = render_path / "overview.json"
+                gz_file = render_path / "overview.json.gz"
+
+                if not json_file.exists():
+                    skipped_count += 1
+                    continue
+
+                try:
+                    with open(json_file, 'rb') as f_in:
+                        with gzip.open(gz_file, 'wb', compresslevel=9) as f_out:
+                            f_out.writelines(f_in)
+
+                    size_before = json_file.stat().st_size
+                    size_after = gz_file.stat().st_size
+                    total_size_before += size_before
+                    total_size_after += size_after
+
+                    if args.compress_remove_original:
+                        json_file.unlink()
+
+                    processed_count += 1
+                    if processed_count % 100 == 0:
+                        print(f"  Progress: {processed_count} files compressed...")
+                except Exception as e:
+                    print(f"✗ Failed to compress {json_file}: {e}")
+                    failed_count += 1
+
+            else:  # decompress
+                gz_file = render_path / "overview.json.gz"
+                json_file = render_path / "overview.json"
+
+                if not gz_file.exists():
+                    skipped_count += 1
+                    continue
+
+                try:
+                    with gzip.open(gz_file, 'rb') as f_in:
+                        with open(json_file, 'wb') as f_out:
+                            f_out.writelines(f_in)
+
+                    size_before = gz_file.stat().st_size
+                    size_after = json_file.stat().st_size
+                    total_size_before += size_before
+                    total_size_after += size_after
+
+                    processed_count += 1
+                    if processed_count % 100 == 0:
+                        print(f"  Progress: {processed_count} files decompressed...")
+                except Exception as e:
+                    print(f"✗ Failed to decompress {gz_file}: {e}")
+                    failed_count += 1
+
+        print(f"\n{'='*80}")
+        if args.compress:
+            print(f"Compression Summary:")
+        else:
+            print(f"Decompression Summary:")
+        print(f"{'='*80}")
+        print(f"Processed: {processed_count} files")
+        print(f"Skipped: {skipped_count} files")
+        if failed_count > 0:
+            print(f"Failed: {failed_count} files")
+        if processed_count > 0:
+            print(f"Total size before: {total_size_before / (1024*1024):.2f} MB")
+            print(f"Total size after: {total_size_after / (1024*1024):.2f} MB")
+            if args.compress:
+                ratio = (1 - total_size_after / total_size_before) * 100
+                print(f"Compression ratio: {ratio:.1f}%")
+        print(f"\nOperation complete!")
         return
 
     date_stats = defaultdict(lambda: defaultdict(int))

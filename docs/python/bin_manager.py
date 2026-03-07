@@ -38,6 +38,7 @@ MAP_LOAD_WAIT = 12
 STATUS_POLL_INTERVAL = 2.0
 CONFIG_SLASH_TOTAL_SCENES = 70
 SESSION_TIMEOUT = CONFIG_SLASH_TOTAL_SCENES * 30
+STARTUP_TIMEOUT = 120
 
 if EXE_PATH.__str__().endswith("HillsideSampleProject.exe"):
     AVAILABLE_MAPS: list[tuple[str, float]] = [
@@ -159,6 +160,62 @@ def watchdog_worker(game_pid, timeout_seconds, stop_event, last_alive_timestamp)
         pass
     print("[WATCHDOG] Watchdog process exiting", flush=True)
 
+def startup_watchdog_worker(game_pid, timeout_seconds, stop_event):
+    """Separate process that monitors game startup. Kills game if it hangs during startup."""
+    import time
+
+    start_time = time.time()
+    print(f"[STARTUP_WATCHDOG] Started monitoring game PID {game_pid}, timeout: {timeout_seconds}s", flush=True)
+
+    try:
+        while not stop_event.is_set():
+            time.sleep(1)
+
+            if stop_event.is_set():
+                print("[STARTUP_WATCHDOG] Stop signal received, exiting", flush=True)
+                break
+
+            elapsed = time.time() - start_time
+
+            # Check if game process is still running
+            try:
+                proc = psutil.Process(game_pid)
+                if not proc.is_running():
+                    print(f"[STARTUP_WATCHDOG] Game process {game_pid} terminated early", flush=True)
+                    break
+            except psutil.NoSuchProcess:
+                print(f"[STARTUP_WATCHDOG] Game process {game_pid} not found", flush=True)
+                break
+
+            # Check timeout
+            if elapsed > timeout_seconds:
+                print(f"[STARTUP_WATCHDOG] STARTUP TIMEOUT REACHED ({timeout_seconds}s), killing game process {game_pid}", flush=True)
+                try:
+                    proc = psutil.Process(game_pid)
+                    for child in proc.children(recursive=True):
+                        child.kill()
+                    proc.kill()
+                    print(f"[STARTUP_WATCHDOG] Game process {game_pid} killed due to startup timeout", flush=True)
+                except psutil.NoSuchProcess:
+                    print(f"[STARTUP_WATCHDOG] Game process {game_pid} already terminated", flush=True)
+                except Exception as e:
+                    print(f"[STARTUP_WATCHDOG] Error killing process: {e}", flush=True)
+                break
+
+            # Print status every 10 seconds
+            if int(elapsed) % 10 == 0 and int(elapsed) > 0:
+                try:
+                    proc = psutil.Process(game_pid)
+                    mem_info = proc.memory_info().rss / (1024 * 1024)
+                    print(f"[STARTUP_WATCHDOG] Monitoring... {elapsed:.0f}s elapsed, game PID {game_pid} ({mem_info:.0f}MB)", flush=True)
+                except:
+                    print(f"[STARTUP_WATCHDOG] Monitoring... {elapsed:.0f}s elapsed", flush=True)
+
+    except KeyboardInterrupt:
+        pass
+
+    print("[STARTUP_WATCHDOG] Startup watchdog process exiting", flush=True)
+
 def weighted_random_choice(maps: list[tuple[str, float]]) -> str:
     """Select a map based on probability weights."""
     if not maps:
@@ -251,12 +308,29 @@ def main():
             print(f"Binary Session #{run_count + 1}")
             print(f"{'='*60}")
 
+            # Initialize startup watchdog variables
+            startup_watchdog_stop = None
+            startup_watchdog_proc = None
+
             game_proc, map_name = start_game()
             if game_proc is None:
                 return 1
 
+            # Start startup watchdog immediately after game process starts
+            startup_watchdog_stop = Event()
+            startup_watchdog_proc = Process(
+                target=startup_watchdog_worker,
+                args=(game_proc.pid, STARTUP_TIMEOUT, startup_watchdog_stop)
+            )
+            startup_watchdog_proc.start()
+            print(f"[STARTUP_WATCHDOG] Started startup watchdog process (PID: {startup_watchdog_proc.pid}, timeout: {STARTUP_TIMEOUT}s)")
+
             if not wait_for_server(game_proc, CONNECT_TIMEOUT):
                 print("[ERROR] Failed to start server, cleaning up...")
+                startup_watchdog_stop.set()
+                startup_watchdog_proc.join(timeout=1.0)
+                if startup_watchdog_proc.is_alive():
+                    startup_watchdog_proc.terminate()
                 kill_process_and_its_children(game_proc)
                 print("[INFO] Retrying in 5s...")
                 time.sleep(5)
@@ -265,6 +339,10 @@ def main():
             client = unrealcv.Client(("127.0.0.1", PORT))
             if not client.connect(timeout=10):
                 print("[ERROR] Failed to connect to UnrealCV")
+                startup_watchdog_stop.set()
+                startup_watchdog_proc.join(timeout=1.0)
+                if startup_watchdog_proc.is_alive():
+                    startup_watchdog_proc.terminate()
                 kill_process_and_its_children(game_proc)
                 print("[INFO] Retrying in 5s...")
                 time.sleep(5)
@@ -324,6 +402,15 @@ def main():
             result = client.request("vset /datasetautomation/start")
             print(f"[START] {result}")
 
+            # Startup complete, stop and destroy the startup watchdog
+            print("[STARTUP_WATCHDOG] Startup complete, stopping startup watchdog...")
+            startup_watchdog_stop.set()
+            startup_watchdog_proc.join(timeout=2.0)
+            if startup_watchdog_proc.is_alive():
+                startup_watchdog_proc.terminate()
+                startup_watchdog_proc.join(timeout=1.0)
+            print("[STARTUP_WATCHDOG] Startup watchdog stopped")
+
             run_count += 1
             session_start = time.time()
 
@@ -334,7 +421,7 @@ def main():
                 args=(game_proc.pid, SESSION_TIMEOUT, watchdog_stop, last_alive)
             )
             watchdog_proc.start()
-            print(f"[WATCHDOG] Started watchdog process (PID: {watchdog_proc.pid}, timeout: {SESSION_TIMEOUT}s)")
+            print(f"[WATCHDOG] Started main watchdog process (PID: {watchdog_proc.pid}, timeout: {SESSION_TIMEOUT}s)")
 
             try:
                 while True:
@@ -366,11 +453,21 @@ def main():
                 raise
 
             finally:
+                # Stop main watchdog
                 watchdog_stop.set()
                 watchdog_proc.join(timeout=2.0)
                 if watchdog_proc.is_alive():
                     watchdog_proc.terminate()
                     watchdog_proc.join(timeout=1.0)
+
+                # Stop startup watchdog if still running
+                if startup_watchdog_stop is not None:
+                    startup_watchdog_stop.set()
+                if startup_watchdog_proc is not None and startup_watchdog_proc.is_alive():
+                    startup_watchdog_proc.join(timeout=1.0)
+                    if startup_watchdog_proc.is_alive():
+                        startup_watchdog_proc.terminate()
+                        startup_watchdog_proc.join(timeout=1.0)
 
                 try:
                     client.disconnect()

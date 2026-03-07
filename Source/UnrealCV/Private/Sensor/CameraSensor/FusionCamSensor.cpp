@@ -114,42 +114,36 @@ UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("MovieQualityRenderer"));
 	MovieQualityRenderer = CreateDefaultSubobject<UMovieQualityRenderComponent> (*ComponentName);
-	// BUG FIX: MovieQualityRenderer also causes template mismatch during cook
-	// MovieQualityRenderer->SetupAttachment(this);
-	// FusionSensors.Add(MovieQualityRenderer);
+	MovieQualityRenderer->SetupAttachment(this);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("FlowCamSensor"));
 	FlowCamSensor = CreateDefaultSubobject<UFlowCamSensor>(*ComponentName);
-	// FlowCamSensor = NewObject<UFlowCamSensor>(this, UFlowCamSensor::StaticClass()); /*NewObject with empty name can't be used to create default subobjects*/
-	// BUG FIX: Attaching FlowCamSensor in constructor causes "Template Mismatch during attachment" error
-	// in UE5 when Blueprint is cooked. Delay attachment to BeginPlay() for all secondary sensors.
-	// FlowCamSensor->SetupAttachment(this);
-	// FusionSensors.Add(FlowCamSensor);
+	FlowCamSensor->SetupAttachment(this);
+	FusionSensors.Add(FlowCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("OneObjectMaskCamSensor"));
 	OneObjectMaskCamSensor = CreateDefaultSubobject<UAnnotationCamSensor>(*ComponentName);
-	// BUG FIX: Delay attachment to BeginPlay() to avoid template component attachment issues
-	// OneObjectMaskCamSensor->SetupAttachment(this);
-	// FusionSensors.Add(OneObjectMaskCamSensor);
+	OneObjectMaskCamSensor->SetupAttachment(this);
+	FusionSensors.Add(OneObjectMaskCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("OneObjectLitCamSensor"));
 	OneObjectLitCamSensor = CreateDefaultSubobject<UOneObjectLitCamSensor>(*ComponentName);
-	// FusionSensors.Add(OneObjectLitCamSensor);
+	OneObjectLitCamSensor->SetupAttachment(this);
+	FusionSensors.Add(OneObjectLitCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("ShadowCatcherCamSensor"));
 	ShadowCatcherCamSensor = CreateDefaultSubobject<UShadowCatcherCamSensor>(*ComponentName);
-	// BUG FIX: Delay attachment to BeginPlay() to avoid template component attachment issues
-	// ShadowCatcherCamSensor->SetupAttachment(this);
-	// FusionSensors.Add(ShadowCatcherCamSensor);
+	ShadowCatcherCamSensor->SetupAttachment(this);
+	FusionSensors.Add(ShadowCatcherCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("StencilMaskCamSensor"));
 	StencilMaskCamSensor = CreateDefaultSubobject<UStencilMaskCamSensor>(*ComponentName);
-	// BUG FIX: Delay attachment to BeginPlay() to avoid template component attachment issues
-	// StencilMaskCamSensor->SetupAttachment(this);
-	// FusionSensors.Add(StencilMaskCamSensor);
+	StencilMaskCamSensor->SetupAttachment(this);
+	FusionSensors.Add(StencilMaskCamSensor);
 
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("MainViewportRenderComponent"));
 	MainViewportRenderComponent = CreateDefaultSubobject<UMainViewportRenderComponent>(*ComponentName);
+	MainViewportRenderComponent->SetupAttachment(this);
 
 	// The config loading code should not be placed into the ctor, otherwise it will break the copy behavior
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
@@ -183,48 +177,9 @@ void UFusionCamSensor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// BUG FIX: Template Mismatch during attachment - attach secondary sensors in BeginPlay instead of constructor
-	if (IsValid(FlowCamSensor))
+	for (UBaseCameraSensor* Sensor : FusionSensors)
 	{
-		FlowCamSensor->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-		const FTransform LitTransform = LitCamSensor->GetComponentTransform();
-		FlowCamSensor->SetWorldTransform(LitTransform);
-		FusionSensors.Add(FlowCamSensor);
-	}
-
-	if (IsValid(OneObjectMaskCamSensor))
-	{
-		OneObjectMaskCamSensor->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-		FusionSensors.Add(OneObjectMaskCamSensor);
-	}
-
-	if (IsValid(OneObjectLitCamSensor))
-	{
-		OneObjectLitCamSensor->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-		FusionSensors.Add(OneObjectLitCamSensor);
-	}
-
-	if (IsValid(ShadowCatcherCamSensor))
-	{
-		ShadowCatcherCamSensor->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-		FusionSensors.Add(ShadowCatcherCamSensor);
-	}
-
-	if (IsValid(StencilMaskCamSensor))
-	{
-		StencilMaskCamSensor->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-		FusionSensors.Add(StencilMaskCamSensor);
-	}
-
-	// BUG FIX: MovieQualityRenderer also causes template mismatch during cook
-	if (IsValid(MovieQualityRenderer))
-	{
-		MovieQualityRenderer->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-	}
-
-	if (IsValid(MainViewportRenderComponent))
-	{
-		MainViewportRenderComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
+		check(IsValid(Sensor));
 	}
 
 	SetFilmSize(FilmWidth, FilmHeight);
