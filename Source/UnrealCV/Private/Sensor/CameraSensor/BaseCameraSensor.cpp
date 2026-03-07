@@ -69,7 +69,7 @@ void UBaseCameraSensor::PostInitProperties()
 	Super::PostInitProperties();
 }
 
-void UBaseCamSensor::BeginPlay()
+void UBaseCameraSensor::BeginPlay()
 {
 	Super::BeginPlay();
 	HiddenComponents.Reset();
