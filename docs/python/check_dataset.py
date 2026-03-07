@@ -130,6 +130,8 @@ def main():
                         help="Run genvid.py for renders with exactly 90 png files in rgb folder but missing rgb.mp4")
     parser.add_argument("--fps", type=int, default=30,
                         help="FPS for genvid.py (default: 30)")
+    parser.add_argument("--delete-mode-dir", type=str, metavar="DIRNAME",
+                        help="Delete specific subdirectory (e.g., 'rgb') from all render directories recursively")
     args = parser.parse_args()
 
     global DATASET_ROOT
@@ -143,6 +145,8 @@ def main():
         print(f"MODE: DELETE ALL INCONSISTENT SCENES")
     if args.genvid:
         print(f"MODE: AUTO GENVID (FPS={args.fps})")
+    if args.delete_mode_dir:
+        print(f"MODE: DELETE MODE DIR '{args.delete_mode_dir}' from all render directories")
     print(f"{'='*80}\n")
 
     print(f"Dataset root: {DATASET_ROOT.resolve()}")
@@ -161,6 +165,34 @@ def main():
         return
 
     print(f"Total render directories found: {total_renders}")
+
+    if args.delete_mode_dir:
+        print(f"\n{'='*80}")
+        print(f"Deleting '{args.delete_mode_dir}' directories from all render paths...")
+        print(f"{'='*80}")
+
+        deleted_dirs = 0
+        failed_dirs = 0
+
+        for render_path in render_paths:
+            target_dir = render_path / args.delete_mode_dir
+            if target_dir.exists() and target_dir.is_dir():
+                try:
+                    shutil.rmtree(target_dir)
+                    print(f"✓ Deleted: {target_dir}")
+                    deleted_dirs += 1
+                except Exception as e:
+                    print(f"✗ Failed to delete {target_dir}: {e}")
+                    failed_dirs += 1
+
+        print(f"\n{'='*80}")
+        print(f"Delete Mode Dir Summary:")
+        print(f"{'='*80}")
+        print(f"Successfully deleted: {deleted_dirs} directories")
+        if failed_dirs > 0:
+            print(f"Failed to delete: {failed_dirs} directories")
+        print(f"\nDelete mode dir operation complete!")
+        return
 
     date_stats = defaultdict(lambda: defaultdict(int))
     for render_path in render_paths:

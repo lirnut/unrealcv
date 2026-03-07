@@ -349,8 +349,12 @@ public:
 			SetSelection_GameThread(true);
 		}
 #endif
-
-		SetupInstanceSceneDataBuffers(InstanceDataSceneProxy->GeInstanceSceneDataBuffers());
+		// BUG FIX: Add safety check before accessing instance data buffers
+		// This prevents crashes when InstanceDataSceneProxy becomes invalid during construction
+		if (InstanceDataSceneProxy.IsValid() && InstanceDataSceneProxy->GeInstanceSceneDataBuffers())
+		{
+			SetupInstanceSceneDataBuffers(InstanceDataSceneProxy->GeInstanceSceneDataBuffers());
+		}
 
 		bAnySegmentUsesWorldPositionOffset = false;
 
@@ -847,6 +851,16 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponen
 	UInstancedStaticMeshComponent* InstancedComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent);
 	if (InstancedComponent)
 	{
+		// BUG FIX: Check if component is fully registered before creating scene proxy
+		// This prevents race conditions where InstanceDataSceneProxy is not ready
+		if (!InstancedComponent->IsRegistered())
+		{
+			UE_LOG(LogUnrealCV, Warning,
+				TEXT("Skipping FInstancedStaticMeshAnnotationSceneProxy for %s: Component not registered yet."),
+				*StaticMeshComponent->GetName());
+			return nullptr;
+		}
+
 		const TSharedPtr<FISMCInstanceDataSceneProxy, ESPMode::ThreadSafe>& InstanceDataProxy =
 			InstancedComponent->GetInstanceDataSceneProxy();
 
@@ -858,8 +872,27 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponen
 			return nullptr;
 		}
 
-		// UE_LOG(LogUnrealCV, Log, TEXT("Creating FInstancedStaticMeshAnnotationSceneProxy for %s"), *StaticMeshComponent->GetName());
+		// BUG FIX: Verify InstanceDataSceneProxy in ProxyDesc is valid before creating scene proxy
 		FInstancedStaticMeshSceneProxyDesc ProxyDesc(InstancedComponent);
+		if (!ProxyDesc.InstanceDataSceneProxy.IsValid())
+		{
+			UE_LOG(LogUnrealCV, Error,
+				TEXT("Failed to create FInstancedStaticMeshAnnotationSceneProxy for %s: ProxyDesc.InstanceDataSceneProxy is invalid."),
+				*StaticMeshComponent->GetName());
+			return nullptr;
+		}
+
+		// BUG FIX: Defer scene proxy creation if instance data buffers are not accessible
+		// This prevents assertion failures in InstanceDataSceneProxy access tags
+		if (!ProxyDesc.InstanceDataSceneProxy->GeInstanceSceneDataBuffers())
+		{
+			UE_LOG(LogUnrealCV, Warning,
+				TEXT("Skipping FInstancedStaticMeshAnnotationSceneProxy for %s: Instance scene data buffers not ready."),
+				*StaticMeshComponent->GetName());
+			return nullptr;
+		}
+
+		// UE_LOG(LogUnrealCV, Log, TEXT("Creating FInstancedStaticMeshAnnotationSceneProxy for %s"), *StaticMeshComponent->GetName());
 		FPrimitiveSceneProxy* Proxy = ::new FInstancedStaticMeshAnnotationSceneProxy(ProxyDesc, ProxyMaterial, GetWorld()->GetFeatureLevel());
 		// UE_LOG(LogUnrealCV, Log, TEXT("Created FInstancedStaticMeshAnnotationSceneProxy for %s, Proxy=%p"), *StaticMeshComponent->GetName(), Proxy);
 		return Proxy;

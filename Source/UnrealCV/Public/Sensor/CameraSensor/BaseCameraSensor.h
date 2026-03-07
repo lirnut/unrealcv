@@ -34,6 +34,8 @@ class UNREALCV_API UBaseCameraSensor : public USceneCaptureComponent2D
 public:
 	UBaseCameraSensor(const FObjectInitializer& ObjectInitializer);
 
+	virtual void PostInitProperties() override;
+
 	/** Get/set the sensor location / rotation */
 	FVector GetSensorLocation()
 	{

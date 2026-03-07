@@ -24,6 +24,14 @@ DECLARE_CYCLE_STAT(TEXT("ReadBufferFast"), STAT_ReadBufferFast, STATGROUP_Unreal
 
 UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
+	// BUG FIX: Skip initialization during async loading (non-game thread)
+	// USceneCaptureComponent registers delegates in its constructor which requires game thread
+	// This happens when AFusionCameraActor is loaded via FAsyncPackage2::EventDrivenCreateExport
+	if (!IsInGameThread())
+	{
+		return;
+	}
+
 	// static ConstructorHelpers::FObjectFinder<UStaticMesh> EditorCameraMesh(TEXT("/Engine/EditorMeshes/MatineeCam_SM"));
 	// Another choice is "StaticMesh'/Engine/EditorMeshes/Camera/SM_CineCam.SM_CineCam'"
 	this->ShowFlags.SetPostProcessing(true);
@@ -62,6 +70,40 @@ UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer
 	// bUseFastCapture = true;
 	// bool bSetLinearToGamma = false;
 	// QueuedCaptures.Empty();
+	InFlight = 0;
+	MaxInFlight = 5;
+}
+
+void UBaseCameraSensor::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	// BUG FIX: Complete initialization that was skipped during async loading
+	// The constructor may have returned early if not on game thread
+	if (!bCaptureEveryFrame && !bCaptureOnMovement)
+	{
+		// Already initialized in constructor (on game thread)
+		return;
+	}
+
+	// Deferred initialization for async loaded objects
+	this->ShowFlags.SetPostProcessing(true);
+	bCaptureEveryFrame = false;
+	bCaptureOnMovement = false;
+	PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
+	HiddenComponents.Reset();
+	UAnnotationBPLib::GetAnnotationComponents(this->GetWorld(), HiddenComponents);
+	CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+	bUseRayTracingIfEnabled = true;
+	bAlwaysPersistRenderingState = true;
+
+	FServerConfig& Config = FUnrealcvServer::Get().Config;
+	FilmWidth = Config.Width == 0 ? 640 : Config.Width;
+	FilmHeight = Config.Height == 0 ? 480 : Config.Height;
+	FOVAngle = Config.FOV == 0 ? 90 : Config.FOV;
+
+	bUseFastCapture = Config.UseFastCapture;
+	bAsyncCaptureNextFrame = true;
 	InFlight = 0;
 	MaxInFlight = 5;
 }
