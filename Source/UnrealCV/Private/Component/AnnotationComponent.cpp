@@ -15,6 +15,7 @@
 #include "Runtime/Engine/Public/StaticMeshSceneProxy.h"
 #include "Runtime/Engine/Public/SkeletalMeshSceneProxy.h"
 #include "InstancedStaticMeshSceneProxyDesc.h"
+#include "Runtime/Engine/Public/InstanceDataSceneProxy.h"
 
 #endif
 #include "Runtime/Engine/Public/Rendering/SkeletalMeshRenderData.h"
@@ -325,6 +326,10 @@ public:
 	bool bAnySegmentUsesWorldPositionOffset;
 	bool bUseGpuLodSelection;
 
+	// BUG FIX: Cache instance count at construction time to avoid accessing
+	// potentially mutating data from render thread
+	int32 CachedNumInstances;
+
 #if WITH_EDITOR
 	bool bHasSelectedInstances;
 #endif
@@ -335,6 +340,7 @@ public:
 		, InstancedRenderData(&InProxyDesc, InFeatureLevel)
 		, InstanceLODDistanceScale(InProxyDesc.InstanceLODDistanceScale)
 		, StaticMeshBounds(StaticMesh->GetBounds())
+		, CachedNumInstances(0)
 	{
 		InstanceDataSceneProxy = InProxyDesc.InstanceDataSceneProxy;
 
@@ -349,11 +355,24 @@ public:
 			SetSelection_GameThread(true);
 		}
 #endif
+		// BUG FIX: Wait for any pending instance data update tasks to complete
+		// This prevents race conditions where the Game Thread is writing instance data
+		// while we try to read it, which would trigger the ValidateAccess() assertion
+		if (InstanceDataSceneProxy.IsValid())
+		{
+			if (FInstanceDataUpdateTaskInfo* UpdateTaskInfo = InstanceDataSceneProxy->GetUpdateTaskInfo())
+			{
+				UpdateTaskInfo->WaitForUpdateCompletion();
+			}
+		}
+
 		// BUG FIX: Add safety check before accessing instance data buffers
 		// This prevents crashes when InstanceDataSceneProxy becomes invalid during construction
 		if (InstanceDataSceneProxy.IsValid() && InstanceDataSceneProxy->GeInstanceSceneDataBuffers())
 		{
 			SetupInstanceSceneDataBuffers(InstanceDataSceneProxy->GeInstanceSceneDataBuffers());
+			// BUG FIX: Cache instance count while we have safe access
+			CachedNumInstances = InstanceDataSceneProxy->GeInstanceSceneDataBuffers()->GetNumInstances();
 		}
 
 		bAnySegmentUsesWorldPositionOffset = false;
@@ -483,7 +502,9 @@ public:
 		BatchElement0.PrimitiveUniformBuffer = GetUniformBuffer();
 		BatchElement0.LooseParametersUniformBuffer = LODLooseUniformBuffers[LODIndex];
 		BatchElement0.bForceInstanceCulling = true;
-		BatchElement0.NumInstances = GetInstanceDataHeader().NumInstances;
+		// BUG FIX: Use cached instance count instead of calling GetInstanceDataHeader()
+		// to avoid accessing potentially mutating data from render thread
+		BatchElement0.NumInstances = CachedNumInstances;
 	}
 
 	virtual bool GetMeshElement(
@@ -870,6 +891,13 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponen
 				TEXT("Failed to create FInstancedStaticMeshAnnotationSceneProxy for %s: InstanceDataSceneProxy not ready. Component may not be fully registered yet."),
 				*StaticMeshComponent->GetName());
 			return nullptr;
+		}
+
+		// BUG FIX: Wait for any pending instance data update tasks to complete
+		// This prevents race conditions where Game Thread is writing while we read
+		if (FInstanceDataUpdateTaskInfo* UpdateTaskInfo = InstanceDataProxy->GetUpdateTaskInfo())
+		{
+			UpdateTaskInfo->WaitForUpdateCompletion();
 		}
 
 		// BUG FIX: Verify InstanceDataSceneProxy in ProxyDesc is valid before creating scene proxy
