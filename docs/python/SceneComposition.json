@@ -203,6 +203,7 @@
 		"YMin": -211.74432400000001,
 		"GroundHeight": 70,
 		"ForegroundPathSpec": "",
+		"ForegroundPathSpec1": "/Game/MetaHumans/human_2_dress2_f-thin/BP_human_2_dress2_f-thin.BP_human_2_dress2_f-thin",
 		"ForegroundCategory": "Foreground_Human",
 		"OccluderPathSpec": "",
 		"OccluderCategory": "Occluder_All",
@@ -552,6 +553,94 @@
 					"X": -10021.823335365705,
 					"Y": -53687.529652589736,
 					"Z": 4277.1515173864709
+				}
+			},
+			{
+				"Position":
+				{
+					"X": 650.94957784058556,
+					"Y": -56475.986808493544,
+					"Z": 2553.1960141011223
+				}
+			},
+			{
+				"Position":
+				{
+					"X": 660.8233952210411,
+					"Y": -56477.307271740232,
+					"Z": 2557.6892689253114
+				}
+			},
+			{
+				"Position":
+				{
+					"X": -777.22104436404732,
+					"Y": -55137.433550042406,
+					"Z": 2589.3013152349063
+				}
+			},
+			{
+				"Position":
+				{
+					"X": -1827.900150017922,
+					"Y": -55650.363778180981,
+					"Z": 2535.3749927478707
+				}
+			},
+			{
+				"Position":
+				{
+					"X": -4181.3247944341292,
+					"Y": -54880.117425550736,
+					"Z": 2242.2969389411674
+				}
+			},
+			{
+				"Position":
+				{
+					"X": -4134.8114028773889,
+					"Y": -57596.883723649931,
+					"Z": 2889.8914636585223
+				}
+			},
+			{
+				"Position":
+				{
+					"X": 3126.7561763709441,
+					"Y": -56559.055150287182,
+					"Z": 2550.479610388094
+				}
+			},
+			{
+				"Position":
+				{
+					"X": 3024.740735988164,
+					"Y": -55329.960168310245,
+					"Z": 2880.8978245415192
+				}
+			},
+			{
+				"Position":
+				{
+					"X": 1938.6633039313049,
+					"Y": -55363.434393131844,
+					"Z": 2860.9772923684654
+				}
+			},
+			{
+				"Position":
+				{
+					"X": -661.12869334144023,
+					"Y": -53894.537784817498,
+					"Z": 2535.3461972656305
+				}
+			},
+			{
+				"Position":
+				{
+					"X": -954.06281234592529,
+					"Y": -53722.31021200402,
+					"Z": 2541.6534726002092
 				}
 			}
 		]
@@ -977,6 +1066,7 @@
 		"XMin": -3657,
 		"YMin": -2299,
 		"GroundHeight": 100,
+		"ForegroundPathSpec1": "/Game/MetaHumans/human_2_dress2_f-thin/BP_human_2_dress2_f-thin.BP_human_2_dress2_f-thin",
 		"ForegroundPathSpec": "",
 		"ForegroundCategory": "Foreground_Human",
 		"ForegroundCategory1": "Foreground_Human_SKM",
@@ -4634,7 +4724,7 @@
 			}
 		]
 	},
-		"Small_City_LVL":
+	"Small_City_LVL":
 	{
 		"Enabled": true,
 		"XMax": 3790,

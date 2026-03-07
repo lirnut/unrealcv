@@ -49,7 +49,7 @@ struct FRecordingSettings
 	int32 WarmUpFrames = 2;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float PausedTickInterval = 0.05f;
+	float PausedTickInterval = 0.04f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVideoEncoderSettings VideoEncoder;

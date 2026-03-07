@@ -47,7 +47,7 @@ void UAutomationBPLib::StartTicking()
 	// https://dev.epicgames.com/community/learning/tutorials/Ya6o/unreal-engine-rendering-hair-fur
 	// https://www.reddit.com/r/unrealengine/comments/154wry8/why_default_skylight_adds_too_much_noise_to_the/
 	// PushCommand(TEXT("r.HairStrands.Skylighting 0"));
-	PushCommand(TEXT("r.HairStrands.SkyLighting.SampleCount 32"));
+	PushCommand(TEXT("r.HairStrands.SkyLighting.SampleCount 48"));
 	// PushCommand(TEXT("r.HairStrands.SkyLighting.IntegrationType 0"));
 	PushCommand(TEXT("r.HairStrands.Voxelization.Virtual.VoxelWorldSize 0.1"));
 	PushCommand(TEXT("r.HairStrands.RasterizationScale 0.5"));
