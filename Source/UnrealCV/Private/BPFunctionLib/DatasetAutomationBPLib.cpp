@@ -87,19 +87,19 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.NumFrames = 121;
 		CurrentConfig.TrajectoryFPS = 30;
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /mqrc/render_immediately true")));
-		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.7")));
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.2")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_speed"), TEXT("0.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_angle_offset"), TEXT("0.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
-		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("250 400")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("180 300")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		// CommandQueue.Add(FAutomationStep(TEXT("render_every_frame"), TEXT("true")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
-		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("55 70")));
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("155 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("0.0 1.0 4.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
@@ -121,44 +121,56 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_left_30")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_right_30")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_up_30")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("rotate_360")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
+		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("resume_groom_physics")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
-		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("1.0")));
 		// CommandQueue.Add(FAutomationStep(TEXT("resume_all_actors")));
 		CommandQueue.Add(FAutomationStep(TEXT("resume_primary_capture_actor")));
 
@@ -214,11 +226,11 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("6.0")));
 
 		TArray<FString> MattingTrajectoryOptions = {
-			TEXT("render_only"),
-			TEXT("render_left_rotate"),
-			TEXT("render_right_rotate"),
-			TEXT("render_rotate_left"),
-			TEXT("render_rotate_right")
+			TEXT("render_only")//,
+			// TEXT("render_left_rotate"),
+			// TEXT("render_right_rotate"),
+			// TEXT("render_rotate_left"),
+			// TEXT("render_rotate_right")
 			// TEXT("render_rotate_up")
 		};
 		FString ChosenMattingTrajectory = MattingTrajectoryOptions[FMath::RandRange(0, MattingTrajectoryOptions.Num() - 1)];

@@ -322,7 +322,7 @@ void FUnrealCVEditorModule::OnDisableAutoStandalonePIE()
 
 bool FUnrealCVEditorModule::TickAutoStandalonePIE(float DeltaTime)
 {
-	UE_LOG(LogTemp, Log, TEXT("TickAutoStandalonePIE"));
+	// UE_LOG(LogTemp, Log, TEXT("TickAutoStandalonePIE"));
 	if (!bAutoStandalonePIEEnabled)
 	{
 		return true;

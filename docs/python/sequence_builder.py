@@ -60,7 +60,7 @@ def build_single_matting_scene():
     Returns a list of commands for ONE scene.
     Each call generates different random parameters.
     """
-    if random.random() < 0.2:
+    if random.random() < 0.5:
         resolution = "1080x1920"
         fov_range = "50 60"
     else:

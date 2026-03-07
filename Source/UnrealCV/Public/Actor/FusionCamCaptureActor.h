@@ -36,9 +36,8 @@ struct FRecordingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bRecordViaViewport = true;
 
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bEnableH264Encoding = true;
+	bool bEnableH264Encoding = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bAutoGenerateVideo = true;
@@ -48,6 +47,9 @@ struct FRecordingSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 WarmUpFrames = 2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float PausedTickInterval = 0.05f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVideoEncoderSettings VideoEncoder;
@@ -405,6 +407,7 @@ protected:
 		FRotator Rotation;
 		bool bManageTransform = true;
 		float DesiredEstTimeDilation = 1.0f;
+		float PausedTickIntervalCoef = 1.0f;
 	};
 	TArray<FCameraPose> CurrentTrajectory;
 	int32 CurrentTrajectoryIndex;

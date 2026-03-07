@@ -9,6 +9,7 @@ import argparse
 import shutil
 import subprocess
 import gzip
+import tarfile
 
 DATASET_ROOT = Path("./DatasetAutomationOutputDirectory")
 EXPECTED_ONEOBJLIT_FILES = 90
@@ -121,6 +122,83 @@ def get_all_render_paths() -> List[Path]:
     return render_paths
 
 
+def pack_render_directory(render_path_str: str) -> Dict[str, any]:
+    """Pack a single render directory into .tar.gz (for multiprocessing)"""
+    import tarfile
+
+    render_path = Path(render_path_str)
+    tar_path = render_path.parent / f"{render_path.name}.tar.gz"
+
+    if tar_path.exists():
+        return {"status": "skipped", "path": str(render_path), "reason": "already packed"}
+
+    try:
+        # Calculate size before
+        size_before = sum(f.stat().st_size for f in render_path.rglob('*') if f.is_file())
+
+        # Create tar.gz archive
+        with tarfile.open(tar_path, "w:gz", compresslevel=9) as tar:
+            tar.add(render_path, arcname=render_path.name)
+
+        size_after = tar_path.stat().st_size
+
+        # Remove original directory after successful packing
+        if os.path.exists(tar_path):
+            shutil.rmtree(render_path)
+        else:
+            return {"status": "failed", "path": str(render_path), "error": "Tar archive not created"}
+
+        return {
+            "status": "success",
+            "path": str(render_path),
+            "size_before": size_before,
+            "size_after": size_after
+        }
+    except Exception as e:
+        return {"status": "failed", "path": str(render_path), "error": str(e)}
+
+
+def unpack_render_directory(render_path_str: str) -> Dict[str, any]:
+    """Unpack a single .tar.gz archive (for multiprocessing)"""
+    import tarfile
+
+    render_path = Path(render_path_str)
+    tar_path = render_path.parent / f"{render_path.name}.tar.gz"
+
+    # Check if tar.gz exists
+    if not tar_path.exists():
+        # Maybe render_path is the tar.gz file itself
+        if render_path.suffix == '.gz' and render_path.stem.endswith('.tar'):
+            tar_path = render_path
+            unpack_dir = render_path.parent / render_path.stem.replace('.tar', '')
+        else:
+            return {"status": "skipped", "path": str(render_path), "reason": "no tar.gz found"}
+    else:
+        unpack_dir = render_path
+
+    if unpack_dir.exists():
+        return {"status": "skipped", "path": str(render_path), "reason": "already unpacked"}
+
+    try:
+        size_before = tar_path.stat().st_size
+
+        # Extract tar.gz archive
+        with tarfile.open(tar_path, "r:gz") as tar:
+            tar.extractall(path=tar_path.parent)
+
+        # Calculate size after
+        size_after = sum(f.stat().st_size for f in unpack_dir.rglob('*') if f.is_file())
+
+        return {
+            "status": "success",
+            "path": str(render_path),
+            "size_before": size_before,
+            "size_after": size_after
+        }
+    except Exception as e:
+        return {"status": "failed", "path": str(render_path), "error": str(e)}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Dataset consistency checker")
     parser.add_argument("--path", type=str, default="./DatasetAutomationOutputDirectory",
@@ -139,8 +217,13 @@ def main():
                         help="Compress overview.json files to overview.json.gz (gzip)")
     parser.add_argument("--decompress", action="store_true",
                         help="Decompress overview.json.gz files back to overview.json")
-    parser.add_argument("--compress-remove-original", action="store_true",
-                        help="Remove original overview.json after compression")
+    parser.add_argument("--compress-keep-original", action="store_true",
+                        help="Keep original overview.json after compression (default: remove original)")
+    parser.add_argument("--pack", action="store_true",
+                        help="Pack each render directory into a .tar.gz archive to reduce small files")
+    parser.add_argument("--unpack", action="store_true",
+                        help="Unpack .tar.gz archives back to render directories")
+
     args = parser.parse_args()
 
     global DATASET_ROOT
@@ -160,6 +243,10 @@ def main():
         print(f"MODE: COMPRESS overview.json -> overview.json.gz")
     if args.decompress:
         print(f"MODE: DECOMPRESS overview.json.gz -> overview.json")
+    if args.pack:
+        print(f"MODE: PACK render directories -> .tar.gz archives")
+    if args.unpack:
+        print(f"MODE: UNPACK .tar.gz archives -> render directories")
     print(f"{'='*80}\n")
 
     print(f"Dataset root: {DATASET_ROOT.resolve()}")
@@ -240,7 +327,7 @@ def main():
                     total_size_before += size_before
                     total_size_after += size_after
 
-                    if args.compress_remove_original:
+                    if not args.compress_keep_original:
                         json_file.unlink()
 
                     processed_count += 1
@@ -291,6 +378,59 @@ def main():
             if args.compress:
                 ratio = (1 - total_size_after / total_size_before) * 100
                 print(f"Compression ratio: {ratio:.1f}%")
+        print(f"\nOperation complete!")
+        return
+
+    if args.pack or args.unpack:
+        print(f"\n{'='*80}")
+        if args.pack:
+            print(f"Packing render directories (6 parallel processes)...")
+        else:
+            print(f"Unpacking .tar.gz archives (6 parallel processes)...")
+        print(f"{'='*80}")
+
+        # Convert to strings for multiprocessing
+        render_path_strs = [str(p) for p in render_paths]
+
+        with Pool(processes=6) as pool:
+            if args.pack:
+                results = pool.map(pack_render_directory, render_path_strs)
+            else:
+                results = pool.map(unpack_render_directory, render_path_strs)
+
+        # Aggregate results
+        success_count = sum(1 for r in results if r["status"] == "success")
+        skipped_count = sum(1 for r in results if r["status"] == "skipped")
+        failed_count = sum(1 for r in results if r["status"] == "failed")
+        total_size_before = sum(r.get("size_before", 0) for r in results if r["status"] == "success")
+        total_size_after = sum(r.get("size_after", 0) for r in results if r["status"] == "success")
+
+        # Print failed items
+        for r in results:
+            if r["status"] == "failed":
+                print(f"✗ Failed: {r['path']} - {r.get('error', 'unknown error')}")
+
+        print(f"\n{'='*80}")
+        if args.pack:
+            print(f"Packing Summary:")
+            print(f"{'='*80}")
+            print(f"Packed: {success_count} directories")
+            print(f"Skipped: {skipped_count} (already packed)")
+            if failed_count > 0:
+                print(f"Failed: {failed_count}")
+            if success_count > 0:
+                print(f"Total size before: {total_size_before / (1024*1024):.2f} MB")
+                print(f"Total size after: {total_size_after / (1024*1024):.2f} MB")
+                if total_size_before > 0:
+                    ratio = (1 - total_size_after / total_size_before) * 100
+                    print(f"Compression ratio: {ratio:.1f}%")
+        else:
+            print(f"Unpacking Summary:")
+            print(f"{'='*80}")
+            print(f"Unpacked: {success_count} archives")
+            print(f"Skipped: {skipped_count} (already unpacked or not found)")
+            if failed_count > 0:
+                print(f"Failed: {failed_count}")
         print(f"\nOperation complete!")
         return
 

@@ -87,6 +87,8 @@ static void CollectAllGroomComponentsForActor(
 UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	check(IsInGameThread());	
+
 	FString ComponentName;
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("PreviewCamera"));
 	PreviewCamera = CreateDefaultSubobject<UCameraComponent>(*ComponentName);

@@ -100,59 +100,54 @@ void AFusionCamCaptureActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	static const bool bUseOffsetForInterpolation = true;
-
-	if (!bIsRecording || !IsValid(TargetSensor))
+	if (!bIsRecording)
 	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - Not Recording, DeltaTime: %f"), DeltaTime);
 		return;
 	}
 
-	if (CurrentTrajectoryIndex < CurrentTrajectory.Num() && bHasValidPrevPose)
+	if (!IsValid(TargetSensor))
 	{
-		float TimePerFrame = 1.0f / RecordFPS;
-		float CurrentTime = GetWorld()->GetTimeSeconds();
-		float TimeSinceLastCapture = CurrentTime - LastTrajectoryCaptureTime;
+		UE_LOG(LogUnrealCV, Error, TEXT("TargetSensor is null ..."));
+		return;
+	}
 
-		if (TimePerFrame > 0.0f)
+	if (bPaused)	
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - Paused, DeltaTime: %f"), DeltaTime);
+		return;
+	}
+
+
+	if (!IsValid(TargetForeground))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("TargetForeground is null ..."));
+		return;
+	}
+
+	// the second if here particular for matting task will be deprecated, only with the first universal one
+	if (CurrentTrajectoryIndex < CurrentTrajectory.Num())
+	{
+
+		FRotator OffsetRotator(0, ForegroundMoveAngleOffset, 0);
+		FVector LocalDir = OffsetRotator.RotateVector(FVector::ForwardVector);
+		FVector Delta = LocalDir * ForegroundMoveSpeed * DeltaTime;
+
+		if (bTrackForegroundMovement && ForegroundMoveSpeed > 0)
 		{
-			InterpolationAlpha = FMath::Clamp(TimeSinceLastCapture / TimePerFrame, 0.0f, 1.0f);
+			TargetForeground->AddActorLocalOffset(Delta);
 		}
 
-		FVector ForegroundDisplacement = FVector::ZeroVector;
-		if (bTrackForegroundMovement && IsValid(TargetForeground))
+		if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 		{
-			ForegroundDisplacement = TargetForeground->GetActorLocation() - ForegroundStartPos;
-		}
-
-		FVector InterpLocation = FMath::Lerp(PrevTrajectoryLocation, TargetTrajectoryLocation, InterpolationAlpha);
-		FRotator InterpRotation = FMath::Lerp(PrevTrajectoryRotation, TargetTrajectoryRotation, InterpolationAlpha);
-
-		InterpLocation += ForegroundDisplacement;
-		if (FMath::Abs(ForegroundMoveSpeed) < 0.1)
-		{
-			FVector CurrentLocation = TargetSensor->GetSensorLocation();
-			FRotator CurrentRotation = TargetSensor->GetSensorRotation();
-
-			FVector DeltaLocation = InterpLocation - CurrentLocation;
-			FRotator DeltaRotation = InterpRotation - CurrentRotation;
-			DeltaRotation.Normalize();
-
-			if (bUseOffsetForInterpolation)
+			FVector ForegroundDisplacement = TargetForeground->GetActorLocation() - ForegroundStartPos;
+			if (!bTrackForegroundMovement || FMath::Abs(ForegroundMoveSpeed) < 0.01f)
 			{
-				if (!DeltaLocation.IsNearlyZero())
-				{
-					TargetSensor->AddWorldOffset(DeltaLocation);
-				}
-				if (!DeltaRotation.IsNearlyZero())
-				{
-					TargetSensor->AddWorldRotation(DeltaRotation);
-				}
+				ForegroundDisplacement = FVector::ZeroVector;
 			}
-			else
-			{
-				TargetSensor->SetSensorLocation(InterpLocation);
-				TargetSensor->SetSensorRotation(InterpRotation);
-			}
+			UE_LOG(LogUnrealCV, Warning, TEXT("ForegroundDisplacement: %s"), *ForegroundDisplacement.ToString());
+			FVector FinalLocation = CurrentTrajectory[CurrentTrajectoryIndex].Location + ForegroundDisplacement;
+			UE_LOG(LogUnrealCV, Warning, TEXT("FinalLocation: %s"), *FinalLocation.ToString());
 
 			UWorld* World = GetWorld();
 			if (!World)
@@ -165,44 +160,50 @@ void AFusionCamCaptureActor::Tick(float DeltaTime)
 				UE_LOG(LogUnrealCV, Error, TEXT("PC is null ..."));
 				return;
 			}
-			PC->ClientSetRotation(InterpRotation);
+			PC->ClientSetRotation(CurrentTrajectory[CurrentTrajectoryIndex].Rotation * 0.9f + PC->GetPawn()->GetActorRotation() * 0.1f);
 
 			APawn* Pawn = PC->GetPawn();
 			if (Pawn)
 			{
-				Pawn->AddActorWorldOffset(InterpLocation - Pawn->GetActorLocation());
+				FVector PawnDelta = FinalLocation - Pawn->GetActorLocation();
+				if (!PawnDelta.IsNearlyZero(0.1f))
+				{
+					Pawn->AddActorWorldOffset(PawnDelta * 0.9f);
+				}
 			}
 		}
+		else
+		{
+			if (bTrackForegroundMovement && ForegroundMoveSpeed > 0)
+			{
+				FVector WorldDelta = TargetForeground->GetActorRotation().RotateVector(Delta);
+				UWorld* World = GetWorld();
+				if (!World)
+				{
+					check(false);
+				}
+				APlayerController* PC = World->GetFirstPlayerController();
+				if (!PC)
+				{
+					UE_LOG(LogUnrealCV, Error, TEXT("PC is null ..."));
+					return;
+				}
+				FRotator ComponentRotation = TargetSensor->GetSensorRotation();
+				PC->ClientSetRotation(ComponentRotation);
+
+				APawn* Pawn = PC->GetPawn();
+				if (Pawn)
+				{
+					Pawn->AddActorWorldOffset(WorldDelta);
+				}
+			}
+		}
+
+
 	}
 
-	if (bTrackForegroundMovement && ForegroundMoveSpeed > 0 && IsValid(TargetForeground))
-	{
-		FRotator OffsetRotator(0, ForegroundMoveAngleOffset, 0);
-		FVector LocalDir = OffsetRotator.RotateVector(FVector::ForwardVector);
-		FVector Delta = LocalDir * ForegroundMoveSpeed * DeltaTime;
-		TargetForeground->AddActorLocalOffset(Delta);
 
-		FVector WorldDelta = TargetForeground->GetActorRotation().RotateVector(Delta);
-		UWorld* World = GetWorld();
-		if (!World)
-		{
-			check(false);
-		}
-		APlayerController* PC = World->GetFirstPlayerController();
-		if (!PC)
-		{
-			UE_LOG(LogUnrealCV, Error, TEXT("PC is null ..."));
-			return;
-		}
-		FRotator ComponentRotation = TargetSensor->GetSensorRotation();
-		PC->ClientSetRotation(ComponentRotation);
 
-		APawn* Pawn = PC->GetPawn();
-		if (Pawn)
-		{
-			Pawn->AddActorWorldOffset(WorldDelta);
-		}
-	}
 }
 
 void AFusionCamCaptureActor::SetSceneHandle(const FSceneHandle& InSceneHandle)
@@ -250,8 +251,14 @@ void AFusionCamCaptureActor::StopRecord()
 			}
 			if (LocationManaged)
 			{
+				UE_LOG(LogUnrealCV, Log, TEXT("StopRecord: Restoring camera position to OriginalCameraLocation=(%.2f,%.2f,%.2f)"),
+					OriginalCameraLocation.X, OriginalCameraLocation.Y, OriginalCameraLocation.Z);
 				TargetSensor->SetSensorLocation(OriginalCameraLocation);
 				TargetSensor->SetSensorRotation(OriginalCameraRotation);
+			}
+			else
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("StopRecord: No position restoration needed (LocationManaged=false)"));
 			}
 
 		}
@@ -349,13 +356,6 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		FVector FinalLocation = TrajectoryLocation + ForegroundDisplacement;
 		TargetSensor->SetSensorLocation(FinalLocation);
 		TargetSensor->SetSensorRotation(Rotation);
-
-		PrevTrajectoryLocation = TrajectoryLocation;
-		PrevTrajectoryRotation = Rotation;
-		TargetTrajectoryLocation = TrajectoryLocation;
-		TargetTrajectoryRotation = Rotation;
-		LastTrajectoryCaptureTime = GetWorld()->GetTimeSeconds();
-		bHasValidPrevPose = true;
 	};
 
 	float EffectiveTimeDilation = TimeDilation * CurrentTrajectory[CurrentTrajectoryIndex].DesiredEstTimeDilation;
@@ -397,32 +397,18 @@ void AFusionCamCaptureActor::OnTimerRecord()
 		{
 			FDeferredTaskScheduler::Get().ScheduleTask([this]() {
 				OnTimerRecord();
-			}, 0.01);
+			},RecordingSettings.PausedTickInterval * CurrentTrajectory[CurrentTrajectoryIndex].PausedTickIntervalCoef);
 		}
 	}
 	else
 	{
 		if (CurrentTrajectory[CurrentTrajectoryIndex].bManageTransform)
 		{
-			if (bHasValidPrevPose)
-			{
-				PrevTrajectoryLocation = TargetTrajectoryLocation;
-				PrevTrajectoryRotation = TargetTrajectoryRotation;
-			}
-			else
-			{
-				PrevTrajectoryLocation = CurrentTrajectory[CurrentTrajectoryIndex].Location;
-				PrevTrajectoryRotation = CurrentTrajectory[CurrentTrajectoryIndex].Rotation;
-			}
-
-			TargetTrajectoryLocation = CurrentTrajectory[CurrentTrajectoryIndex].Location;
-			TargetTrajectoryRotation = CurrentTrajectory[CurrentTrajectoryIndex].Rotation;
-			LastTrajectoryCaptureTime = GetWorld()->GetTimeSeconds();
-			bHasValidPrevPose = true;
-
-			FVector FinalLocation = TargetTrajectoryLocation + ForegroundDisplacement;
-			TargetSensor->SetSensorLocation(FinalLocation);
-			TargetSensor->SetSensorRotation(TargetTrajectoryRotation);
+			MoveTo(
+				TargetSensor->GetSensorLocation(),
+				CurrentTrajectory[CurrentTrajectoryIndex].Location,
+				CurrentTrajectory[CurrentTrajectoryIndex].Rotation
+			);
 		}
 
 		UpdateFocalDistance();
@@ -1795,8 +1781,10 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::AddHandheldS
 
 	const int32 MIN_INTERVAL = 4;
 	const int32 MAX_INTERVAL = 40;
+	// const float SHAKE_LOCATION_MAGNITUDE_CM = 0.8f;
+	// const float SHAKE_ROTATION_MAGNITUDE_DEG = 0.5f;
 	const float SHAKE_LOCATION_MAGNITUDE_CM = 0.8f;
-	const float SHAKE_ROTATION_MAGNITUDE_DEG = 0.5f;
+	const float SHAKE_ROTATION_MAGNITUDE_DEG = 0.8f;
 
 	int32 NumFramesInput = InputTrajectory.Num();
 
@@ -2001,6 +1989,7 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRot
 		Pose.Location = NewLocation;
 		Pose.Rotation = NewRotation;
 		Pose.DesiredEstTimeDilation = DesiredEstTimeDilation;
+		Pose.PausedTickIntervalCoef = 10.0f;
 		CoreTrajectory.Add(Pose);
 	}
 

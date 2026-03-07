@@ -50,4 +50,37 @@ private:
 	FExecStatus GetVideoGenScriptPath(const TArray<FString>& Args);
 
 	FExecStatus SetVideoGenScriptPath(const TArray<FString>& Args);
+
+	FExecStatus GetPausedTickInterval(const TArray<FString>& Args);
+
+	FExecStatus SetPausedTickInterval(const TArray<FString>& Args);
+
+	// Instance-based settings (require camera ID)
+	FExecStatus GetAddTimestamp(const TArray<FString>& Args);
+
+	FExecStatus SetAddTimestamp(const TArray<FString>& Args);
+
+	FExecStatus GetTrackForegroundMovement(const TArray<FString>& Args);
+
+	FExecStatus SetTrackForegroundMovement(const TArray<FString>& Args);
+
+	FExecStatus GetForegroundMoveSpeed(const TArray<FString>& Args);
+
+	FExecStatus SetForegroundMoveSpeed(const TArray<FString>& Args);
+
+	FExecStatus GetForegroundMoveAngleOffset(const TArray<FString>& Args);
+
+	FExecStatus SetForegroundMoveAngleOffset(const TArray<FString>& Args);
+
+	FExecStatus GetTargetHeightOffset(const TArray<FString>& Args);
+
+	FExecStatus SetTargetHeightOffset(const TArray<FString>& Args);
+
+	FExecStatus GetBulletTimeSpeedDeg(const TArray<FString>& Args);
+
+	FExecStatus SetBulletTimeSpeedDeg(const TArray<FString>& Args);
+
+	FExecStatus GetPaused(const TArray<FString>& Args);
+
+	FExecStatus SetPaused(const TArray<FString>& Args);
 };

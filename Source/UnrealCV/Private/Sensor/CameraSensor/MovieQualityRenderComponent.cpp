@@ -51,7 +51,7 @@ void FMovieQualityViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewF
 
 				Component->bHasCachedMainViewPostProcessSettings = true;
 				Component->LastMainViewportFrameNumber = InViewFamily.FrameNumber;
-				UE_LOG(LogTemp, Log, TEXT("FMovieQualityViewExtension::BeginRenderViewFamily: sucessfully set CachedMainViewPostProcessSettings"));
+				// UE_LOG(LogTemp, Log, TEXT("FMovieQualityViewExtension::BeginRenderViewFamily: sucessfully set CachedMainViewPostProcessSettings"));
 			}
 		}
 		else

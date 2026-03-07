@@ -116,6 +116,72 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetVideoGenScriptPath);
 	Help = "Set video generation script path: vset /captureactor/video_gen_script_path [path/to/genvid.py]";
 	CommandDispatcher->BindCommand("vset /captureactor/video_gen_script_path [str]", Cmd, Help);
+
+	// PausedTickInterval - global setting
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetPausedTickInterval);
+	Help = "Get paused tick interval (seconds)";
+	CommandDispatcher->BindCommand("vget /captureactor/paused_tick_interval", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetPausedTickInterval);
+	Help = "Set paused tick interval (seconds): vset /captureactor/paused_tick_interval [float]";
+	CommandDispatcher->BindCommand("vset /captureactor/paused_tick_interval [float]", Cmd, Help);
+
+	// Instance-based settings (require camera ID)
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetAddTimestamp);
+	Help = "Get bAddTimestamp for camera: vget /captureactor/[id]/add_timestamp";
+	BindCommandDualCameraID("vget /captureactor/[camera_id]/add_timestamp", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetAddTimestamp);
+	Help = "Set bAddTimestamp for camera: vset /captureactor/[id]/add_timestamp [0/1]";
+	BindCommandDualCameraID("vset /captureactor/[camera_id]/add_timestamp [uint]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetTrackForegroundMovement);
+	Help = "Get bTrackForegroundMovement for camera: vget /captureactor/[id]/track_foreground_movement";
+	BindCommandDualCameraID("vget /captureactor/[camera_id]/track_foreground_movement", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetTrackForegroundMovement);
+	Help = "Set bTrackForegroundMovement for camera: vset /captureactor/[id]/track_foreground_movement [0/1]";
+	BindCommandDualCameraID("vset /captureactor/[camera_id]/track_foreground_movement [uint]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetForegroundMoveSpeed);
+	Help = "Get ForegroundMoveSpeed for camera: vget /captureactor/[id]/foreground_move_speed";
+	BindCommandDualCameraID("vget /captureactor/[camera_id]/foreground_move_speed", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetForegroundMoveSpeed);
+	Help = "Set ForegroundMoveSpeed for camera: vset /captureactor/[id]/foreground_move_speed [float]";
+	BindCommandDualCameraID("vset /captureactor/[camera_id]/foreground_move_speed [float]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetForegroundMoveAngleOffset);
+	Help = "Get ForegroundMoveAngleOffset for camera: vget /captureactor/[id]/foreground_move_angle_offset";
+	BindCommandDualCameraID("vget /captureactor/[camera_id]/foreground_move_angle_offset", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetForegroundMoveAngleOffset);
+	Help = "Set ForegroundMoveAngleOffset for camera: vset /captureactor/[id]/foreground_move_angle_offset [float]";
+	BindCommandDualCameraID("vset /captureactor/[camera_id]/foreground_move_angle_offset [float]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetTargetHeightOffset);
+	Help = "Get TargetHeightOffset for camera: vget /captureactor/[id]/target_height_offset";
+	BindCommandDualCameraID("vget /captureactor/[camera_id]/target_height_offset", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetTargetHeightOffset);
+	Help = "Set TargetHeightOffset for camera: vset /captureactor/[id]/target_height_offset [float]";
+	BindCommandDualCameraID("vset /captureactor/[camera_id]/target_height_offset [float]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetBulletTimeSpeedDeg);
+	Help = "Get BulletTimeSpeedDeg for camera: vget /captureactor/[id]/bullet_time_speed";
+	BindCommandDualCameraID("vget /captureactor/[camera_id]/bullet_time_speed", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetBulletTimeSpeedDeg);
+	Help = "Set BulletTimeSpeedDeg for camera: vset /captureactor/[id]/bullet_time_speed [float]";
+	BindCommandDualCameraID("vset /captureactor/[camera_id]/bullet_time_speed [float]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetPaused);
+	Help = "Get bPaused state for camera: vget /captureactor/[id]/paused";
+	BindCommandDualCameraID("vget /captureactor/[camera_id]/paused", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetPaused);
+	Help = "Set bPaused state for camera: vset /captureactor/[id]/paused [0/1]";
+	BindCommandDualCameraID("vset /captureactor/[camera_id]/paused [uint]", Cmd, Help);
 }
 
 FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
@@ -414,4 +480,268 @@ FExecStatus FCaptureActorHandler::SetVideoGenScriptPath(const TArray<FString>& A
 
 	AFusionCamCaptureActor::RecordingSettings.VideoGenScriptPath = Args[0];
 	return FExecStatus::OK(FString::Printf(TEXT("VideoGenScriptPath = %s"), *Args[0]));
+}
+
+// ========== PausedTickInterval (Global Setting) ==========
+
+FExecStatus FCaptureActorHandler::GetPausedTickInterval(const TArray<FString>& Args)
+{
+	return FExecStatus::OK(FString::Printf(TEXT("%.4f"), AFusionCamCaptureActor::RecordingSettings.PausedTickInterval));
+}
+
+FExecStatus FCaptureActorHandler::SetPausedTickInterval(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/paused_tick_interval [float]");
+	}
+
+	float Value = FCString::Atof(*Args[0]);
+	if (Value < 0.0f)
+	{
+		return FExecStatus::Error("PausedTickInterval must be non-negative");
+	}
+
+	AFusionCamCaptureActor::RecordingSettings.PausedTickInterval = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("PausedTickInterval = %.4f"), Value));
+}
+
+// ========== Instance-Based Settings ==========
+
+FExecStatus FCaptureActorHandler::GetAddTimestamp(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vget /captureactor/[id]/add_timestamp");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	return FExecStatus::OK(CaptureActor->bAddTimestamp ? TEXT("1") : TEXT("0"));
+}
+
+FExecStatus FCaptureActorHandler::SetAddTimestamp(const TArray<FString>& Args)
+{
+	if (Args.Num() < 2)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/[id]/add_timestamp [0/1]");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	int32 Value = FCString::Atoi(*Args[1]);
+	CaptureActor->bAddTimestamp = (Value != 0);
+	return FExecStatus::OK(FString::Printf(TEXT("bAddTimestamp = %d"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetTrackForegroundMovement(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vget /captureactor/[id]/track_foreground_movement");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	return FExecStatus::OK(CaptureActor->bTrackForegroundMovement ? TEXT("1") : TEXT("0"));
+}
+
+FExecStatus FCaptureActorHandler::SetTrackForegroundMovement(const TArray<FString>& Args)
+{
+	if (Args.Num() < 2)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/[id]/track_foreground_movement [0/1]");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	int32 Value = FCString::Atoi(*Args[1]);
+	CaptureActor->bTrackForegroundMovement = (Value != 0);
+	return FExecStatus::OK(FString::Printf(TEXT("bTrackForegroundMovement = %d"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetForegroundMoveSpeed(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vget /captureactor/[id]/foreground_move_speed");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	return FExecStatus::OK(FString::Printf(TEXT("%.4f"), CaptureActor->ForegroundMoveSpeed));
+}
+
+FExecStatus FCaptureActorHandler::SetForegroundMoveSpeed(const TArray<FString>& Args)
+{
+	if (Args.Num() < 2)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/[id]/foreground_move_speed [float]");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	float Value = FCString::Atof(*Args[1]);
+	CaptureActor->ForegroundMoveSpeed = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("ForegroundMoveSpeed = %.4f"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetForegroundMoveAngleOffset(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vget /captureactor/[id]/foreground_move_angle_offset");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	return FExecStatus::OK(FString::Printf(TEXT("%.4f"), CaptureActor->ForegroundMoveAngleOffset));
+}
+
+FExecStatus FCaptureActorHandler::SetForegroundMoveAngleOffset(const TArray<FString>& Args)
+{
+	if (Args.Num() < 2)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/[id]/foreground_move_angle_offset [float]");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	float Value = FCString::Atof(*Args[1]);
+	CaptureActor->ForegroundMoveAngleOffset = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("ForegroundMoveAngleOffset = %.4f"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetTargetHeightOffset(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vget /captureactor/[id]/target_height_offset");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	return FExecStatus::OK(FString::Printf(TEXT("%.4f"), CaptureActor->TargetHeightOffset));
+}
+
+FExecStatus FCaptureActorHandler::SetTargetHeightOffset(const TArray<FString>& Args)
+{
+	if (Args.Num() < 2)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/[id]/target_height_offset [float]");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	float Value = FCString::Atof(*Args[1]);
+	CaptureActor->TargetHeightOffset = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("TargetHeightOffset = %.4f"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetBulletTimeSpeedDeg(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vget /captureactor/[id]/bullet_time_speed");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	return FExecStatus::OK(FString::Printf(TEXT("%.4f"), CaptureActor->BulletTimeSpeedDeg));
+}
+
+FExecStatus FCaptureActorHandler::SetBulletTimeSpeedDeg(const TArray<FString>& Args)
+{
+	if (Args.Num() < 2)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/[id]/bullet_time_speed [float]");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	float Value = FCString::Atof(*Args[1]);
+	CaptureActor->BulletTimeSpeedDeg = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("BulletTimeSpeedDeg = %.4f"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetPaused(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vget /captureactor/[id]/paused");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	return FExecStatus::OK(CaptureActor->bPaused ? TEXT("1") : TEXT("0"));
+}
+
+FExecStatus FCaptureActorHandler::SetPaused(const TArray<FString>& Args)
+{
+	if (Args.Num() < 2)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/[id]/paused [0/1]");
+	}
+
+	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::GetCaptureActor(Args[0]);
+	if (!IsValid(CaptureActor))
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid camera ID or no active recording: %s"), *Args[0]));
+	}
+
+	int32 Value = FCString::Atoi(*Args[1]);
+	CaptureActor->bPaused = (Value != 0);
+	return FExecStatus::OK(FString::Printf(TEXT("bPaused = %d"), Value));
 }
