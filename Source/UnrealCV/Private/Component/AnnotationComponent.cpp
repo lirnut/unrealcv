@@ -897,6 +897,7 @@ FPrimitiveSceneProxy* UAnnotationComponent::CreateSceneProxy(UStaticMeshComponen
 		// This prevents race conditions where Game Thread is writing while we read
 		if (FInstanceDataUpdateTaskInfo* UpdateTaskInfo = InstanceDataProxy->GetUpdateTaskInfo())
 		{
+			UE_LOG(LogUnrealCV, Log, TEXT("Waiting for FInstancedStaticMeshAnnotationSceneProxy update task completion for %s"), *StaticMeshComponent->GetName());
 			UpdateTaskInfo->WaitForUpdateCompletion();
 		}
 

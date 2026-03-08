@@ -167,11 +167,7 @@ void UFusionCamSensor::checkFusionSensors()
 {
 	for (int i = 0; i < FusionSensors.Num(); i++)
 	{
-		if (!IsValid(FusionSensors[i]))
-		{
-			// UE_LOG(LogUnrealCV, Error, TEXT("UFusionCamSensor::checkFusionSensors: Invalid sensor id=%d p=%p, total=%d, this=%p"), i, FusionSensors[i], FusionSensors.Num(), this);
-			UE_LOG(LogTemp, Warning, TEXT("Sensor %d within FusionCamSensor is invalid."), i);
-		}
+		check(IsValid(FusionSensors[i]));
 	}
 }
 
@@ -179,10 +175,7 @@ void UFusionCamSensor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	for (UBaseCameraSensor* Sensor : FusionSensors)
-	{
-		check(IsValid(Sensor));
-	}
+	checkFusionSensors();
 
 	SetFilmSize(FilmWidth, FilmHeight);
 	SetSensorFOV(FOV);
@@ -518,29 +511,11 @@ void UFusionCamSensor::SetFilmSize(int Width, int Height)
 		return;
 	}
 
-	// There are still bugs in compiled blueprints, I tried to fix them in the ctor, but it still fails.
-	// So I have to manually init the texture target for FlowCamSensor.
-	if (IsValid(FlowCamSensor))
-	{
-		FlowCamSensor->SetFilmSize(Width, Height);
-	}
-	else
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("FlowCamSensor is not initialized. Flow data will be empty."));
-	}
-
 	for (int i = 0; i < FusionSensors.Num(); i++)
 	{
 		UBaseCameraSensor* Sensor = FusionSensors[i];
-		if (IsValid(Sensor))
-		{
-			Sensor->SetFilmSize(FilmWidth, FilmHeight);
-		}
-		else
-		{
-			// UE_LOG(LogTemp, Error, TEXT("SetFilmSize: Sensor %d within FusionCamSensor is invalid. this: %p"), i, this);
-			UE_LOG(LogTemp, Warning, TEXT("SetFilmSize: Sensor %d within FusionCamSensor is invalid."), i);
-		}
+		check(IsValid(Sensor));
+		Sensor->SetFilmSize(FilmWidth, FilmHeight);
 	}
 
 	check(MovieQualityRenderer);
@@ -562,10 +537,8 @@ void UFusionCamSensor::SetSensorFOV(float fov)
 	this->FOV = fov;
 	for (UBaseCameraSensor* Sensor: FusionSensors)
 	{
-		if (IsValid(Sensor))
-		{
-			Sensor->SetFOV(fov);
-		}
+		check(IsValid(Sensor));
+		Sensor->SetFOV(fov);
 	}
 	check(MovieQualityRenderer);
 	MovieQualityRenderer->SetFOV(FOV);

@@ -35,11 +35,14 @@ UOneObjectLitCamSensor::UOneObjectLitCamSensor(const FObjectInitializer& ObjectI
 	// {
 	// 	UE_LOG(LogTemp, Error, TEXT("OneObjOpacity material not found at %s"), *OneObjOpacityMaterialPath);
 	// }
+	UE_LOG(LogTemp, Warning, TEXT("OneObjectLitCamSensor::ctor: %p"), this);
 }
 
 void UOneObjectLitCamSensor::InitTextureTarget(int InFilmWidth, int InFilmHeight)
 {
+	UE_LOG(LogTemp, Warning, TEXT("OneObjectLitCamSensor::InitTextureTarget: %d x %d"), InFilmWidth, InFilmHeight);
 	Super::InitTextureTarget(InFilmWidth, InFilmHeight);
+	UE_LOG(LogTemp, Warning, TEXT("OneObjectLitCamSensor::InitTextureTarget: %d x %d"), TextureTarget->SizeX, TextureTarget->SizeY);
 
 	// if (OneObjOpacityMaterial)
 	// {

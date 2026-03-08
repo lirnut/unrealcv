@@ -60,22 +60,21 @@ UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectIniti
 		// this->ShowFlags.SetPostProcessing(true);
 		this->ShowFlags.SetPostProcessing(false);
 		this->ShowFlags.SetMaterials(false);
-		this->ShowFlags.SetTonemapper(false);
 		this->ShowFlags.SetEyeAdaptation(false);
 
-		// this->PostProcessSettings.bOverride_AutoExposureMethod = true;
-		// this->PostProcessSettings.AutoExposureMethod = AEM_Manual;
+		this->PostProcessSettings.bOverride_AutoExposureMethod = true;
+		this->PostProcessSettings.AutoExposureMethod = AEM_Manual;
 
-		// UMaterialInterface* StencilMaterial = LoadObject<UMaterialInterface>(nullptr, *StencilPPMPath);
-		// if (StencilMaterial)
-		// {
-		// 	SetPostProcessMaterial(StencilMaterial);
-		// 	UE_LOG(LogUnrealCV, Log, TEXT("[AnnotationCamSensor] ProxyAnnotation mode - StencilPPM loaded"));
-		// }
-		// else
-		// {
-		// 	UE_LOG(LogUnrealCV, Warning, TEXT("[AnnotationCamSensor] Failed to load StencilPPM for ProxyAnnotation"));
-		// }
+		UMaterialInterface* StencilMaterial = LoadObject<UMaterialInterface>(nullptr, *StencilPPMPath);
+		if (StencilMaterial)
+		{
+			SetPostProcessMaterial(StencilMaterial);
+			UE_LOG(LogUnrealCV, Log, TEXT("[AnnotationCamSensor] ProxyAnnotation mode - StencilPPM loaded"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("[AnnotationCamSensor] Failed to load StencilPPM for ProxyAnnotation"));
+		}
 	}
 
 	FServerConfig& Config = FUnrealcvServer::Get().Config;
@@ -86,20 +85,36 @@ UAnnotationCamSensor::UAnnotationCamSensor(const FObjectInitializer& ObjectIniti
 void UAnnotationCamSensor::InitTextureTarget(int filmWidth, int filmHeight)
 {
 	InitUInt8TextureTarget(filmWidth, filmHeight, true);
-
-	// if (!FObjectAnnotator::IsUsingDirectAnnotation())
-	// {
-	// 	UMaterialInterface* StencilMaterial = LoadObject<UMaterialInterface>(nullptr, *StencilPPMPath);
-	// 	if (StencilMaterial)
-	// 	{
-	// 		SetPostProcessMaterial(StencilMaterial);
-	// 		UE_LOG(LogUnrealCV, Log, TEXT("[AnnotationCamSensor] InitTextureTarget - StencilPPM applied"));
-	// 	}
-	// 	else
-	// 	{
-	// 		UE_LOG(LogUnrealCV, Error, TEXT("[AnnotationCamSensor] Failed to load StencilPPM in InitTextureTarget"));
-	// 	}
-	// }
+	if (FObjectAnnotator::IsUsingDirectAnnotation())
+	{
+		UMaterialInterface* GTMaterial = LoadObject<UMaterialInterface>(nullptr, *GTMaterialPath);
+		if (!GTMaterial)
+		{
+			GTMaterial = LoadObject<UMaterialInterface>(nullptr, *GTMaterialPathAlt);
+		}
+		if (GTMaterial)
+		{
+			SetPostProcessMaterial(GTMaterial);
+			UE_LOG(LogUnrealCV, Log, TEXT("[AnnotationCamSensor] DirectAnnotation mode - GTMaterial loaded"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Warning, TEXT("[AnnotationCamSensor] Failed to load GTMaterial for DirectAnnotation"));
+		}
+	}
+	else
+	{
+		UMaterialInterface* StencilMaterial = LoadObject<UMaterialInterface>(nullptr, *StencilPPMPath);
+		if (StencilMaterial)
+		{
+			SetPostProcessMaterial(StencilMaterial);
+			UE_LOG(LogUnrealCV, Log, TEXT("[AnnotationCamSensor] InitTextureTarget - StencilPPM applied"));
+		}
+		else
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("[AnnotationCamSensor] Failed to load StencilPPM in InitTextureTarget"));
+		}
+	}
 }
 
 void UAnnotationCamSensor::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * T)

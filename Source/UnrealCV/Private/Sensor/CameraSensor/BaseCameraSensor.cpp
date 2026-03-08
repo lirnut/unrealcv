@@ -24,6 +24,8 @@ DECLARE_CYCLE_STAT(TEXT("ReadBufferFast"), STAT_ReadBufferFast, STATGROUP_Unreal
 
 UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
+	check(IsInGameThread());
+
 	// static ConstructorHelpers::FObjectFinder<UStaticMesh> EditorCameraMesh(TEXT("/Engine/EditorMeshes/MatineeCam_SM"));
 	// Another choice is "StaticMesh'/Engine/EditorMeshes/Camera/SM_CineCam.SM_CineCam'"
 	this->ShowFlags.SetPostProcessing(true);
@@ -98,6 +100,7 @@ void UBaseCameraSensor::InitTextureTarget(int filmWidth, int filmHeight)
 
 void UBaseCameraSensor::InitFloat16TextureTarget(int filmWidth, int filmHeight)
 {
+	UE_LOG(LogTemp, Warning, TEXT("InitFloat16TextureTarget: %d x %d"), filmWidth, filmHeight);
 
 	// //PF_FloatRGBA            =10, // RGBA16F
 	// EPixelFormat PixelFormat = EPixelFormat::PF_FloatRGBA;
@@ -117,6 +120,8 @@ void UBaseCameraSensor::InitFloat16TextureTarget(int filmWidth, int filmHeight)
 
 void UBaseCameraSensor::InitUInt8TextureTarget(int filmWidth, int filmHeight, bool bUseLinearGamma)
 {
+	UE_LOG(LogTemp, Warning, TEXT("InitUInt8TextureTarget: %d x %d"), filmWidth, filmHeight);
+
 	EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
 	TextureTarget = NewObject<UTextureRenderTarget2D>(this);
 	TextureTarget->InitCustomFormat(filmWidth, filmHeight, PixelFormat, bUseLinearGamma);
