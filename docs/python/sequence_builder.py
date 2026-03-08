@@ -187,6 +187,7 @@ def build_single_trajectory_scene():
         {"cmd": "random_scene_param_camera_angle_offset", "params": "-15 15"},
         {"cmd": "random_scene_param_camera_distance", "params": "180 300"},
         {"cmd": "create_scene"},
+        {"cmd": "annotate_world"},
 
         # Animation setup
         {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C"},
