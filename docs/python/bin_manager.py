@@ -382,7 +382,7 @@ def main():
             if is_trajectory_mode:
                 print(client.request("vset /datasetautomation/config/trajectory_fps 30"))
                 print(client.request("vset /datasetautomation/config/num_frames 121"))
-                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,metadata"))
+                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,depth,metadata"))
                 print(client.request("vset /captureactor/paused_tick_interval 0.1"))
             else:
                 # Matting task config
