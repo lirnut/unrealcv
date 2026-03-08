@@ -160,3 +160,167 @@ def build_concatenated_matting_sequence(num_scenes):
 
     return command_sequence, scene_configs
 
+
+def build_single_trajectory_scene():
+    """
+    Build a SINGLE Trajectory scene sequence.
+
+    Replicates the C++ Trajectory task from DatasetAutomationBPLib.cpp lines 84-192.
+    Uses multi-pass recording with pauses and secondary camera sync.
+
+    Returns:
+        commands: List of commands for ONE scene
+        config: Scene configuration for logging
+    """
+    sync_frame = random.uniform(50.0, 70.0)
+
+    commands = [
+        # Initial setup
+        {"cmd": "vrun", "params": "vset /mqrc/render_immediately true"},
+        {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.2"},
+        {"cmd": "set_foreground_move_speed", "params": "0.0"},
+        {"cmd": "set_foreground_move_angle_offset", "params": "0.0"},
+
+        # Scene setup
+        {"cmd": "load_scene_param_json"},
+        {"cmd": "random_scene_param_camera_height", "params": "160 175"},
+        {"cmd": "random_scene_param_camera_angle_offset", "params": "-15 15"},
+        {"cmd": "random_scene_param_camera_distance", "params": "180 300"},
+        {"cmd": "create_scene"},
+
+        # Animation setup
+        {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"},
+        {"cmd": "delay", "params": "2.0"},
+        {"cmd": "block_until_all_work_finished"},
+        {"cmd": "delay", "params": "3.0"},
+
+        # Camera setup
+        {"cmd": "random_resolution", "params": "1920x1080"},
+        {"cmd": "random_fov", "params": "55 70"},
+        {"cmd": "aim_camera_at_foreground", "params": "155 175"},
+        {"cmd": "add_camera_rotation_noise", "params": "0.0 1.0 4.0"},
+
+        # Prepare and initial recording
+        {"cmd": "prepare_record"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "10.0"},
+        {"cmd": "delay", "params": "1.0"},
+        {"cmd": "delay", "params": "1.0"},
+        {"cmd": "record_trajectory", "params": "render_only"},
+
+        # Wait for specific frame and pause
+        {"cmd": "special_wait", "params": f"{sync_frame:.1f}"},
+        {"cmd": "pause_primary_capture_actor"},
+        {"cmd": "pause_groom_physics"},
+        {"cmd": "set_time_dilation", "params": "0.0"},
+
+        # Multi-pass recording with secondary camera sync
+        {"cmd": "record_trajectory", "params": "rotate_left_30"},
+        {"cmd": "sync_secondary_cameras"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "1.0"},
+
+        {"cmd": "record_trajectory", "params": "rotate_right_30"},
+        {"cmd": "sync_secondary_cameras"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "1.0"},
+
+        {"cmd": "record_trajectory", "params": "rotate_up_30"},
+        {"cmd": "sync_secondary_cameras"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "1.0"},
+
+        {"cmd": "record_trajectory", "params": "rotate_360"},
+        {"cmd": "sync_secondary_cameras"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "1.0"},
+
+        {"cmd": "record_trajectory", "params": "zoom_in"},
+        {"cmd": "sync_secondary_cameras"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "1.0"},
+
+        {"cmd": "record_trajectory", "params": "zoom_out"},
+        {"cmd": "sync_secondary_cameras"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "1.0"},
+
+        {"cmd": "record_trajectory", "params": "random_1"},
+        {"cmd": "sync_secondary_cameras"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "1.0"},
+
+        {"cmd": "record_trajectory", "params": "random_2"},
+        {"cmd": "sync_secondary_cameras"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "1.0"},
+
+        {"cmd": "record_trajectory", "params": "random_3"},
+        {"cmd": "sync_secondary_cameras"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "1.0"},
+
+        {"cmd": "record_trajectory", "params": "random_4"},
+        {"cmd": "sync_secondary_cameras"},
+        {"cmd": "sync_pawn_to_primary_camera"},
+        {"cmd": "delay", "params": "5.0"},
+
+        # Resume
+        {"cmd": "set_time_dilation", "params": "1.0"},
+        {"cmd": "resume_groom_physics"},
+        {"cmd": "set_pause", "params": "false"},
+        {"cmd": "resume_primary_capture_actor"},
+
+        {"cmd": "sync_all_cameras"},
+        {"cmd": "set_time_dilation", "params": "1.0"},
+        {"cmd": "delay", "params": "1.0"},
+
+        # Cleanup
+        {"cmd": "clear_scene"},
+        {"cmd": "delay", "params": "0.5"},
+        {"cmd": "increment_counter"},
+    ]
+
+    return commands, {
+        "resolution": "1920x1080",
+        "fov": "55 70",
+        "trajectory": "multi_pass",
+        "sync_frame": f"{sync_frame:.1f}",
+        "animation_bp": "/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"
+    }
+
+
+def build_concatenated_trajectory_sequence(num_scenes):
+    """
+    Build concatenated Trajectory sequence.
+
+    Replicates the C++ Trajectory task with multi-pass recording.
+    Each scene records multiple trajectory passes with camera synchronization.
+
+    Args:
+        num_scenes: Number of scenes to concatenate
+
+    Returns:
+        command_sequence: Dict with "task" and "commands" keys
+        scene_configs: List of configs for each scene (for logging)
+    """
+    all_commands = []
+    scene_configs = []
+
+    for i in range(num_scenes):
+        commands, config = build_single_trajectory_scene()
+        all_commands.extend(commands)
+        scene_configs.append({
+            "scene": i + 1,
+            **config
+        })
+
+    all_commands.append({"cmd": "check_completion"})
+
+    command_sequence = {
+        "task": "Trajectory",
+        "commands": all_commands
+    }
+
+    return command_sequence, scene_configs
+

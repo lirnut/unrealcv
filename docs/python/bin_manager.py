@@ -8,7 +8,8 @@ import psutil
 import random
 from pathlib import Path
 from multiprocessing import Process, Event, Value
-from sequence_builder import build_concatenated_matting_sequence
+import argparse
+from sequence_builder import build_concatenated_matting_sequence, build_concatenated_trajectory_sequence
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -300,6 +301,19 @@ def try_connect(port, timeout=2.0):
 
 def main():
     import unrealcv
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="UnrealCV Dataset Automation Binary Manager")
+    parser.add_argument("--traj", action="store_true", help="Run Trajectory task instead of Matting")
+    args = parser.parse_args()
+
+    is_trajectory_mode = args.traj
+    task_name = "Trajectory" if is_trajectory_mode else "Matting"
+
+    print(f"\n{'='*60}")
+    print(f"Task Mode: {task_name}")
+    print(f"{'='*60}")
+
     run_count = 0
 
     try:
@@ -353,12 +367,6 @@ def main():
             version = client.request("vget /unrealcv/version")
             print(f"[VERSION] {version}")
 
-            
-            print(f"\n{'='*60}")
-            print(f"[CONFIG] Scalability...")
-            # print(client.request("vrun r.ScreenPercentage 67.0"))
-            # print(client.request("vrun r.Shadow.Virtual.Enable 0"))
-
 
             print(f"\n{'='*60}")
             print(f"[CONFIG] Configuring Video Encoder...")
@@ -366,34 +374,58 @@ def main():
             print(client.request("vset /captureactor/auto_generate_video 1"))
 
             print(f"\n{'='*60}")
-            print(f"[CONFIG] Configuring Matting task...")
+            print(f"[CONFIG] Configuring {task_name} task...")
 
             client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
-            client.request("vset /datasetautomation/config/trajectory_fps 30")
-            client.request("vset /datasetautomation/config/num_frames 90")
-            # client.request("vset /datasetautomation/config/recording_options lit,oneobjlit,mask,metadata")
-            client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,depth,metadata")
 
-            timecode = datetime.datetime.now().strftime(r"%y-%m-%d")
+            if is_trajectory_mode:
+                # Trajectory task config (from C++ lines 86-88)
+                client.request("vset /datasetautomation/config/trajectory_fps 30")
+                client.request("vset /datasetautomation/config/num_frames 121")
+                # Trajectory uses different recording options
+                client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,metadata")
+            else:
+                # Matting task config
+                client.request("vset /datasetautomation/config/trajectory_fps 30")
+                client.request("vset /datasetautomation/config/num_frames 90")
+                client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,depth,metadata")
+
+            timecode = datetime.datetime.now().strftime(r"%y-%m-%d") + f"_{task_name}"
             output_dir = str(PKG_DIR / "DatasetAutomationOutputDirectory" / timecode / map_name)
             client.request(f"vset /datasetautomation/config/output_directory {output_dir}")
 
             print(f"[CONFIG] Output directory: {output_dir}")
             print(f"[CONFIG] Batch size: {CONFIG_SLASH_TOTAL_SCENES} scenes")
 
-            command_sequence, scene_configs = build_concatenated_matting_sequence(CONFIG_SLASH_TOTAL_SCENES)
+            # Build appropriate sequence based on task type
+            if is_trajectory_mode:
+                command_sequence, scene_configs = build_concatenated_trajectory_sequence(CONFIG_SLASH_TOTAL_SCENES)
+            else:
+                command_sequence, scene_configs = build_concatenated_matting_sequence(CONFIG_SLASH_TOTAL_SCENES)
+
             seq_json = json.dumps(command_sequence, separators=(',', ':'))
             result = client.request(f"vset /datasetautomation/sequence {seq_json}")
             print(f"[SEQUENCE] {result}")
             print(f"[SEQUENCE] Total commands: {len(command_sequence['commands'])}")
-            print(f"[SEQUENCE] Scenes: {CONFIG_SLASH_TOTAL_SCENES} (each with ~22 unique commands)")
+            print(f"[SEQUENCE] Scenes: {CONFIG_SLASH_TOTAL_SCENES}")
             print()
             print("[SEQUENCE] Scene configurations:")
             for cfg in scene_configs:
-                print(f"  Scene {cfg['scene']:2d}: {cfg['resolution']:12s} | FOV {cfg['fov']:5s} | {cfg['trajectory']:25s} | Mode {cfg.get('animation_mode', 'Unknown')}")
+                if is_trajectory_mode:
+                    print(f"  Scene {cfg['scene']:2d}: {cfg['resolution']:12s} | FOV {cfg['fov']:10s} | Sync Frame {cfg.get('sync_frame', 'N/A'):6s} | Trajectory: {cfg['trajectory']}")
+                else:
+                    print(f"  Scene {cfg['scene']:2d}: {cfg['resolution']:12s} | FOV {cfg['fov']:5s} | {cfg['trajectory']:25s} | Mode {cfg.get('animation_mode', 'Unknown')}")
 
             print(f"\n[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
             time.sleep(MAP_LOAD_WAIT)
+
+
+            print(f"\n{'='*60}")
+            print(f"[CONFIG] Scalability...")
+            # print(client.request("vrun r.ScreenPercentage 67.0"))
+            # print(client.request("vrun r.Shadow.Virtual.Enable 0"))
+            print(client.request("vrun r.HairStrands.SkyLighting 0"))
+
 
             # Disable unnecessary warnings and messages
             client.request("vrun DisableAllScreenMessages")
