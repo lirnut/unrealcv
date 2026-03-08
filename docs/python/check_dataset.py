@@ -15,6 +15,9 @@ DATASET_ROOT = Path("./DatasetAutomationOutputDirectory")
 EXPECTED_ONEOBJLIT_FILES = 90
 EXPECTED_RGB_PNG_FILES = 90
 
+EXPECTED_ONEOBJLIT_FILES_2 = 121
+EXPECTED_RGB_PNG_FILES_2 = 121
+
 DATEDIRT_TO_EXCLUDE = [
 ]
 
@@ -45,13 +48,14 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
 
     oneobjlit_dir = render_path / "oneobjlit"
     if not oneobjlit_dir.exists():
+        need_genvid = True
         issues.append("Missing oneobjlit directory")
     else:
         file_count = len(list(oneobjlit_dir.iterdir()))
         oneobjlit_count = file_count
-        if file_count != EXPECTED_ONEOBJLIT_FILES:
+        if file_count != EXPECTED_ONEOBJLIT_FILES and file_count != EXPECTED_ONEOBJLIT_FILES_2:
             issues.append(f"oneobjlit has {file_count} files (expected {EXPECTED_ONEOBJLIT_FILES})")
-            if  file_count < EXPECTED_ONEOBJLIT_FILES:
+            if  file_count < EXPECTED_ONEOBJLIT_FILES or EXPECTED_ONEOBJLIT_FILES < file_count < EXPECTED_ONEOBJLIT_FILES_2:
                 should_delete = True
 
     rgb_dir = render_path / "rgb"
@@ -60,7 +64,12 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
         rgb_png_count = len(png_files)
         if rgb_png_count == EXPECTED_RGB_PNG_FILES:
             need_genvid = True
+        if rgb_png_count == EXPECTED_RGB_PNG_FILES_2:
+            need_genvid = True
         elif 1 <= rgb_png_count < EXPECTED_RGB_PNG_FILES:
+            issues.append(f"rgb count incorrect {rgb_png_count}")
+            should_delete = True
+        elif EXPECTED_RGB_PNG_FILES < rgb_png_count < EXPECTED_RGB_PNG_FILES_2:
             issues.append(f"rgb count incorrect {rgb_png_count}")
             should_delete = True
         elif rgb_png_count == 0:
@@ -146,8 +155,10 @@ def pack_render_directory(render_path_str: str) -> Dict[str, any]:
         if os.path.exists(tar_path):
             shutil.rmtree(render_path)
         else:
+            print(f"Warning: Tar archive failed to create for {render_path}")
             return {"status": "failed", "path": str(render_path), "error": "Tar archive not created"}
 
+        print(f"Successfully packed {render_path} to {tar_path}")
         return {
             "status": "success",
             "path": str(render_path),
@@ -172,11 +183,13 @@ def unpack_render_directory(render_path_str: str) -> Dict[str, any]:
             tar_path = render_path
             unpack_dir = render_path.parent / render_path.stem.replace('.tar', '')
         else:
+            print(f"Warning: No tar.gz found for {render_path}")
             return {"status": "skipped", "path": str(render_path), "reason": "no tar.gz found"}
     else:
         unpack_dir = render_path
 
     if unpack_dir.exists():
+        print(f"Warning: Unpack directory {unpack_dir} already exists for {render_path}")
         return {"status": "skipped", "path": str(render_path), "reason": "already unpacked"}
 
     try:
@@ -189,6 +202,7 @@ def unpack_render_directory(render_path_str: str) -> Dict[str, any]:
         # Calculate size after
         size_after = sum(f.stat().st_size for f in unpack_dir.rglob('*') if f.is_file())
 
+        print(f"Successfully unpacked {tar_path} to {unpack_dir}")
         return {
             "status": "success",
             "path": str(render_path),
@@ -196,6 +210,7 @@ def unpack_render_directory(render_path_str: str) -> Dict[str, any]:
             "size_after": size_after
         }
     except Exception as e:
+        print(f"Warning: Failed to unpack {tar_path} to {unpack_dir}")
         return {"status": "failed", "path": str(render_path), "error": str(e)}
 
 
@@ -204,11 +219,11 @@ def main():
     parser.add_argument("--path", type=str, default="./DatasetAutomationOutputDirectory",
                         help="Path to dataset root directory (default: ./DatasetAutomationOutputDirectory)")
     parser.add_argument("--delete", action="store_true",
-                        help="Delete scene folders with: missing overview.json, oneobjlit==0, or 1<=oneobjlit<90")
+                        help=f"Delete scene folders with: missing overview.json, oneobjlit==0, or 1<=oneobjlit<{EXPECTED_ONEOBJLIT_FILES}")
     parser.add_argument("--delete-all", action="store_true",
                         help="Delete ALL inconsistent scene folders (any scene with issues)")
     parser.add_argument("--genvid", action="store_true",
-                        help="Run genvid.py for renders with exactly 90 png files in rgb folder but missing rgb.mp4")
+                        help=f"Run genvid.py for renders with exactly {EXPECTED_RGB_PNG_FILES} png files in rgb folder but missing rgb.mp4")
     parser.add_argument("--fps", type=int, default=30,
                         help="FPS for genvid.py (default: 30)")
     parser.add_argument("--delete-mode-dir", type=str, metavar="DIRNAME",
@@ -223,6 +238,8 @@ def main():
                         help="Pack each render directory into a .tar.gz archive to reduce small files")
     parser.add_argument("--unpack", action="store_true",
                         help="Unpack .tar.gz archives back to render directories")
+    parser.add_argument("--pack-parallel", type=int, default=1,
+                        help="Number of parallel processes for packing (default: 0, sequential)")
 
     args = parser.parse_args()
 
@@ -232,7 +249,7 @@ def main():
     print(f"{'='*80}")
     print(f"Dataset Consistency Checker")
     if args.delete:
-        print(f"MODE: DELETE SPECIFIC SCENES (no overview.json / oneobjlit==0 / 1<=oneobjlit<90)")
+        print(f"MODE: DELETE SPECIFIC SCENES (no overview.json / oneobjlit==0 / 1<=oneobjlit<{EXPECTED_ONEOBJLIT_FILES})")
     if args.delete_all:
         print(f"MODE: DELETE ALL INCONSISTENT SCENES")
     if args.genvid:
@@ -384,15 +401,15 @@ def main():
     if args.pack or args.unpack:
         print(f"\n{'='*80}")
         if args.pack:
-            print(f"Packing render directories (6 parallel processes)...")
+            print(f"Packing render directories ({args.pack_parallel} parallel processes)...")
         else:
-            print(f"Unpacking .tar.gz archives (6 parallel processes)...")
+            print(f"Unpacking .tar.gz archives ({args.pack_parallel} parallel processes)...")
         print(f"{'='*80}")
 
         # Convert to strings for multiprocessing
         render_path_strs = [str(p) for p in render_paths]
 
-        with Pool(processes=6) as pool:
+        with Pool(processes=args.pack_parallel) as pool:
             if args.pack:
                 results = pool.map(pack_render_directory, render_path_strs)
             else:
@@ -524,7 +541,7 @@ def main():
 
     if len(renders_need_genvid) > 0:
         print(f"\n{'='*80}")
-        print(f"Renders Ready for genvid (90 pngs in rgb/, missing rgb.mp4):")
+        print(f"Renders Ready for genvid ({EXPECTED_RGB_PNG_FILES} pngs in rgb/, missing rgb.mp4):")
         print(f"{'='*80}")
         print(f"Total: {len(renders_need_genvid)} renders")
 
@@ -582,7 +599,7 @@ def main():
 
     if (args.delete and len(scenes_to_delete) > 0) or (args.delete_all and len(scenes_to_delete_all) > 0):
         deletion_target = scenes_to_delete_all if args.delete_all else scenes_to_delete
-        deletion_mode = "ALL INCONSISTENT" if args.delete_all else "SPECIFIC (no overview.json / oneobjlit==0 / 1<=oneobjlit<90)"
+        deletion_mode = "ALL INCONSISTENT" if args.delete_all else f"SPECIFIC (no overview.json / oneobjlit==0 / 1<=oneobjlit<{EXPECTED_ONEOBJLIT_FILES})"
 
         print(f"\n{'='*80}")
         print(f"Scenes to Delete ({deletion_mode}):")

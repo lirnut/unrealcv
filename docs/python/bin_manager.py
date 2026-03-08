@@ -380,15 +380,15 @@ def main():
             client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
 
             if is_trajectory_mode:
-                client.request("vset /datasetautomation/config/trajectory_fps 30")
-                client.request("vset /datasetautomation/config/num_frames 121")
-                client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,metadata")
-                print(client.request("vset /captureactor/paused_tick_interval 0.01"))
+                print(client.request("vset /datasetautomation/config/trajectory_fps 30"))
+                print(client.request("vset /datasetautomation/config/num_frames 121"))
+                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,metadata"))
+                print(client.request("vset /captureactor/paused_tick_interval 0.1"))
             else:
                 # Matting task config
-                client.request("vset /datasetautomation/config/trajectory_fps 30")
-                client.request("vset /datasetautomation/config/num_frames 90")
-                client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,depth,metadata")
+                print(client.request("vset /datasetautomation/config/trajectory_fps 30"))
+                print(client.request("vset /datasetautomation/config/num_frames 90"))
+                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,depth,metadata"))
 
             timecode = datetime.datetime.now().strftime(r"%y-%m-%d") + f"_{task_name}"
             output_dir = str(PKG_DIR / "DatasetAutomationOutputDirectory" / timecode / map_name)
