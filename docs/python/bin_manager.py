@@ -55,27 +55,28 @@ else:
         ("Chinese_mountain_town", 1.0),
         ("Demo_Roof", 1.0),
         # ("Urban_RoadsideConstruction_Scene", 1.0),
-        ("Town", 0.2),
-        ("L_WillowLake", 1.0),
+        # ("Town", 0.2),
+        ("L_WillowLake", 0.3),
         # ("Jungle", 1.0),
-        ("TrainStation", 1.5),
-        ("Mountains_Map", 0.8),
+        # ("TrainStation", 1.5),
+        # ("Mountains_Map", 0.8),
         ("Asian_town", 2.0),
         # ("Hutong", 1.0),
-        ("Midgardr_Free", 1.0),
+        ("Midgardr_Free", 1.5),
         ("Warehouse", 1.0),
-        ("Downtown_West", 0.3),
-        ("Downtown_West_Night", 1.7),
-        ("Bridge_P", 1.0),
+        ("Downtown_West", 0.5),
+        # ("Downtown_West_Night", 1.7),
+        ("Bridge_P", 1.3),
         ("LV_Exterior", 0.3),
         ("LV_Exterior_Night", 0.2),
         ("LV_Exterior_Sunrise", 0.5),
-        ("Beach_P", 1.0),
-        ("UNIVERSITY_CLASSROOM", 1.0),
+        ("Beach_P", 0.5),
+        ("UNIVERSITY_CLASSROOM", 1.5),
     ]
 
     # AVAILABLE_MAPS = [
-    #     ("Chinese_mountain_town", 1.0),]
+    #     ("Demo_Roof", 1.0),
+    # ]
 print(f"\n{'='*60}")
 print(f"Available Maps")
 print(f"{'='*60}")
@@ -379,11 +380,10 @@ def main():
             client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
 
             if is_trajectory_mode:
-                # Trajectory task config (from C++ lines 86-88)
                 client.request("vset /datasetautomation/config/trajectory_fps 30")
                 client.request("vset /datasetautomation/config/num_frames 121")
-                # Trajectory uses different recording options
                 client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,metadata")
+                print(client.request("vset /captureactor/paused_tick_interval 0.01"))
             else:
                 # Matting task config
                 client.request("vset /datasetautomation/config/trajectory_fps 30")

@@ -177,7 +177,7 @@ def build_single_trajectory_scene():
     commands = [
         # Initial setup
         {"cmd": "vrun", "params": "vset /mqrc/render_immediately true"},
-        {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.2"},
+        {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.35"},
         {"cmd": "set_foreground_move_speed", "params": "0.0"},
         {"cmd": "set_foreground_move_angle_offset", "params": "0.0"},
 
@@ -189,7 +189,7 @@ def build_single_trajectory_scene():
         {"cmd": "create_scene"},
 
         # Animation setup
-        {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"},
+        {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C"},
         {"cmd": "delay", "params": "2.0"},
         {"cmd": "block_until_all_work_finished"},
         {"cmd": "delay", "params": "3.0"},
