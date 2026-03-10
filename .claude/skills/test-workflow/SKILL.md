@@ -42,7 +42,15 @@ The harness uses default settings from `config.py`. If you need custom paths, cr
 }
 ```
 
-> **Windows Paths Caution**: Use `/` rather than `\\`, `\` for paths, e.g. `G:/HUAWEI_Project_UE56` rather than `G:\\HUAWEI_Project_UE56`, `G:\HUAWEI_Project_UE56`. 
+## Windows Paths Caution
+Use `/` rather than `\\`, `\` for paths, e.g. `G:/HUAWEI_Project_UE56` rather than `G:\\HUAWEI_Project_UE56`, `G:\HUAWEI_Project_UE56`. 
+
+### Bad Use Cases
+ Bash(cd G:\HUAWEI_Project_UE56\Plugins\unrealcv\workflow && python harness.py full)
+  ⎿  Error: Exit code 1
+     /usr/bin/bash: line 1: cd: G:HUAWEI_Project_UE56Pluginsunrealcvworkflow: No such file or directory
+### Good Use Cases
+● Bash(python workflow/harness.py full)
 
 ## Execution Steps
 
