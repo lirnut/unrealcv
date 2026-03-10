@@ -2098,9 +2098,9 @@ TArray<AFusionCamCaptureActor::FCameraPose> AFusionCamCaptureActor::CalculateRan
 	NumFrames = InNumFrames;
 	float DegreesPerFrame = TotalRotationDeg / (NumFrames - 1);
 
-	bool bVaryDistance = false;
+	bool bVaryDistance = RandomStream.FRand() < RecordingSettings.RandomTrajectoryDistanceVariationProbability;
 	float OriginalDistance = Offset.Size();
-	float DistanceVariation = RandomStream.FRandRange(0.7f, 1.3f);
+	float DistanceVariation = RandomStream.FRandRange(RecordingSettings.DistanceVariationMin, RecordingSettings.DistanceVariationMax);
 
 	for (int i = 0; i < NumFrames; i++)
 	{

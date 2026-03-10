@@ -35,7 +35,7 @@ for f in platform_files:
 
 PORT = 9000
 CONNECT_TIMEOUT = 60
-MAP_LOAD_WAIT = 12
+MAP_LOAD_WAIT = 30
 STATUS_POLL_INTERVAL = 2.0
 CONFIG_SLASH_TOTAL_SCENES = 70
 SESSION_TIMEOUT = CONFIG_SLASH_TOTAL_SCENES * 30
@@ -365,9 +365,11 @@ def main():
 
             print("[OK] Connected to UnrealCV")
 
+            print(f"\n[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
+            time.sleep(MAP_LOAD_WAIT)
+
             version = client.request("vget /unrealcv/version")
             print(f"[VERSION] {version}")
-
 
             print(f"\n{'='*60}")
             print(f"[CONFIG] Configuring Video Encoder...")
@@ -415,9 +417,6 @@ def main():
                     print(f"  Scene {cfg['scene']:2d}: {cfg['resolution']:12s} | FOV {cfg['fov']:10s} | Sync Frame {cfg.get('sync_frame', 'N/A'):6s} | Trajectory: {cfg['trajectory']}")
                 else:
                     print(f"  Scene {cfg['scene']:2d}: {cfg['resolution']:12s} | FOV {cfg['fov']:5s} | {cfg['trajectory']:25s} | Mode {cfg.get('animation_mode', 'Unknown')}")
-
-            print(f"\n[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
-            time.sleep(MAP_LOAD_WAIT)
 
 
             print(f"\n{'='*60}")

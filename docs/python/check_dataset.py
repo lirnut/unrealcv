@@ -22,6 +22,41 @@ DATEDIRT_TO_EXCLUDE = [
 ]
 
 
+def run_genvid_for_render(args_tuple: Tuple[str, str, int]) -> Dict[str, any]:
+    """
+    Run genvid.py for a single render directory.
+    Used for parallel processing.
+
+    Args:
+        args_tuple: (render_path, genvid_script, fps)
+    """
+    render_path, genvid_script, fps = args_tuple
+
+    try:
+        cmd = [
+            "python",
+            genvid_script,
+            "--input-dir", render_path,
+            "--fps", str(fps),
+            "--time_delay", "0"
+        ]
+
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False
+        )
+
+        if result.returncode == 0:
+            return {"status": "success", "path": render_path}
+        else:
+            return {"status": "failed", "path": render_path, "error": result.stderr.strip()}
+    except Exception as e:
+        return {"status": "failed", "path": render_path, "error": str(e)}
+
+
 def check_render_directory(render_path: Path) -> Dict[str, any]:
     issues = []
     oneobjlit_count = 0
@@ -130,6 +165,31 @@ def get_all_render_paths() -> List[Path]:
 
     return render_paths
 
+def get_all_packaged_render_paths() -> List[Path]:
+    render_paths = []
+
+    for date_dir in DATASET_ROOT.iterdir():
+        if not date_dir.is_dir():
+            continue
+
+        if date_dir.name in DATEDIRT_TO_EXCLUDE:
+            continue
+
+        for scene_dir in date_dir.iterdir():
+            if not scene_dir.is_dir():
+                continue
+
+            for scene_instance_dir in scene_dir.iterdir():
+                if not scene_instance_dir.is_dir():
+                    continue
+                if not scene_instance_dir.name.startswith("scene_"):
+                    continue
+
+                for render_dir in scene_instance_dir.iterdir():
+                    if not render_dir.is_dir() and render_dir.name.endswith(".tar.gz"):
+                        render_paths.append(render_dir)
+
+    return render_paths
 
 def pack_render_directory(render_path_str: str) -> Dict[str, any]:
     """Pack a single render directory into .tar.gz (for multiprocessing)"""
@@ -226,6 +286,8 @@ def main():
                         help=f"Run genvid.py for renders with exactly {EXPECTED_RGB_PNG_FILES} png files in rgb folder but missing rgb.mp4")
     parser.add_argument("--fps", type=int, default=30,
                         help="FPS for genvid.py (default: 30)")
+    parser.add_argument("--genvid-parallel", type=int, default=1,
+                        help=f"Number of parallel processes for genvid.py (default: 1, sequential)")
     parser.add_argument("--delete-mode-dir", type=str, metavar="DIRNAME",
                         help="Delete specific subdirectory (e.g., 'rgb') from all render directories recursively")
     parser.add_argument("--compress", action="store_true",
@@ -253,7 +315,10 @@ def main():
     if args.delete_all:
         print(f"MODE: DELETE ALL INCONSISTENT SCENES")
     if args.genvid:
-        print(f"MODE: AUTO GENVID (FPS={args.fps})")
+        if args.genvid_parallel > 1:
+            print(f"MODE: AUTO GENVID (FPS={args.fps}, PARALLEL={args.genvid_parallel})")
+        else:
+            print(f"MODE: AUTO GENVID (FPS={args.fps})")
     if args.delete_mode_dir:
         print(f"MODE: DELETE MODE DIR '{args.delete_mode_dir}' from all render directories")
     if args.compress:
@@ -276,6 +341,61 @@ def main():
 
     render_paths = get_all_render_paths()
     total_renders = len(render_paths)
+
+    if args.pack or args.unpack:
+        print(f"\n{'='*80}")
+        if args.pack:
+            print(f"Packing render directories ({args.pack_parallel} parallel processes)...")
+        else:
+            print(f"Unpacking .tar.gz archives ({args.pack_parallel} parallel processes)...")
+        print(f"{'='*80}")
+
+        # Convert to strings for multiprocessing
+        with Pool(processes=args.pack_parallel) as pool:
+            if args.pack:
+                render_path_strs = [str(p) for p in render_paths]
+                results = pool.map(pack_render_directory, render_path_strs)
+            else:
+                packaged_render_paths_strs = [str(p) for p in get_all_packaged_render_paths()]
+                results = pool.map(unpack_render_directory, packaged_render_paths_strs)
+
+        # Aggregate results
+        success_count = sum(1 for r in results if r["status"] == "success")
+        skipped_count = sum(1 for r in results if r["status"] == "skipped")
+        failed_count = sum(1 for r in results if r["status"] == "failed")
+        total_size_before = sum(r.get("size_before", 0) for r in results if r["status"] == "success")
+        total_size_after = sum(r.get("size_after", 0) for r in results if r["status"] == "success")
+
+        # Print failed items
+        for r in results:
+            if r["status"] == "failed":
+                print(f"✗ Failed: {r['path']} - {r.get('error', 'unknown error')}")
+
+        print(f"\n{'='*80}")
+        if args.pack:
+            print(f"Packing Summary:")
+            print(f"{'='*80}")
+            print(f"Packed: {success_count} directories")
+            print(f"Skipped: {skipped_count} (already packed)")
+            if failed_count > 0:
+                print(f"Failed: {failed_count}")
+            if success_count > 0:
+                print(f"Total size before: {total_size_before / (1024*1024):.2f} MB")
+                print(f"Total size after: {total_size_after / (1024*1024):.2f} MB")
+                if total_size_before > 0:
+                    ratio = (1 - total_size_after / total_size_before) * 100
+                    print(f"Compression ratio: {ratio:.1f}%")
+        else:
+            print(f"Unpacking Summary:")
+            print(f"{'='*80}")
+            print(f"Unpacked: {success_count} archives")
+            print(f"Skipped: {skipped_count} (already unpacked or not found)")
+            if failed_count > 0:
+                print(f"Failed: {failed_count}")
+        print(f"\nOperation complete!")
+        return
+
+
 
     if total_renders == 0:
         print(f"No render directories found. Please check the dataset path.")
@@ -398,58 +518,6 @@ def main():
         print(f"\nOperation complete!")
         return
 
-    if args.pack or args.unpack:
-        print(f"\n{'='*80}")
-        if args.pack:
-            print(f"Packing render directories ({args.pack_parallel} parallel processes)...")
-        else:
-            print(f"Unpacking .tar.gz archives ({args.pack_parallel} parallel processes)...")
-        print(f"{'='*80}")
-
-        # Convert to strings for multiprocessing
-        render_path_strs = [str(p) for p in render_paths]
-
-        with Pool(processes=args.pack_parallel) as pool:
-            if args.pack:
-                results = pool.map(pack_render_directory, render_path_strs)
-            else:
-                results = pool.map(unpack_render_directory, render_path_strs)
-
-        # Aggregate results
-        success_count = sum(1 for r in results if r["status"] == "success")
-        skipped_count = sum(1 for r in results if r["status"] == "skipped")
-        failed_count = sum(1 for r in results if r["status"] == "failed")
-        total_size_before = sum(r.get("size_before", 0) for r in results if r["status"] == "success")
-        total_size_after = sum(r.get("size_after", 0) for r in results if r["status"] == "success")
-
-        # Print failed items
-        for r in results:
-            if r["status"] == "failed":
-                print(f"✗ Failed: {r['path']} - {r.get('error', 'unknown error')}")
-
-        print(f"\n{'='*80}")
-        if args.pack:
-            print(f"Packing Summary:")
-            print(f"{'='*80}")
-            print(f"Packed: {success_count} directories")
-            print(f"Skipped: {skipped_count} (already packed)")
-            if failed_count > 0:
-                print(f"Failed: {failed_count}")
-            if success_count > 0:
-                print(f"Total size before: {total_size_before / (1024*1024):.2f} MB")
-                print(f"Total size after: {total_size_after / (1024*1024):.2f} MB")
-                if total_size_before > 0:
-                    ratio = (1 - total_size_after / total_size_before) * 100
-                    print(f"Compression ratio: {ratio:.1f}%")
-        else:
-            print(f"Unpacking Summary:")
-            print(f"{'='*80}")
-            print(f"Unpacked: {success_count} archives")
-            print(f"Skipped: {skipped_count} (already unpacked or not found)")
-            if failed_count > 0:
-                print(f"Failed: {failed_count}")
-        print(f"\nOperation complete!")
-        return
 
     date_stats = defaultdict(lambda: defaultdict(int))
     for render_path in render_paths:
@@ -547,7 +615,10 @@ def main():
 
         if args.genvid:
             print(f"\n{'='*80}")
-            print(f"Starting genvid processes...")
+            if args.genvid_parallel > 1:
+                print(f"Starting genvid processes (parallel={args.genvid_parallel})...")
+            else:
+                print(f"Starting genvid processes (sequential)...")
             print(f"{'='*80}")
 
             genvid_script = Path(__file__).parent / "genvid.py"
@@ -557,36 +628,54 @@ def main():
                 genvid_script = Path(__file__).parent / "Windows" / "HillsideSampleProject" / "Saved" /"genvid.py"
             if not genvid_script.exists():
                 genvid_script = Path(__file__).parent / "Windows" / "CitySample" / "Saved" /"genvid.py"
+
             success_count = 0
             failed_count = 0
 
-            for render_path in renders_need_genvid:
-                try:
-                    cmd = [
-                        "python",
-                        str(genvid_script),
-                        "--input-dir", render_path,
-                        "--fps", str(args.fps),
-                        "--time_delay", "0"
-                    ]
+            if args.genvid_parallel > 1:
+                # Parallel processing using multiprocessing Pool
+                genvid_args = [(render_path, str(genvid_script), args.fps) for render_path in renders_need_genvid]
 
-                    result = subprocess.run(
-                        cmd,
-                        stdout=None,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        shell=False
-                    )
+                with Pool(processes=args.genvid_parallel) as pool:
+                    results = pool.map(run_genvid_for_render, genvid_args)
 
-                    if result.returncode == 0:
+                for result in results:
+                    if result["status"] == "success":
                         success_count += 1
                     else:
-                        print(f"✗ genvid failed: {render_path}")
-                        print(f"   stderr: {result.stderr.strip()}")
+                        print(f"✗ genvid failed: {result['path']}")
+                        print(f"   error: {result.get('error', 'unknown error')}")
                         failed_count += 1
-                except Exception as e:
-                    print(f"✗ Exception for {render_path}: {e}")
-                    failed_count += 1
+
+            else:
+                # Sequential processing
+                for render_path in renders_need_genvid:
+                    try:
+                        cmd = [
+                            "python",
+                            str(genvid_script),
+                            "--input-dir", render_path,
+                            "--fps", str(args.fps),
+                            "--time_delay", "0"
+                        ]
+
+                        result = subprocess.run(
+                            cmd,
+                            stdout=None,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            shell=False
+                        )
+
+                        if result.returncode == 0:
+                            success_count += 1
+                        else:
+                            print(f"✗ genvid failed: {render_path}")
+                            print(f"   stderr: {result.stderr.strip()}")
+                            failed_count += 1
+                    except Exception as e:
+                        print(f"✗ Exception for {render_path}: {e}")
+                        failed_count += 1
 
             print(f"\n{'='*80}")
             print(f"Genvid Summary:")

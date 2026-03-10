@@ -74,8 +74,8 @@ void UBaseCameraSensor::PostInitProperties()
 void UBaseCameraSensor::BeginPlay()
 {
 	Super::BeginPlay();
-	HiddenComponents.Reset();
-	UAnnotationBPLib::GetAnnotationComponents(this->GetWorld(), HiddenComponents);
+	// HiddenComponents.Reset();
+	// UAnnotationBPLib::GetAnnotationComponents(this->GetWorld(), HiddenComponents);
 }
 
 // Explicitly make a request to render frames

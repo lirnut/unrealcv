@@ -1,0 +1,38 @@
+{
+  "ue_path": "H:/UE_5.6/Engine",
+  "project_path": "G:/HUAWEI_Project_UE56/HUAWEI_Project.uproject",
+  "plugin_root": "G:/HUAWEI_Project_UE56/Plugins/unrealcv",
+  "port": 9000,
+  "host": "127.0.0.1",
+  "build_timeout": 600,
+  "max_build_retries": 2,
+  "launch_timeout": 180,
+  "server_ready_timeout": 60,
+  "log_filter_keywords": [
+    "UnrealCV",
+    "Error",
+    "Warning",
+    "Fatal",
+    "Assert",
+    "Blueprint",
+    "Camera",
+    "Sensor",
+    "Recording",
+    "FusionCam",
+    "Annotation",
+    "Object"
+  ],
+  "log_exclude_patterns": [
+    "LogTemp",
+    "LogInit",
+    "LogModuleManager",
+    "LogWindows"
+  ],
+  "log_buffer_size": 1000,
+  "log_output_dir": "./debug_logs",
+  "test_timeout": 300,
+  "test_patterns": [
+    "test/server/camera_test.py",
+    "test/server/object_test.py"
+  ]
+}

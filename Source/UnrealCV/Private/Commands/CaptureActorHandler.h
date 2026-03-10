@@ -83,4 +83,17 @@ private:
 	FExecStatus GetPaused(const TArray<FString>& Args);
 
 	FExecStatus SetPaused(const TArray<FString>& Args);
+
+	// Random trajectory distance variation settings (global)
+	FExecStatus GetRandomTrajectoryDistanceVariationProbability(const TArray<FString>& Args);
+
+	FExecStatus SetRandomTrajectoryDistanceVariationProbability(const TArray<FString>& Args);
+
+	FExecStatus GetDistanceVariationMin(const TArray<FString>& Args);
+
+	FExecStatus SetDistanceVariationMin(const TArray<FString>& Args);
+
+	FExecStatus GetDistanceVariationMax(const TArray<FString>& Args);
+
+	FExecStatus SetDistanceVariationMax(const TArray<FString>& Args);
 };

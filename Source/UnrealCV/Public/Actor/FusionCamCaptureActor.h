@@ -53,6 +53,18 @@ struct FRecordingSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVideoEncoderSettings VideoEncoder;
+
+	/** Probability (0.0-1.0) of enabling distance variation in random trajectory calculations. Default 0.5 (50%) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float RandomTrajectoryDistanceVariationProbability = 0.5f;
+
+	/** Minimum distance multiplier for random trajectory distance variation. Default 0.7 (70% of original distance) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.1", ClampMax = "5.0"))
+	float DistanceVariationMin = 0.7f;
+
+	/** Maximum distance multiplier for random trajectory distance variation. Default 1.1 (110% of original distance) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.1", ClampMax = "5.0"))
+	float DistanceVariationMax = 1.1f;
 };
 
 /**

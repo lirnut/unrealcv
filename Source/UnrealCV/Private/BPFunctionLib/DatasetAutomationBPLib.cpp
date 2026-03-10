@@ -103,6 +103,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("55 70")));
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("155 175")));
+		// CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"));
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("0.0 1.0 4.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
@@ -222,7 +223,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 			CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("80 90")));
 		}
 		
-		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("125 175")));
+		// CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("125 175")));
+		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground")));
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 0.5 2.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("6.0")));

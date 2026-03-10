@@ -182,6 +182,31 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetPaused);
 	Help = "Set bPaused state for camera: vset /captureactor/[id]/paused [0/1]";
 	BindCommandDualCameraID("vset /captureactor/[camera_id]/paused [uint]", Cmd, Help);
+
+	// Random trajectory distance variation settings (global)
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetRandomTrajectoryDistanceVariationProbability);
+	Help = "Get probability (0.0-1.0) of enabling distance variation in random trajectories";
+	CommandDispatcher->BindCommand("vget /captureactor/random_distance_variation_probability", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetRandomTrajectoryDistanceVariationProbability);
+	Help = "Set probability (0.0-1.0) of enabling distance variation in random trajectories";
+	CommandDispatcher->BindCommand("vset /captureactor/random_distance_variation_probability [float]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetDistanceVariationMin);
+	Help = "Get minimum distance multiplier for random trajectory distance variation (default 0.7)";
+	CommandDispatcher->BindCommand("vget /captureactor/distance_variation_min", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetDistanceVariationMin);
+	Help = "Set minimum distance multiplier for random trajectory distance variation";
+	CommandDispatcher->BindCommand("vset /captureactor/distance_variation_min [float]", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::GetDistanceVariationMax);
+	Help = "Get maximum distance multiplier for random trajectory distance variation (default 1.1)";
+	CommandDispatcher->BindCommand("vget /captureactor/distance_variation_max", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::SetDistanceVariationMax);
+	Help = "Set maximum distance multiplier for random trajectory distance variation";
+	CommandDispatcher->BindCommand("vset /captureactor/distance_variation_max [float]", Cmd, Help);
 }
 
 FExecStatus FCaptureActorHandler::SpawnFreeCamera(const TArray<FString>& Args)
@@ -744,4 +769,72 @@ FExecStatus FCaptureActorHandler::SetPaused(const TArray<FString>& Args)
 	int32 Value = FCString::Atoi(*Args[1]);
 	CaptureActor->bPaused = (Value != 0);
 	return FExecStatus::OK(FString::Printf(TEXT("bPaused = %d"), Value));
+}
+
+// ========== Random Trajectory Distance Variation Settings (Global) ==========
+
+FExecStatus FCaptureActorHandler::GetRandomTrajectoryDistanceVariationProbability(const TArray<FString>& Args)
+{
+	return FExecStatus::OK(FString::Printf(TEXT("%.4f"), AFusionCamCaptureActor::RecordingSettings.RandomTrajectoryDistanceVariationProbability));
+}
+
+FExecStatus FCaptureActorHandler::SetRandomTrajectoryDistanceVariationProbability(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/random_distance_variation_probability [float]");
+	}
+
+	float Value = FCString::Atof(*Args[0]);
+	if (Value < 0.0f || Value > 1.0f)
+	{
+		return FExecStatus::Error("Probability must be between 0.0 and 1.0");
+	}
+
+	AFusionCamCaptureActor::RecordingSettings.RandomTrajectoryDistanceVariationProbability = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("RandomTrajectoryDistanceVariationProbability = %.4f"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetDistanceVariationMin(const TArray<FString>& Args)
+{
+	return FExecStatus::OK(FString::Printf(TEXT("%.4f"), AFusionCamCaptureActor::RecordingSettings.DistanceVariationMin));
+}
+
+FExecStatus FCaptureActorHandler::SetDistanceVariationMin(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/distance_variation_min [float]");
+	}
+
+	float Value = FCString::Atof(*Args[0]);
+	if (Value < 0.1f)
+	{
+		return FExecStatus::Error("Distance variation min must be at least 0.1");
+	}
+
+	AFusionCamCaptureActor::RecordingSettings.DistanceVariationMin = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("DistanceVariationMin = %.4f"), Value));
+}
+
+FExecStatus FCaptureActorHandler::GetDistanceVariationMax(const TArray<FString>& Args)
+{
+	return FExecStatus::OK(FString::Printf(TEXT("%.4f"), AFusionCamCaptureActor::RecordingSettings.DistanceVariationMax));
+}
+
+FExecStatus FCaptureActorHandler::SetDistanceVariationMax(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		return FExecStatus::Error("Usage: vset /captureactor/distance_variation_max [float]");
+	}
+
+	float Value = FCString::Atof(*Args[0]);
+	if (Value < 0.1f)
+	{
+		return FExecStatus::Error("Distance variation max must be at least 0.1");
+	}
+
+	AFusionCamCaptureActor::RecordingSettings.DistanceVariationMax = Value;
+	return FExecStatus::OK(FString::Printf(TEXT("DistanceVariationMax = %.4f"), Value));
 }
