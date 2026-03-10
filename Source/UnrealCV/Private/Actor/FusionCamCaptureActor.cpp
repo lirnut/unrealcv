@@ -74,8 +74,6 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	bPauseWorldDuringRecord = false;
 	WarmUpElapsedFrames = 0;
 
-	MovieQualityRenderer = nullptr;
-
 	MP4EncodedFrameCount = 0;
 
 	InterpolationAlpha = 0.0f;
@@ -247,6 +245,8 @@ void AFusionCamCaptureActor::StopRecord()
 				ViewportRenderer->FlushPendingFrames();
 				UE_LOG(LogUnrealCV, Log, TEXT("MainViewportRenderer flush completed"));
 			}
+
+			// TargetSensor->SetEnableMainViewportRender(false);
 		}
 
 		if (IsValid(TargetSensor))
@@ -1371,26 +1371,9 @@ void AFusionCamCaptureActor::StartTrajectoryRecord(const FString& FileName, ECam
 		StopRecord();
 	}
 
-	if (MovieQualityRenderer && MovieQualityRenderer->IsInitialized())
+	if (RecordingSettings.bRecordViaViewport)
 	{
-		MovieQualityRenderer->RestoreQualitySettings();
-		MovieQualityRenderer->Shutdown();
-		MovieQualityRenderer = nullptr;
-		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: MovieQualityRenderer shutdown and quality settings restored"));
-	}
-
-
-	if (!MovieQualityRenderer)
-	{
-		MovieQualityRenderer = NewObject<UMovieQualityRenderSubsystem>(this);
-	}
-
-	if (MovieQualityRenderer && !MovieQualityRenderer->IsInitialized())
-	{
-		FIntPoint Resolution(TargetSensor->GetFilmWidth(), TargetSensor->GetFilmHeight());
-		MovieQualityRenderer->Initialize(GetWorld(), Resolution);
-		MovieQualityRenderer->ApplyMovieQualitySettings();
-		UE_LOG(LogUnrealCV, Log, TEXT("FusionCamCaptureActor: MovieQualityRenderer initialized at %dx%d"), Resolution.X, Resolution.Y);
+		TargetSensor->SetEnableMainViewportRender(true);
 	}
 
 	PrepareTrajectoryRecord(Target, FPS);

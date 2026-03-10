@@ -64,7 +64,7 @@ class UEConfig:
     def build_tool_path(self) -> Optional[Path]:
         """Find available build tool"""
         patterns = [
-            "Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll",
+            "Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.exe",  # Prefer .exe on Windows
             "Build/BatchFiles/RunUAT.bat",
         ]
         for pattern in patterns:

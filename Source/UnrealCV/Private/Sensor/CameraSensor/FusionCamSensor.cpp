@@ -523,8 +523,10 @@ void UFusionCamSensor::SetFilmSize(int Width, int Height)
 	// check(OneObjectLitCamSensor);
 	// OneObjectLitCamSensor->Initialize(Width, Height);
 
-	check(IsValid(MainViewportRenderComponent));
-	MainViewportRenderComponent->Initialize(Width, Height);
+	if (bEnableMainViewportRender && IsValid(MainViewportRenderComponent))
+	{
+		MainViewportRenderComponent->Initialize(Width, Height);
+	}
 }
 
 float UFusionCamSensor::GetSensorFOV()
@@ -543,8 +545,10 @@ void UFusionCamSensor::SetSensorFOV(float fov)
 	check(MovieQualityRenderer);
 	MovieQualityRenderer->SetFOV(FOV);
 
-	check(IsValid(MainViewportRenderComponent))
-	MainViewportRenderComponent->SetFOV(FOV);
+	if (bEnableMainViewportRender && IsValid(MainViewportRenderComponent))
+	{
+		MainViewportRenderComponent->SetFOV(FOV);
+	}
 	// check(OneObjectLitCamSensor);
 	// OneObjectLitCamSensor->SetFOV(FOV);
 }

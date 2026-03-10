@@ -264,6 +264,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
 	class UMainViewportRenderComponent* MainViewportRenderComponent;
 
+	/** Whether to enable MainViewportRenderComponent. When disabled, FusionCamSensor will not affect the main viewport/camera. */
+	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
+	bool bEnableMainViewportRender = false;
+
 
 	/** This preview camera is used for UE version < 4.17 which only support UCameraComponent PIP preview
 	See the difference between
@@ -299,6 +303,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	class UMainViewportRenderComponent* GetMainViewportRenderComponent() const { return MainViewportRenderComponent; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	bool GetEnableMainViewportRender() const { return bEnableMainViewportRender; }
+
+	UFUNCTION(BlueprintCallable, Category = "unrealcv")
+	void SetEnableMainViewportRender(bool bEnabled) { bEnableMainViewportRender = bEnabled; }
 
 	UFUNCTION(BlueprintCallable, Category = "unrealcv")
 	TArray<class UBaseCameraSensor*> GetSensors() const { return FusionSensors; }
