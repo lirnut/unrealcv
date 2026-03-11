@@ -99,13 +99,13 @@ bool SocketReceiveAll(FSocket* Socket, uint8* Result, int32 ExpectedSize)
 			// LastError == ESocketErrors::SE_EWOULDBLOCK means running a non-block socket."));
 			if (LastError == ESocketErrors::SE_ECONNABORTED) // SE_ECONNABORTED
 			{
-				UE_LOG(LogUnrealCV, Error, TEXT("Connection aborted unexpectly."));
+				UE_LOG(LogUnrealCV, Warning, TEXT("Connection aborted unexpectly."));
 				return false;
 			}
 
 			if (LastError == ESocketErrors::SE_ENOTCONN)
 			{
-				UE_LOG(LogUnrealCV, Error, TEXT("Socket is not connected."));
+				UE_LOG(LogUnrealCV, Warning, TEXT("Socket is not connected."));
 				return false;
 			}
 

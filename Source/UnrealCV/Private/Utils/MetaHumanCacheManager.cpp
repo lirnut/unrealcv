@@ -22,7 +22,7 @@ FMetaHumanCacheManager& FMetaHumanCacheManager::Get()
 
 FString FMetaHumanCacheManager::GetCachePath()
 {
-	return FPaths::ProjectSavedDir() / TEXT("MetaHumanCache.json");
+	return FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("MetaHumanCache.json"));
 }
 
 TArray<FString> FMetaHumanCacheManager::GetAllMetaHumanPaths()
@@ -102,6 +102,7 @@ TArray<FString> FMetaHumanCacheManager::LoadCacheFromFile()
 
 	if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
 	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to parse MetaHumanCache JSON from: %s"), *CachePath);
 		UE_LOG(LogTemp, Error, TEXT("Failed to parse MetaHumanCache JSON from: %s"), *CachePath);
 		return MetaHumanPaths;
 	}

@@ -38,7 +38,10 @@ class UEConfig:
         "Blueprint", "Camera", "Sensor", "Recording"
     ])
     log_exclude_patterns: List[str] = field(default_factory=lambda: [
-        "LogInit", "LogModuleManager", "LogStreamlineAPI"
+        "LogInit", "LogModuleManager", "LogStreamlineAPI", "Connection"
+    ])
+    log_include_levels: List[str] = field(default_factory=lambda: [
+        "Error", "Fatal"
     ])
     log_buffer_size: int = 1000  # lines to keep in memory
     log_output_dir: Path = field(default_factory=lambda: Path("./debug_logs"))
