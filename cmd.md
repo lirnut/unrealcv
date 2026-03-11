@@ -115,9 +115,18 @@ DebugGame 控制台中支持的完整命令列表
   - vget /object/[name]/bounds - 获取物体边界
 
   记录命令 (/captureactor/*)
-  - vset /captureactor/spawn_free_cam - 生成自由摄像机
-  - vset /captureactor/time_dilation [float] - 设置录制时间膨胀 (0.1-10.0)
+
+  摄像机管理:
+  - vset /captureactor/spawn_free_cam - 生成自由摄像机（位于世界原点）
   - vget /captureactor/asset_pool - 查询资产池中的资产
+
+  时间控制:
+  - vget /captureactor/time_dilation - 获取当前时间膨胀值
+  - vset /captureactor/time_dilation [float] - 设置录制时间膨胀 (0.1-10.0)
+  - vget /captureactor/paused_tick_interval - 获取暂停时刻间隔（秒）
+  - vset /captureactor/paused_tick_interval [float] - 设置暂停时刻间隔（秒）
+
+  录制控制:
   - vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] [{lit|rgb},{object_mask|seg},normal,depth,optical_flow] - 开始录像（不干涉相机移动）
       ```
       >>> vset /capturreactor/CID-BP_Hatchback_child_base_C_4-00/record G:\Project_UE56\tmp 24 100 lit <<<
@@ -125,6 +134,50 @@ DebugGame 控制台中支持的完整命令列表
       ```
   - vget /captureactor/[id]/is_recording - 查询是否正在录制
   - vset /captureactor/[id]/stop_record - 停止录制指定摄像机
+  - vget /captureactor/use_movie_quality_rendering - 获取 bUseMovieQualityRendering（全局设置）
+  - vset /captureactor/use_movie_quality_rendering [uint] - 设置 bUseMovieQualityRendering（全局设置）：0 或 1
+  - vget /captureactor/record_via_viewport - 获取 bRecordViaViewport（全局设置）
+  - vset /captureactor/record_via_viewport [uint] - 设置 bRecordViaViewport（全局设置）：0 或 1
+  - vget /captureactor/warmup_frames - 获取预热帧数
+  - vset /captureactor/warmup_frames [uint] - 设置预热帧数
+
+  视频编码设置:
+  - vget /captureactor/video_encoder_bitrate - 获取视频编码器比特率设置（mean_mbps、max_mbps、quality）
+  - vset /captureactor/video_encoder_bitrate [mean_mbps] [max_mbps] [quality] - 设置视频编码器比特率
+  - vget /captureactor/h264_encoding - 获取 H264 编码启用状态
+  - vset /captureactor/h264_encoding [uint] - 设置 H264 编码启用：0 或 1
+  - vget /captureactor/auto_generate_video - 获取录制后自动生成视频
+  - vset /captureactor/auto_generate_video [uint] - 设置自动生成视频：0 或 1
+  - vget /captureactor/video_gen_script_path - 获取视频生成脚本路径
+  - vset /captureactor/video_gen_script_path [str] - 设置视频生成脚本路径
+
+  相机参数（每个摄像机实例）:
+  - vget /captureactor/[id]/add_timestamp - 获取 bAddTimestamp（相机）
+  - vset /captureactor/[id]/add_timestamp [uint] - 设置 bAddTimestamp（相机）：0 或 1
+  - vget /captureactor/[id]/paused - 获取暂停状态（相机）
+  - vset /captureactor/[id]/paused [uint] - 设置暂停状态（相机）：0 或 1
+
+  前景运动控制:
+  - vget /captureactor/[id]/track_foreground_movement - 获取 bTrackForegroundMovement（相机）
+  - vset /captureactor/[id]/track_foreground_movement [uint] - 设置 bTrackForegroundMovement（相机）：0 或 1
+  - vget /captureactor/[id]/foreground_move_speed - 获取前景移动速度（相机）
+  - vset /captureactor/[id]/foreground_move_speed [float] - 设置前景移动速度（相机，cm/s）
+  - vget /captureactor/[id]/foreground_move_angle_offset - 获取前景移动角度偏移（相机）
+  - vset /captureactor/[id]/foreground_move_angle_offset [float] - 设置前景移动角度偏移（相机，度）
+  - vget /captureactor/[id]/target_height_offset - 获取目标高度偏移（相机）
+  - vset /captureactor/[id]/target_height_offset [float] - 设置目标高度偏移（相机）
+
+  轨迹模式设置:
+  - vget /captureactor/[id]/bullet_time_speed - 获取子弹时间速度（相机）
+  - vset /captureactor/[id]/bullet_time_speed [float] - 设置子弹时间速度（相机）
+
+  随机轨迹设置（全局）:
+  - vget /captureactor/random_distance_variation_probability - 获取随机轨迹距离变化概率（0.0-1.0）
+  - vset /captureactor/random_distance_variation_probability [float] - 设置随机轨迹距离变化概率（0.0-1.0）
+  - vget /captureactor/distance_variation_min - 获取最小距离乘数（默认 0.7）
+  - vset /captureactor/distance_variation_min [float] - 设置最小距离乘数
+  - vget /captureactor/distance_variation_max - 获取最大距离乘数（默认 1.1）
+  - vset /captureactor/distance_variation_max [float] - 设置最大距离乘数
 
   插件命令 (/unrealcv/*)
 
@@ -161,16 +214,60 @@ DebugGame 控制台中支持的完整命令列表
   - vget /light/directional/castdeepshadow - 获取方向光深阴影状态
   - vset /light/directional/castdeepshadow [bool] - 设置方向光深阴影
 
+  影视质量渲染命令 (/mqrc/*)
+
+  抗锯齿与屏幕百分比:
+  - vget /mqrc/antialiasing - 获取抗锯齿方法 (fxaa, temporal_aa, tsr, none)
+  - vset /mqrc/antialiasing [str] - 设置抗锯齿方法
+  - vget /mqrc/screen_percentage - 获取屏幕百分比 (1.0 = 100%, 1.5 = 150% 超采样)
+  - vset /mqrc/screen_percentage [float] - 设置屏幕百分比
+  - vget /mqrc/screen_percentage_method - 获取主屏幕百分比方法 (spatial, temporal, raw)
+  - vset /mqrc/screen_percentage_method [str] - 设置屏幕百分比方法
+
+  曝光控制:
+  - vget /mqrc/exposure_method - 获取曝光方法 (histogram, basic, manual)
+  - vset /mqrc/exposure_method [str] - 设置曝光方法
+  - vget /mqrc/exposure_bias - 获取曝光偏差值
+  - vset /mqrc/exposure_bias [float] - 设置曝光偏差值
+  - vget /mqrc/auto_exposure_min_brightness - 获取自动曝光最小亮度
+  - vset /mqrc/auto_exposure_min_brightness [float] - 设置自动曝光最小亮度
+  - vget /mqrc/auto_exposure_max_brightness - 获取自动曝光最大亮度
+  - vset /mqrc/auto_exposure_max_brightness [float] - 设置自动曝光最大亮度
+
+  色彩校正:
+  - vget /mqrc/saturation - 获取饱和度
+  - vset /mqrc/saturation [float] - 设置饱和度
+  - vget /mqrc/contrast - 获取对比度
+  - vset /mqrc/contrast [float] - 设置对比度
+  - vget /mqrc/gamma - 获取伽马值
+  - vset /mqrc/gamma [float] - 设置伽马值
+  - vget /mqrc/gain - 获取增益
+  - vset /mqrc/gain [float] - 设置增益
+
+  动态模糊与深度:
+  - vget /mqrc/motion_blur - 获取运动模糊量
+  - vset /mqrc/motion_blur [float] - 设置运动模糊量
+  - vget /mqrc/depth_of_field_scale - 获取景深缩放
+  - vset /mqrc/depth_of_field_scale [float] - 设置景深缩放
+
+  Lumen 全局光照:
+  - vget /mqrc/lumen_quality - 获取 Lumen 质量设置 (scene_quality gather_quality)
+  - vset /mqrc/lumen_quality [float] [float] - 设置 Lumen 质量设置
+  - vget /mqrc/lumen_final_gather_lighting_update_speed - 获取 Lumen 最终采集照明更新速度
+  - vset /mqrc/lumen_final_gather_lighting_update_speed [float] - 设置 Lumen 最终采集照明更新速度
+  - vget /mqrc/override_lumen_final_gather_lighting_update_speed - 获取 Lumen 最终采集照明更新速度覆盖标志
+  - vset /mqrc/override_lumen_final_gather_lighting_update_speed [bool] - 设置 Lumen 最终采集照明更新速度覆盖标志
+
   PAK文件命令 (/pak/*)
 
-  - vset /pak/mount [path] [order] - 挂载PAK文件
-  - vset /pak/unmount [path] - 卸载PAK文件
+  - vset /pak/mount [str] [uint] - 挂载PAK文件（指定加载顺序）
+  - vset /pak/unmount [str] - 卸载PAK文件
   - vget /pak/mounted - 获取所有已挂载的PAK文件列表
-  - vget /pak/ismounted [path] - 检查PAK文件是否已挂载
-  - vset /pak/scan [mountpoint] [force_rescan] - 扫描已挂载PAK中的资源
-  - vget /pak/load [assetpath] - 从PAK加载资源
-  - vget /pak/assets [packagepath] - 获取路径下所有资源
-  - vset /pak/register [path] [category] - 注册PAK资源到AssetPool
+  - vget /pak/ismounted [str] - 检查PAK文件是否已挂载
+  - vset /pak/scan [str] [uint] - 扫描已挂载PAK中的资源
+  - vget /pak/load [str] - 从PAK加载资源
+  - vget /pak/assets [str] - 获取路径下所有资源
+  - vset /pak/register [str] [str] - 注册PAK资源到AssetPool
 
   数据集自动化命令 (/datasetautomation/*)
 
@@ -186,15 +283,15 @@ DebugGame 控制台中支持的完整命令列表
   - vset /datasetautomation/currentscene/occluder_category [category] - 设置遮挡物类别
 
   Config:
-  - vset /datasetautomation/config/total_scenes [N] - 设置总场景数
-  - vset /datasetautomation/config/output_directory [path] - 设置输出目录
-  - vset /datasetautomation/config/trajectory_fps [fps] - 设置录制FPS
-  - vset /datasetautomation/config/trajectory_degrees_per_second [deg] - 设置角速度
-  - vset /datasetautomation/config/num_frames [N] - 设置轨迹录制帧数
-  - vset /datasetautomation/config/b_load_scene_params_from_json [true/false] - 是否从JSON加载参数
+  - vset /datasetautomation/config/total_scenes [uint] - 设置总场景数
+  - vset /datasetautomation/config/output_directory [str] - 设置输出目录
+  - vset /datasetautomation/config/trajectory_fps [uint] - 设置录制FPS
+  - vset /datasetautomation/config/num_frames [uint] - 设置轨迹录制帧数
+  - vset /datasetautomation/config/b_load_scene_params_from_json [bool] - 是否从JSON加载参数
   - vset /datasetautomation/config/foreground_move_speed [float] - 设置前景移动速度(cm/s)
   - vset /datasetautomation/config/foreground_move_angle_offset [float] - 设置前景移动角度偏移(度, 0=前进, 90=右, -90=左, 180=后退)
-  - vset /datasetautomation/config/b_exit_on_complete [true/false] - 批次生成完成后是否自动退出进程
+  - vset /datasetautomation/config/recording_options [str] - 设置录制数据类型（comma-separated: lit/rgb,mask/seg,normal,depth,flow,等）
+  - vset /datasetautomation/config/b_exit_on_complete [bool] - 批次生成完成后是否自动退出进程
   - vget /datasetautomation/config/b_exit_on_complete - 获取 b_exit_on_complete 配置
 
   Control:
@@ -356,6 +453,10 @@ DebugGame 控制台中支持的完整命令列表
   - vset /metahuman/update_cache - 扫描AssetRegistry并更新缓存文件
   - vget /metahuman/cache_path - 获取缓存文件路径
   - vget /metahuman/filter_batch - 从缓存中过滤批量生成的MetaHuman
+
+  编辑器命令 (/editor/*)
+
+  - vset /editor/start_standalone_pie - 在独立进程中启动 Standalone PIE (仅在编辑器中可用)
 
   MainViewportRenderComponent命令 (/mvrc/*)
 

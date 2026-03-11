@@ -254,13 +254,130 @@ class UETestRunner:
 
         # Define tests
         tests = [
-            ("Version", "vget /unrealcv/version"),
-            ("Status", "vget /unrealcv/status"),
-            ("Cameras", "vget /cameras"),
+            # === 插件/基础命令 ===
+            ("Unrealcv Version", "vget /unrealcv/version"),
+            ("Unrealcv Status", "vget /unrealcv/status"),
+            ("Unrealcv Help", "vget /unrealcv/help"),
+            ("Unrealcv Echo", "vget /unrealcv/echo test_message"),
+            ("Scene Name", "vget /scene/name"),
+            ("Level Name", "vget /level/name"),
+
+            # === 摄像机命令 ===
+            ("Cameras List", "vget /cameras"),
+            ("Cameras CID Format", "vget /cameras_CID"),
+            ("Cameras Legacy Format", "vget /cameras_legacy"),
             ("Camera 0 Location", "vget /camera/0/location"),
             ("Camera 0 Rotation", "vget /camera/0/rotation"),
             ("Camera 0 FOV", "vget /camera/0/fov"),
-            ("Objects", "vget /objects"),
+            ("Camera 0 Size", "vget /camera/0/size"),
+            ("Camera 0 Use Fast Capture", "vget /camera/0/use_fast_capture"),
+
+            # === 物体命令 ===
+            ("Objects List", "vget /objects"),
+            ("Objects Search bp", "vget /objects bp"),
+            # ("Objects Scan Assets", "vget /objects/scan_assets"),  # OOM
+
+            # === 游戏控制 ===
+            ("Is Paused", "vget /action/game/is_paused"),
+
+            # === Pawn 命令 ===
+            ("Pawn Location", "vget /pawn/location"),
+            ("Pawn Rotation", "vget /pawn/rotation"),
+
+            # === 光照命令 ===
+            ("Directional Light Intensity", "vget /light/directional/intensity"),
+            ("Skylight Intensity", "vget /light/skylight/intensity"),
+            ("Directional Light Cast Deep Shadow", "vget /light/directional/castdeepshadow"),
+
+            # === 视图模式 ===
+            ("View Mode", "vget /viewmode"),
+
+            # === 数据集自动化 ===
+            ("DatasetAutomation Task Name", "vget /datasetautomation/task_name"),
+            ("DatasetAutomation Status", "vget /datasetautomation/status"),
+            ("DatasetAutomation History", "vget /datasetautomation/history"),
+            ("DatasetAutomation Sequence", "vget /datasetautomation/sequence"),
+            ("DatasetAutomation Config B Exit On Complete", "vget /datasetautomation/config/b_exit_on_complete"),
+
+            # === PAK 文件命令 ===
+            ("PAK Mounted List", "vget /pak/mounted"),
+
+            # === 记录/CaptureActor - 全局设置 ===
+            ("CaptureActor Asset Pool", "vget /captureactor/asset_pool"),
+            ("CaptureActor Time Dilation", "vget /captureactor/time_dilation"),
+            ("CaptureActor Use Movie Quality Rendering", "vget /captureactor/use_movie_quality_rendering"),
+            ("CaptureActor Record Via Viewport", "vget /captureactor/record_via_viewport"),
+            ("CaptureActor Warmup Frames", "vget /captureactor/warmup_frames"),
+            ("CaptureActor Paused Tick Interval", "vget /captureactor/paused_tick_interval"),
+
+            # === 记录/CaptureActor - 视频编码设置 ===
+            ("CaptureActor Video Encoder Bitrate", "vget /captureactor/video_encoder_bitrate"),
+            ("CaptureActor H264 Encoding", "vget /captureactor/h264_encoding"),
+            ("CaptureActor Auto Generate Video", "vget /captureactor/auto_generate_video"),
+            ("CaptureActor Video Gen Script Path", "vget /captureactor/video_gen_script_path"),
+
+            # # === 记录/CaptureActor - 每摄像机设置 (camera 0) ===
+            # ("CaptureActor 0 Add Timestamp", "vget /captureactor/0/add_timestamp"),
+            # ("CaptureActor 0 Paused", "vget /captureactor/0/paused"),
+
+            # # === 记录/CaptureActor - 前景运动控制 (camera 0) ===
+            # ("CaptureActor 0 Track Foreground Movement", "vget /captureactor/0/track_foreground_movement"),
+            # ("CaptureActor 0 Foreground Move Speed", "vget /captureactor/0/foreground_move_speed"),
+            # ("CaptureActor 0 Foreground Move Angle Offset", "vget /captureactor/0/foreground_move_angle_offset"),
+            # ("CaptureActor 0 Target Height Offset", "vget /captureactor/0/target_height_offset"),
+
+            # # === 记录/CaptureActor - 轨迹模式 (camera 0) ===
+            # ("CaptureActor 0 Bullet Time Speed", "vget /captureactor/0/bullet_time_speed"),
+
+            # === 记录/CaptureActor - 随机轨迹设置 ===
+            ("CaptureActor Random Distance Variation Probability", "vget /captureactor/random_distance_variation_probability"),
+            ("CaptureActor Distance Variation Min", "vget /captureactor/distance_variation_min"),
+            ("CaptureActor Distance Variation Max", "vget /captureactor/distance_variation_max"),
+
+            # === 别名/关卡命令 ===
+            ("Persistent Level ID", "vget /persistent_level/id"),
+            ("Persistent Level Script Actor ID", "vget /persistent_level/level_script_actor/id"),
+
+            # === MetaHuman 命令 ===
+            ("MetaHuman All Paths", "vget /metahuman/all_paths"),
+            ("MetaHuman Cache Path", "vget /metahuman/cache_path"),
+            ("MetaHuman Filter Batch", "vget /metahuman/filter_batch"),
+
+            # === MVRC 命令 ===
+            ("MVRC Use Sync Capture", "vget /mvrc/use_sync_capture"),
+
+            # === MQRC 命令 - Anti-Aliasing & Screen Percentage ===
+            ("MQRC Antialiasing", "vget /mqrc/antialiasing"),
+            ("MQRC Screen Percentage", "vget /mqrc/screen_percentage"),
+            ("MQRC Screen Percentage Method", "vget /mqrc/screen_percentage_method"),
+
+            # === MQRC 命令 - Exposure Control ===
+            ("MQRC Exposure Method", "vget /mqrc/exposure_method"),
+            ("MQRC Exposure Bias", "vget /mqrc/exposure_bias"),
+            ("MQRC Auto Exposure Min Brightness", "vget /mqrc/auto_exposure_min_brightness"),
+            ("MQRC Auto Exposure Max Brightness", "vget /mqrc/auto_exposure_max_brightness"),
+
+            # === MQRC 命令 - Color Correction ===
+            ("MQRC Saturation", "vget /mqrc/saturation"),
+            ("MQRC Contrast", "vget /mqrc/contrast"),
+            ("MQRC Gamma", "vget /mqrc/gamma"),
+            ("MQRC Gain", "vget /mqrc/gain"),
+
+            # === MQRC 命令 - Motion & Depth Effects ===
+            ("MQRC Motion Blur", "vget /mqrc/motion_blur"),
+            ("MQRC Depth Of Field Scale", "vget /mqrc/depth_of_field_scale"),
+
+            # === MQRC 命令 - Lumen Global Illumination ===
+            ("MQRC Lumen Quality", "vget /mqrc/lumen_quality"),
+            ("MQRC Lumen Final Gather Lighting Update Speed", "vget /mqrc/lumen_final_gather_lighting_update_speed"),
+            ("MQRC Override Lumen Final Gather Lighting Update Speed", "vget /mqrc/override_lumen_final_gather_lighting_update_speed"),
+
+            # === 编辑器命令 ===
+            # ("Editor Start Standalone PIE", "vset /editor/start_standalone_pie"),  # Editor only
+
+            # === 数据集自动化 - 额外命令 ===
+            # ("DatasetAutomation Config Recording Options", "vset /datasetautomation/config/recording_options lit,mask,normal,depth"),  # Need file path validation
+            # ("DatasetAutomation Start With Log Suffix", "vset /datasetautomation/start test_session"),  # May require active setup
         ]
 
         for name, cmd in tests:

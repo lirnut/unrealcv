@@ -20,7 +20,7 @@
 #include "Commands/LightHandler.h"
 #include "Commands/PawnHandler.h"
 #include "Commands/PakHandler.h"
-#include "Commands/RenderQualityHandler.h"
+#include "Commands/MQRCHandler.h"
 #include "Commands/MVRCHandler.h"
 #include "Commands/MetaHumanHandler.h"
 #include "WorldController.h"

@@ -1,4 +1,4 @@
-#include "RenderQualityHandler.h"
+#include "MQRCHandler.h"
 #include "Sensor/CameraSensor/MovieQualityRenderComponent.h"
 #include "Utils/StrFormatter.h"
 
