@@ -336,7 +336,7 @@ class UETestRunner:
 
             # === 别名/关卡命令 ===
             ("Persistent Level ID", "vget /persistent_level/id"),
-            ("Persistent Level Script Actor ID", "vget /persistent_level/level_script_actor/id"),
+            # ("Persistent Level Script Actor ID", "vget /persistent_level/level_script_actor/id"),
 
             # === MetaHuman 命令 ===
             ("MetaHuman All Paths", "vget /metahuman/all_paths"),
