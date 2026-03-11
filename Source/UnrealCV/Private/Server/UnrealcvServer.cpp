@@ -318,29 +318,9 @@ void FUnrealcvServer::ProcessRequest(FRequest& Request)
 	FString Header = FString::Printf(TEXT("%d:"), Request.RequestId);
 	bool bDataEmpty = ExecStatus.BinaryData.Num() == 0;
 
-	// poor readability, see FExecStatus::GetData()
 	TArray<uint8> ReplyData;
-	if (!bDataEmpty)
-	{
-		ReplyData = MoveTemp(ExecStatus.BinaryData);
-		ExecStatus.BinaryData = {};
-	}
-	else
-	{
-		ReplyData = ExecStatus.GetData();
-	}
-	
-	// It is still needed to copy Data once
-	// copy a 1080*1080*3 byte array may take about 0.3-0.5ms, depending on your mem
-	#if ENGINE_MAJOR_VERSION <= 4
-		FTCHARToUTF8 Convert(*Header);
-		ReplyData.Insert((UTF8CHAR*)Convert.Get(), Convert.Length(), 0);
-	#else 
-		//https://github.com/EpicGames/UnrealEngine/blob/5.3/Engine/Source/Runtime/Core/Public/Containers/StringConv.hL#L1070
-		auto converter = StringCast<UTF8CHAR>(*Header);
-		ReplyData.Insert((uint8*)converter.Get(), converter.Length(), 0);
-	#endif
-
+	FExecStatus::BinaryArrayFromString(Header, ReplyData);
+	ExecStatus.AppendDataTo(ReplyData);
 	// ReplyData += ExecStatus.GetData();
 	double SendStartTime = FPlatformTime::Seconds();
 	TcpServer->SendData(ReplyData);
@@ -375,7 +355,7 @@ void FUnrealcvServer::ProcessPendingRequest()
 			FString Header = FString::Printf(TEXT("%d:"), Request.RequestId);
 			TArray<uint8> ReplyData;
 			FExecStatus::BinaryArrayFromString(Header, ReplyData);
-			ReplyData += FExecStatus::OK().GetData();
+			FExecStatus::OK().AppendDataTo(ReplyData);
 			TcpServer->SendData(ReplyData); // return a fake ok for vbatch
 			continue;
 		}

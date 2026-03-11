@@ -112,12 +112,8 @@ FExecStatus::FExecStatus(FExecStatusType InExecStatusType, TArray<uint8>& InBina
 	}
 }
 
-TArray<uint8> FExecStatus::GetData() const // Define how to format the reply string
+static FString FormatStatusString(FExecStatusType ExecStatusType, const FString& MessageBody)
 {
-	if (this->BinaryData.Num() != 0)
-	{
-		return BinaryData;
-	}
 	FString TypeName;
 	FString Message;
 	switch (ExecStatusType)
@@ -136,11 +132,29 @@ TArray<uint8> FExecStatus::GetData() const // Define how to format the reply str
 	{
 		Message = FString::Printf(TEXT("%s %s"), *TypeName, *MessageBody);
 	}
-	TArray<uint8> FormatedBinaryData;
-	BinaryArrayFromString(Message, FormatedBinaryData);
-	
-	return FormatedBinaryData;
+	return Message;
 }
+
+TArray<uint8> FExecStatus::GetData() const
+{
+	TArray<uint8> FormattedBinaryData;
+	AppendDataTo(FormattedBinaryData);
+	return FormattedBinaryData;
+}
+
+void FExecStatus::AppendDataTo(TArray<uint8>& OutData) const
+{
+	if (BinaryData.Num() != 0)
+	{
+		OutData.Append(BinaryData);
+		return;
+	}
+
+	TArray<uint8> FormattedBinaryData;
+	BinaryArrayFromString(FormatStatusString(ExecStatusType, MessageBody), FormattedBinaryData);
+	OutData.Append(FormattedBinaryData);
+}
+
 
 
 void FExecStatus::BinaryArrayFromString(const FString& Message, TArray<uint8>& OutBinaryArray)

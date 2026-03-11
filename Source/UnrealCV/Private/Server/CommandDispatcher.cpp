@@ -203,9 +203,10 @@ FExecStatus FCommandDispatcher::Exec(const FString Uri)
 		// FRegexPattern Pattern = FRegexPattern(Elem.Key);
 		FString Key = UriList[UriIndex];
 		//UE_LOG(LogUnrealCV, Warning, TEXT("match list item : %s"), *Key);
-		FRegexPattern Pattern = UriRegexPattern[Key];
+		const FRegexPattern* Pattern = UriRegexPattern.Find(Key);
+		if (!Pattern) { continue; }
 
-		FRegexMatcher Matcher(Pattern, Uri);
+		FRegexMatcher Matcher(*Pattern, Uri);
 		if (Matcher.FindNext())
 		{
 			for (uint32 GroupIndex = 1; GroupIndex < NumArgsLimit + 1; GroupIndex++)
@@ -215,17 +216,8 @@ FExecStatus FCommandDispatcher::Exec(const FString Uri)
 				FString Match = Matcher.GetCaptureGroup(GroupIndex); // TODO: Strip empty space
 				Args.Add(Match);
 			}
-			FDispatcherDelegate& Cmd = UriMapping[Key];
-			if (Cmd.IsBound())
-			{
-				return Cmd.Execute(Args); // The exec status can be successful, fail or give a message back
-			}
-			else
-			{
-				FString ErrorMsg = TEXT("Command delegate is not bound.");
-				UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *ErrorMsg);
-				return FExecStatus::Error(ErrorMsg);
-			}
+			FDispatcherDelegate* Cmd = UriMapping.Find(Key);
+			if (Cmd && Cmd->IsBound()) { return Cmd->Execute(Args); }
 		}
 
 		// TODO: Regular expression mapping is slow, need to implement in a more efficient way.

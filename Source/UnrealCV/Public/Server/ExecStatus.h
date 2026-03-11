@@ -69,6 +69,7 @@ public:
 
 	/** Convert this ExecStatus to a binary array */
 	TArray<uint8> GetData() const;
+	void AppendDataTo(TArray<uint8>& OutData) const;
 
 	/** Add this FExecStatus with other FExecStatus, useful for executing a few commands at the same time */
 	FExecStatus& operator+=(const FExecStatus& InExecStatus);
