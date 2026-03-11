@@ -30,6 +30,7 @@ class UEConfig:
     # Launch settings
     launch_timeout: int = 180  # seconds
     server_ready_timeout: int = 60  # seconds
+    post_launch_delay: float = 3.0  # seconds to wait after server ready before tests
 
     # Log settings
     log_filter_keywords: List[str] = field(default_factory=lambda: [
@@ -37,7 +38,7 @@ class UEConfig:
         "Blueprint", "Camera", "Sensor", "Recording"
     ])
     log_exclude_patterns: List[str] = field(default_factory=lambda: [
-        "LogTemp", "LogInit", "LogModuleManager"
+        "LogInit", "LogModuleManager", "LogStreamlineAPI"
     ])
     log_buffer_size: int = 1000  # lines to keep in memory
     log_output_dir: Path = field(default_factory=lambda: Path("./debug_logs"))

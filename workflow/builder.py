@@ -95,6 +95,12 @@ class UEBuilder:
         if target is None:
             target = config.project_path.stem
 
+        # Create log file path
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        log_dir = Path(config.log_output_dir)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"build_{target}_{timestamp}.log"
+
         # Track attempts
         attempt = 0
         max_retries = config.max_build_retries
@@ -130,6 +136,7 @@ class UEBuilder:
                 cmd.insert(1, "-Clean")
 
             print(f"\n[Build] Command: {' '.join(cmd)}\n")
+            print(f"[Build] Log file: {log_path}\n")
 
             start_time = time.time()
 
@@ -147,6 +154,7 @@ class UEBuilder:
 
             errors = []
             warnings = []
+            full_log_lines = []
 
             def collect_logs(entry: LogEntry):
                 if entry.level == "Error":
@@ -156,84 +164,96 @@ class UEBuilder:
 
             log_monitor.add_callback(collect_logs)
 
-            try:
-                self._current_proc = subprocess.Popen(
-                    cmd,
-                    cwd=str(config.ue_path.parent),
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                    encoding='utf-8',
-                    errors='ignore'
-                )
+            # Open log file for writing
+            with open(log_path, 'w', encoding='utf-8') as log_file:
+                try:
+                    self._current_proc = subprocess.Popen(
+                        cmd,
+                        cwd=str(config.ue_path.parent),
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1,
+                        encoding='utf-8',
+                        errors='ignore'
+                    )
 
-                # Monitor output
-                for line in self._current_proc.stdout:
-                    log_monitor.feed_line(line)
+                    # Monitor output
+                    for line in self._current_proc.stdout:
+                        # Write to log file
+                        log_file.write(line)
+                        log_file.flush()
+                        full_log_lines.append(line)
+                        log_monitor.feed_line(line)
+                        if self._cancelled:
+                            self._current_proc.terminate()
+                            break
+
+                    self._current_proc.wait()
+                    duration = time.time() - start_time
+
                     if self._cancelled:
-                        self._current_proc.terminate()
-                        break
+                        return BuildResult(
+                            status=BuildStatus.CANCELLED,
+                            return_code=-1,
+                            duration=duration,
+                            log_path=log_path
+                        )
 
-                self._current_proc.wait()
-                duration = time.time() - start_time
+                    if self._current_proc.returncode == 0:
+                        self._notify_status(BuildStatus.SUCCESS, f"Build completed in {duration:.1f}s")
+                        return BuildResult(
+                            status=BuildStatus.SUCCESS,
+                            return_code=0,
+                            duration=duration,
+                            log_path=log_path,
+                            warnings=warnings
+                        )
+                    else:
+                        # Check for retryable errors
+                        retryable = self._is_retryable_error(errors)
+                        if retryable and attempt <= max_retries:
+                            print(f"\n[Build] Detected retryable error, will retry...")
+                            continue
 
-                if self._cancelled:
-                    return BuildResult(
-                        status=BuildStatus.CANCELLED,
-                        return_code=-1,
-                        duration=duration
-                    )
+                        self._notify_status(BuildStatus.FAILED, f"Build failed in {duration:.1f}s")
+                        return BuildResult(
+                            status=BuildStatus.FAILED,
+                            return_code=self._current_proc.returncode,
+                            duration=duration,
+                            log_path=log_path,
+                            errors=errors,
+                            warnings=warnings
+                        )
 
-                if self._current_proc.returncode == 0:
-                    self._notify_status(BuildStatus.SUCCESS, f"Build completed in {duration:.1f}s")
-                    return BuildResult(
-                        status=BuildStatus.SUCCESS,
-                        return_code=0,
-                        duration=duration,
-                        warnings=warnings
-                    )
-                else:
-                    # Check for retryable errors
-                    retryable = self._is_retryable_error(errors)
-                    if retryable and attempt <= max_retries:
-                        print(f"\n[Build] Detected retryable error, will retry...")
-                        continue
-
-                    self._notify_status(BuildStatus.FAILED, f"Build failed in {duration:.1f}s")
+                except subprocess.TimeoutExpired:
+                    duration = time.time() - start_time
+                    self._current_proc.kill()
+                    self._notify_status(BuildStatus.FAILED, "Build timed out")
                     return BuildResult(
                         status=BuildStatus.FAILED,
-                        return_code=self._current_proc.returncode,
+                        return_code=-1,
                         duration=duration,
-                        errors=errors,
-                        warnings=warnings
+                        log_path=log_path,
+                        errors=["Build timed out"]
                     )
-
-            except subprocess.TimeoutExpired:
-                duration = time.time() - start_time
-                self._current_proc.kill()
-                self._notify_status(BuildStatus.FAILED, "Build timed out")
-                return BuildResult(
-                    status=BuildStatus.FAILED,
-                    return_code=-1,
-                    duration=duration,
-                    errors=["Build timed out"]
-                )
-            except Exception as e:
-                duration = time.time() - start_time
-                self._notify_status(BuildStatus.FAILED, f"Build error: {e}")
-                return BuildResult(
-                    status=BuildStatus.FAILED,
-                    return_code=-1,
-                    duration=duration,
-                    errors=[str(e)]
-                )
+                except Exception as e:
+                    duration = time.time() - start_time
+                    self._notify_status(BuildStatus.FAILED, f"Build error: {e}")
+                    return BuildResult(
+                        status=BuildStatus.FAILED,
+                        return_code=-1,
+                        duration=duration,
+                        log_path=log_path,
+                        errors=[str(e)]
+                    )
 
         # Exhausted retries
         return BuildResult(
             status=BuildStatus.FAILED,
             return_code=-1,
             duration=0,
+            log_path=log_path,
             errors=["Max retries exceeded"] + errors,
             warnings=warnings
         )

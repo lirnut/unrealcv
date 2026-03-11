@@ -24,6 +24,16 @@ if CLIENT_PYTHON_DIR.exists():
 from config import get_config
 from log_monitor import LogMonitor, LogEntry, ConsoleLogPrinter
 
+def get_desktop_path():
+    if os.name == 'nt':
+        desktop_path = os.path.join(os.environ['USERPROFILE'], 'Desktop')
+    # macOS/Linux 系统
+    else:
+        desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+    return desktop_path
+
+
+
 
 class TestStatus(Enum):
     PENDING = "pending"
@@ -91,7 +101,7 @@ class UETestRunner:
         exe_path = config.exe_path
 
         if not exe_path.exists():
-            print(f"[Launch] Executable not found: {exe_path}")
+            print(f"ERROR|Launch|Executable not found: {exe_path}")
             return False
 
         env = os.environ.copy()
@@ -104,14 +114,13 @@ class UETestRunner:
             "-NoSplash",
             "-NoPause",
             "-FullStdOutLogOutput",
-            "-RenderOffScreen",  # Headless mode option
+            "-RenderOffScreen",
         ]
 
         if extra_args:
             cmd.extend(extra_args)
 
-        print(f"\n[Launch] Starting game: {exe_path.name}")
-        print(f"[Launch] Command: {' '.join(cmd)}\n")
+        print(f"INFO|Launch|Starting {exe_path.name}")
 
         try:
             self._game_proc = subprocess.Popen(
@@ -151,7 +160,7 @@ class UETestRunner:
         start_time = time.time()
 
         self._notify_status(TestStatus.WAITING_FOR_SERVER, f"Waiting for server on port {config.port}")
-        print(f"\n[Server] Waiting for UnrealCV server (timeout: {timeout}s)...")
+        print(f"INFO|Server|Waiting for server on port {config.port}")
 
         while time.time() - start_time < timeout:
             if self._cancelled:
@@ -160,7 +169,7 @@ class UETestRunner:
             # Check if process died
             if self._game_proc and self._game_proc.poll() is not None:
                 exit_code = self._game_proc.returncode
-                print(f"[Server] Game exited with code {exit_code}")
+                print(f"ERROR|Server|Game exited with code {exit_code}")
                 return False
 
             # Check TCP port
@@ -171,7 +180,7 @@ class UETestRunner:
                 sock.close()
                 if result == 0:
                     elapsed = time.time() - start_time
-                    print(f"[Server] Ready after {elapsed:.1f}s")
+                    print(f"INFO|Server|Ready after {elapsed:.1f}s")
                     self._server_ready = True
                     return True
             except Exception:
@@ -179,7 +188,7 @@ class UETestRunner:
 
             time.sleep(0.5)
 
-        print(f"[Server] Timeout after {timeout}s")
+        print(f"ERROR|Server|Timeout after {timeout}s")
         return False
 
     def run_basic_tests(self) -> TestSuiteResult:
@@ -236,6 +245,12 @@ class UETestRunner:
                 results=results
             )
 
+        # Wait for game to fully initialize (shader compilation, etc.)
+        if config.post_launch_delay > 0:
+            self._notify_status(TestStatus.RUNNING, f"Waiting {config.post_launch_delay}s for game initialization...")
+            print(f"INFO|Test|Waiting {config.post_launch_delay}s for initialization")
+            time.sleep(config.post_launch_delay)
+
         # Define tests
         tests = [
             ("Version", "vget /unrealcv/version"),
@@ -285,20 +300,102 @@ class UETestRunner:
                     message=f"Exception: {e}"
                 ))
 
-        client.disconnect()
+        # Image capture tests
+        if not self._cancelled:
+            desktop_path = get_desktop_path()
+            assert not " " in desktop_path, "the path should not contain space, otherwise the vget UE console parser will fail"
+
+            # 构造测试命令列表（自动拼接桌面路径）
+            capture_tests = [
+                ("Capture Lit", f"vget /camera/0/lit {os.path.join(desktop_path, 'test_lit.png')}"),
+                ("Capture Depth", f"vget /camera/0/depth {os.path.join(desktop_path, 'test_depth.npy')}"),
+                ("Capture Normal", f"vget /camera/0/normal {os.path.join(desktop_path, 'test_normal.png')}"),
+                ("Capture ObjectMask", f"vget /camera/0/object_mask {os.path.join(desktop_path, 'test_mask.png')}"),
+                ("Capture OpticalFlow", f"vget /camera/0/optical_flow {os.path.join(desktop_path, 'test_flow.png')}"),
+            ]
+
+            print("INFO|Test|Running image capture tests")
+            for name, cmd in capture_tests:
+                if self._cancelled:
+                    results.append(TestResult(
+                        name=name,
+                        status=TestStatus.CANCELLED,
+                        duration=0,
+                        message="Test cancelled"
+                    ))
+                    break
+
+                test_start = time.time()
+                try:
+                    res = client.request(cmd)
+                    duration = time.time() - test_start
+
+                    # Check if response is valid (not error and has content)
+                    if res and not res.startswith("error"):
+                        # Try to parse as image data (should be binary PNG data or file path)
+                        is_valid = len(res) > 100 or res.endswith('.png') or res.endswith('.exr') or res.endswith('.npy')
+                        if is_valid:
+                            results.append(TestResult(
+                                name=name,
+                                status=TestStatus.PASSED,
+                                duration=duration,
+                                message=f"Captured: {len(res)} bytes"
+                            ))
+                        else:
+                            results.append(TestResult(
+                                name=name,
+                                status=TestStatus.FAILED,
+                                duration=duration,
+                                message=f"Invalid response: {res[:100]}"
+                            ))
+                    else:
+                        results.append(TestResult(
+                            name=name,
+                            status=TestStatus.FAILED,
+                            duration=duration,
+                            message=f"Error: {res}"
+                        ))
+                except Exception as e:
+                    duration = time.time() - test_start
+                    results.append(TestResult(
+                        name=name,
+                        status=TestStatus.FAILED,
+                        duration=duration,
+                        message=f"Exception: {e}"
+                    ))
 
         # Calculate summary
         passed = sum(1 for r in results if r.status == TestStatus.PASSED)
         failed = sum(1 for r in results if r.status == TestStatus.FAILED)
         total_duration = time.time() - start_time
 
-        overall = TestStatus.PASSED if failed == 0 else TestStatus.FAILED
-
         # Get recent errors from log monitor
         logs = []
+        critical_error_logs = []
         if self._log_monitor:
-            errors = self._log_monitor.get_errors()
+            errors = self._log_monitor.get_errors()  # Only Error level
             logs = [str(e) for e in errors[-10:]]  # Last 10 errors
+
+            # Check for critical errors: must match BOTH category AND Error level
+            critical_categories = {"LogUnrealCV", "LogTemp", "LogUE4", "LogUnreal"}
+            for error in errors:
+                # Error is already Error level, check if category matches
+                if any(cat.lower() in error.category.lower() for cat in critical_categories):
+                    critical_error_logs.append(error)
+
+        # Fail test only if critical category + Error level found
+        if critical_error_logs and failed == 0:
+            failed += 1
+            # Add synthetic test result for log errors
+            error_msg = f"Critical errors found in logs: {', '.join(str(e) for e in critical_error_logs[:3])}"
+            results.append(TestResult(
+                name="Log Error Check",
+                status=TestStatus.FAILED,
+                duration=0,
+                message=error_msg
+            ))
+
+        overall = TestStatus.PASSED if failed == 0 else TestStatus.FAILED
 
         self._notify_status(overall, f"Tests completed: {passed}/{len(results)} passed")
 
@@ -382,16 +479,16 @@ class UETestRunner:
             self._log_monitor.stop()
 
         if self._game_proc:
-            print("\n[Shutdown] Stopping game...")
+            print("INFO|Shutdown|Stopping game")
             self._game_proc.terminate()
             try:
                 self._game_proc.wait(timeout=10)
-                print("[Shutdown] Game stopped gracefully")
+                print("INFO|Shutdown|Game stopped gracefully")
             except subprocess.TimeoutExpired:
-                print("[Shutdown] Force killing game...")
+                print("INFO|Shutdown|Force killing game")
                 self._game_proc.kill()
                 self._game_proc.wait()
-                print("[Shutdown] Game killed")
+                print("INFO|Shutdown|Game killed")
 
     def get_logs(self, level: Optional[str] = None, count: int = 100) -> List[str]:
         """Get recent logs from monitor"""

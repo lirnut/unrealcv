@@ -39,6 +39,7 @@ Examples:
     # Monitor log file
     python harness.py logs --filter "Sensor,Recording"
 """
+import os
 import sys
 import time
 import json
@@ -60,22 +61,10 @@ from log_monitor import LogMonitor, LogEntry, ConsoleLogPrinter
 
 
 class Colors:
-    """Console colors"""
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-
+    """No colors - for agent parsing"""
     @classmethod
     def enable_windows(cls):
-        import ctypes
-        if sys.platform == 'win32':
-            kernel32 = ctypes.windll.kernel32
-            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+        pass
 
 
 class DebugHarness:
@@ -97,7 +86,7 @@ class DebugHarness:
 
     def _signal_handler(self, signum, frame):
         """Handle interrupt signals"""
-        print(f"\n\n{Colors.WARNING}Received interrupt signal, shutting down...{Colors.ENDC}")
+        print("INTERRUPTED")
         self.shutdown()
         sys.exit(1)
 
@@ -109,22 +98,12 @@ class DebugHarness:
         self.test_runner.stop_game()
 
     def _print_header(self, text: str):
-        """Print formatted header"""
-        width = 60
-        print(f"\n{Colors.HEADER}{'='*width}{Colors.ENDC}")
-        print(f"{Colors.HEADER}{text.center(width)}{Colors.ENDC}")
-        print(f"{Colors.HEADER}{'='*width}{Colors.ENDC}\n")
+        """Print phase header"""
+        print(f"=== {text} ===")
 
     def _print_status(self, text: str, status: str = "info"):
         """Print status message"""
-        if status == "success":
-            print(f"{Colors.OKGREEN}[OK]{Colors.ENDC} {text}")
-        elif status == "error":
-            print(f"{Colors.FAIL}[ERROR]{Colors.ENDC} {text}")
-        elif status == "warning":
-            print(f"{Colors.WARNING}[WARN]{Colors.ENDC} {text}")
-        else:
-            print(f"{Colors.OKBLUE}[INFO]{Colors.ENDC} {text}")
+        print(f"[{status.upper()}] {text}")
 
     def phase_build(self, clean: bool = False) -> bool:
         """Build phase"""
@@ -136,11 +115,15 @@ class DebugHarness:
 
         if result.status == BuildStatus.SUCCESS:
             self._print_status(f"Build completed in {result.duration:.1f}s", "success")
+            if result.log_path:
+                self._print_status(f"Build log: {result.log_path}")
             if result.warnings:
                 self._print_status(f"  Warnings: {len(result.warnings)}", "warning")
             return True
         else:
             self._print_status(f"Build failed: {result.status.value}", "error")
+            if result.log_path:
+                self._print_status(f"Build log: {result.log_path}")
             if result.errors:
                 print(f"\n{Colors.FAIL}Errors:{Colors.ENDC}")
                 for err in result.errors[:10]:
@@ -185,13 +168,13 @@ class DebugHarness:
             result = self.test_runner.run_basic_tests()
             self._results['basic_tests'] = result
 
-            print(f"\n{Colors.BOLD}Test Results:{Colors.ENDC}")
             for test in result.results:
-                status_color = Colors.OKGREEN if test.status == TestStatus.PASSED else Colors.FAIL
                 status_text = "PASS" if test.status == TestStatus.PASSED else "FAIL"
-                print(f"  {status_color}[{status_text}]{Colors.ENDC} {test.name:<20} ({test.duration:.2f}s)")
+                print(f"{status_text}|{test.name}|{test.duration:.2f}s")
+                if test.status == TestStatus.FAILED and test.message:
+                    print(f"ERROR|{test.name}|{test.message[:100]}")
 
-            print(f"\n{Colors.BOLD}Summary:{Colors.ENDC} {result.passed}/{result.total_tests} passed")
+            print(f"SUMMARY|{result.passed}/{result.total_tests} passed")
 
             if result.overall_status == TestStatus.PASSED:
                 self._print_status("All basic tests passed", "success")
@@ -204,10 +187,7 @@ class DebugHarness:
             result = self.test_runner.run_pytest_suite()
             self._results['pytest'] = result
 
-            print(f"\n{Colors.BOLD}Pytest Results:{Colors.ENDC}")
-            print(f"  Passed: {result.passed}")
-            print(f"  Failed: {result.failed}")
-            print(f"  Duration: {result.duration:.1f}s")
+            print(f"PYTEST|Passed:{result.passed}|Failed:{result.failed}|Duration:{result.duration:.1f}s")
 
             if result.overall_status != TestStatus.PASSED:
                 success = False
@@ -221,15 +201,12 @@ class DebugHarness:
         if not follow:
             # Just show recent logs
             logs = self.test_runner.get_logs(count=50)
-            print(f"\n{Colors.BOLD}Recent Logs:{Colors.ENDC}")
             for log in logs:
-                print(f"  {log}")
+                print(log)
             return
 
         # Interactive log monitoring
-        self._print_header("LOG MONITOR (Press Ctrl+C to stop)")
-        print(f"Filter keywords: {', '.join(self.config.log_filter_keywords)}")
-        print(f"Log file: {self.config.ue_log_path}\n")
+        self._print_header("LOG MONITOR")
 
         start_time = time.time()
 
@@ -237,13 +214,10 @@ class DebugHarness:
             while self._running:
                 if duration and (time.time() - start_time) > duration:
                     break
-
-                # Print any new filtered logs
-                # Logs are printed via callback, so we just wait
                 time.sleep(0.5)
 
         except KeyboardInterrupt:
-            print(f"\n{Colors.WARNING}Log monitoring interrupted{Colors.ENDC}")
+            print("STOPPED")
 
     def run_full_workflow(self, args) -> bool:
         """Run complete workflow"""
@@ -278,10 +252,11 @@ class DebugHarness:
 
             # Cleanup
             if not args.no_cleanup:
+                time.sleep(5)
                 self.test_runner.stop_game()
 
             total_duration = time.time() - overall_start
-            self._print_header(f"WORKFLOW COMPLETE ({total_duration:.1f}s)")
+            self._print_header(f"WORKFLOW COMPLETE|{total_duration:.1f}s")
 
             return True
 
@@ -417,7 +392,8 @@ def main():
         parser.print_help()
         success = False
 
-    sys.exit(0 if success else 1)
+    sys.stdout.flush()
+    os._exit(0 if success else 1)
 
 
 if __name__ == "__main__":

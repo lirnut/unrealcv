@@ -26,8 +26,7 @@ class LogEntry:
     @classmethod
     def parse(cls, line: str) -> Optional["LogEntry"]:
         """Parse a UE log line"""
-        # UE log format: [2024.01.15-12.34.56:789][  0]LogCategory: Message
-        # or: [2024.01.15-12.34.56:789][  0]LogCategory: Warning: Message
+        # Try standard UE log format first: [2024.01.15-12.34.56:789][  0]LogCategory: Message
         pattern = r'\[(\d{4}\.\d{2}\.\d{2}-\d{2}\.\d{2}\.\d{2}:\d+)\]\[\s*\d+\]([^:]+):\s*(.*)'
         match = re.match(pattern, line.strip())
 
@@ -47,6 +46,26 @@ class LogEntry:
                     break
 
             return cls(timestamp, level, category, message, line.strip())
+
+        # Try pipe format: LogCategory: Level: Message or LogCategory: Message
+        # Format examples:
+        # LogUnrealCV: Error: Failed to load material...
+        # LogUnrealCV: Display: Loading configuration...
+        pipe_pattern = r'^([A-Za-z0-9_]+):\s*(Fatal|Error|Warning|Display|Verbose|VeryVerbose)?:?\s*(.*)'
+        pipe_match = re.match(pipe_pattern, line.strip())
+
+        if pipe_match:
+            category, level, message = pipe_match.groups()
+            if level is None:
+                level = "Log"
+            return cls(
+                timestamp=datetime.now(),
+                level=level,
+                category=category,
+                message=message,
+                raw_line=line.strip()
+            )
+
         return None
 
     def __str__(self) -> str:
@@ -242,43 +261,20 @@ class LogMonitor:
 
 
 class ConsoleLogPrinter:
-    """Prints log entries to console with color coding"""
-
-    COLORS = {
-        'Fatal': '\033[91m',      # Red
-        'Error': '\033[91m',      # Red
-        'Warning': '\033[93m',    # Yellow
-        'Display': '\033[92m',    # Green
-        'Log': '\033[0m',         # Default
-        'Verbose': '\033[90m',    # Gray
-        'Unknown': '\033[0m',
-    }
-    RESET = '\033[0m'
+    """Prints log entries to console (simple format for agent parsing)"""
 
     def __init__(self, show_timestamp: bool = False, show_category: bool = True):
         self.show_timestamp = show_timestamp
         self.show_category = show_category
-        self._windows_color_init()
-
-    def _windows_color_init(self):
-        """Enable ANSI colors on Windows"""
-        import sys
-        if sys.platform == 'win32':
-            import ctypes
-            kernel32 = ctypes.windll.kernel32
-            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
     def __call__(self, entry: LogEntry):
-        """Print a log entry"""
-        color = self.COLORS.get(entry.level, self.COLORS['Unknown'])
-
+        """Print a log entry in simple format"""
         parts = []
         if self.show_timestamp:
-            parts.append(f"[{entry.timestamp.strftime('%H:%M:%S')}]")
-        parts.append(f"[{entry.level:8}]")
+            parts.append(entry.timestamp.strftime('%H:%M:%S'))
+        parts.append(entry.level)
         if self.show_category:
-            parts.append(f"[{entry.category:20}]")
+            parts.append(entry.category)
         parts.append(entry.message)
 
-        line = " ".join(parts)
-        print(f"{color}{line}{self.RESET}")
+        print("|".join(parts))
