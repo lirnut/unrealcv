@@ -38,6 +38,9 @@ private:
 	/** RegexPattern to match command with registered commands  */
 	TMap<FString, FRegexPattern> UriRegexPattern;
 
+	/** Verb (vget/vset/vrun) for each registered URI, for fast prefiltering */
+	TMap<FString, FString> UriVerb;
+
 	/** Store help message */
 	TMap<FString, FString> UriDescription; // Contains help message
 

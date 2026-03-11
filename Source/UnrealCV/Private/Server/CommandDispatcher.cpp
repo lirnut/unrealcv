@@ -14,6 +14,19 @@
 
 DECLARE_CYCLE_STAT(TEXT("FCommandDispatcher::Exec"), STAT_Exec, STATGROUP_UnrealCV);
 
+namespace
+{
+FString ExtractVerb(const FString& CommandLikeString)
+{
+	int32 SpaceIndex = INDEX_NONE;
+	if (CommandLikeString.FindChar(TEXT(' '), SpaceIndex))
+	{
+		return CommandLikeString.Left(SpaceIndex);
+	}
+	return CommandLikeString;
+}
+} // anonymous namespace
+
 FCommandDispatcher::FCommandDispatcher()
 {
 	FString Str = "([^ ]*)", UInt = "(\\d*)", Float = "([-+]?\\d*[.]?\\d+)", Bool = "(true|false|\\d+)", Anything = "(.+)"; // Each type will be considered as a group
@@ -127,6 +140,7 @@ bool FCommandDispatcher::BindCommand(const FString& ReadableUriTemplate, const F
 	UriDescription.Emplace(ReadableUriTemplate, Description);
 	FRegexPattern Pattern = FRegexPattern(UriTemplate);
 	UriRegexPattern.Emplace(UriTemplate, Pattern);
+	UriVerb.FindOrAdd(UriTemplate) = ExtractVerb(ReadableUriTemplate);
 	UriList.AddUnique(UriTemplate);
 	return true;
 }
@@ -190,38 +204,42 @@ FExecStatus FCommandDispatcher::Exec(const FString Uri)
 		UE_LOG(LogUnrealCV, Error, TEXT("Command execution is not in the game thread."));
 		return FExecStatus::Error("Command execution is not in the game thread.");
 	}
-	TArray<FString> Args; // Get args from URI
 
-	// The newly added command should overwrite previous one.
-	// for (auto& Elem : UriMapping)
-	/*UE_LOG(LogUnrealCV, Warning, TEXT("Number of mach list: %d"), UriList.Num());
-	UE_LOG(LogUnrealCV, Warning, TEXT("Uri need to be matched : %s"), *Uri);*/
+	const FString IncomingVerb = ExtractVerb(Uri);
 
 	// Iterate the UriList in the reverse order
 	for (int UriIndex = UriList.Num() - 1; UriIndex >= 0; UriIndex--)
 	{
-		// FRegexPattern Pattern = FRegexPattern(Elem.Key);
-		FString Key = UriList[UriIndex];
-		//UE_LOG(LogUnrealCV, Warning, TEXT("match list item : %s"), *Key);
+		const FString& Key = UriList[UriIndex];
+
+		// Prefilter: skip routes whose verb doesn't match
+		if (const FString* RegisteredVerb = UriVerb.Find(Key))
+		{
+			if (*RegisteredVerb != IncomingVerb) { continue; }
+		}
+
 		const FRegexPattern* Pattern = UriRegexPattern.Find(Key);
 		if (!Pattern) { continue; }
 
 		FRegexMatcher Matcher(*Pattern, Uri);
-		if (Matcher.FindNext())
+		if (!Matcher.FindNext()) { continue; }
+
+		TArray<FString> Args;
+		Args.Reserve(NumArgsLimit);
+		for (uint32 GroupIndex = 1; GroupIndex <= NumArgsLimit; ++GroupIndex)
 		{
-			for (uint32 GroupIndex = 1; GroupIndex < NumArgsLimit + 1; GroupIndex++)
-			{
-				uint32 BeginIndex = Matcher.GetCaptureGroupBeginning(GroupIndex);
-				if (BeginIndex == -1) break; // No more matching group to extract
-				FString Match = Matcher.GetCaptureGroup(GroupIndex); // TODO: Strip empty space
-				Args.Add(Match);
-			}
-			FDispatcherDelegate* Cmd = UriMapping.Find(Key);
-			if (Cmd && Cmd->IsBound()) { return Cmd->Execute(Args); }
+			const int32 BeginIndex = Matcher.GetCaptureGroupBeginning(GroupIndex);
+			if (BeginIndex == -1) break; // No more matching group to extract
+			FString Match = Matcher.GetCaptureGroup(GroupIndex);
+			Args.Add(Match);
 		}
 
-		// TODO: Regular expression mapping is slow, need to implement in a more efficient way.
-		// FRegexMatcher()
+		FDispatcherDelegate* Cmd = UriMapping.Find(Key);
+		if (Cmd && Cmd->IsBound()) { return Cmd->Execute(Args); }
+
+		const FString ErrorMsg = TEXT("Command delegate is not bound.");
+		UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *ErrorMsg);
+		return FExecStatus::Error(ErrorMsg);
 	}
 	return FExecStatus::Error(FString::Printf(TEXT("Can not find a handler for URI '%s'"), *Uri));
 }
