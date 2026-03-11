@@ -1,0 +1,309 @@
+// Copyright (c) 2025 UnrealCV Team
+
+#include "Sensor/AudioSensor/AmbientAudioSensor.h"
+#include "UnrealcvLog.h"
+#include "Audio.h"
+#include "AudioDevice.h"
+#include "Sound/SoundSubmix.h"
+#include "Engine/Engine.h"
+#include "Async/Async.h"
+#include "ISubmixBufferListener.h"
+
+DEFINE_LOG_CATEGORY(LogAmbientAudioSensor);
+
+/**
+ * Internal submix buffer listener class
+ */
+class UAmbientAudioSensor::FSubmixAudioListener : public ISubmixBufferListener
+{
+public:
+    FSubmixAudioListener(UAmbientAudioSensor* InOwner)
+        : Owner(InOwner)
+        , SampleRate(48000)
+        , NumChannels(2)
+        , bIsCapturing(false)
+    {
+    }
+
+    virtual ~FSubmixAudioListener()
+    {
+    }
+
+    void StartCapture()
+    {
+        bIsCapturing.store(true);
+        ClearBuffer();
+    }
+
+    void StopCapture()
+    {
+        bIsCapturing.store(false);
+    }
+
+    void ClearBuffer()
+    {
+        FScopeLock Lock(&BufferCriticalSection);
+        AudioBuffer.Reset();
+    }
+
+    void GetCapturedAudio(TArray<float>& OutAudio)
+    {
+        FScopeLock Lock(&BufferCriticalSection);
+        OutAudio = AudioBuffer;
+    }
+
+    TArray<float> FlushCapturedAudio()
+    {
+        FScopeLock Lock(&BufferCriticalSection);
+        TArray<float> Result = MoveTemp(AudioBuffer);
+        AudioBuffer.Empty();
+        return Result;
+    }
+
+    // ISubmixBufferListener interface
+    virtual void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 InNumSamples,
+        int32 InNumChannels, int32 InSampleRate, double InAudioClock) override
+    {
+        if (!bIsCapturing.load() || !AudioData || InNumSamples <= 0)
+        {
+            return;
+        }
+
+        // Update format info
+        SampleRate = InSampleRate;
+        NumChannels = InNumChannels;
+
+        // Copy audio data
+        {
+            FScopeLock Lock(&BufferCriticalSection);
+            int32 StartIndex = AudioBuffer.Num();
+            AudioBuffer.AddUninitialized(InNumSamples);
+            FMemory::Memcpy(&AudioBuffer[StartIndex], AudioData, InNumSamples * sizeof(float));
+        }
+
+        // Notify owner
+        if (UAmbientAudioSensor* Sensor = Owner.Get())
+        {
+            // Copy data for callback
+            TArray<float> CallbackData;
+            CallbackData.AddUninitialized(InNumSamples);
+            FMemory::Memcpy(CallbackData.GetData(), AudioData, InNumSamples * sizeof(float));
+
+            AsyncTask(ENamedThreads::GameThread, [Sensor, CallbackData, InNumChannels, InSampleRate, InAudioClock]()
+            {
+                if (IsValid(Sensor))
+                {
+                    Sensor->OnSubmixAudioReceived(CallbackData, InNumChannels, InSampleRate, InAudioClock);
+                }
+            });
+        }
+    }
+
+    int32 GetSampleRate() const { return SampleRate; }
+    int32 GetNumChannels() const { return NumChannels; }
+    bool IsCapturing() const { return bIsCapturing.load(); }
+
+private:
+    TWeakObjectPtr<UAmbientAudioSensor> Owner;
+    TArray<float> AudioBuffer;
+    mutable FCriticalSection BufferCriticalSection;
+    int32 SampleRate;
+    int32 NumChannels;
+    std::atomic<bool> bIsCapturing;
+};
+
+// UAmbientAudioSensor Implementation
+
+UAmbientAudioSensor::UAmbientAudioSensor(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
+    , bUseMasterSubmix(true)
+    , TargetSubmix(nullptr)
+    , bCaptureAllSubmixes(false)
+{
+    // Default to ambient capture mode
+    CaptureMode = EAudioCaptureMode::Ambient;
+}
+
+void UAmbientAudioSensor::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // Create submix listener
+    SubmixListener = MakeShared<FSubmixAudioListener>(this);
+}
+
+void UAmbientAudioSensor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    StopCapture();
+    Super::EndPlay(EndPlayReason);
+}
+
+void UAmbientAudioSensor::StartCapture()
+{
+    if (bIsCapturing)
+    {
+        UE_LOG(LogAmbientAudioSensor, Warning, TEXT("AmbientAudioSensor: Already capturing"));
+        return;
+    }
+
+    // Initialize the submix listener
+    InitializeSubmixListener();
+
+    // Start the base capture
+    Super::StartCapture();
+
+    // Start the submix listener
+    if (SubmixListener.IsValid())
+    {
+        SubmixListener->StartCapture();
+    }
+}
+
+void UAmbientAudioSensor::StopCapture()
+{
+    if (!bIsCapturing)
+    {
+        return;
+    }
+
+    // Stop the submix listener
+    if (SubmixListener.IsValid())
+    {
+        SubmixListener->StopCapture();
+    }
+
+    // Shutdown submix listener
+    ShutdownSubmixListener();
+
+    // Stop base capture
+    Super::StopCapture();
+}
+
+FAudioCaptureData UAmbientAudioSensor::GetCapturedAudio() const
+{
+    FAudioCaptureData Data;
+
+    if (SubmixListener.IsValid())
+    {
+        TArray<float> AudioData;
+        SubmixListener->GetCapturedAudio(AudioData);
+
+        FScopeLock Lock(&AudioBufferCriticalSection);
+        Data.Samples = AudioData;
+        Data.NumChannels = SubmixListener->GetNumChannels();
+        Data.SampleRate = SubmixListener->GetSampleRate();
+        Data.Timestamp = StartTimestamp;
+        Data.Duration = CurrentCaptureTime;
+    }
+    else
+    {
+        Data = Super::GetCapturedAudio();
+    }
+
+    return Data;
+}
+
+FAudioCaptureData UAmbientAudioSensor::FlushCapturedAudio()
+{
+    FAudioCaptureData Data;
+
+    if (SubmixListener.IsValid())
+    {
+        TArray<float> AudioData = SubmixListener->FlushCapturedAudio();
+
+        FScopeLock Lock(&AudioBufferCriticalSection);
+        Data.Samples = AudioData;
+        Data.NumChannels = SubmixListener->GetNumChannels();
+        Data.SampleRate = SubmixListener->GetSampleRate();
+        Data.Timestamp = StartTimestamp;
+        Data.Duration = CurrentCaptureTime;
+    }
+    else
+    {
+        Data = Super::FlushCapturedAudio();
+    }
+
+    return Data;
+}
+
+void UAmbientAudioSensor::InitializeSubmixListener()
+{
+    if (!SubmixListener.IsValid())
+    {
+        SubmixListener = MakeShared<FSubmixAudioListener>(this);
+    }
+
+    // Get audio device
+    FAudioDevice* AudioDevicePtr = GEngine ? GEngine->GetMainAudioDeviceRaw() : nullptr;
+    if (!AudioDevicePtr)
+    {
+        UE_LOG(LogAmbientAudioSensor, Warning, TEXT("AmbientAudioSensor: No audio device available"));
+        return;
+    }
+
+    // Register with submix
+    USoundSubmix* SubmixToUse = nullptr;
+    if (bUseMasterSubmix || !TargetSubmix)
+    {
+        // Use the master submix
+        SubmixToUse = &AudioDevicePtr->GetMainSubmixObject();
+    }
+    else
+    {
+        SubmixToUse = TargetSubmix;
+    }
+
+    if (SubmixToUse && SubmixListener.IsValid())
+    {
+        // Register this listener with the submix using TSharedRef
+        TSharedRef<ISubmixBufferListener, ESPMode::ThreadSafe> ListenerRef = SubmixListener.ToSharedRef();
+        AudioDevicePtr->RegisterSubmixBufferListener(ListenerRef, *SubmixToUse);
+
+        UE_LOG(LogAmbientAudioSensor, Log, TEXT("AmbientAudioSensor: Registered with submix %s"),
+            *SubmixToUse->GetName());
+    }
+}
+
+void UAmbientAudioSensor::ShutdownSubmixListener()
+{
+    // Unregister from submix
+    if (SubmixListener.IsValid())
+    {
+        FAudioDevice* AudioDevicePtr = GEngine ? GEngine->GetMainAudioDeviceRaw() : nullptr;
+        if (AudioDevicePtr)
+        {
+            USoundSubmix* SubmixToUse = nullptr;
+            if (bUseMasterSubmix || !TargetSubmix)
+            {
+                SubmixToUse = &AudioDevicePtr->GetMainSubmixObject();
+            }
+            else
+            {
+                SubmixToUse = TargetSubmix;
+            }
+
+            if (SubmixToUse)
+            {
+                TSharedRef<ISubmixBufferListener, ESPMode::ThreadSafe> ListenerRef = SubmixListener.ToSharedRef();
+                AudioDevicePtr->UnregisterSubmixBufferListener(ListenerRef, *SubmixToUse);
+            }
+        }
+    }
+}
+
+void UAmbientAudioSensor::OnSubmixAudioReceived(const TArray<float>& AudioData, int32 InNumChannels, int32 InSampleRate, double InTimestamp)
+{
+    // Process received audio data
+    if (AudioData.Num() > 0)
+    {
+        // Store in main buffer
+        ProcessAudioData(AudioData.GetData(), AudioData.Num(), InNumChannels);
+
+        // Update format
+        NumChannels = InNumChannels;
+        SampleRate = InSampleRate;
+
+        // Notify
+        OnAudioDataReceived(static_cast<float>(InTimestamp), AudioData.Num() / InNumChannels);
+    }
+}

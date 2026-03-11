@@ -264,7 +264,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
 	class UMainViewportRenderComponent* MainViewportRenderComponent;
 
-	/** Whether to enable MainViewportRenderComponent. When disabled, FusionCamSensor will not affect the main viewport/camera. */
+	/** Whether to enable main viewport render component. When disabled, FusionCamSensor will not affect the main viewport/camera. */
 	UPROPERTY(EditDefaultsOnly, Category = "unrealcv")
 	bool bEnableMainViewportRender = false;
 

@@ -3,6 +3,12 @@
 #include "Runtime/Core/Public/Logging/LogMacros.h"
 DECLARE_LOG_CATEGORY_EXTERN(LogUnrealCV, Log, All);
 
+// Audio Sensor Log Categories
+DECLARE_LOG_CATEGORY_EXTERN(LogAudioSensorBase, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogAmbientAudioSensor, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogAudioSensor, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogFusionAudioSensor, Log, All);
+
 /** Log the message to the screen */
 void ScreenLog(const FString& Message);
 

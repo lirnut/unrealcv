@@ -1,6 +1,6 @@
 {
   "enabledPlugins": {
-    "pyright-lsp@claude-plugins-official": true,
-    "commit-commands@claude-plugins-official": true
+    "commit-commands@claude-code-plugins": true,
+    "cli-anything@cli-anything": true
   }
 }

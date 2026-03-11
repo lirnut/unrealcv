@@ -4,6 +4,32 @@ Auto-generated index of frequently accessed files. Last updated: 2026-03-06
 
 Use these shorthand paths in prompts instead of copy-pasting full paths.
 
+## Session Context Files (2026-03-12)
+
+**Session Topic**: UE 5.6 Audio Mixer analysis - individual audio source capture via ISourceBufferListener, audio synthesis pipeline architecture, FMixerSourceManager/FMixerSubmix data flow
+
+### UE5 Engine References (Audio System)
+- `H:/UE_5.6/Engine/Source/Runtime/Engine/Public/Audio.h` - ISourceBufferListener interface: OnNewBuffer/OnSourceReleased callbacks for per-source audio capture (line 149-165)
+- `H:/UE_5.6/Engine/Source/Runtime/Engine/Classes/Components/AudioComponent.h` - SetSourceBufferListener() method for attaching listeners to audio components (line 810)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceVoice.h` - FMixerSourceVoice::SetSourceBufferListener() declaration (line 64)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceVoice.cpp` - FMixerSourceVoice::SetSourceBufferListener() implementation forwarding to SourceManager (line 204-209)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceManager.h` - Core source management: FMixerSourceManager class with FSourceInfo array, buffer getters (GetPreDistanceAttenuationBuffer, GetPreEffectBuffer), source worker threading (line 181-698)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceManager.cpp` - Source rendering pipeline: SetSourceBufferListener(), Update(), GenerateSourceAudio(), ComputeSourceBuffer() with listener callback invocation (line 1843-1857, 2713-2733)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceBuffer.h` - FMixerSourceBuffer: PCM buffer queue management, async decoding, sound generator support (line 63-191)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceOutputBuffer.h` - FMixerSourceSubmixOutputBuffer: 2D/3D channel mapping, spatialization, soundfield encoding (line 29-211)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerBuffer.h` - FMixerBuffer: audio asset buffer types (PCM/Streaming/RealTime), decoder state management (line 27-98)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Public/AudioMixerSubmix.h` - FMixerSubmix: submix graph processing, effect chains, soundfield streams (Ambisonics), endpoint output (line 108-695)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Public/AudioMixerDevice.h` - FMixerDevice: main audio device, OnProcessAudioStream callback, submix graph management
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixerCore/Public/AudioMixer.h` - IAudioMixer interface, IAudioMixerPlatformInterface platform abstraction, channel enums (line 476-880)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioMixerCore/Public/AudioMixerTypes.h` - Audio type definitions, buffer formats
+- `H:/UE_5.6/Engine/Source/Runtime/AudioLink/AudioLinkEngine/Private/BufferedSourceListener.h` - FBufferedSourceListener: complete ISourceBufferListener implementation example with circular buffer
+- `H:/UE_5.6/Engine/Source/Runtime/AudioLink/AudioLinkEngine/Private/BufferedSourceListener.cpp` - BufferedSourceListener implementation: OnNewBuffer with format handling, OnSourceReleased cleanup
+
+### UE5 Engine References (Audio Extensions)
+- `H:/UE_5.6/Engine/Source/Runtime/AudioExtensions/Public/IAudioExtensionPlugin.h` - Spatialization, occlusion, reverb plugin interfaces
+- `H:/UE_5.6/Engine/Source/Runtime/AudioExtensions/Public/ISoundfieldFormat.h` - Soundfield encoding/decoding interfaces for Ambisonics
+- `H:/UE_5.6/Engine/Source/Runtime/SoundFieldRendering/Public/SoundFieldRendering.h` - Ambisonics encoder/decoder implementations
+
 ## Session Context Files (2026-03-06)
 
 **Session Topic**: Depth encoding optimization - implementing bit-interleaved RGB24 and Hue colorization with adjustable Exponent for precision control

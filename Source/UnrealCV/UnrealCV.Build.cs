@@ -29,6 +29,7 @@ public class UnrealcvBuildConfig
 				"UnrealCV/Public/Controller",
 				"UnrealCV/Public/Sensor",
 				"UnrealCV/Public/Sensor/CameraSensor",
+				"UnrealCV/Public/Sensor/AudioSensor",
 				"UnrealCV/Public/Server",
 				"UnrealCV/Public/Utils",
 				"UnrealCV/Public/Encoder"

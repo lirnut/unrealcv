@@ -100,12 +100,12 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("2.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("block_until_all_work_finished")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("3.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("55 70")));
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("155 175")));
 		// CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"));
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("0.0 1.0 4.0")));
-		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
 		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only_5s")));
@@ -211,6 +211,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("2.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("block_until_all_work_finished")));
+		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 
 		if(FMath::RandRange(0.0f, 100.0f) < 50.0f)
 		{
@@ -226,7 +227,6 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		// CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("125 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground")));
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 0.5 2.0")));
-		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("6.0")));
 
 		TArray<FString> MattingTrajectoryOptions = {
@@ -262,11 +262,11 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("250 400")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("640x480 480x640")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("40 55")));
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("155 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 1.0 4.0")));
-		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("10.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
@@ -290,11 +290,11 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("250 400")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("8.0")));
+		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("60")));
 		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("155 175")));
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("4.0 1.0 4.0")));
-		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("6.0")));
 		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("render_only")));
@@ -636,39 +636,12 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		// Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = true;
 		// Sensor->GetMovieQualityRenderer()->NumWarmup = 1;
 
+		Sensor->SetEnableMainViewportRender(true);
+
 		FString PrimaryCameraID = USensorBPLib::GetSensorNewFormatID(Sensor);
 		ActiveCameraPool.Empty();
 		ActiveCameraPool.Add(PrimaryCameraID);
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Prepared_record, primary camera is : %s"), *PrimaryCameraID);
-
-		// NOTE: ChosenRes and ChosenFOV are now set by random_fov/random_resolution commands
-		// before prepare_record. See command sequence examples in cmd.md.
-		//
-		// if (TaskName == "Trajectory" || TaskName == "Matting")
-		// {
-		// 	CurrentStatus.ChosenRes = {1920, 1080};
-		// 	CurrentStatus.ChosenFOV = FMath::RandRange(40.0f, 55.0f);
-		// }
-		// else if (TaskName == "Omnimatte")
-		// {
-		// 	const static TArray<FIntPoint> Resolutions = {
-		// 		FIntPoint(640, 480),
-		// 		FIntPoint(480, 640),
-		// 	};
-		// 	CurrentStatus.ChosenRes = Resolutions[FMath::RandRange(0, Resolutions.Num() - 1)];
-		// 	CurrentStatus.ChosenFOV = FMath::RandRange(40.0f, 55.0f);
-		// }
-		// else if (TaskName == "SpeedTest")
-		// {
-		// 	CurrentStatus.ChosenRes = {1920, 1080};
-		// 	CurrentStatus.ChosenFOV = 60.0f;
-		// }
-		// else
-		// {
-		// 	UE_LOG(LogUnrealCV, Error, TEXT("Invalid task name '%s'."), *TaskName);
-		// 	CurrentStatus.ErrorMessage = FString::Printf(TEXT("Invalide TaskName: %s"), *TaskName);
-		// 	TransitionToState(EDatasetGenerationState::Error);
-		// }
 
 		ExecuteNextCommand();
 	}

@@ -99,11 +99,11 @@ def build_single_matting_scene():
         {"cmd": "sync_pawn_to_primary_camera"},
         {"cmd": "delay", "params": "2.0"},
         {"cmd": "block_until_all_work_finished"},
+        {"cmd": "prepare_record"},
         {"cmd": "random_resolution", "params": resolution},
         {"cmd": "random_fov", "params": fov_range},
         {"cmd": "aim_camera_at_foreground", "params": anim_config["aim_height"]},
         {"cmd": "add_camera_rotation_noise", "params": "12.0 4.0 6.0"},
-        {"cmd": "prepare_record"},
         {"cmd": "delay", "params": "6.0"},
         {"cmd": "record_trajectory", "params": chosen_trajectory},
         {"cmd": "sync_all_cameras"},
@@ -196,13 +196,13 @@ def build_single_trajectory_scene():
         {"cmd": "delay", "params": "3.0"},
 
         # Camera setup
+        {"cmd": "prepare_record"},
         {"cmd": "random_resolution", "params": "1920x1080"},
         {"cmd": "random_fov", "params": "55 70"},
         {"cmd": "aim_camera_at_foreground", "params": "155 175"},
         {"cmd": "add_camera_rotation_noise", "params": "0.0 1.0 4.0"},
 
         # Prepare and initial recording
-        {"cmd": "prepare_record"},
         {"cmd": "sync_pawn_to_primary_camera"},
         {"cmd": "delay", "params": "10.0"},
         {"cmd": "delay", "params": "1.0"},
