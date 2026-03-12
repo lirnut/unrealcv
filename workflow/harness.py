@@ -164,20 +164,20 @@ class DebugHarness:
         success = True
 
 
-        self._print_status("Running basic connectivity tests...")
-        result = self.test_runner.run_basic_tests()
-        self._results['basic_tests'] = result
+        self._print_status("Running tests...")
+        result = self.test_runner.run_tests()
+        self._results['tests'] = result
 
         for test in result.results:
             status_text = "PASS" if test.status == TestStatus.PASSED else "FAIL"
-            print(f"{status_text}|{test.name}|{test.duration:.2f}s")
+            print(f"{status_text}|{test.duration:.2f}s|{test.name}|{test.message}")
             if test.status == TestStatus.FAILED and test.message:
                 print(f"ERROR|{test.name}|{test.message}")
 
         print(f"SUMMARY|{result.passed}/{result.total_tests} passed")
 
         if result.overall_status == TestStatus.PASSED:
-            self._print_status("All basic tests passed", "success")
+            self._print_status("All tests passed", "success")
         else:
             self._print_status(f"{result.failed} tests failed", "error")
             success = False

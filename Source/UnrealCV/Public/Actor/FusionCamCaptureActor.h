@@ -139,6 +139,10 @@ struct FRecordingDataTypesConfig
 	UPROPERTY(BlueprintReadWrite, Category = "Recording")
 	bool bRecordAudio = false;
 
+	/** Whether to record background audio (excluding foreground actor). Creates separate audio file without foreground sound. */
+	UPROPERTY(BlueprintReadWrite, Category = "Recording|Audio")
+	bool bRecordBackgroundAudio = false;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Recording")
 	bool bRecordWithoutTarget = false;
 
@@ -158,13 +162,14 @@ struct FRecordingDataTypesConfig
 	static FRecordingDataTypesConfig MakeMattingConfig()
 	{
 		FRecordingDataTypesConfig Config;
-		Config.bRecordAudio = false;
+		Config.bRecordAudio = true;
 		Config.bRecordRGB = true;
 		Config.bRecordMask = true;
 		Config.bRecordOneObjectLit = false;
 		Config.bRecordOneObjectGroomLit = true;
 		Config.bRecordDepth = true;
 		Config.bRecordMetadata = true;
+		Config.bRecordBackgroundAudio = false; // Default: do not record background audio
 		return Config;
 	}
 
@@ -254,6 +259,10 @@ struct FRecordingDataTypesConfig
 			else if (Trimmed == TEXT("audio"))
 			{
 				Config.bRecordAudio = true;
+			}
+			else if (Trimmed == TEXT("audio_background") || Trimmed == TEXT("background_audio"))
+			{
+				Config.bRecordBackgroundAudio = true;
 			}
 			else if (Trimmed == TEXT("without_target") || Trimmed == TEXT("woTarget"))
 			{

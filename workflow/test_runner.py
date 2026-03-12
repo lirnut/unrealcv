@@ -192,15 +192,14 @@ class UETestRunner:
         print(f"ERROR|Server|Timeout after {timeout}s")
         return False
 
-    def run_basic_tests(self) -> TestSuiteResult:
-        """Run basic connectivity and API tests"""
+    def run_tests(self) -> TestSuiteResult:
         import unrealcv
 
         config = self.config
         start_time = time.time()
         results = []
 
-        self._notify_status(TestStatus.RUNNING, "Running basic tests")
+        self._notify_status(TestStatus.RUNNING, "Running tests")
 
         # Connect client
         client = unrealcv.Client((config.host, config.port))
@@ -396,11 +395,18 @@ class UETestRunner:
                 duration = time.time() - test_start
 
                 if res and not res.startswith("error"):
+                    res_to_print = res
+                    res = res.strip()
+                    next_line_index = res.find("\n")
+                    if next_line_index != -1:
+                        res_to_print = res_to_print[:next_line_index]
+                    if len(res_to_print) > 100:
+                        res_to_print = res_to_print[:100] + f"... ({len(res)} chars)"
                     results.append(TestResult(
                         name=name,
                         status=TestStatus.PASSED,
                         duration=duration,
-                        message=f"Response: {res}"
+                        message=f"Response: {res_to_print}"
                     ))
                 else:
                     results.append(TestResult(
@@ -484,11 +490,11 @@ class UETestRunner:
 
         # Performance tests - 50 iterations for each sensor type and mode
         if not self._cancelled:
-            print("\n" + "="*60)
-            print("INFO|Test|Starting Performance Tests (50 iterations each)")
-            print("="*60)
+            # print("\n" + "="*60)
+            # print("INFO|Test|Starting Performance Tests (50 iterations each)")
+            # print("="*60)
 
-            print("INFO|Test|Waiting for 10 seconds to let the UE Game settle...")
+            # print("INFO|Test|Waiting for 10 seconds to let the UE Game settle...")
             time.sleep(10)
 
             # Define sensor types with their file extensions
@@ -506,13 +512,13 @@ class UETestRunner:
                 if self._cancelled:
                     break
 
-                print(f"\n--- Performance Test: {sensor_type} ---")
+                # print(f"\n--- Performance Test: {sensor_type} ---")
 
                 # === Test 1: File path mode (direct save to disk) ===
                 file_times = []
                 file_cmd = f"vget /camera/0/{sensor_type} {os.path.join(desktop_path, f'perf_{sensor_type}.{file_ext}')}"
 
-                print(f"  [File Mode] Running {performance_iterations} iterations...")
+                # print(f"  [File Mode] Running {performance_iterations} iterations...")
                 for i in range(performance_iterations):
                     if self._cancelled:
                         break
@@ -533,7 +539,7 @@ class UETestRunner:
                 suffix_times = []
                 suffix_cmd = f"vget /camera/0/{sensor_type} {file_ext}"
 
-                print(f"  [TCP Mode]  Running {performance_iterations} iterations...")
+                # print(f"  [TCP Mode]  Running {performance_iterations} iterations...")
                 for i in range(performance_iterations):
                     if self._cancelled:
                         break
@@ -551,12 +557,12 @@ class UETestRunner:
                 suffix_fps = 1.0 / suffix_avg if suffix_avg > 0 else 0
                 suffix_total = sum(suffix_times)
 
-                # === Report Results ===
-                print(f"\n  [{sensor_type.upper()}] Performance Summary:")
-                print(f"    File Mode (direct save):  {len(file_times)}/{performance_iterations} success")
-                print(f"      Total: {file_total:.2f}s | Avg: {file_avg*1000:.1f}ms | FPS: {file_fps:.1f}")
-                print(f"    TCP Mode (network transfer): {len(suffix_times)}/{performance_iterations} success")
-                print(f"      Total: {suffix_total:.2f}s | Avg: {suffix_avg*1000:.1f}ms | FPS: {suffix_fps:.1f}")
+                # # === Report Results ===
+                # print(f"\n  [{sensor_type.upper()}] Performance Summary:")
+                # print(f"    File Mode (direct save):  {len(file_times)}/{performance_iterations} success")
+                # print(f"      Total: {file_total:.2f}s | Avg: {file_avg*1000:.1f}ms | FPS: {file_fps:.1f}")
+                # print(f"    TCP Mode (network transfer): {len(suffix_times)}/{performance_iterations} success")
+                # print(f"      Total: {suffix_total:.2f}s | Avg: {suffix_avg*1000:.1f}ms | FPS: {suffix_fps:.1f}")
 
                 # Add performance test results to test suite
                 results.append(TestResult(
@@ -572,6 +578,70 @@ class UETestRunner:
                     duration=suffix_total,
                     message=f"FPS: {suffix_fps:.1f} ({len(suffix_times)}/{performance_iterations} success)"
                 ))
+
+
+
+        if not self._cancelled:
+            _cnt = 0
+            _output_dir = os.abspath(os.path.join(desktop_path, 'DatasetAutomationOutputDirectory'))
+            _set_output_result = client.request(f"vset /datasetautomation/config/output_directory {_output_dir}")
+            _set_total_scenes_result = client.request(f"vset /datasetautomation/config/total_scenes 2")
+            _set_exit_on_complete_result = client.request("vset /datasetautomation/config/b_exit_on_complete false")
+            _start_result = client.request("vset /datasetautomation/start")
+            print(end="\n")
+            _check = lambda x: isinstance(x, str) and not x.lower().startswith("error")
+            if _check(_start_result) and _check(_set_output_result) and _check(_set_total_scenes_result) and _check(_set_exit_on_complete_result):
+                while True:
+                    _cnt += 1
+                    try:
+                        status = client.request("vget /datasetautomation/status")
+                        
+                        anim = ['⠁','⠈','⠐','⠠','⢀','⡀','⠄','⠂',]
+
+                        print(f"\r{anim[_cnt % len(anim)]} {status}", end="")
+
+                        if status is None:
+                            results.append(TestResult(
+                                name="Dataset Automation Status",
+                                status=TestStatus.FAILED,
+                                duration=0,
+                                message=f"Status is None: {status}"
+                            ))
+                            break
+
+                        if "Completed" in status:
+                            results.append(TestResult(
+                                name="Dataset Automation Status",
+                                status=TestStatus.PASSED,
+                                duration=0,
+                                message=f"Session completed: {status}, output directory: {_output_dir}"
+                            ))
+                            break
+                        elif "Error" in status:
+                            results.append(TestResult(
+                                name="Dataset Automation Status",
+                                status=TestStatus.FAILED,
+                                duration=0,
+                                message=f"Session failed: {status}"
+                            ))
+                            break
+
+                    except Exception as e:
+                        print(f"[ERROR] Status check failed: {e}")
+                        break
+
+                    time.sleep(1.0)
+            else:
+                results.append(TestResult(
+                    name="Dataset Automation Start",
+                    status=TestStatus.FAILED,
+                    duration=0,
+                    message=f"Failed to set output directory or total scenes or exit on complete or start dataset automation: {_set_output_result}, {_set_total_scenes_result}, {_set_exit_on_complete_result}, {_start_result}"
+                ))
+            
+            print(end='\r')
+
+
 
         # Calculate summary
         passed = sum(1 for r in results if r.status == TestStatus.PASSED)
@@ -616,6 +686,8 @@ class UETestRunner:
             results=results,
             logs=logs
         )
+
+
 
     def stop_game(self):
         """Stop the game process"""

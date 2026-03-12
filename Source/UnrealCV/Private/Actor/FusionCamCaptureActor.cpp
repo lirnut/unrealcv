@@ -874,7 +874,7 @@ void AFusionCamCaptureActor::StartAudioRecord()
 	UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Audio recording started via FusionAudioSensor"));
 
 	// Start background audio recording if enabled
-	if (bRecordBackgroundAudio)
+	if (RecordingDataTypes.bRecordBackgroundAudio)
 	{
 		StartBackgroundAudioRecord();
 	}
@@ -956,7 +956,7 @@ void AFusionCamCaptureActor::StopAudioRecord()
 	}
 
 	// Stop and save background audio recording if enabled
-	if (bRecordBackgroundAudio)
+	if (RecordingDataTypes.bRecordBackgroundAudio)
 	{
 		StopBackgroundAudioRecord();
 	}

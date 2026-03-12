@@ -95,6 +95,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("180 300")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
 		// CommandQueue.Add(FAutomationStep(TEXT("render_every_frame"), TEXT("true")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("2.0")));
@@ -204,6 +205,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-60 60")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("75 100")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
 		// CommandQueue.Add(FAutomationStep(TEXT("render_every_frame"), TEXT("true")));
 		// CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_Run.ABP_Run_C")));
@@ -261,6 +263,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("250 400")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
+		CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("640x480 480x640")));

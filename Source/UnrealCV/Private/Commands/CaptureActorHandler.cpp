@@ -47,8 +47,10 @@ void FCaptureActorHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCaptureActorHandler::StartSimpleRecording);
 	Help = "Start simple recording: vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] [record_options]";
 	Help += "\nRecord options (comma-separated): lit/rgb, mask/seg, normal, depth, optical_flow/flow,";
-	Help += "\n                 oneobjmask, oneobjlit, oneobjgroomlit, shadowcatcher, stencilmask, metadata, audio, woTarget";
+	Help += "\n                 oneobjmask, oneobjlit, oneobjgroomlit, shadowcatcher, stencilmask, metadata, audio, woTarget,";
+	Help += "\n                 audio_background (dual-track: full audio + bg audio without foreground actor)";
 	Help += "\nExample: vset /captureactor/0/record ./output 30 10 lit,mask,oneobjlit,metadata";
+	Help += "\n         vset /captureactor/0/record ./output 30 10 audio,audio_background (dual-track audio)";
 	Help += "\n         vset /captureactor/0/record ./output 30 10 (empty for default: rgb only)";
 	BindCommandDualCameraID("vset /captureactor/[camera_id]/record [str] [uint] [float]", Cmd, Help);
 	BindCommandDualCameraID("vset /captureactor/[camera_id]/record [str] [uint] [float] [str]", Cmd, Help);
