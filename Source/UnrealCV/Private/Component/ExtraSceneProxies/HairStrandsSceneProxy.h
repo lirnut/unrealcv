@@ -21,6 +21,12 @@ public:
 	virtual SIZE_T GetTypeHash() const override { return GetTypeHashHelper(this); }
 	uint32 GetAllocatedSize() const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 
+#if RHI_RAYTRACING
+	virtual bool HasRayTracingRepresentation() const override { return false; }
+	virtual bool IsRayTracingRelevant() const override { return false; }
+	virtual bool IsRayTracingStaticRelevant() const override { return false; }
+#endif // RHI_RAYTRACING
+
 private:
 	TArray<TRefCountPtr<FHairGroupInstance>> HairGroupInstances;
 	const FMaterialRenderProxy* MaterialRenderProxy;

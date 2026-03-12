@@ -69,6 +69,15 @@ public:
             return;
         }
 
+        // First time received - log for debugging
+        static int32 CallbackCount = 0;
+        CallbackCount++;
+        if (CallbackCount <= 3)
+        {
+            UE_LOG(LogAmbientAudioSensor, Log, TEXT("FSubmixAudioListener::OnNewSubmixBuffer called! Samples=%d, Channels=%d, SampleRate=%d (Callback #%d)"),
+                InNumSamples, InNumChannels, InSampleRate, CallbackCount);
+        }
+
         // Update format info
         SampleRate = InSampleRate;
         NumChannels = InNumChannels;
@@ -243,7 +252,8 @@ void UAmbientAudioSensor::InitializeSubmixListener()
     FAudioDevice* AudioDevicePtr = GEngine ? GEngine->GetMainAudioDeviceRaw() : nullptr;
     if (!AudioDevicePtr)
     {
-        UE_LOG(LogAmbientAudioSensor, Warning, TEXT("AmbientAudioSensor: No audio device available"));
+        UE_LOG(LogAmbientAudioSensor, Error, TEXT("AmbientAudioSensor: No audio device available - audio capture will not work"));
+        UE_LOG(LogAmbientAudioSensor, Error, TEXT("Please ensure: 1) Audio is enabled in project settings, 2) Audio Mixer plugin is enabled"));
         return;
     }
 
@@ -253,20 +263,35 @@ void UAmbientAudioSensor::InitializeSubmixListener()
     {
         // Use the master submix
         SubmixToUse = &AudioDevicePtr->GetMainSubmixObject();
+        UE_LOG(LogAmbientAudioSensor, Log, TEXT("AmbientAudioSensor: Using Master Submix (via GetMainSubmixObject)"));
     }
     else
     {
         SubmixToUse = TargetSubmix;
+        UE_LOG(LogAmbientAudioSensor, Log, TEXT("AmbientAudioSensor: Using custom submix %s"), *TargetSubmix->GetName());
     }
 
     if (SubmixToUse && SubmixListener.IsValid())
     {
+        // Check if submix is valid (not CDO)
+        const bool bIsClassDefaultObject = SubmixToUse->IsA(USoundSubmix::StaticClass()) && SubmixToUse->HasAnyFlags(RF_ClassDefaultObject);
+        if (bIsClassDefaultObject)
+        {
+            UE_LOG(LogAmbientAudioSensor, Error, TEXT("AmbientAudioSensor: GetMainSubmixObject() returned Class Default Object - Audio Mixer may not be enabled!"));
+            UE_LOG(LogAmbientAudioSensor, Error, TEXT("Please enable Audio Mixer: Project Settings -> Engine -> Audio -> Audio Device Module Name = AudioMixer"));
+            UE_LOG(LogAmbientAudioSensor, Error, TEXT("Or add: +AudioDeviceModuleName=AudioMixer in DefaultEngine.ini [/Script/WindowsTargetPlatform.WindowsTargetSettings]"));
+            return;
+        }
+
         // Register this listener with the submix using TSharedRef
         TSharedRef<ISubmixBufferListener, ESPMode::ThreadSafe> ListenerRef = SubmixListener.ToSharedRef();
         AudioDevicePtr->RegisterSubmixBufferListener(ListenerRef, *SubmixToUse);
 
         UE_LOG(LogAmbientAudioSensor, Log, TEXT("AmbientAudioSensor: Registered with submix %s"),
             *SubmixToUse->GetName());
+
+        // Log warning if no audio data is received after some time
+        UE_LOG(LogAmbientAudioSensor, Log, TEXT("AmbientAudioSensor: StartCapture called - if no audio data is received, check that AudioComponent is playing and Audio Mixer is enabled"));
     }
 }
 

@@ -55,13 +55,13 @@ void FAssetPoolManager::LoadStableAssetsPack()
 
 
 	TArray<FString> HumanAnimations = {
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk7.AS_Talk7"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk6.AS_Talk6"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk5.AS_Talk5"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk4"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk3.AS_Talk3"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk2.AS_Talk2"),
-		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk1.AS_Talk1"),
+		// TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk7.AS_Talk7"),
+		// TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk6.AS_Talk6"),
+		// TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk5.AS_Talk5"),
+		// TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk4.AS_Talk4"),
+		// TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk3.AS_Talk3"),
+		// TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk2.AS_Talk2"),
+		// TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk1.AS_Talk1"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Talk.AS_Talk"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Thinking.AS_Thinking"),
 		TEXT("/Game/SocialAnimsBundle/SocialNPCAnimations/Animations/AS_Smoking.AS_Smoking"),

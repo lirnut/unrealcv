@@ -16,6 +16,7 @@
 #include "Runtime/Engine/Public/SkeletalMeshSceneProxy.h"
 #include "InstancedStaticMeshSceneProxyDesc.h"
 #include "Runtime/Engine/Public/InstanceDataSceneProxy.h"
+#include "Runtime/RenderCore/Public/RenderingThread.h"
 
 #endif
 #include "Runtime/Engine/Public/Rendering/SkeletalMeshRenderData.h"
@@ -1191,13 +1192,22 @@ void UAnnotationComponent::TickComponent(
 
 	if (bRefreshRenderState)
 	{
-		MarkRenderStateDirty(); // Without it will break the SkeletalMeshComponent
-	}
+		// Use render thread synchronization to prevent GPU page faults and race conditions
+		// when MarkRenderStateDirty() recreates the scene proxy while the skeletal mesh
+		// animation system is updating GPU resources (TLAS, skinning buffers, etc.)
+		ENQUEUE_RENDER_COMMAND(FAnnotationComponentSync)(
+			[PrimitiveSceneProxy = GetSceneProxy()](FRHICommandListImmediate& RHICmdList)
+			{
+				// Wait for GPU to finish with current resources before allowing proxy recreation
+				if (PrimitiveSceneProxy)
+				{
+					RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+				}
+			});
 
-	// if (ParentMeshInfo->RequiresUpdate())
-	// TODO: This sometimes miss a required update, see OWIMap. Not sure why.
-	// TODO: Per-frame update is certainly wasted.
-	// FIXME: Update the render proxy per frame will cause jittering on the material.
+		// Then mark dirty after render thread is synchronized
+		MarkRenderStateDirty();
+	}
 }
 
 
