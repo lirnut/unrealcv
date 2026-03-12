@@ -124,6 +124,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "unrealcv|Audio")
     void SetMaxCaptureDuration(float InMaxDuration);
 
+    /** Start ambient capture while excluding a specific actor's audio */
+    UFUNCTION(BlueprintCallable, Category = "unrealcv|Audio|Exclusion")
+    void StartAmbientCaptureWithExclusion(UAudioComponent* AudioToExclude);
+
+    /** Clear exclusion list and start normal ambient capture */
+    UFUNCTION(BlueprintCallable, Category = "unrealcv|Audio|Exclusion")
+    void StartNormalAmbientCapture();
+
     /** Event: Called when ambient capture finishes */
     UPROPERTY(BlueprintAssignable, Category = "unrealcv|Audio")
     FOnAudioCaptureFinished OnAmbientCaptureFinished;

@@ -157,6 +157,9 @@ void UAmbientAudioSensor::StartCapture()
     {
         SubmixListener->StartCapture();
     }
+
+    // Apply volume exclusion (mute excluded audio components)
+    ApplyExclusionVolumes();
 }
 
 void UAmbientAudioSensor::StopCapture()
@@ -177,6 +180,9 @@ void UAmbientAudioSensor::StopCapture()
 
     // Stop base capture
     Super::StopCapture();
+
+    // Restore original volumes
+    RestoreExclusionVolumes();
 }
 
 FAudioCaptureData UAmbientAudioSensor::GetCapturedAudio() const
@@ -306,4 +312,51 @@ void UAmbientAudioSensor::OnSubmixAudioReceived(const TArray<float>& AudioData, 
         // Notify
         OnAudioDataReceived(static_cast<float>(InTimestamp), AudioData.Num() / InNumChannels);
     }
+}
+
+void UAmbientAudioSensor::SetExcludedAudioComponent(UAudioComponent* AudioComp)
+{
+    if (AudioComp && !ExcludedAudioComponents.Contains(AudioComp))
+    {
+        ExcludedAudioComponents.Add(AudioComp);
+        UE_LOG(LogAmbientAudioSensor, Log, TEXT("AmbientAudioSensor: Added excluded audio component %s"), *AudioComp->GetName());
+    }
+}
+
+void UAmbientAudioSensor::ClearExcludedAudioComponents()
+{
+    ExcludedAudioComponents.Empty();
+    UE_LOG(LogAmbientAudioSensor, Log, TEXT("AmbientAudioSensor: Cleared excluded audio components"));
+}
+
+void UAmbientAudioSensor::ApplyExclusionVolumes()
+{
+    for (UAudioComponent* AudioComp : ExcludedAudioComponents)
+    {
+        if (IsValid(AudioComp))
+        {
+            // Store original volume
+            float OriginalVolume = AudioComp->GetVolumeMultiplier();
+            OriginalVolumes.Add(AudioComp, OriginalVolume);
+
+            // Mute the audio component
+            AudioComp->SetVolumeMultiplier(0.0f);
+            UE_LOG(LogAmbientAudioSensor, Log, TEXT("AmbientAudioSensor: Muted audio component %s (original volume: %.2f)"),
+                *AudioComp->GetName(), OriginalVolume);
+        }
+    }
+}
+
+void UAmbientAudioSensor::RestoreExclusionVolumes()
+{
+    for (auto& [AudioComp, OriginalVolume] : OriginalVolumes)
+    {
+        if (IsValid(AudioComp))
+        {
+            AudioComp->SetVolumeMultiplier(OriginalVolume);
+            UE_LOG(LogAmbientAudioSensor, Log, TEXT("AmbientAudioSensor: Restored volume for %s to %.2f"),
+                *AudioComp->GetName(), OriginalVolume);
+        }
+    }
+    OriginalVolumes.Empty();
 }

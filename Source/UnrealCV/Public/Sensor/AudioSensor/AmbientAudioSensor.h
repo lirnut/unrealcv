@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/AudioComponent.h"
 #include "Sensor/AudioSensor/BaseAudioSensor.h"
 #include "Sound/SoundSubmix.h"
 #include "AmbientAudioSensor.generated.h"
@@ -57,7 +58,29 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "unrealcv")
     bool bCaptureAllSubmixes;
 
+    /** Audio components to exclude from capture (will be muted during recording) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "unrealcv|Audio Exclusion")
+    TArray<TObjectPtr<UAudioComponent>> ExcludedAudioComponents;
+
+    /** Start ambient capture while excluding a specific actor's audio */
+    UFUNCTION(BlueprintCallable, Category = "unrealcv|Audio Exclusion")
+    void SetExcludedAudioComponent(UAudioComponent* AudioComp);
+
+    /** Clear exclusion list */
+    UFUNCTION(BlueprintCallable, Category = "unrealcv|Audio Exclusion")
+    void ClearExcludedAudioComponents();
+
     /** Internal submix buffer listener class */
     class FSubmixAudioListener;
     TSharedPtr<FSubmixAudioListener> SubmixListener;
+
+private:
+    /** Store original volumes for restoration */
+    TMap<TObjectPtr<UAudioComponent>, float> OriginalVolumes;
+
+    /** Apply volume exclusion before capture */
+    void ApplyExclusionVolumes();
+
+    /** Restore original volumes after capture */
+    void RestoreExclusionVolumes();
 };

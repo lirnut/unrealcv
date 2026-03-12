@@ -309,6 +309,44 @@ void UFusionAudioSensor::SetMaxCaptureDuration(float InMaxDuration)
     }
 }
 
+void UFusionAudioSensor::StartAmbientCaptureWithExclusion(UAudioComponent* AudioToExclude)
+{
+    if (!IsValid(AmbientSensor))
+    {
+        UE_LOG(LogFusionAudioSensor, Error, TEXT("StartAmbientCaptureWithExclusion: AmbientSensor is not valid"));
+        return;
+    }
+
+    // Clear previous exclusions
+    AmbientSensor->ClearExcludedAudioComponents();
+
+    // Set new exclusion
+    AmbientSensor->SetExcludedAudioComponent(AudioToExclude);
+
+    // Start capture
+    StartAmbientCapture();
+
+    UE_LOG(LogFusionAudioSensor, Log, TEXT("StartAmbientCaptureWithExclusion: Started capture excluding %s"),
+        AudioToExclude ? *AudioToExclude->GetName() : TEXT("None"));
+}
+
+void UFusionAudioSensor::StartNormalAmbientCapture()
+{
+    if (!IsValid(AmbientSensor))
+    {
+        UE_LOG(LogFusionAudioSensor, Error, TEXT("StartNormalAmbientCapture: AmbientSensor is not valid"));
+        return;
+    }
+
+    // Clear exclusions
+    AmbientSensor->ClearExcludedAudioComponents();
+
+    // Start capture
+    StartAmbientCapture();
+
+    UE_LOG(LogFusionAudioSensor, Log, TEXT("StartNormalAmbientCapture: Started normal ambient capture"));
+}
+
 void UFusionAudioSensor::HandleAmbientCaptureFinished()
 {
     OnAmbientCaptureFinished.Broadcast();
