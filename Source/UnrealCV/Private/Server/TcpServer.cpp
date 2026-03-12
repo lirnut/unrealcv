@@ -99,7 +99,13 @@ bool SocketReceiveAll(FSocket* Socket, uint8* Result, int32 ExpectedSize)
 			// LastError == ESocketErrors::SE_EWOULDBLOCK means running a non-block socket."));
 			if (LastError == ESocketErrors::SE_ECONNABORTED) // SE_ECONNABORTED
 			{
-				UE_LOG(LogUnrealCV, Warning, TEXT("Connection aborted unexpectly."));
+				UE_LOG(LogUnrealCV, Warning, TEXT("Connection aborted unexpectedly."));
+				return false;
+			}
+
+			if (LastError == ESocketErrors::SE_ECONNRESET)
+			{
+				UE_LOG(LogUnrealCV, Log, TEXT("Connection reset by peer."));
 				return false;
 			}
 
@@ -110,7 +116,7 @@ bool SocketReceiveAll(FSocket* Socket, uint8* Result, int32 ExpectedSize)
 			}
 
 			const TCHAR* LastErrorMsg = ISocketSubsystem::Get()->GetSocketError(LastError);
-			UE_LOG(LogUnrealCV, Error, TEXT("Unexpected error of socket happend, error %s"), LastErrorMsg);
+			UE_LOG(LogUnrealCV, Error, TEXT("Unexpected error of socket happened, error %s"), LastErrorMsg);
 
 			return false;
 		}
