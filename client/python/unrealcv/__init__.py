@@ -169,6 +169,9 @@ class Client:
         self.recv_num_q = SimpleQueue()  # inf
         self.recv_data_q = SimpleQueue()  # inf
         self.type = type
+        self.RECONNECT_ATTEMPTS = 5
+        self.RECONNECT_BASE_DELAY = 1
+        self.RECONNECT_MAX_DELAY = 1
 
     def send(self, message):
         """Send message out, return whether the message was successfully sent"""
@@ -203,7 +206,7 @@ class Client:
             # Instead of just dropping this message, give a verbose notice
             _L.error('No message handler to handle message with length %d', len(raw_message))
 
-    def connect(self, timeout=1):
+    def connect(self, timeout=1, start_receive_thread=True):
         """
         Try to connect to server, return whether connection successful
         """
@@ -231,8 +234,14 @@ class Client:
                     _L.info('Got connection confirm: %s', repr(message))
 
                     # start receive queue here
-                    self.t = threading.Thread(target=self.receive_loop_queue, daemon=True)
-                    self.t.start()
+                    if start_receive_thread and not (
+                        getattr(self, "t", None) and self.t.is_alive()
+                    ):
+                        self.t = threading.Thread(
+                            target=self.receive_loop_queue,
+                            daemon=True,
+                        )
+                        self.t.start()
 
                     return True
 
@@ -281,10 +290,9 @@ class Client:
                 self.sock = None
 
         if getattr(self, 't', None):
-            if self.t.is_alive():
+            if self.t.is_alive() and self.t is not threading.current_thread():
                 self.recv_num_q.put(None)
-                if threading.current_thread() != self.t:
-                    self.t.join(timeout=2.0)
+                self.t.join(timeout=2.0)
 
     def receive(self):
         """
@@ -331,9 +339,7 @@ class Client:
                         self.recv_data_q.put(None)
                         return
                     message = self.raw_message_handler(raw_message)
-                    self.recv_message_id += (
-                        1  # Increment it only after the request/response cycle finished
-                    )
+                    self.recv_message_id += 1
                     self.recv_data_q.put(message)
             else:
                 # do not need results
@@ -357,13 +363,11 @@ class Client:
 
         raw_message = b'%d:%s' % (self.send_message_id, message)
         if not self.send(raw_message):
-            _L.error('Failed to send async request, socket is closed')
-            return False
+            raise ConnectionError("failed to send async request, socket is closed")
 
         self.send_message_id += 1
 
         self.recv_num_q.put(1)
-        # self.message_id += 1
         return True
 
     def request_batch_async(self, batch):
@@ -385,8 +389,7 @@ class Client:
 
             raw_message = b'%d:%s' % (self.send_message_id, message)
             if not self.send(raw_message):
-                _L.error('Failed to send batch async request, socket is closed')
-                return False
+                raise ConnectionError("failed to send batch async request, socket is closed")
             self.send_message_id += 1
 
         self.recv_num_q.put(len(batch))
@@ -416,8 +419,7 @@ class Client:
 
             raw_message = b'%d:%s' % (self.send_message_id, message)
             if not self.send(raw_message):
-                _L.error('Failed to send batch request, socket is closed')
-                return None
+                raise ConnectionError("failed to send batch request, socket is closed")
             self.send_message_id += 1
 
         self.recv_num_q.put(-len(batch))  # negative number indicates need results
@@ -439,7 +441,7 @@ class Client:
         Parameters
         ----------
         message : str or list
-            UnrealCV command to interact with the game. 
+            UnrealCV command to interact with the game.
             When message is a list of commands, the commands will be sent in batch.
             More info can be seen from http://docs.unrealcv.org/en/latest/reference/commands.html
 
@@ -478,16 +480,19 @@ class Client:
         raw_message = b'%d:%s' % (self.send_message_id, message)
         # _L.debug('Request: %s', raw_message.decode("utf-8"))
         if not self.send(raw_message):
-            _L.error('Failed to send request, socket is closed')
-            return None
+            raise ConnectionError("failed to send request, socket is closed")
 
         self.send_message_id += 1
 
         self.recv_num_q.put(-1)  # negative number indicates need results
-        message = self.recv_data_q.get()
+        try:
+            message = self.recv_data_q.get(timeout=timeout)
+        except Exception as e:
+            raise TimeoutError(f"Request timed out after {timeout}s") from e
 
         if message is None:
             _L.error('Connection lost, no response received')
+            return None
 
         return message
 
