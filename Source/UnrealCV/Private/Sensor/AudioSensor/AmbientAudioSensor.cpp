@@ -335,8 +335,8 @@ void UAmbientAudioSensor::ApplyExclusionVolumes()
     {
         if (IsValid(AudioComp))
         {
-            // Store original volume
-            float OriginalVolume = AudioComp->GetVolumeMultiplier();
+            // Store original volume (VolumeMultiplier is a UPROPERTY)
+            float OriginalVolume = AudioComp->VolumeMultiplier;
             OriginalVolumes.Add(AudioComp, OriginalVolume);
 
             // Mute the audio component

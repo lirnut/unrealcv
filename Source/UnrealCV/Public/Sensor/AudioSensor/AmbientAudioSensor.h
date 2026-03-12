@@ -35,6 +35,18 @@ public:
     /** Get captured audio and clear buffer */
     FAudioCaptureData FlushCapturedAudio() override;
 
+    /** Audio components to exclude from capture (will be muted during recording) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "unrealcv|Audio Exclusion")
+    TArray<TObjectPtr<UAudioComponent>> ExcludedAudioComponents;
+
+    /** Set excluded audio component */
+    UFUNCTION(BlueprintCallable, Category = "unrealcv|Audio Exclusion")
+    void SetExcludedAudioComponent(UAudioComponent* AudioComp);
+
+    /** Clear exclusion list */
+    UFUNCTION(BlueprintCallable, Category = "unrealcv|Audio Exclusion")
+    void ClearExcludedAudioComponents();
+
 protected:
     /** Initialize submix buffer listener */
     void InitializeSubmixListener();
@@ -45,7 +57,6 @@ protected:
     /** Called when audio data is received from submix */
     void OnSubmixAudioReceived(const TArray<float>& AudioData, int32 InNumChannels, int32 InSampleRate, double InTimestamp);
 
-protected:
     /** Whether to capture from master submix or a specific submix */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "unrealcv")
     bool bUseMasterSubmix;
@@ -57,18 +68,6 @@ protected:
     /** Whether to include all submixes in the capture */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "unrealcv")
     bool bCaptureAllSubmixes;
-
-    /** Audio components to exclude from capture (will be muted during recording) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "unrealcv|Audio Exclusion")
-    TArray<TObjectPtr<UAudioComponent>> ExcludedAudioComponents;
-
-    /** Start ambient capture while excluding a specific actor's audio */
-    UFUNCTION(BlueprintCallable, Category = "unrealcv|Audio Exclusion")
-    void SetExcludedAudioComponent(UAudioComponent* AudioComp);
-
-    /** Clear exclusion list */
-    UFUNCTION(BlueprintCallable, Category = "unrealcv|Audio Exclusion")
-    void ClearExcludedAudioComponents();
 
     /** Internal submix buffer listener class */
     class FSubmixAudioListener;
