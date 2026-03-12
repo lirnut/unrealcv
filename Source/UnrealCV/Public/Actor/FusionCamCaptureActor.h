@@ -10,6 +10,8 @@
 #include "Encoder/UnrealCVMP4Encoder.h"
 #include "FusionCamCaptureActor.generated.h"
 
+class UFusionAudioSensor;
+
 USTRUCT(BlueprintType)
 struct FVideoEncoderSettings
 {
@@ -473,13 +475,30 @@ protected:
 	// Audio recording
 	void StartAudioRecord();
 	void StopAudioRecord();
-	class Audio::FMixerDevice* GetAudioMixer();
+	void FlushAudioDataToFile();
+
+	// Background audio recording (excluding foreground actor)
+	void StartBackgroundAudioRecord();
+	void StopBackgroundAudioRecord();
+	void SaveBackgroundAudioToFile(const FString& Filename);
 
 	// Utility functions
 	FString MakeFilenameNew(FString DataType, FString FileExtension);
 	FString MakeFilenameNewWithFolder(FString DataType, FString FileExtension, bool bIsWarmUp = false);
 	void SaveOverviewMetadata();
 	void SaveCameraMetadata(bool bWarmUp = false);
+
+	/** Fusion Audio Sensor for capturing all world audio */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "unrealcv|Audio")
+	class UFusionAudioSensor* FusionAudio;
+
+	/** Secondary Fusion Audio Sensor for capturing background audio (excluding foreground actor) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "unrealcv|Audio")
+	class UFusionAudioSensor* BackgroundAudio;
+
+	/** Whether to record background audio (excluding foreground actor). Default: false */
+	UPROPERTY(EditInstanceOnly, Category = "unrealcv|Audio")
+	bool bRecordBackgroundAudio;
 
 private:
 	UPROPERTY()
