@@ -583,7 +583,7 @@ class UETestRunner:
 
         if not self._cancelled:
             _cnt = 0
-            _output_dir = os.abspath(os.path.join(desktop_path, 'DatasetAutomationOutputDirectory'))
+            _output_dir = os.path.abspath(os.path.join(desktop_path, 'DatasetAutomationOutputDirectory'))
             _set_output_result = client.request(f"vset /datasetautomation/config/output_directory {_output_dir}")
             _set_total_scenes_result = client.request(f"vset /datasetautomation/config/total_scenes 2")
             _set_exit_on_complete_result = client.request("vset /datasetautomation/config/b_exit_on_complete false")

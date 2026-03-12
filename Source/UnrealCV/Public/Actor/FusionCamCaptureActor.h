@@ -163,13 +163,13 @@ struct FRecordingDataTypesConfig
 	{
 		FRecordingDataTypesConfig Config;
 		Config.bRecordAudio = true;
+		Config.bRecordBackgroundAudio = true; 
 		Config.bRecordRGB = true;
 		Config.bRecordMask = true;
 		Config.bRecordOneObjectLit = false;
 		Config.bRecordOneObjectGroomLit = true;
 		Config.bRecordDepth = true;
 		Config.bRecordMetadata = true;
-		Config.bRecordBackgroundAudio = false; // Default: do not record background audio
 		return Config;
 	}
 
