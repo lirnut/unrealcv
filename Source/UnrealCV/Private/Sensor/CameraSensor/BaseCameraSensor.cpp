@@ -24,7 +24,11 @@ DECLARE_CYCLE_STAT(TEXT("ReadBufferFast"), STAT_ReadBufferFast, STATGROUP_Unreal
 
 UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	check(IsInGameThread());
+	// check(IsInGameThread());
+	if (!IsInGameThread())
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("UBaseCameraSensor must be created in game thread"));
+	}
 
 	// static ConstructorHelpers::FObjectFinder<UStaticMesh> EditorCameraMesh(TEXT("/Engine/EditorMeshes/MatineeCam_SM"));
 	// Another choice is "StaticMesh'/Engine/EditorMeshes/Camera/SM_CineCam.SM_CineCam'"
