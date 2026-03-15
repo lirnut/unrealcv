@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import time
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
@@ -93,6 +94,7 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
     overview = None
     resolution = "unknown"
 
+    # slow
     if not overview_json_path.exists() and not overview_json_gz_path.exists():
         issues.append("Missing overview.json (or overview.json.gz)")
         should_delete = True
@@ -116,6 +118,30 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
     if not metadata_dir.exists():
         issues.append("Missing metadata directory")
         should_delete = True
+    else:
+        step_metadatas = os.listdir(metadata_dir)
+        if len(step_metadatas) != EXPECTED_ONEOBJLIT_FILES and len(step_metadatas) != EXPECTED_ONEOBJLIT_FILES_2:
+            issues.append(f"metadata has {len(step_metadatas)} files (expected {EXPECTED_ONEOBJLIT_FILES} or {EXPECTED_ONEOBJLIT_FILES_2})")
+            should_delete = True
+        else:
+            # load the first step metadata
+            first_step_metadata = step_metadatas[0]
+            first_step_metadata_path = metadata_dir / first_step_metadata
+            with open(first_step_metadata_path, "rb") as f:
+                content = f.read()
+                first_step_metadata = try_decode_content(content)
+            if first_step_metadata is None:
+                issues.append(f"Failed to decode step metadata")
+            else:
+                # get_xyz = lambda x: np.array([x["X"], x["Y"], x["Z"]])
+                get_xy = lambda x: np.array([x["X"], x["Y"]])
+                camera_location = get_xy(first_step_metadata["CameraLocation"])
+                foreground_location = get_xy(first_step_metadata["ForegroundLocation"])
+                hori_dist = np.linalg.norm(camera_location - foreground_location)
+                if hori_dist < 50:
+                    issues.append(f"Camera and foreground location are too close, {hori_dist}")
+                    if hori_dist < 30:
+                        should_delete = True
 
     oneobjlit_dir = render_path / "oneobjlit"
     if not oneobjlit_dir.exists():
@@ -587,12 +613,25 @@ def main():
     valid_count = sum(1 for r in results if r["valid"])
     invalid_count = total_renders - valid_count
 
+    # 统计每种 resolution 的数量
+    resolution_stats = defaultdict(int)
+    for result in results:
+        resolution = result.get("resolution", "unknown")
+        resolution_stats[resolution] += 1
+
     print(f"\n{'='*80}")
     print(f"Check Results:")
     print(f"{'='*80}")
     print(f"Total renders: {total_renders}")
     print(f"Valid renders: {valid_count} ({valid_count/total_renders*100:.2f}%)")
     print(f"Invalid renders: {invalid_count} ({invalid_count/total_renders*100:.2f}%)")
+
+    # 输出 resolution 统计
+    print(f"\n{'='*80}")
+    print(f"Resolution Statistics:")
+    print(f"{'='*80}")
+    for resolution, count in sorted(resolution_stats.items(), key=lambda x: (-x[1], x[0])):
+        print(f"  {resolution}: {count} renders ({count/total_renders*100:.2f}%)")
 
     scene_render_status = defaultdict(lambda: defaultdict(list))
     scenes_to_delete = set()
