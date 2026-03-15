@@ -36,6 +36,7 @@
 #include "SpawnBPLib.h"
 
 TArray<FSceneHandle> USceneCompositionBPLib::ActiveScenes;
+int32 USceneCompositionBPLib::SafePointCycleIndex = 0;
 
 FString USceneCompositionBPLib::GetSceneConfigFilePath()
 {
@@ -1951,5 +1952,77 @@ AActor* USceneCompositionBPLib::PreviewLastSafePoint()
 		LastSafePoint.X, LastSafePoint.Y, LastSafePoint.Z);
 
 	return PreviewSafePointWithSceneConfig(World, LastSafePoint);
+}
+
+bool USceneCompositionBPLib::CycleSafePoint(UObject* WorldContextObject)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("CycleSafePoint: Invalid world context"));
+		return false;
+	}
+
+	FString CurrentMapPath = World->GetMapName();
+	FString CurrentMapName = FJsonConfigHelper::ExtractMapNameFromPath(CurrentMapPath);
+	TArray<FVector> SafePoints = GetSafePointsForScene(CurrentMapName);
+
+	if (SafePoints.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("CycleSafePoint: No safe points found for scene '%s'"), *CurrentMapName);
+		return false;
+	}
+
+	SafePointCycleIndex = (SafePointCycleIndex + 1) % SafePoints.Num();
+	FVector TargetLocation = SafePoints[SafePointCycleIndex];
+
+	UE_LOG(LogUnrealCV, Log, TEXT("CycleSafePoint: Moving to safe point %d/%d: (%.2f, %.2f, %.2f)"),
+		SafePointCycleIndex + 1, SafePoints.Num(), TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
+
+	APawn* Pawn = FUnrealcvServer::Get().GetPawn();
+	if (!IsValid(Pawn))
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("CycleSafePoint: Pawn is invalid"));
+		return false;
+	}
+
+	Pawn->SetActorLocation(TargetLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	return true;
+}
+
+bool USceneCompositionBPLib::SaveCurrentSafePointToFile(UObject* WorldContextObject)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SaveCurrentSafePointToFile: Invalid world context"));
+		return false;
+	}
+
+	FString CurrentMapPath = World->GetMapName();
+	FString CurrentMapName = FJsonConfigHelper::ExtractMapNameFromPath(CurrentMapPath);
+	TArray<FVector> SafePoints = GetSafePointsForScene(CurrentMapName);
+
+	if (SafePoints.Num() == 0 || SafePointCycleIndex >= SafePoints.Num())
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SaveCurrentSafePointToFile: No valid safe point to save"));
+		return false;
+	}
+
+	FVector CurrentPoint = SafePoints[SafePointCycleIndex];
+	FString Line = FString::Printf(TEXT("%.2f %.2f %.2f\n"), CurrentPoint.X, CurrentPoint.Y, CurrentPoint.Z);
+
+	FString FilePath = FPaths::ProjectSavedDir() / TEXT("SafePoints.txt");
+	if (FFileHelper::SaveStringToFile(Line, *FilePath, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append))
+	{
+		UE_LOG(LogUnrealCV, Log, TEXT("SaveCurrentSafePointToFile: Saved (%.2f, %.2f, %.2f) to %s"),
+			CurrentPoint.X, CurrentPoint.Y, CurrentPoint.Z, *FilePath);
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("SaveCurrentSafePointToFile: Failed to write to %s"), *FilePath);
+		return false;
+	}
 }
 

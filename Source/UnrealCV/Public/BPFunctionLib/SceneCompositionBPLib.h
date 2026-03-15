@@ -263,6 +263,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UnrealCV|SceneComposition")
 	static FString GetSceneConfigFilePath();
 
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
+	static bool CycleSafePoint(UObject* WorldContextObject);
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
+	static bool SaveCurrentSafePointToFile(UObject* WorldContextObject);
+
 	// ========== Safe Point Preview ==========
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealCV|SceneComposition", meta = (WorldContext = "WorldContextObject"))
@@ -353,4 +359,5 @@ private:
 	static class AUnrealcvPawn* GetUnrealcvPawn(UWorld* World);
 
 	static TArray<FSceneHandle> ActiveScenes;
+	static int32 SafePointCycleIndex;
 };

@@ -65,7 +65,7 @@ else:
         ("Midgardr_Free", 1.5),
         ("Warehouse", 1.0),
         ("Downtown_West", 0.5),
-        # ("Downtown_West_Night", 1.7),
+        ("Downtown_West_Night", 0.5),
         ("Bridge_P", 1.3),
         ("LV_Exterior", 0.3),
         ("LV_Exterior_Night", 0.2),
