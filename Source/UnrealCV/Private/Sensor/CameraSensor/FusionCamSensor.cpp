@@ -87,7 +87,11 @@ static void CollectAllGroomComponentsForActor(
 UFusionCamSensor::UFusionCamSensor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	check(IsInGameThread());	
+	// check(IsInGameThread());	
+	if (!IsInGameThread())
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("UFusionCamSensor is not created in game thread"));
+	}
 
 	FString ComponentName;
 	ComponentName = FString::Printf(TEXT("%s_%s"), *this->GetName(), TEXT("PreviewCamera"));
