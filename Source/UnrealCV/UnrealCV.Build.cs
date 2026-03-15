@@ -23,6 +23,7 @@ public class UnrealcvBuildConfig
 			new string[] {
 				"UnrealCV/Private",
 				"UnrealCV/Private/Actor",
+				"UnrealCV/Private/Sensor/AudioSensor",
 				"UnrealCV/Public/Actor",
 				"UnrealCV/Public/BPFunctionLib",
 				"UnrealCV/Public/Component",

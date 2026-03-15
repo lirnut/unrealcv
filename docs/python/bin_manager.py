@@ -384,13 +384,13 @@ def main():
             if is_trajectory_mode:
                 print(client.request("vset /datasetautomation/config/trajectory_fps 30"))
                 print(client.request("vset /datasetautomation/config/num_frames 121"))
-                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,depth,metadata"))
+                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjlit,depth,metadata"))
                 print(client.request("vset /captureactor/paused_tick_interval 0.1"))
             else:
                 # Matting task config
                 print(client.request("vset /datasetautomation/config/trajectory_fps 30"))
                 print(client.request("vset /datasetautomation/config/num_frames 90"))
-                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjgroomlit,depth,metadata"))
+                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjlit,depth,metadata"))
 
             timecode = datetime.datetime.now().strftime(r"%y-%m-%d") + f"_{task_name}"
             output_dir = str(PKG_DIR / "DatasetAutomationOutputDirectory" / timecode / map_name)
@@ -424,6 +424,8 @@ def main():
             # print(client.request("vrun r.ScreenPercentage 67.0"))
             # print(client.request("vrun r.Shadow.Virtual.Enable 0"))
             print(client.request("vrun r.HairStrands.SkyLighting 0"))
+            if not is_trajectory_mode:
+                print(client.request("vrun r.HairStrands.SwapType 2"))
 
 
             # Disable unnecessary warnings and messages

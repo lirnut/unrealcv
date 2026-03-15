@@ -28,7 +28,6 @@
 #include "UnrealcvLog.h"
 #include "UnrealcvServer.h"
 #include "Utils/Serialization.h"
-#include "Sensor/AudioSensor/FusionAudioSensor.h"
 #include "Runtime/Core/Public/Misc/MemStack.h"
 
 FRecordingSettings AFusionCamCaptureActor::RecordingSettings;
@@ -90,21 +89,6 @@ AFusionCamCaptureActor::AFusionCamCaptureActor()
 	}
 	RootComponent = Billboard;
 
-	// Create Fusion Audio Sensor for capturing all world audio
-	FString AudioSensorName = FString::Printf(TEXT("%s_%s"), *GetName(), TEXT("FusionAudioSensor"));
-	FusionAudio = CreateDefaultSubobject<UFusionAudioSensor>(*AudioSensorName);
-	FusionAudio->SetupAttachment(RootComponent);
-	FusionAudio->SetRelativeLocation(FVector::ZeroVector);
-	FusionAudio->Initialize(EAudioCapturePreset::Ambient);
-
-	// Create Background Audio Sensor for capturing world audio excluding foreground actor
-	FString BackgroundAudioSensorName = FString::Printf(TEXT("%s_%s"), *GetName(), TEXT("BackgroundAudioSensor"));
-	BackgroundAudio = CreateDefaultSubobject<UFusionAudioSensor>(*BackgroundAudioSensorName);
-	BackgroundAudio->SetupAttachment(RootComponent);
-	BackgroundAudio->SetRelativeLocation(FVector::ZeroVector);
-	BackgroundAudio->Initialize(EAudioCapturePreset::Ambient);
-
-	bRecordBackgroundAudio = false; // Default: do not record background audio
 }
 
 void AFusionCamCaptureActor::BeginPlay()
@@ -859,243 +843,30 @@ void AFusionCamCaptureActor::RecordFrame(bool bWarmUp)
 
 void AFusionCamCaptureActor::StartAudioRecord()
 {
-	if (!IsValid(FusionAudio))
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Failed to start audio recording - FusionAudio is null"));
-		return;
-	}
-
-	// Configure fusion audio sensor for ambient capture
-	FusionAudio->SetMaxCaptureDuration(600.0f); // Max 10 minutes recording
-
-	// Start capturing ambient audio (all world sound)
-	FusionAudio->StartAmbientCapture();
-
-	UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Audio recording started via FusionAudioSensor"));
-
-	// Start background audio recording if enabled
-	if (RecordingDataTypes.bRecordBackgroundAudio)
-	{
-		StartBackgroundAudioRecord();
-	}
 }
 
 void AFusionCamCaptureActor::StopAudioRecord()
 {
-	if (!IsValid(FusionAudio))
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Failed to stop audio recording - FusionAudio is null"));
-		return;
-	}
 
-	// Stop capturing
-	FusionAudio->StopAmbientCapture();
-
-	// Get ambient audio data
-	FAudioCaptureData AudioData = FusionAudio->GetAmbientAudioData();
-	if (AudioData.Samples.Num() == 0)
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: No ambient audio data to save"));
-		return;
-	}
-
-	// Build WAV file path in the recording folder
-	FString WavFileName = MakeFilenameNew("audio", ".wav");
-
-	// Convert float to 16-bit PCM
-	TArray<int16> PCM16Data;
-	PCM16Data.Reserve(AudioData.Samples.Num());
-	for (float Sample : AudioData.Samples)
-	{
-		float Clamped = FMath::Clamp(Sample, -1.0f, 1.0f);
-		PCM16Data.Add(static_cast<int16>(Clamped * 32767.0f));
-	}
-
-	// Build WAV header struct
-	struct FWAVHeader
-	{
-		char RIFF[4] = { 'R', 'I', 'F', 'F' };
-		uint32 ChunkSize = 0;
-		char WAVE[4] = { 'W', 'A', 'V', 'E' };
-		char fmt[4] = { 'f', 'm', 't', ' ' };
-		uint32 Subchunk1Size = 16;
-		uint16 AudioFormat = 1; // PCM
-		uint16 NumChannels = 0;
-		uint32 SampleRate = 0;
-		uint32 ByteRate = 0;
-		uint16 BlockAlign = 0;
-		uint16 BitsPerSample = 16;
-		char data[4] = { 'd', 'a', 't', 'a' };
-		uint32 Subchunk2Size = 0;
-	};
-
-	int32 NumSamples = PCM16Data.Num();
-	int32 NumBytes = NumSamples * sizeof(int16);
-
-	FWAVHeader Header;
-	Header.NumChannels = static_cast<uint16>(AudioData.NumChannels);
-	Header.SampleRate = static_cast<uint32>(AudioData.SampleRate);
-	Header.ByteRate = Header.SampleRate * Header.NumChannels * sizeof(int16);
-	Header.BlockAlign = Header.NumChannels * sizeof(int16);
-	Header.Subchunk2Size = NumBytes;
-	Header.ChunkSize = 36 + NumBytes;
-
-	// Write to file
-	TArray<uint8> FileData;
-	FileData.Append((uint8*)&Header, sizeof(Header));
-	FileData.Append((uint8*)PCM16Data.GetData(), NumBytes);
-
-	// Save to file
-	if (FFileHelper::SaveArrayToFile(FileData, *WavFileName))
-	{
-		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Audio saved to %s"), *WavFileName);
-	}
-	else
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: Failed to save audio to %s"), *WavFileName);
-	}
-
-	// Stop and save background audio recording if enabled
-	if (RecordingDataTypes.bRecordBackgroundAudio)
-	{
-		StopBackgroundAudioRecord();
-	}
 }
 
 void AFusionCamCaptureActor::FlushAudioDataToFile()
 {
-	if (!IsValid(FusionAudio))
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Failed to flush audio data - FusionAudio is null"));
-		return;
-	}
 
-	// Flush ambient audio data and save to file
-	FString WavFileName = MakeFilenameNew("audio_flush", ".wav");
-	FusionAudio->SaveAmbientAudioToFile(WavFileName);
-
-	UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Flushed audio saved to %s"), *WavFileName);
 }
 
 void AFusionCamCaptureActor::StartBackgroundAudioRecord()
 {
-	if (!IsValid(BackgroundAudio))
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Failed to start background audio recording - BackgroundAudio is null"));
-		return;
-	}
 
-	// Configure background audio sensor
-	BackgroundAudio->SetMaxCaptureDuration(600.0f); // Max 10 minutes recording
-
-	// Start capturing with foreground actor exclusion
-	if (IsValid(TargetForeground))
-	{
-		UAudioComponent* ForegroundAudioComp = TargetForeground->FindComponentByClass<UAudioComponent>();
-		if (ForegroundAudioComp)
-		{
-			BackgroundAudio->StartAmbientCaptureWithExclusion(ForegroundAudioComp);
-			UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Background audio recording started (excluding %s)"), *TargetForeground->GetName());
-		}
-		else
-		{
-			// No audio component on foreground, just start normal ambient capture
-			BackgroundAudio->StartNormalAmbientCapture();
-			UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Foreground actor %s has no AudioComponent, recording normal ambient audio"), *TargetForeground->GetName());
-		}
-	}
-	else
-	{
-		// No foreground actor, just start normal ambient capture
-		BackgroundAudio->StartNormalAmbientCapture();
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: No foreground actor set, recording normal ambient audio"));
-	}
 }
 
 void AFusionCamCaptureActor::StopBackgroundAudioRecord()
 {
-	if (!IsValid(BackgroundAudio))
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Failed to stop background audio recording - BackgroundAudio is null"));
-		return;
-	}
-
-	// Stop capturing
-	BackgroundAudio->StopAmbientCapture();
-
-	// Save to file
-	FString BackgroundWavFileName = MakeFilenameNew("audio_background", ".wav");
-	SaveBackgroundAudioToFile(BackgroundWavFileName);
 }
 
 void AFusionCamCaptureActor::SaveBackgroundAudioToFile(const FString& Filename)
 {
-	if (!IsValid(BackgroundAudio))
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: Failed to save background audio - BackgroundAudio is null"));
-		return;
-	}
-
-	// Get background audio data
-	FAudioCaptureData AudioData = BackgroundAudio->GetAmbientAudioData();
-	if (AudioData.Samples.Num() == 0)
-	{
-		UE_LOG(LogUnrealCV, Warning, TEXT("FusionCamCaptureActor: No background audio data to save"));
-		return;
-	}
-
-	// Convert float to 16-bit PCM
-	TArray<int16> PCM16Data;
-	PCM16Data.Reserve(AudioData.Samples.Num());
-	for (float Sample : AudioData.Samples)
-	{
-		float Clamped = FMath::Clamp(Sample, -1.0f, 1.0f);
-		PCM16Data.Add(static_cast<int16>(Clamped * 32767.0f));
-	}
-
-	// Build WAV header struct
-	struct FWAVHeader
-	{
-		char RIFF[4] = { 'R', 'I', 'F', 'F' };
-		uint32 ChunkSize = 0;
-		char WAVE[4] = { 'W', 'A', 'V', 'E' };
-		char fmt[4] = { 'f', 'm', 't', ' ' };
-		uint32 Subchunk1Size = 16;
-		uint16 AudioFormat = 1; // PCM
-		uint16 NumChannels = 0;
-		uint32 SampleRate = 0;
-		uint32 ByteRate = 0;
-		uint16 BlockAlign = 0;
-		uint16 BitsPerSample = 16;
-		char data[4] = { 'd', 'a', 't', 'a' };
-		uint32 Subchunk2Size = 0;
-	};
-
-	int32 NumSamples = PCM16Data.Num();
-	int32 NumBytes = NumSamples * sizeof(int16);
-
-	FWAVHeader Header;
-	Header.NumChannels = static_cast<uint16>(AudioData.NumChannels);
-	Header.SampleRate = static_cast<uint32>(AudioData.SampleRate);
-	Header.ByteRate = Header.SampleRate * Header.NumChannels * sizeof(int16);
-	Header.BlockAlign = Header.NumChannels * sizeof(int16);
-	Header.Subchunk2Size = NumBytes;
-	Header.ChunkSize = 36 + NumBytes;
-
-	// Write to file
-	TArray<uint8> FileData;
-	FileData.Append((uint8*)&Header, sizeof(Header));
-	FileData.Append((uint8*)PCM16Data.GetData(), NumBytes);
-
-	// Save to file
-	if (FFileHelper::SaveArrayToFile(FileData, *Filename))
-	{
-		UE_LOG(LogUnrealCV, Display, TEXT("FusionCamCaptureActor: Background audio saved to %s"), *Filename);
-	}
-	else
-	{
-		UE_LOG(LogUnrealCV, Error, TEXT("FusionCamCaptureActor: Failed to save background audio to %s"), *Filename);
-	}
+	
 }
 
 FString AFusionCamCaptureActor::MakeFilenameNew(FString DataType, FString FileExtension)

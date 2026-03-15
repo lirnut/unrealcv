@@ -10,6 +10,8 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
 import sys
+from pathlib import Path
+import random
 
 # ── 唯一新增依赖：pip install imageio imageio-ffmpeg ──
 # imageio-ffmpeg 自带静态编译的 ffmpeg 二进制，无需系统安装
@@ -345,13 +347,76 @@ def main():
         print("Combine failed")
 
 
+def apply_alpha_to_rgb(rgb_video, oneobjlit_dir, output_dir):
+    output_dir.mkdir(exist_ok=True)
+
+    frame_idx = 0
+
+    while True:
+        ret, rgb_frame = rgb_video.read()
+        if not ret:
+            break
+
+        alpha_png_path = oneobjlit_dir / f'{frame_idx}_oneobjlit.png'
+
+        if alpha_png_path.exists():
+            if random.random() < 0.03:
+                alpha_img = cv2.imread(str(alpha_png_path), cv2.IMREAD_UNCHANGED)
+
+                if alpha_img.shape[2] == 4:
+                    alpha_channel = alpha_img[:, :, 3]
+                else:
+                    alpha_channel = np.mean(alpha_img[:, :, :3], axis=2).astype(np.uint8)
+
+                alpha_normalized = alpha_channel.astype(np.float32) / 255.0
+                alpha_reversed = 1.0 - alpha_normalized
+                alpha_enhanced = np.power(alpha_reversed, 0.5)
+
+                rgb_float = rgb_frame.astype(np.float32)
+                alpha_3ch = np.stack([alpha_enhanced] * 3, axis=2)
+
+                result = rgb_float * alpha_3ch
+                result = np.clip(result, 0, 255).astype(np.uint8)
+
+                result_with_alpha = np.dstack([result, (alpha_enhanced * 255).astype(np.uint8)])
+
+                output_path = output_dir / f'{frame_idx}.png'
+                cv2.imwrite(str(output_path), result_with_alpha)
+                break
+
+
+        frame_idx += 1
+
+    rgb_video.release()
+    print(f'Done! Processed {frame_idx} frames to {output_dir}')
+
+
+def try_decode_content(content: bytes):
+    """尝试多种编码解码并解析JSON"""
+    encodings = [
+        'utf-8-sig',   # UTF-8 with BOM
+        'utf-16',      # 自动检测 BOM (UTF-16 LE/BE)
+        'utf-8',
+        'gbk',
+    ]
+
+    for encoding in encodings:
+        try:
+            res = content.decode(encoding)
+            return json.loads(res)
+        except Exception:
+            continue
+
+    return None
+
 def extra():
 
     overview_path = os.path.join(args.input_dir, "overview.json")
     overview = None
     if os.path.exists(overview_path):
-        with open(overview_path, "r+") as f:
-            overview = json.load(f)
+        with open(overview_path, "rb") as f:
+            content = f.read()
+            overview = try_decode_content(content)
     else:
         print("overview.json not found!!!")
         if args.time_delay > 0:
@@ -438,6 +503,12 @@ def extra():
                     cv2.imwrite(output_path, result_img)
 
                 print(f"已生成 {len(oneobjgroomlit_files)} 张图片到 {output_gen_dir}")
+    
+    apply_alpha_to_rgb(
+        rgb_video=cv2.VideoCapture(os.path.join(args.input_dir, 'rgb.mp4')),
+        oneobjlit_dir=Path(os.path.join(args.input_dir, 'oneobjlit')),
+        output_dir=Path(os.path.join(args.input_dir, 'rgb-alpha-rev'))
+    )
 
 
 if __name__ == "__main__":

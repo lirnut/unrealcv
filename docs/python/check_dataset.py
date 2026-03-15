@@ -57,6 +57,26 @@ def run_genvid_for_render(args_tuple: Tuple[str, str, int]) -> Dict[str, any]:
         return {"status": "failed", "path": render_path, "error": str(e)}
 
 
+
+def try_decode_content(content: bytes):
+    """尝试多种编码解码并解析JSON"""
+    encodings = [
+        'utf-8-sig',   # UTF-8 with BOM
+        'utf-16',      # 自动检测 BOM (UTF-16 LE/BE)
+        'utf-8',
+        'gbk',
+    ]
+
+    for encoding in encodings:
+        try:
+            res = content.decode(encoding)
+            return json.loads(res)
+        except Exception:
+            continue
+
+    return None
+
+
 def check_render_directory(render_path: Path) -> Dict[str, any]:
     issues = []
     oneobjlit_count = 0
@@ -68,12 +88,28 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
     if not rgb_mp4.exists():
         issues.append("Missing rgb.mp4")
 
-    overview_json = render_path / "overview.json"
-    overview_json_gz = render_path / "overview.json.gz"
+    overview_json_path = render_path / "overview.json"
+    overview_json_gz_path = render_path / "overview.json.gz"
+    overview = None
+    resolution = "unknown"
 
-    if not overview_json.exists() and not overview_json_gz.exists():
+    if not overview_json_path.exists() and not overview_json_gz_path.exists():
         issues.append("Missing overview.json (or overview.json.gz)")
         should_delete = True
+    else:
+        if overview_json_path.exists():
+            with open(overview_json_path, "rb") as f:
+                content = f.read()
+                overview = try_decode_content(content)
+        elif overview_json_gz_path.exists():
+            with gzip.open(overview_json_gz_path, "rb") as f:
+                content = f.read()
+                overview = try_decode_content(content)
+
+        if overview is None:
+            issues.append("Failed to decode overview.json (or overview.json.gz)")
+        else:
+            resolution = overview.get("Resolution", "unknown")
 
 
     metadata_dir = render_path / "metadata"
@@ -134,6 +170,7 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
         "valid": len(issues) == 0,
         "oneobjlit_count": oneobjlit_count,
         "rgb_png_count": rgb_png_count,
+        "resolution": resolution,
         "should_delete": should_delete,
         "need_genvid": need_genvid
     }
@@ -261,6 +298,12 @@ def unpack_render_directory(render_path_str: str) -> Dict[str, any]:
 
         # Calculate size after
         size_after = sum(f.stat().st_size for f in unpack_dir.rglob('*') if f.is_file())
+
+        if unpack_dir.exists():
+            if size_after >= size_before:
+                tar_path.unlink()
+            else:
+                print(f"Warning: Unpacked size {size_after} is smaller than before {size_before} for {render_path}, probably corrupted, won't delete original tar")
 
         print(f"Successfully unpacked {tar_path} to {unpack_dir}")
         return {

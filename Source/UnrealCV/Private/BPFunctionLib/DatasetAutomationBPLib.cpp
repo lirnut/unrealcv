@@ -86,6 +86,8 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.RecordingConfig = FRecordingDataTypesConfig::MakeTrajectoryConfig();
 		CurrentConfig.NumFrames = 121;
 		CurrentConfig.TrajectoryFPS = 30;
+
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.HairStrands.SwapType 0")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /mqrc/render_immediately true")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.2")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_speed"), TEXT("0.0")));

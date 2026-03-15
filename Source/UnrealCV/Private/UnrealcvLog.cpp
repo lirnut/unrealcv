@@ -2,6 +2,9 @@
 #include "UnrealcvLog.h"
 #include "Runtime/Engine/Classes/Engine/Engine.h"
 
+DEFINE_LOG_CATEGORY(LogWorldAudioRecorder);
+DEFINE_LOG_CATEGORY(LogFusionAudioSensor);
+
 void FUnrealcvLogger::ScreenLog(const FString& Message)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Message);
@@ -10,7 +13,7 @@ void FUnrealcvLogger::ScreenLog(const FString& Message)
 void FUnrealcvLogger::LogOnce(const FString& LogMessage)
 {
 	if (ErrorList.Contains(LogMessage)) return;
-	
+
 	// Log warning message
 	UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *LogMessage);
 	ErrorList.Add(LogMessage);

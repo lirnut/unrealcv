@@ -60,7 +60,6 @@ void UAutomationBPLib::StartTicking()
 	PushCommand(TEXT("r.HairStrands.DOFDepth 0"));
 	PushCommand(TEXT("r.HairStrands.DeepShadow.SuperSampling 1"));
 	PushCommand(TEXT("r.HairStrands.DeepShadow.Resolution 4096"));
-	PushCommand(TEXT("r.HairStrands.SwapType 0"));
 
 	PushCommand(TEXT("r.SceneCapture.AllowRenderInMainRenderer 1"));
 	PushCommand(TEXT("r.SceneCapture.CubeSinglePass 1"));

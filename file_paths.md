@@ -1,10 +1,69 @@
 # UnrealCV File Path Index
 
-Auto-generated index of frequently accessed files. Last updated: 2026-03-06
+Auto-generated index of frequently accessed files. Last updated: 2026-03-13
 
 Use these shorthand paths in prompts instead of copy-pasting full paths.
 
-## Session Context Files (2026-03-12)
+## Session Context Files (2026-03-13)
+
+**Session Topic**: UE5.6 音频系统完整管道分析 - AudioComponent → FAudioDevice → FMixerDevice → FMixerSourceManager → FMixerSubmix → 平台输出 (WASAPI) 三线程架构深入源码研究
+
+**Files Indexed**: 40+ UE5 engine files across 8 audio subsystems
+
+### UE5 Engine References (Audio Core - Engine Module)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\AudioDevice.h` - FAudioDevice 基类定义，FAudioDeviceHandle 句柄，FListener 结构，SoundMix/SoundClass 管理 (line 1-300+)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\AudioDevice.cpp` - FAudioDevice 核心实现：AddNewActiveSoundInternal (line 5222-5402), Update() 主循环 (line 4701-4897), StartSources() (line 4517-4659)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Components\AudioComponent.h` - UAudioComponent 类定义，唯一 ID 分配机制，Play()/Stop() 接口
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Components\AudioComponent.cpp` - UAudioComponent 实现：PlayInternal() (line 633-879), 唯一 ID 管理 (line 67-69), BeginDestroy()
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\AudioThread.cpp` - FAudioThread 线程管理：RunCommandOnAudioThread() (line 494-517), 批处理 FAudioAsyncBatcher (line 405-453), SuspendAudioThread() (line 329-361)
+
+### UE5 Engine References (AudioMixer - Core Mixing System)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Public\AudioMixerDevice.h` - FMixerDevice 类 (继承 FAudioDevice+IAudioMixer+FGCObject), RequiredSubmixes(4 个), FMixerSourceManager 管理 (line 113-300+)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Private\AudioMixerDevice.cpp` - FMixerDevice 实现：DrawSubmixes(), Submix 映射管理，OnProcessAudioStream 回调
+- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Private\AudioMixerSourceManager.cpp` - FMixerSourceManager 核心：Update() 音源更新循环，ProcessQueuedCommands(), 监听器回调 (line 1-300+)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Public\AudioMixerSubmix.h` - FMixerSubmix 类：子混音图处理，效果链 (Effect Chains), Ambisonics 声场编码 (line 108-695)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Private\AudioMixerSourceBuffer.h` - FMixerSourceBuffer: PCM 缓冲区队列管理，异步解码，SoundGenerator 支持
+- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Private\AudioMixerSourceOutputBuffer.h` - FMixerSourceSubmixOutputBuffer: 2D/3D 声道映射，空间化，声场编码
+- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Private\AudioMixerBuffer.h` - FMixerBuffer: 音频资源缓冲类型 (PCM/Streaming/RealTime), 解码器状态管理
+
+### UE5 Engine References (AudioMixerCore - Platform Abstraction)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioMixerCore\Public\AudioMixer.h` - IAudioMixer 接口，IAudioMixerPlatformInterface 平台抽象，EAudioMixerChannel 枚举 (line 476-880)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioMixerCore\Private\AudioMixer.cpp` - FOutputBuffer::MixNextBuffer() 混音回调，环形缓冲区提交，Float32/Int16 格式转换 (line 198-288)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioMixerCore\Public\AudioMixerTypes.h` - 音频类型定义，缓冲区格式枚举
+
+### UE5 Engine References (Audio Platform - Windows WASAPI)
+- `H:\UE_5.6\Engine\Source\Runtime\Windows\AudioMixerWasapi\Private\AudioMixerWasapi.h` - FAudioMixerWasapi 类：WASAPI 平台实现，DeviceManager 管理 (line 56-145)
+- `H:\UE_5.6\Engine\Source\Runtime\Windows\AudioMixerWasapi\Private\AudioMixerWasapiRenderStream.h` - FAudioMixerWasapiRenderStream: IAudioClient3/IAudioRenderClient COM 封装，NumFramesPerDeviceBuffer (line 29-78)
+
+### UE5 Engine References (AudioCapture - Audio Capture System)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioCaptureCore\Public\AudioCaptureCore.h` - FAudioCapture 高层捕获 API: OpenAudioCaptureStream(), StartStream(), GetCaptureDeviceInfo() (line 28-88)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioCaptureCore\Private\AudioCaptureCore.cpp` - FAudioCapture 实现，平台后端创建
+
+### UE5 Engine References (Audio Extensions & DSP)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioExtensions\Public\IAudioExtensionPlugin.h` - 空间化/遮挡/混响插件接口
+- `H:\UE_5.6\Engine\Source\Runtime\AudioExtensions\Public\ISoundfieldFormat.h` - Ambisonics 声场编解码接口
+- `H:\UE_5.6\Engine\Source\Runtime\SoundFieldRendering\Public\SoundFieldRendering.h` - Ambisonics 编解码器实现
+- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\Dsp.h` - DSP 主头文件
+- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\AudioFFT.h` - FFT 变换
+- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\BiQuadFilter.h` - 双二阶滤波器
+- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\EQ.h` - 参数均衡器
+- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\Reverb.h` - 混响效果
+- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\DynamicsProcessor.h` - 压缩器/限制器
+
+### UE5 Engine References (Sound Resource Classes)
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundBase.h` - USoundBase 基类
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundWave.h` - USoundWave 波形资源
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundCue.h` - USoundCue 节点图资源
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundClass.h` - USoundClass 声音分类
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundMix.h` - USoundMix 混音配置
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundAttenuation.h` - USoundAttenuation 衰减设置
+- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundConcurrency.h` - USoundConcurrency 并发设置
+
+### UE5 Engine References (AudioLink - Buffered Listening)
+- `H:\UE_5.6\Engine\Source\Runtime\AudioLink\AudioLinkEngine\Private\BufferedSourceListener.h` - FBufferedSourceListener: ISourceBufferListener 完整实现示例，环形缓冲
+- `H:\UE_5.6\Engine\Source\Runtime\AudioLink\AudioLinkEngine\Private\BufferedSourceListener.cpp` - OnNewBuffer 回调实现，格式处理，OnSourceReleased 清理
+
+## Previous Session Files (2026-03-12)
 
 **Session Topic**: UE 5.6 Audio Mixer analysis - individual audio source capture via ISourceBufferListener, audio synthesis pipeline architecture, FMixerSourceManager/FMixerSubmix data flow
 
@@ -278,3 +337,37 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 
 ### Utilities
 - `Source/UnrealCV/Private/Utils/MetaHumanCacheManager.cpp` - MetaHuman optimization
+
+---
+
+## Update Summary (2026-03-13 Session)
+
+**UE5.6 Audio System Deep-Dive Analysis**
+
+### Files Added This Session
+| Category | Files Added |
+|----------|-------------|
+| Audio Core (Engine) | 5 files |
+| AudioMixer | 7 files |
+| AudioMixerCore | 3 files |
+| Audio Platform (WASAPI) | 2 files |
+| AudioCapture | 1 file |
+| Audio Extensions & DSP | 9 files |
+| Sound Resources | 7 files |
+| AudioLink | 2 files |
+| **Total** | **36 files** |
+
+### Key Architecture Documents Created
+- Complete 3-thread model diagram (Game Thread → Audio Thread → Audio Render Thread)
+- Full call chain: `UAudioComponent::PlayInternal()` → `FAudioDevice::AddNewActiveSoundInternal()` → `FAudioThread::RunCommandOnAudioThread()` → `FMixerSourceManager::Update()` → `IAudioRenderClient::SubmitBuffer()`
+- Submix system architecture (4 required submixes: Main, BaseDefault, Reverb, EQ)
+- WASAPI platform implementation details
+
+### Categorization Decisions
+- Separated Engine audio core (`FAudioDevice`, `FAudioThread`) from AudioMixer (`FMixerDevice`, `FMixerSourceManager`)
+- Platform-specific implementations (Wasapi, CoreAudio, Android, SDL) categorized under "Audio Platform"
+- DSP signal processing files grouped under "Audio Extensions & DSP"
+- Sound resource classes (`USoundWave`, `USoundCue`, etc.) in separate "Sound Resources" category
+
+### Files for Manual Review
+- None - all files are UE5 engine references from this analysis session
