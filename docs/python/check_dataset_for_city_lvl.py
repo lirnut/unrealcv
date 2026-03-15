@@ -1,4 +1,5 @@
 import os
+import re
 import numpy as np
 import time
 from pathlib import Path
@@ -20,6 +21,47 @@ EXPECTED_ONEOBJLIT_FILES_2 = 121
 EXPECTED_RGB_PNG_FILES_2 = 121
 
 DATEDIRT_TO_EXCLUDE = [
+]
+
+
+GOOD_SAFE_POINTS = [
+    [-27375.68, 6687.37, 105.01],
+    [-27666.99, 10568.83, 118.72],
+    [-19336.28, 21354.54, 118.78],
+    [-4949.28, 23774.72, 107.98],
+    [-2478.06, 22480.86, 105.45],
+    [4754.28, 17816.05, 109.57],
+    [17239.71, 10954.90, 97.47],
+    [18035.16, 8842.40, 93.03],
+    [26767.51, 18510.71, 105.09],
+    [36555.64, 11710.85, 93.45],
+    [-39749.49, -211.39, 113.89],
+    [-41586.18, 2506.41, 116.15],
+    [-54020.59, 5368.79, 94.02],
+    [-81451.83, 16336.29, 106.19],
+    [-21271.80, 48646.66, 106.35],
+    [-21001.02, 48859.27, 93.08],
+    [-13500.29, 51378.69, 105.00],
+    [-10254.83, 48164.48, 118.39],
+    [-8694.04, 46520.80, 118.35],
+    [-7035.06, 44709.65, 118.33],
+    [9931.92, 38757.32, 106.01],
+    [15221.91, 38919.36, 105.22],
+    [15650.72, 38878.29, 105.02],
+    [15809.77, 38863.06, 105.02],
+    [16158.94, 38829.62, 105.02],
+    [17371.56, 38913.68, 105.02],
+    [17977.48, 38765.33, 105.01],
+    [18406.21, 38723.58, 105.01],
+    [19163.18, 38681.80, 105.01],
+    [19886.89, 38643.80, 105.01],
+    [20275.87, 38606.55, 105.01],
+    [22478.44, 36945.86, 117.18],
+    [22478.44, 36945.86, 117.18],
+    [22640.63, 36508.87, 108.00],
+    [23281.28, 35707.68, 110.19],
+    [23543.45, 35192.86, 108.01],
+    [40834.14, 22203.84, 111.82],
 ]
 
 
@@ -120,12 +162,21 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
         should_delete = True
     else:
         step_metadatas = os.listdir(metadata_dir)
-        if len(step_metadatas) != EXPECTED_ONEOBJLIT_FILES and len(step_metadatas) != EXPECTED_ONEOBJLIT_FILES_2:
-            issues.append(f"metadata has {len(step_metadatas)} files (expected {EXPECTED_ONEOBJLIT_FILES} or {EXPECTED_ONEOBJLIT_FILES_2})")
+        pattern_json = re.compile(r'^(\d+)_(.+)\.json$')
+        valid_files = []
+        for file in step_metadatas:
+            match = pattern_json.match(file)
+            if match:
+                step_id = int(match.group(1))
+                valid_files.append((step_id, file))
+
+        if len(valid_files) != EXPECTED_ONEOBJLIT_FILES and len(valid_files) != EXPECTED_ONEOBJLIT_FILES_2:
+            issues.append(f"metadata has {len(valid_files)} files (expected {EXPECTED_ONEOBJLIT_FILES} or {EXPECTED_ONEOBJLIT_FILES_2})")
             should_delete = True
         else:
             # load the first step metadata
-            first_step_metadata = step_metadatas[0]
+            valid_files.sort(key=lambda x: x[0])
+            first_step_metadata = valid_files[0][1]
             first_step_metadata_path = metadata_dir / first_step_metadata
             with open(first_step_metadata_path, "rb") as f:
                 content = f.read()
@@ -133,15 +184,30 @@ def check_render_directory(render_path: Path) -> Dict[str, any]:
             if first_step_metadata is None:
                 issues.append(f"Failed to decode step metadata")
             else:
-                # get_xyz = lambda x: np.array([x["X"], x["Y"], x["Z"]])
-                get_xy = lambda x: np.array([x["X"], x["Y"]])
-                camera_location = get_xy(first_step_metadata["CameraLocation"])
-                foreground_location = get_xy(first_step_metadata["ForegroundLocation"])
-                hori_dist = np.linalg.norm(camera_location - foreground_location)
-                if hori_dist < 50:
-                    issues.append(f"Camera and foreground location are too close, {hori_dist}")
-                    if hori_dist < 30:
-                        should_delete = True
+                get_xyz = lambda x: np.array([x["X"], x["Y"], x["Z"]])
+                # get_xy = lambda x: np.array([x["X"], x["Y"]])
+                # camera_location = get_xy(first_step_metadata["CameraLocation"])
+                # foreground_location = get_xy(first_step_metadata["ForegroundLocation"])
+                # hori_dist = np.linalg.norm(camera_location - foreground_location)
+                # if hori_dist < 50:
+                #     issues.append(f"Camera and foreground location are too close, {hori_dist}")
+                #     if hori_dist < 30:
+                #         should_delete = True
+                good_safe_point_matched = False
+                # camera_location = get_xyz(first_step_metadata["CameraLocation"])
+                foreground_location = get_xyz(first_step_metadata["ForegroundLocation"])
+                for good_safe_point in GOOD_SAFE_POINTS:
+                    good_safe_point = np.array(good_safe_point)
+                    dist = np.linalg.norm(foreground_location - good_safe_point)
+                    if dist < 100:
+                        print("good safe point matched")
+                        good_safe_point_matched = True
+                        break
+                
+                if not good_safe_point_matched:
+                    issues.append(f"Foreground location {foreground_location} is not matched with any good safe point")
+                    should_delete = True
+
 
     oneobjlit_dir = render_path / "oneobjlit"
     if not oneobjlit_dir.exists():

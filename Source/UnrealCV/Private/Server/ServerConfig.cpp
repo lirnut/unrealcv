@@ -24,7 +24,7 @@ FServerConfig::FServerConfig()
 	FOV = 90.0f;
 	AnnotateWorld = true;
 	DisableSKMAnnotation = false;
-	DisableGroomAnnotation = true;
+	DisableGroomAnnotation = false;
 	EnableInput = true;
 	ExitOnFailure = false;
 	EnableRightEye = false;

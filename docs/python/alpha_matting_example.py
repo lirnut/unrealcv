@@ -33,18 +33,39 @@ def apply_alpha_to_rgb():
 
             alpha_normalized = alpha_channel.astype(np.float32) / 255.0
             alpha_reversed = 1.0 - alpha_normalized
-            alpha_enhanced = np.power(alpha_reversed, 0.5)
+            alpha_enhanced = np.power(alpha_reversed, 1.5)
+            # alpha_enhanced = alpha_reversed
+            zero_alpha_mask = (alpha_enhanced == 0)
 
             rgb_float = rgb_frame.astype(np.float32)
             alpha_3ch = np.stack([alpha_enhanced] * 3, axis=2)
+            rev_alpha_3ch = np.stack([1 - alpha_enhanced] * 3, axis=2)
 
-            result = rgb_float * alpha_3ch
+            result = rgb_float * alpha_3ch + (1 - alpha_enhanced)[:, :, np.newaxis] * 0
+            result[zero_alpha_mask] = 0
+
+            result_white = rgb_float * alpha_3ch + (1 - alpha_enhanced)[:, :, np.newaxis] * 255
+            result_white[zero_alpha_mask] = 255
+
+            rev_result = rgb_float * rev_alpha_3ch
             result = np.clip(result, 0, 255).astype(np.uint8)
+            rev_result = np.clip(rev_result, 0, 255).astype(np.uint8)
 
-            result_with_alpha = np.dstack([result, (alpha_enhanced * 255).astype(np.uint8)])
+            # result_with_alpha = np.dstack([result, (alpha_enhanced * 255).astype(np.uint8)])
+            result_with_alpha = np.dstack([result, 255 * np.ones_like(alpha_enhanced).astype(np.uint8)])
+            result_white_with_alpha = np.dstack([result_white, 255 * np.ones_like(alpha_enhanced).astype(np.uint8)])
+
+            rev_result_with_alpha = np.dstack([rev_result, ((1 - alpha_enhanced) * 255).astype(np.uint8)])
 
             output_path = output_dir / f'{frame_idx}.png'
             cv2.imwrite(str(output_path), result_with_alpha)
+            white_output_path = output_dir / "white" / f'{frame_idx}.png'
+            os.makedirs(white_output_path.parent, exist_ok=True)
+            cv2.imwrite(str(white_output_path), result_white_with_alpha)
+
+            rev_output_path = output_dir / "rev" / f'{frame_idx}.png'
+            os.makedirs(rev_output_path.parent, exist_ok=True)
+            cv2.imwrite(str(rev_output_path), rev_result_with_alpha)
 
             if frame_idx % 10 == 0:
                 print(f'Processed frame {frame_idx}')
