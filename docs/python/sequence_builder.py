@@ -162,35 +162,25 @@ def build_concatenated_matting_sequence(num_scenes):
 
 
 def build_single_trajectory_scene():
-    """
-    Build a SINGLE Trajectory scene sequence.
-
-    Replicates the C++ Trajectory task from DatasetAutomationBPLib.cpp lines 84-192.
-    Uses multi-pass recording with pauses and secondary camera sync.
-
-    Returns:
-        commands: List of commands for ONE scene
-        config: Scene configuration for logging
-    """
     sync_frame = random.uniform(50.0, 70.0)
 
     commands = [
         # Initial setup
         {"cmd": "vrun", "params": "vset /mqrc/render_immediately true"},
-        {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.35"},
+        {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.2"},
         {"cmd": "set_foreground_move_speed", "params": "0.0"},
         {"cmd": "set_foreground_move_angle_offset", "params": "0.0"},
 
         # Scene setup
         {"cmd": "load_scene_param_json"},
-        {"cmd": "random_scene_param_camera_height", "params": "160 175"},
+        {"cmd": "random_scene_param_camera_height", "params": "120 155"},
         {"cmd": "random_scene_param_camera_angle_offset", "params": "-15 15"},
         {"cmd": "random_scene_param_camera_distance", "params": "180 300"},
         {"cmd": "create_scene"},
         {"cmd": "annotate_world"},
 
         # Animation setup
-        {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_RandomHeadMovement.ABP_RandomHeadMovement_C"},
+        {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"},
         {"cmd": "delay", "params": "2.0"},
         {"cmd": "block_until_all_work_finished"},
         {"cmd": "delay", "params": "3.0"},
@@ -199,7 +189,7 @@ def build_single_trajectory_scene():
         {"cmd": "prepare_record"},
         {"cmd": "random_resolution", "params": "1920x1080"},
         {"cmd": "random_fov", "params": "55 70"},
-        {"cmd": "aim_camera_at_foreground", "params": "155 175"},
+        {"cmd": "aim_camera_at_foreground", "params": "125 145"},
         {"cmd": "add_camera_rotation_noise", "params": "0.0 1.0 4.0"},
 
         # Prepare and initial recording
@@ -212,6 +202,7 @@ def build_single_trajectory_scene():
         # Wait for specific frame and pause
         {"cmd": "special_wait", "params": f"{sync_frame:.1f}"},
         {"cmd": "pause_primary_capture_actor"},
+        {"cmd": "vrun", "params": "r.HairStrands.SwapType 0"},
         {"cmd": "pause_groom_physics"},
         {"cmd": "set_time_dilation", "params": "0.0"},
 
@@ -270,6 +261,7 @@ def build_single_trajectory_scene():
         {"cmd": "set_time_dilation", "params": "1.0"},
         {"cmd": "resume_groom_physics"},
         {"cmd": "set_pause", "params": "false"},
+        {"cmd": "vrun", "params": "r.HairStrands.SwapType 2"},
         {"cmd": "resume_primary_capture_actor"},
 
         {"cmd": "sync_all_cameras"},

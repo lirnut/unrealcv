@@ -125,9 +125,9 @@ void AFusionCamCaptureActor::Tick(float DeltaTime)
 	}
 
 
-	UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - Update Groom Render State, DeltaTime: %f"), DeltaTime);
-	UGroomBPLib::UpdateGroomRenderState(TargetForeground, true, true, true, true);
-	UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - Refresh All Groom Shadows, DeltaTime: %f"), DeltaTime);
+	// UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - Update Groom Render State, DeltaTime: %f"), DeltaTime);
+	// UGroomBPLib::UpdateGroomRenderState(TargetForeground, true, true, true, true);
+	// UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - Refresh All Groom Shadows, DeltaTime: %f"), DeltaTime);
 
 	FString PrimaryCamID = USensorBPLib::GetSensorNewFormatID(TargetSensor);
 	UE_LOG(LogUnrealCV, Warning, TEXT("AFusionCamCaptureActor::Tick - DeltaTime: %f"), DeltaTime);
