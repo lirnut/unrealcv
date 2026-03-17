@@ -52,7 +52,7 @@ ALPHA_FALLOFF = 2.0           # Alpha falloff curve steepness (higher = more abr
 OUTPUT_MODE = 'premultiplied'  # 'premultiplied': RGB * alpha, 'original': keep original RGB
 
 
-def remap_alpha_by_brightness(alpha_norm: np.ndarray, brightness: np.ndarray) -> np.ndarray:
+def remap_alpha_by_brightness(alpha_norm: np.ndarray, brightness: np.ndarray, enable_clip: bool = True) -> np.ndarray:
     """
     Remap alpha values based on pixel brightness.
 
