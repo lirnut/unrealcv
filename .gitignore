@@ -14,6 +14,11 @@ doxygen/
 # Ignore model_zoo binaries
 UE4Binaries/
 
+# Ignore benchmark output directories
+benchmark_output/
+test*_benchmark/
+*_benchmark/
+
 # Recursively ignore some cache folders
 **/.cache/
 **/__pycache__/
