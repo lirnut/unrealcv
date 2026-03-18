@@ -87,26 +87,26 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CurrentConfig.NumFrames = 121;
 		CurrentConfig.TrajectoryFPS = 30;
 
-		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.HairStrands.SwapType 0")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /mqrc/render_immediately true")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("vset /captureactor/time_dilation 0.2")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_speed"), TEXT("0.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_foreground_move_angle_offset"), TEXT("0.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("load_scene_param_json")));
-		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("160 175")));
+		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_height"), TEXT("120 155")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_angle_offset"), TEXT("-15 15")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_scene_param_camera_distance"), TEXT("180 300")));
 		CommandQueue.Add(FAutomationStep(TEXT("create_scene")));
 		CommandQueue.Add(FAutomationStep(TEXT("annotate_world")));
 		// CommandQueue.Add(FAutomationStep(TEXT("render_every_frame"), TEXT("true")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C")));
+		// CommandQueue.Add(FAutomationStep(TEXT("set_animation_bp"), TEXT("/Game/MetaHumans/ABP_Intense.ABP_Intense_C")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("2.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("block_until_all_work_finished")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("3.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("prepare_record")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_resolution"), TEXT("1920x1080")));
 		CommandQueue.Add(FAutomationStep(TEXT("random_fov"), TEXT("55 70")));
-		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("155 175")));
+		CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"), TEXT("125 145")));
 		// CommandQueue.Add(FAutomationStep(TEXT("aim_camera_at_foreground"));
 		CommandQueue.Add(FAutomationStep(TEXT("add_camera_rotation_noise"), TEXT("0.0 1.0 4.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
@@ -122,6 +122,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 
 		// CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("true")));
 		// CommandQueue.Add(FAutomationStep(TEXT("pause_all_actors_except_pawn")));
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.HairStrands.SwapType 0")));
 		CommandQueue.Add(FAutomationStep(TEXT("pause_groom_physics")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("0.0")));
 
@@ -178,6 +179,7 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("resume_groom_physics")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
 		// CommandQueue.Add(FAutomationStep(TEXT("resume_all_actors")));
+		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.HairStrands.SwapType 2")));
 		CommandQueue.Add(FAutomationStep(TEXT("resume_primary_capture_actor")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));

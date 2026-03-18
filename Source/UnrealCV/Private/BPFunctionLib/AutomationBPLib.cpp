@@ -44,18 +44,18 @@ void UAutomationBPLib::StartTicking()
 	PushCommand(TEXT("r.ForceLOD 0"));
 	PushCommand(TEXT("r.SkeletalMeshLODBias -10"));
 
-	// https://dev.epicgames.com/community/learning/tutorials/Ya6o/unreal-engine-rendering-hair-fur
-	// https://www.reddit.com/r/unrealengine/comments/154wry8/why_default_skylight_adds_too_much_noise_to_the/
-	// PushCommand(TEXT("r.HairStrands.Skylighting 0"));
-	PushCommand(TEXT("r.HairStrands.SkyLighting.SampleCount 48"));
-	// PushCommand(TEXT("r.HairStrands.SkyLighting.IntegrationType 0"));
-	PushCommand(TEXT("r.HairStrands.Voxelization.Virtual.VoxelWorldSize 0.1"));
-	PushCommand(TEXT("r.HairStrands.RasterizationScale 0.5"));
-	PushCommand(TEXT("r.HairStrands.Voxelization.Raymarching.SteppingScale 1.15"));
-	// PushCommand(TEXT("r.HairStrands.Visibility.PPLL 1 "));
-	// PushCommand(TEXT("r.HairStrands.Components.GlobalScattering 0"));
-	// PushCommand(TEXT("r.HairStrands.Components.R 1"));
-	// PushCommand(TEXT("r.HairStrands.BoundMode 2"));
+	// // https://dev.epicgames.com/community/learning/tutorials/Ya6o/unreal-engine-rendering-hair-fur
+	// // https://www.reddit.com/r/unrealengine/comments/154wry8/why_default_skylight_adds_too_much_noise_to_the/
+	// // PushCommand(TEXT("r.HairStrands.Skylighting 0"));
+	// PushCommand(TEXT("r.HairStrands.SkyLighting.SampleCount 48"));
+	// // PushCommand(TEXT("r.HairStrands.SkyLighting.IntegrationType 0"));
+	// PushCommand(TEXT("r.HairStrands.Voxelization.Virtual.VoxelWorldSize 0.1"));
+	// PushCommand(TEXT("r.HairStrands.RasterizationScale 0.5"));
+	// PushCommand(TEXT("r.HairStrands.Voxelization.Raymarching.SteppingScale 1.15"));
+	// // PushCommand(TEXT("r.HairStrands.Visibility.PPLL 1 "));
+	// // PushCommand(TEXT("r.HairStrands.Components.GlobalScattering 0"));
+	// // PushCommand(TEXT("r.HairStrands.Components.R 1"));
+	// // PushCommand(TEXT("r.HairStrands.BoundMode 2"));
 
 	PushCommand(TEXT("r.HairStrands.DOFDepth 0"));
 	PushCommand(TEXT("r.HairStrands.DeepShadow.SuperSampling 1"));
@@ -83,26 +83,26 @@ void UAutomationBPLib::StartTicking()
 	PushCommand(TEXT("r.PostProcessing.PropagateAlpha 1"));
 	PushCommand(TEXT("r.RayTracing.SceneCaptures 1"));
 
-	PushCommand(TEXT("r.Shadow.Denoiser 1"));
+	// PushCommand(TEXT("r.Shadow.Denoiser 1"));
 	PushCommand(TEXT("r.MotionBlur.Amount 0"));
 
 	PushCommand(TEXT("r.AntiAliasingMethod 4"));
 	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.12"));
 	// PushCommand(TEXT("r.TemporalAACurrentFrameWeight 0.22"));
-	PushCommand(TEXT("r.TemporalAA.Quality 3"));
-	PushCommand(TEXT("r.TemporalAAPauseCorrect 1"));
-	PushCommand(TEXT("r.FXAA.Quality 5"));
+	// PushCommand(TEXT("r.TemporalAA.Quality 3"));
+	// PushCommand(TEXT("r.TemporalAAPauseCorrect 1"));
+	// PushCommand(TEXT("r.FXAA.Quality 5"));
 
 	// Lumen Temporal Filter for Ghosting Fix
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal 1"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 16"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.DistanceThreshold 0.01"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.NormalThreshold 20"));
-	PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.FastUpdateModeUseNeighborhoodClamp 1"));
+	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.FastUpdateModeUseNeighborhoodClamp 1"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.Temporal.RejectBasedOnNormal 1"));
 	// PushCommand(TEXT("r.Lumen.ScreenProbeGather.HairStrands.ScreenTrace 1"));
 // #endif
-	PushCommand(TEXT("r.NGX.Automation.NonGameViews 1"));
+	// PushCommand(TEXT("r.NGX.Automation.NonGameViews 1"));
 
 
 
