@@ -40,6 +40,7 @@ STATUS_POLL_INTERVAL = 2.0
 CONFIG_SLASH_TOTAL_SCENES = 70
 SESSION_TIMEOUT = CONFIG_SLASH_TOTAL_SCENES * 30
 STARTUP_TIMEOUT = 120
+CMD_TIMEOUT = 30  # Global timeout for commands before vset /datasetautomation/start
 
 if EXE_PATH.__str__().endswith("HillsideSampleProject.exe"):
     AVAILABLE_MAPS: list[tuple[str, float]] = [
@@ -368,33 +369,33 @@ def main():
             print(f"\n[WAIT] Waiting {MAP_LOAD_WAIT}s for map loading...")
             time.sleep(MAP_LOAD_WAIT)
 
-            version = client.request("vget /unrealcv/version")
+            version = client.request("vget /unrealcv/version", timeout=CMD_TIMEOUT)
             print(f"[VERSION] {version}")
 
             print(f"\n{'='*60}")
             print(f"[CONFIG] Configuring Video Encoder...")
-            print(client.request("vset /captureactor/h264_encoding 0"))
-            print(client.request("vset /captureactor/auto_generate_video 1"))
+            print(client.request("vset /captureactor/h264_encoding 0", timeout=CMD_TIMEOUT))
+            print(client.request("vset /captureactor/auto_generate_video 1", timeout=CMD_TIMEOUT))
 
             print(f"\n{'='*60}")
             print(f"[CONFIG] Configuring {task_name} task...")
 
-            client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}")
+            client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}", timeout=CMD_TIMEOUT)
 
             if is_trajectory_mode:
-                print(client.request("vset /datasetautomation/config/trajectory_fps 30"))
-                print(client.request("vset /datasetautomation/config/num_frames 121"))
-                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjlit,depth,metadata"))
-                print(client.request("vset /captureactor/paused_tick_interval 0.1"))
+                print(client.request("vset /datasetautomation/config/trajectory_fps 30", timeout=CMD_TIMEOUT))
+                print(client.request("vset /datasetautomation/config/num_frames 121", timeout=CMD_TIMEOUT))
+                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjlit,depth,metadata", timeout=CMD_TIMEOUT))
+                print(client.request("vset /captureactor/paused_tick_interval 0.1", timeout=CMD_TIMEOUT))
             else:
                 # Matting task config
-                print(client.request("vset /datasetautomation/config/trajectory_fps 30"))
-                print(client.request("vset /datasetautomation/config/num_frames 90"))
-                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjlit,depth,metadata"))
+                print(client.request("vset /datasetautomation/config/trajectory_fps 30", timeout=CMD_TIMEOUT))
+                print(client.request("vset /datasetautomation/config/num_frames 90", timeout=CMD_TIMEOUT))
+                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjlit,depth,metadata", timeout=CMD_TIMEOUT))
 
             timecode = datetime.datetime.now().strftime(r"%y-%m-%d") + f"_{task_name}"
             output_dir = str(PKG_DIR / "DatasetAutomationOutputDirectory" / timecode / map_name)
-            client.request(f"vset /datasetautomation/config/output_directory {output_dir}")
+            client.request(f"vset /datasetautomation/config/output_directory {output_dir}", timeout=CMD_TIMEOUT)
 
             print(f"[CONFIG] Output directory: {output_dir}")
             print(f"[CONFIG] Batch size: {CONFIG_SLASH_TOTAL_SCENES} scenes")
@@ -406,7 +407,8 @@ def main():
                 command_sequence, scene_configs = build_concatenated_matting_sequence(CONFIG_SLASH_TOTAL_SCENES)
 
             seq_json = json.dumps(command_sequence, separators=(',', ':'))
-            result = client.request(f"vset /datasetautomation/sequence {seq_json}")
+            # Use CMD_TIMEOUT for sequence JSON parsing
+            result = client.request(f"vset /datasetautomation/sequence {seq_json}", timeout=CMD_TIMEOUT)
             print(f"[SEQUENCE] {result}")
             print(f"[SEQUENCE] Total commands: {len(command_sequence['commands'])}")
             print(f"[SEQUENCE] Scenes: {CONFIG_SLASH_TOTAL_SCENES}")
@@ -421,18 +423,18 @@ def main():
 
             print(f"\n{'='*60}")
             print(f"[CONFIG] Scalability...")
-            # print(client.request("vrun r.ScreenPercentage 67.0"))
-            # print(client.request("vrun r.Shadow.Virtual.Enable 0"))
-            print(client.request("vrun r.HairStrands.SkyLighting 0"))
+            # print(client.request("vrun r.ScreenPercentage 67.0", timeout=CMD_TIMEOUT))
+            # print(client.request("vrun r.Shadow.Virtual.Enable 0", timeout=CMD_TIMEOUT))
+            print(client.request("vrun r.HairStrands.SkyLighting 0", timeout=CMD_TIMEOUT))
             if not is_trajectory_mode:
-                print(client.request("vrun r.HairStrands.SwapType 2"))
+                print(client.request("vrun r.HairStrands.SwapType 2", timeout=CMD_TIMEOUT))
 
 
             # Disable unnecessary warnings and messages
-            client.request("vrun DisableAllScreenMessages")
-            client.request("vrun r.Streaming.PoolSize.ShowWarnings 0")
-            
-            result = client.request("vset /datasetautomation/start")
+            client.request("vrun DisableAllScreenMessages", timeout=CMD_TIMEOUT)
+            client.request("vrun r.Streaming.PoolSize.ShowWarnings 0", timeout=CMD_TIMEOUT)
+
+            result = client.request("vset /datasetautomation/start", timeout=CMD_TIMEOUT)
             print(f"[START] {result}")
 
             # Startup complete, stop and destroy the startup watchdog

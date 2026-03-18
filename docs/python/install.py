@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 SOURCE_DIR = r"."
-TARGET_DIR = r"I:\HUAWEI_Project_UE56_PKG"
+TARGET_DIR = r"I:\HUAWEI_Project_UE56_PKG_0318"
 # TARGET_DIR = r"D:\codes\CitySample_PKG"
 # TARGET_DIR = r"C:\Users\Administrator\Desktop\HillsideSampleProject_PKG"
 

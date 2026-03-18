@@ -175,7 +175,7 @@ def build_single_trajectory_scene():
         {"cmd": "load_scene_param_json"},
         {"cmd": "random_scene_param_camera_height", "params": "120 155"},
         {"cmd": "random_scene_param_camera_angle_offset", "params": "-15 15"},
-        {"cmd": "random_scene_param_camera_distance", "params": "180 300"},
+        {"cmd": "random_scene_param_camera_distance", "params": "140 200"},
         {"cmd": "create_scene"},
         {"cmd": "annotate_world"},
 
@@ -188,7 +188,7 @@ def build_single_trajectory_scene():
         # Camera setup
         {"cmd": "prepare_record"},
         {"cmd": "random_resolution", "params": "1920x1080"},
-        {"cmd": "random_fov", "params": "55 70"},
+        {"cmd": "random_fov", "params": "65 75"},
         {"cmd": "aim_camera_at_foreground", "params": "125 145"},
         {"cmd": "add_camera_rotation_noise", "params": "0.0 1.0 4.0"},
 
