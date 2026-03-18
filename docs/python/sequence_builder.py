@@ -1,5 +1,51 @@
 import random
 
+# Foreground actor path configuration with relative weights
+# Selected from MetaHumanCache.json - categorized by type for balanced sampling
+# Weights are relative (don't need to sum to 1.0)
+FOREGROUND_PATHS = [
+    # Batch gen male (weight: 20)
+    ("/Game/MetaHumans/AS-M-BatchGen-1210_011320/BP_AS-M-BatchGen-1210_011320.BP_AS-M-BatchGen-1210_011320", 5),
+    ("/Game/MetaHumans/AS-M-BatchGen-1209_231553/BP_AS-M-BatchGen-1209_231553.BP_AS-M-BatchGen-1209_231553", 5),
+    ("/Game/MetaHumans/AS-M-BatchGen-1209_214109/BP_AS-M-BatchGen-1209_214109.BP_AS-M-BatchGen-1209_214109", 5),
+    ("/Game/MetaHumans/AS-M-BatchGen-1209_205648/BP_AS-M-BatchGen-1209_205648.BP_AS-M-BatchGen-1209_205648", 5),
+    # Batch gen female (weight: 20)
+    ("/Game/MetaHumans/AS-F-BatchGen-1210_062050/BP_AS-F-BatchGen-1210_062050.BP_AS-F-BatchGen-1210_062050", 5),
+    ("/Game/MetaHumans/AS-F-BatchGen-1210_033823/BP_AS-F-BatchGen-1210_033823.BP_AS-F-BatchGen-1210_033823", 5),
+    ("/Game/MetaHumans/AS-F-BatchGen-1209_182306/BP_AS-F-BatchGen-1209_182306.BP_AS-F-BatchGen-1209_182306", 5),
+    ("/Game/MetaHumans/AS-F-BatchGen-1209_165038/BP_AS-F-BatchGen-1209_165038.BP_AS-F-BatchGen-1209_165038", 5),
+    # Dress variants (weight: 25)
+    ("/Game/MetaHumans/human_2_dress4-f-thin/BP_human_2_dress4-f-thin.BP_human_2_dress4-f-thin", 6),
+    ("/Game/MetaHumans/human_2_dress3_f-thin/BP_human_2_dress3_f-thin.BP_human_2_dress3_f-thin", 6),
+    ("/Game/MetaHumans/human_2_dress2_f-thin/BP_human_2_dress2_f-thin.BP_human_2_dress2_f-thin", 6),
+    ("/Game/MetaHumans/human_2_dress1_f-thin/BP_human_2_dress1_f-thin.BP_human_2_dress1_f-thin", 7),
+    # Regular humans (weight: 20)
+    ("/Game/MetaHumans/human_1_m-thin/BP_human_1_m-thin.BP_human_1_m-thin", 5),
+    ("/Game/MetaHumans/human_1_m-med/BP_human_1_m-med.BP_human_1_m-med", 5),
+    ("/Game/MetaHumans/human_Ada_dress0_opt/BP_human_Ada_dress0_opt.BP_human_Ada_dress0_opt", 5),
+    ("/Game/MetaHumans/human_Ada_dress0/BP_human_Ada_dress0.BP_human_Ada_dress0", 5),
+    # Named characters (weight: 15)
+    ("/Game/MetaHumans/Ami/BP_Ami.BP_Ami", 4),
+    ("/Game/MetaHumans/MHC_Jenni/BP_MHC_Jenni.BP_MHC_Jenni", 4),
+    ("/Game/MetaHumans/Old_woman/BP_Old_woman.BP_Old_woman", 4),
+    ("/Game/MetaHumans/EU_woman/BP_EU_woman.BP_EU_woman", 3),
+]
+
+
+def select_foreground_path():
+    """Select foreground actor path based on relative weights."""
+    if not FOREGROUND_PATHS:
+        return None
+    total_weight = sum(weight for _, weight in FOREGROUND_PATHS)
+    r = random.uniform(0, total_weight)
+    cumulative = 0.0
+    for path, weight in FOREGROUND_PATHS:
+        cumulative += weight
+        if r <= cumulative:
+            return path
+    return FOREGROUND_PATHS[-1][0] if FOREGROUND_PATHS else None
+
+
 def generate_groom_params():
     gravity_z = random.uniform(50.0, 280.0)
 
@@ -60,6 +106,9 @@ def build_single_matting_scene():
     Returns a list of commands for ONE scene.
     Each call generates different random parameters.
     """
+    # Select foreground actor path by probability
+    foreground_path = select_foreground_path()
+
     if random.random() < 0.5:
         resolution = "1080x1920"
         fov_range = "50 60"
@@ -85,6 +134,7 @@ def build_single_matting_scene():
     commands = [
         {"cmd": "vrun", "params": "vset /captureactor/time_dilation 0.85"},
         {"cmd": "load_scene_param_json"},
+        {"cmd": "set_foreground_path", "params": foreground_path if foreground_path else ""},
         {"cmd": "random_scene_param_camera_height", "params": anim_config["height"]},
         {"cmd": "random_scene_param_camera_angle_offset", "params": "-90 90"},
         {"cmd": "random_scene_param_camera_distance", "params": anim_config["distance"]},
@@ -162,6 +212,9 @@ def build_concatenated_matting_sequence(num_scenes):
 
 
 def build_single_trajectory_scene():
+    # Select foreground actor path by probability
+    foreground_path = select_foreground_path()
+
     sync_frame = random.uniform(50.0, 70.0)
 
     commands = [
@@ -173,6 +226,7 @@ def build_single_trajectory_scene():
 
         # Scene setup
         {"cmd": "load_scene_param_json"},
+        {"cmd": "set_foreground_path", "params": foreground_path if foreground_path else ""},
         {"cmd": "random_scene_param_camera_height", "params": "120 155"},
         {"cmd": "random_scene_param_camera_angle_offset", "params": "-15 15"},
         {"cmd": "random_scene_param_camera_distance", "params": "140 200"},

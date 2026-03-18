@@ -104,6 +104,11 @@ void FDatasetAutomationHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::GetConfigExitOnComplete);
 	Help = "Get config bExitOnComplete";
 	CommandDispatcher->BindCommand(TEXT("vget /datasetautomation/config/b_exit_on_complete"), Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FDatasetAutomationHandler::SetForegroundPath);
+	Help = "Set foreground actor path (overrides JSON config)";
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/foreground_path [str]"), Cmd, Help);
+	CommandDispatcher->BindCommand(TEXT("vset /datasetautomation/foreground_path"), Cmd, Help);
 }
 
 FExecStatus FDatasetAutomationHandler::GetTaskName(const TArray<FString>& Args)
@@ -432,4 +437,31 @@ FExecStatus FDatasetAutomationHandler::GetConfigExitOnComplete(const TArray<FStr
 {
 	bool Value = UDatasetAutomationBPLib::CurrentConfig.bExitOnComplete;
 	return FExecStatus::OK(Value ? TEXT("true") : TEXT("false"));
+}
+
+FExecStatus FDatasetAutomationHandler::SetForegroundPath(const TArray<FString>& Args)
+{
+	FString ForegroundPath;
+	if (Args.Num() == 0)
+	{
+		ForegroundPath = TEXT("");
+	}
+	else if (Args.Num() == 1)
+	{
+		ForegroundPath = Args[0];
+	}
+	else
+	{
+		return FExecStatus::Error(TEXT("Usage: vset /datasetautomation/foreground_path [Path]"));
+	}
+
+	UDatasetAutomationBPLib::CurrentConfig.SceneParams.ForegroundPathSpec = ForegroundPath;
+	if (ForegroundPath.IsEmpty())
+	{
+		return FExecStatus::OK(TEXT("Config.SceneParams.ForegroundPathSpec cleared"));
+	}
+	else
+	{
+		return FExecStatus::OK(FString::Printf(TEXT("Config.SceneParams.ForegroundPathSpec = %s"), *ForegroundPath));
+	}
 }

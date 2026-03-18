@@ -404,6 +404,16 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Loaded scene params from JSON"));
 		ExecuteNextCommand();
 	}
+	else if (Step.Command == TEXT("set_foreground_path"))
+	{
+		CurrentConfig.SceneParams.ForegroundPathSpec = Step.StringParam;
+		if (Step.StringParam.IsEmpty()) {
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Cleared ForegroundPathSpec"));
+		} else {
+			UE_LOG(LogUnrealCV, Log, TEXT("DatasetAutomation: Set ForegroundPathSpec = %s"), *Step.StringParam);
+		}
+		ExecuteNextCommand();
+	}
 	else if (Step.Command == TEXT("random_scene_param_camera_height"))
 	{
 		TArray<FString> Args;

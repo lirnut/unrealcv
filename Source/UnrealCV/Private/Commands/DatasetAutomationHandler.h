@@ -35,4 +35,5 @@ public:
 	FExecStatus SetConfigExitOnComplete(const TArray<FString>& Args);
 	FExecStatus GetConfigExitOnComplete(const TArray<FString>& Args);
 	FExecStatus GetCommandHistory(const TArray<FString>& Args);
+	FExecStatus SetForegroundPath(const TArray<FString>& Args);
 };

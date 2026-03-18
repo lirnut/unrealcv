@@ -297,6 +297,9 @@ class UETestRunner:
             ("DatasetAutomation History", "vget /datasetautomation/history"),
             ("DatasetAutomation Sequence", "vget /datasetautomation/sequence"),
             ("DatasetAutomation Config B Exit On Complete", "vget /datasetautomation/config/b_exit_on_complete"),
+            ("DatasetAutomation Foreground Path Set", "vset /datasetautomation/foreground_path /Game/MetaHumans/human_2_dress3_f-thin/BP_human_2_dress3_f-thin.BP_human_2_dress3_f-thin"),
+            ("DatasetAutomation Foreground Path Get", "vget /datasetautomation/status"),
+            ("DatasetAutomation Foreground Path Clear", "vset /datasetautomation/foreground_path"),
 
             # === PAK 文件命令 ===
             ("PAK Mounted List", "vget /pak/mounted"),
