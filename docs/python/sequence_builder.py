@@ -5,15 +5,15 @@ import random
 # Weights are relative (don't need to sum to 1.0)
 FOREGROUND_PATHS = [
     # Batch gen male (weight: 20)
-    ("/Game/MetaHumans/AS-M-BatchGen-1210_011320/BP_AS-M-BatchGen-1210_011320.BP_AS-M-BatchGen-1210_011320", 5),
-    ("/Game/MetaHumans/AS-M-BatchGen-1209_231553/BP_AS-M-BatchGen-1209_231553.BP_AS-M-BatchGen-1209_231553", 5),
-    ("/Game/MetaHumans/AS-M-BatchGen-1209_214109/BP_AS-M-BatchGen-1209_214109.BP_AS-M-BatchGen-1209_214109", 5),
-    ("/Game/MetaHumans/AS-M-BatchGen-1209_205648/BP_AS-M-BatchGen-1209_205648.BP_AS-M-BatchGen-1209_205648", 5),
+    ("/Game/MetaHumans/AS-M-BatchGen-1210_011320/BP_AS-M-BatchGen-1210_011320.BP_AS-M-BatchGen-1210_011320", 1),
+    ("/Game/MetaHumans/AS-M-BatchGen-1209_231553/BP_AS-M-BatchGen-1209_231553.BP_AS-M-BatchGen-1209_231553", 1),
+    ("/Game/MetaHumans/AS-M-BatchGen-1209_214109/BP_AS-M-BatchGen-1209_214109.BP_AS-M-BatchGen-1209_214109", 1),
+    ("/Game/MetaHumans/AS-M-BatchGen-1209_205648/BP_AS-M-BatchGen-1209_205648.BP_AS-M-BatchGen-1209_205648", 1),
     # Batch gen female (weight: 20)
-    ("/Game/MetaHumans/AS-F-BatchGen-1210_062050/BP_AS-F-BatchGen-1210_062050.BP_AS-F-BatchGen-1210_062050", 5),
-    ("/Game/MetaHumans/AS-F-BatchGen-1210_033823/BP_AS-F-BatchGen-1210_033823.BP_AS-F-BatchGen-1210_033823", 5),
-    ("/Game/MetaHumans/AS-F-BatchGen-1209_182306/BP_AS-F-BatchGen-1209_182306.BP_AS-F-BatchGen-1209_182306", 5),
-    ("/Game/MetaHumans/AS-F-BatchGen-1209_165038/BP_AS-F-BatchGen-1209_165038.BP_AS-F-BatchGen-1209_165038", 5),
+    ("/Game/MetaHumans/AS-F-BatchGen-1210_062050/BP_AS-F-BatchGen-1210_062050.BP_AS-F-BatchGen-1210_062050", 1),
+    ("/Game/MetaHumans/AS-F-BatchGen-1210_033823/BP_AS-F-BatchGen-1210_033823.BP_AS-F-BatchGen-1210_033823", 1),
+    ("/Game/MetaHumans/AS-F-BatchGen-1209_182306/BP_AS-F-BatchGen-1209_182306.BP_AS-F-BatchGen-1209_182306", 1),
+    ("/Game/MetaHumans/AS-F-BatchGen-1209_165038/BP_AS-F-BatchGen-1209_165038.BP_AS-F-BatchGen-1209_165038", 1),
     # Dress variants (weight: 25)
     ("/Game/MetaHumans/human_2_dress4-f-thin/BP_human_2_dress4-f-thin.BP_human_2_dress4-f-thin", 6),
     ("/Game/MetaHumans/human_2_dress3_f-thin/BP_human_2_dress3_f-thin.BP_human_2_dress3_f-thin", 6),
