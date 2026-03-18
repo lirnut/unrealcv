@@ -307,9 +307,11 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="UnrealCV Dataset Automation Binary Manager")
     parser.add_argument("--traj", action="store_true", help="Run Trajectory task instead of Matting")
+    parser.add_argument("--annotation", action="store_true", help="Record depth data")
     args = parser.parse_args()
 
     is_trajectory_mode = args.traj
+    record_depth = args.annotation
     task_name = "Trajectory" if is_trajectory_mode else "Matting"
 
     print(f"\n{'='*60}")
@@ -382,19 +384,25 @@ def main():
 
             client.request(f"vset /datasetautomation/config/total_scenes {CONFIG_SLASH_TOTAL_SCENES}", timeout=CMD_TIMEOUT)
 
+            # Build recording options based on annotation flag
+            recording_options = "lit,mask,oneobjlit,metadata"
+            if record_depth:
+                recording_options += ",depth"
+
             if is_trajectory_mode:
                 print(client.request("vset /datasetautomation/config/trajectory_fps 30", timeout=CMD_TIMEOUT))
                 print(client.request("vset /datasetautomation/config/num_frames 121", timeout=CMD_TIMEOUT))
-                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjlit,depth,metadata", timeout=CMD_TIMEOUT))
+                print(client.request(f"vset /datasetautomation/config/recording_options {recording_options}", timeout=CMD_TIMEOUT))
                 print(client.request("vset /captureactor/paused_tick_interval 0.1", timeout=CMD_TIMEOUT))
             else:
                 # Matting task config
                 print(client.request("vset /datasetautomation/config/trajectory_fps 30", timeout=CMD_TIMEOUT))
                 print(client.request("vset /datasetautomation/config/num_frames 90", timeout=CMD_TIMEOUT))
-                print(client.request("vset /datasetautomation/config/recording_options lit,mask,oneobjlit,depth,metadata", timeout=CMD_TIMEOUT))
+                print(client.request(f"vset /datasetautomation/config/recording_options {recording_options}", timeout=CMD_TIMEOUT))
 
             timecode = datetime.datetime.now().strftime(r"%y-%m-%d") + f"_{task_name}"
-            output_dir = str(PKG_DIR / "DatasetAutomationOutputDirectory" / timecode / map_name)
+            annotation_suffix = "_with_depth" if record_depth else ""
+            output_dir = str(PKG_DIR / "DatasetAutomationOutputDirectory" / timecode / map_name / annotation_suffix)
             client.request(f"vset /datasetautomation/config/output_directory {output_dir}", timeout=CMD_TIMEOUT)
 
             print(f"[CONFIG] Output directory: {output_dir}")
