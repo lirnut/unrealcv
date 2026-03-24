@@ -32,7 +32,7 @@ Analyze the current conversation session and update `file_paths.md` with:
      - **UE5 engine files**: Paths in UE5 installation directory
        - Keep as absolute paths
        - Detect patterns: `*\Engine\Source\*`, `*\UE_*\Engine\*`
-       - Example: `H:\UE_5.6\Engine\Source\Runtime\Sockets\Private\BSDSockets\SocketsBSD.cpp`
+       - Example: `M:\UnrealEngine\Engine\Source\Runtime\Sockets\Private\BSDSockets\SocketsBSD.cpp`
 
    - Group by file type (.h, .cpp, .inl, .md, etc.)
 

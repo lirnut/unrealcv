@@ -30,7 +30,7 @@ def _detect_paths_from_file() -> Tuple[Path, Path]:
 class UEConfig:
     """Unreal Engine project configuration"""
     # UE Installation (from env var or hardcoded)
-    ue_path: Path = field(default_factory=lambda: Path(os.getenv('UE_PATH', 'H:/UE_5.6/Engine')))
+    ue_path: Path = field(default_factory=lambda: Path(os.getenv('UE_PATH', 'M:/UnrealEngine/Engine')))
 
     # Project paths (auto-detected from __file__, fallback to env vars)
     project_path: Path = None

@@ -11,83 +11,83 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 **Files Indexed**: 40+ UE5 engine files across 8 audio subsystems
 
 ### UE5 Engine References (Audio Core - Engine Module)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\AudioDevice.h` - FAudioDevice 基类定义，FAudioDeviceHandle 句柄，FListener 结构，SoundMix/SoundClass 管理 (line 1-300+)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\AudioDevice.cpp` - FAudioDevice 核心实现：AddNewActiveSoundInternal (line 5222-5402), Update() 主循环 (line 4701-4897), StartSources() (line 4517-4659)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Components\AudioComponent.h` - UAudioComponent 类定义，唯一 ID 分配机制，Play()/Stop() 接口
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Components\AudioComponent.cpp` - UAudioComponent 实现：PlayInternal() (line 633-879), 唯一 ID 管理 (line 67-69), BeginDestroy()
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\AudioThread.cpp` - FAudioThread 线程管理：RunCommandOnAudioThread() (line 494-517), 批处理 FAudioAsyncBatcher (line 405-453), SuspendAudioThread() (line 329-361)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\AudioDevice.h` - FAudioDevice 基类定义，FAudioDeviceHandle 句柄，FListener 结构，SoundMix/SoundClass 管理 (line 1-300+)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\AudioDevice.cpp` - FAudioDevice 核心实现：AddNewActiveSoundInternal (line 5222-5402), Update() 主循环 (line 4701-4897), StartSources() (line 4517-4659)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\Components\AudioComponent.h` - UAudioComponent 类定义，唯一 ID 分配机制，Play()/Stop() 接口
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\Components\AudioComponent.cpp` - UAudioComponent 实现：PlayInternal() (line 633-879), 唯一 ID 管理 (line 67-69), BeginDestroy()
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\AudioThread.cpp` - FAudioThread 线程管理：RunCommandOnAudioThread() (line 494-517), 批处理 FAudioAsyncBatcher (line 405-453), SuspendAudioThread() (line 329-361)
 
 ### UE5 Engine References (AudioMixer - Core Mixing System)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Public\AudioMixerDevice.h` - FMixerDevice 类 (继承 FAudioDevice+IAudioMixer+FGCObject), RequiredSubmixes(4 个), FMixerSourceManager 管理 (line 113-300+)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Private\AudioMixerDevice.cpp` - FMixerDevice 实现：DrawSubmixes(), Submix 映射管理，OnProcessAudioStream 回调
-- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Private\AudioMixerSourceManager.cpp` - FMixerSourceManager 核心：Update() 音源更新循环，ProcessQueuedCommands(), 监听器回调 (line 1-300+)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Public\AudioMixerSubmix.h` - FMixerSubmix 类：子混音图处理，效果链 (Effect Chains), Ambisonics 声场编码 (line 108-695)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Private\AudioMixerSourceBuffer.h` - FMixerSourceBuffer: PCM 缓冲区队列管理，异步解码，SoundGenerator 支持
-- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Private\AudioMixerSourceOutputBuffer.h` - FMixerSourceSubmixOutputBuffer: 2D/3D 声道映射，空间化，声场编码
-- `H:\UE_5.6\Engine\Source\Runtime\AudioMixer\Private\AudioMixerBuffer.h` - FMixerBuffer: 音频资源缓冲类型 (PCM/Streaming/RealTime), 解码器状态管理
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioMixer\Public\AudioMixerDevice.h` - FMixerDevice 类 (继承 FAudioDevice+IAudioMixer+FGCObject), RequiredSubmixes(4 个), FMixerSourceManager 管理 (line 113-300+)
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioMixer\Private\AudioMixerDevice.cpp` - FMixerDevice 实现：DrawSubmixes(), Submix 映射管理，OnProcessAudioStream 回调
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioMixer\Private\AudioMixerSourceManager.cpp` - FMixerSourceManager 核心：Update() 音源更新循环，ProcessQueuedCommands(), 监听器回调 (line 1-300+)
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioMixer\Public\AudioMixerSubmix.h` - FMixerSubmix 类：子混音图处理，效果链 (Effect Chains), Ambisonics 声场编码 (line 108-695)
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioMixer\Private\AudioMixerSourceBuffer.h` - FMixerSourceBuffer: PCM 缓冲区队列管理，异步解码，SoundGenerator 支持
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioMixer\Private\AudioMixerSourceOutputBuffer.h` - FMixerSourceSubmixOutputBuffer: 2D/3D 声道映射，空间化，声场编码
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioMixer\Private\AudioMixerBuffer.h` - FMixerBuffer: 音频资源缓冲类型 (PCM/Streaming/RealTime), 解码器状态管理
 
 ### UE5 Engine References (AudioMixerCore - Platform Abstraction)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioMixerCore\Public\AudioMixer.h` - IAudioMixer 接口，IAudioMixerPlatformInterface 平台抽象，EAudioMixerChannel 枚举 (line 476-880)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioMixerCore\Private\AudioMixer.cpp` - FOutputBuffer::MixNextBuffer() 混音回调，环形缓冲区提交，Float32/Int16 格式转换 (line 198-288)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioMixerCore\Public\AudioMixerTypes.h` - 音频类型定义，缓冲区格式枚举
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioMixerCore\Public\AudioMixer.h` - IAudioMixer 接口，IAudioMixerPlatformInterface 平台抽象，EAudioMixerChannel 枚举 (line 476-880)
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioMixerCore\Private\AudioMixer.cpp` - FOutputBuffer::MixNextBuffer() 混音回调，环形缓冲区提交，Float32/Int16 格式转换 (line 198-288)
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioMixerCore\Public\AudioMixerTypes.h` - 音频类型定义，缓冲区格式枚举
 
 ### UE5 Engine References (Audio Platform - Windows WASAPI)
-- `H:\UE_5.6\Engine\Source\Runtime\Windows\AudioMixerWasapi\Private\AudioMixerWasapi.h` - FAudioMixerWasapi 类：WASAPI 平台实现，DeviceManager 管理 (line 56-145)
-- `H:\UE_5.6\Engine\Source\Runtime\Windows\AudioMixerWasapi\Private\AudioMixerWasapiRenderStream.h` - FAudioMixerWasapiRenderStream: IAudioClient3/IAudioRenderClient COM 封装，NumFramesPerDeviceBuffer (line 29-78)
+- `M:\UnrealEngine\Engine\Source\Runtime\Windows\AudioMixerWasapi\Private\AudioMixerWasapi.h` - FAudioMixerWasapi 类：WASAPI 平台实现，DeviceManager 管理 (line 56-145)
+- `M:\UnrealEngine\Engine\Source\Runtime\Windows\AudioMixerWasapi\Private\AudioMixerWasapiRenderStream.h` - FAudioMixerWasapiRenderStream: IAudioClient3/IAudioRenderClient COM 封装，NumFramesPerDeviceBuffer (line 29-78)
 
 ### UE5 Engine References (AudioCapture - Audio Capture System)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioCaptureCore\Public\AudioCaptureCore.h` - FAudioCapture 高层捕获 API: OpenAudioCaptureStream(), StartStream(), GetCaptureDeviceInfo() (line 28-88)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioCaptureCore\Private\AudioCaptureCore.cpp` - FAudioCapture 实现，平台后端创建
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioCaptureCore\Public\AudioCaptureCore.h` - FAudioCapture 高层捕获 API: OpenAudioCaptureStream(), StartStream(), GetCaptureDeviceInfo() (line 28-88)
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioCaptureCore\Private\AudioCaptureCore.cpp` - FAudioCapture 实现，平台后端创建
 
 ### UE5 Engine References (Audio Extensions & DSP)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioExtensions\Public\IAudioExtensionPlugin.h` - 空间化/遮挡/混响插件接口
-- `H:\UE_5.6\Engine\Source\Runtime\AudioExtensions\Public\ISoundfieldFormat.h` - Ambisonics 声场编解码接口
-- `H:\UE_5.6\Engine\Source\Runtime\SoundFieldRendering\Public\SoundFieldRendering.h` - Ambisonics 编解码器实现
-- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\Dsp.h` - DSP 主头文件
-- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\AudioFFT.h` - FFT 变换
-- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\BiQuadFilter.h` - 双二阶滤波器
-- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\EQ.h` - 参数均衡器
-- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\Reverb.h` - 混响效果
-- `H:\UE_5.6\Engine\Source\Runtime\SignalProcessing\Public\DSP\DynamicsProcessor.h` - 压缩器/限制器
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioExtensions\Public\IAudioExtensionPlugin.h` - 空间化/遮挡/混响插件接口
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioExtensions\Public\ISoundfieldFormat.h` - Ambisonics 声场编解码接口
+- `M:\UnrealEngine\Engine\Source\Runtime\SoundFieldRendering\Public\SoundFieldRendering.h` - Ambisonics 编解码器实现
+- `M:\UnrealEngine\Engine\Source\Runtime\SignalProcessing\Public\DSP\Dsp.h` - DSP 主头文件
+- `M:\UnrealEngine\Engine\Source\Runtime\SignalProcessing\Public\DSP\AudioFFT.h` - FFT 变换
+- `M:\UnrealEngine\Engine\Source\Runtime\SignalProcessing\Public\DSP\BiQuadFilter.h` - 双二阶滤波器
+- `M:\UnrealEngine\Engine\Source\Runtime\SignalProcessing\Public\DSP\EQ.h` - 参数均衡器
+- `M:\UnrealEngine\Engine\Source\Runtime\SignalProcessing\Public\DSP\Reverb.h` - 混响效果
+- `M:\UnrealEngine\Engine\Source\Runtime\SignalProcessing\Public\DSP\DynamicsProcessor.h` - 压缩器/限制器
 
 ### UE5 Engine References (Sound Resource Classes)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundBase.h` - USoundBase 基类
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundWave.h` - USoundWave 波形资源
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundCue.h` - USoundCue 节点图资源
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundClass.h` - USoundClass 声音分类
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundMix.h` - USoundMix 混音配置
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundAttenuation.h` - USoundAttenuation 衰减设置
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Sound\SoundConcurrency.h` - USoundConcurrency 并发设置
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Sound\SoundBase.h` - USoundBase 基类
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Sound\SoundWave.h` - USoundWave 波形资源
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Sound\SoundCue.h` - USoundCue 节点图资源
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Sound\SoundClass.h` - USoundClass 声音分类
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Sound\SoundMix.h` - USoundMix 混音配置
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Sound\SoundAttenuation.h` - USoundAttenuation 衰减设置
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Sound\SoundConcurrency.h` - USoundConcurrency 并发设置
 
 ### UE5 Engine References (AudioLink - Buffered Listening)
-- `H:\UE_5.6\Engine\Source\Runtime\AudioLink\AudioLinkEngine\Private\BufferedSourceListener.h` - FBufferedSourceListener: ISourceBufferListener 完整实现示例，环形缓冲
-- `H:\UE_5.6\Engine\Source\Runtime\AudioLink\AudioLinkEngine\Private\BufferedSourceListener.cpp` - OnNewBuffer 回调实现，格式处理，OnSourceReleased 清理
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioLink\AudioLinkEngine\Private\BufferedSourceListener.h` - FBufferedSourceListener: ISourceBufferListener 完整实现示例，环形缓冲
+- `M:\UnrealEngine\Engine\Source\Runtime\AudioLink\AudioLinkEngine\Private\BufferedSourceListener.cpp` - OnNewBuffer 回调实现，格式处理，OnSourceReleased 清理
 
 ## Previous Session Files (2026-03-12)
 
 **Session Topic**: UE 5.6 Audio Mixer analysis - individual audio source capture via ISourceBufferListener, audio synthesis pipeline architecture, FMixerSourceManager/FMixerSubmix data flow
 
 ### UE5 Engine References (Audio System)
-- `H:/UE_5.6/Engine/Source/Runtime/Engine/Public/Audio.h` - ISourceBufferListener interface: OnNewBuffer/OnSourceReleased callbacks for per-source audio capture (line 149-165)
-- `H:/UE_5.6/Engine/Source/Runtime/Engine/Classes/Components/AudioComponent.h` - SetSourceBufferListener() method for attaching listeners to audio components (line 810)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceVoice.h` - FMixerSourceVoice::SetSourceBufferListener() declaration (line 64)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceVoice.cpp` - FMixerSourceVoice::SetSourceBufferListener() implementation forwarding to SourceManager (line 204-209)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceManager.h` - Core source management: FMixerSourceManager class with FSourceInfo array, buffer getters (GetPreDistanceAttenuationBuffer, GetPreEffectBuffer), source worker threading (line 181-698)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceManager.cpp` - Source rendering pipeline: SetSourceBufferListener(), Update(), GenerateSourceAudio(), ComputeSourceBuffer() with listener callback invocation (line 1843-1857, 2713-2733)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceBuffer.h` - FMixerSourceBuffer: PCM buffer queue management, async decoding, sound generator support (line 63-191)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceOutputBuffer.h` - FMixerSourceSubmixOutputBuffer: 2D/3D channel mapping, spatialization, soundfield encoding (line 29-211)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Private/AudioMixerBuffer.h` - FMixerBuffer: audio asset buffer types (PCM/Streaming/RealTime), decoder state management (line 27-98)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Public/AudioMixerSubmix.h` - FMixerSubmix: submix graph processing, effect chains, soundfield streams (Ambisonics), endpoint output (line 108-695)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixer/Public/AudioMixerDevice.h` - FMixerDevice: main audio device, OnProcessAudioStream callback, submix graph management
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixerCore/Public/AudioMixer.h` - IAudioMixer interface, IAudioMixerPlatformInterface platform abstraction, channel enums (line 476-880)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioMixerCore/Public/AudioMixerTypes.h` - Audio type definitions, buffer formats
-- `H:/UE_5.6/Engine/Source/Runtime/AudioLink/AudioLinkEngine/Private/BufferedSourceListener.h` - FBufferedSourceListener: complete ISourceBufferListener implementation example with circular buffer
-- `H:/UE_5.6/Engine/Source/Runtime/AudioLink/AudioLinkEngine/Private/BufferedSourceListener.cpp` - BufferedSourceListener implementation: OnNewBuffer with format handling, OnSourceReleased cleanup
+- `M:/UnrealEngine/Engine/Source/Runtime/Engine/Public/Audio.h` - ISourceBufferListener interface: OnNewBuffer/OnSourceReleased callbacks for per-source audio capture (line 149-165)
+- `M:/UnrealEngine/Engine/Source/Runtime/Engine/Classes/Components/AudioComponent.h` - SetSourceBufferListener() method for attaching listeners to audio components (line 810)
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceVoice.h` - FMixerSourceVoice::SetSourceBufferListener() declaration (line 64)
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceVoice.cpp` - FMixerSourceVoice::SetSourceBufferListener() implementation forwarding to SourceManager (line 204-209)
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceManager.h` - Core source management: FMixerSourceManager class with FSourceInfo array, buffer getters (GetPreDistanceAttenuationBuffer, GetPreEffectBuffer), source worker threading (line 181-698)
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceManager.cpp` - Source rendering pipeline: SetSourceBufferListener(), Update(), GenerateSourceAudio(), ComputeSourceBuffer() with listener callback invocation (line 1843-1857, 2713-2733)
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceBuffer.h` - FMixerSourceBuffer: PCM buffer queue management, async decoding, sound generator support (line 63-191)
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixer/Private/AudioMixerSourceOutputBuffer.h` - FMixerSourceSubmixOutputBuffer: 2D/3D channel mapping, spatialization, soundfield encoding (line 29-211)
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixer/Private/AudioMixerBuffer.h` - FMixerBuffer: audio asset buffer types (PCM/Streaming/RealTime), decoder state management (line 27-98)
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixer/Public/AudioMixerSubmix.h` - FMixerSubmix: submix graph processing, effect chains, soundfield streams (Ambisonics), endpoint output (line 108-695)
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixer/Public/AudioMixerDevice.h` - FMixerDevice: main audio device, OnProcessAudioStream callback, submix graph management
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixerCore/Public/AudioMixer.h` - IAudioMixer interface, IAudioMixerPlatformInterface platform abstraction, channel enums (line 476-880)
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioMixerCore/Public/AudioMixerTypes.h` - Audio type definitions, buffer formats
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioLink/AudioLinkEngine/Private/BufferedSourceListener.h` - FBufferedSourceListener: complete ISourceBufferListener implementation example with circular buffer
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioLink/AudioLinkEngine/Private/BufferedSourceListener.cpp` - BufferedSourceListener implementation: OnNewBuffer with format handling, OnSourceReleased cleanup
 
 ### UE5 Engine References (Audio Extensions)
-- `H:/UE_5.6/Engine/Source/Runtime/AudioExtensions/Public/IAudioExtensionPlugin.h` - Spatialization, occlusion, reverb plugin interfaces
-- `H:/UE_5.6/Engine/Source/Runtime/AudioExtensions/Public/ISoundfieldFormat.h` - Soundfield encoding/decoding interfaces for Ambisonics
-- `H:/UE_5.6/Engine/Source/Runtime/SoundFieldRendering/Public/SoundFieldRendering.h` - Ambisonics encoder/decoder implementations
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioExtensions/Public/IAudioExtensionPlugin.h` - Spatialization, occlusion, reverb plugin interfaces
+- `M:/UnrealEngine/Engine/Source/Runtime/AudioExtensions/Public/ISoundfieldFormat.h` - Soundfield encoding/decoding interfaces for Ambisonics
+- `M:/UnrealEngine/Engine/Source/Runtime/SoundFieldRendering/Public/SoundFieldRendering.h` - Ambisonics encoder/decoder implementations
 
 ## Session Context Files (2026-03-06)
 
@@ -118,16 +118,16 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 - `Source/UnrealCV/Public/Actor/FusionCamCaptureActor.h`
 
 ### UE5 Engine References (Material System)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInterface.h` - UMaterialInterface base class with GetBlendMode(), GetShadingModels(), IsTwoSided(), GetOpacityMaskClipValue(), GetAllParametersOfType() ENGINE_API
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\Material.h` - UMaterial class with MaterialDomain, GetBaseMaterial()
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInstance.h` - UMaterialInstance with ScalarParameterValues, VectorParameterValues, TextureParameterValues, DoubleVectorParameterValues arrays; BasePropertyOverrides struct; StaticSwitchParameterValues REMOVED in UE5.5+
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialCachedData.h` - FMaterialCachedExpressionData with bHasMaterialLayers, bHasSceneColor, ReferencedTextures array, StaticSwitchValues TArray<bool>
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\Materials\MaterialInstanceBasePropertyOverrides.h` - FMaterialInstanceBasePropertyOverrides with override flags for BlendMode, ShadingModel, OpacityMaskClipValue
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\MaterialTypes.h` - FMaterialParameterMetadata, FMaterialParameterValue with AsStaticSwitch() method; EMaterialParameterType enum
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\Materials\MaterialInterface.h` - UMaterialInterface base class with GetBlendMode(), GetShadingModels(), IsTwoSided(), GetOpacityMaskClipValue(), GetAllParametersOfType() ENGINE_API
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\Materials\Material.h` - UMaterial class with MaterialDomain, GetBaseMaterial()
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\Materials\MaterialInstance.h` - UMaterialInstance with ScalarParameterValues, VectorParameterValues, TextureParameterValues, DoubleVectorParameterValues arrays; BasePropertyOverrides struct; StaticSwitchParameterValues REMOVED in UE5.5+
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\Materials\MaterialCachedData.h` - FMaterialCachedExpressionData with bHasMaterialLayers, bHasSceneColor, ReferencedTextures array, StaticSwitchValues TArray<bool>
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\Materials\MaterialInstanceBasePropertyOverrides.h` - FMaterialInstanceBasePropertyOverrides with override flags for BlendMode, ShadingModel, OpacityMaskClipValue
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\MaterialTypes.h` - FMaterialParameterMetadata, FMaterialParameterValue with AsStaticSwitch() method; EMaterialParameterType enum
 
 ### UE5 Engine References (Texture System)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Engine\Texture.h` - UTexture base class with CompressionSettings, SRGB property; GetResource() for size info; GetTextureClass() enum
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\TextureResource.h` - FTextureResource with GetSizeX(), GetSizeY(), GetCurrentMipCount()
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Engine\Texture.h` - UTexture base class with CompressionSettings, SRGB property; GetResource() for size info; GetTextureClass() enum
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\TextureResource.h` - FTextureResource with GetSizeX(), GetSizeY(), GetCurrentMipCount()
 
 ## Previous Session Files (2026-03-01)
 
@@ -149,13 +149,13 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 - `Source/UnrealCV/Private/Commands/CaptureActorHandler.h`
 
 ### UE5 Engine References (Viewport & Backbuffer)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Slate\SceneViewport.cpp` - FSceneViewport class; GetViewportRHI(), UseSeparateRenderTarget(), BeginRenderFrame() with backbuffer logic; SetViewportSize(), ResizeViewport()
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\UnrealClient.cpp` - FRenderTarget::ReadPixels() implementation using RHICmdList.ReadSurfaceData
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\UnrealClient.h` - FViewport class with GetViewportRHI() method (line 666), FViewportRHIRef member (line 799)
-- `H:\UE_5.6\Engine\Source\Runtime\Slate\Private\Widgets\SViewport.cpp` - SViewport widget with ShouldRenderDirectly() check for drawing viewport quad
-- `H:\UE_5.6\Engine\Source\Runtime\RHI\Public\DynamicRHI.h` - RHIGetViewportBackBuffer() pure virtual (line 680), inline implementation (line 1400-1402)
-- `H:\UE_5.6\Engine\Source\Runtime\RHI\Public\RHIFwd.h` - FViewportRHIRef = TRefCountPtr<FRHIViewport> (line 138)
-- `H:\UE_5.6\Engine\Source\Runtime\RHI\Public\RHIValidation.h` - RHI validation layer implementation
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\Slate\SceneViewport.cpp` - FSceneViewport class; GetViewportRHI(), UseSeparateRenderTarget(), BeginRenderFrame() with backbuffer logic; SetViewportSize(), ResizeViewport()
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\UnrealClient.cpp` - FRenderTarget::ReadPixels() implementation using RHICmdList.ReadSurfaceData
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\UnrealClient.h` - FViewport class with GetViewportRHI() method (line 666), FViewportRHIRef member (line 799)
+- `M:\UnrealEngine\Engine\Source\Runtime\Slate\Private\Widgets\SViewport.cpp` - SViewport widget with ShouldRenderDirectly() check for drawing viewport quad
+- `M:\UnrealEngine\Engine\Source\Runtime\RHI\Public\DynamicRHI.h` - RHIGetViewportBackBuffer() pure virtual (line 680), inline implementation (line 1400-1402)
+- `M:\UnrealEngine\Engine\Source\Runtime\RHI\Public\RHIFwd.h` - FViewportRHIRef = TRefCountPtr<FRHIViewport> (line 138)
+- `M:\UnrealEngine\Engine\Source\Runtime\RHI\Public\RHIValidation.h` - RHI validation layer implementation
 
 ## Session Context Files (2026-03-01)
 
@@ -170,18 +170,18 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 - `Source/UnrealCV/UnrealCV.Build.cs` - Module dependencies; attempted PrivateIncludePathModuleNames for Renderer Private access
 
 ### UE5 Engine References (SceneRenderBuilder & Rendering Pipeline)
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneRenderBuilder.cpp` - CreateSceneRenderer (line 472); AddRenderer (line 562); Execute (line 1101); ViewExtension callbacks at line 506-523
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - SetupSceneViewExtensionsForSceneCapture (line 806-822); CreateSceneRendererForSceneCapture; AddRenderer lambda pattern for render capture
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneRendering.h` - FSceneRenderer class definition (line 2067, private type)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneRenderBuilderInterface.h` - ISceneRenderBuilder interface; CreateSceneRenderer; AddRenderer; FSceneRenderFunction type (line 48)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneViewExtension.h` - ISceneViewExtension with SetupViewFamily/SetupView/BeginRenderViewFamily/PostCreateSceneRenderer methods
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneView.h` - FSceneViewFamilyContext class (line 2576)
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Public\SceneRendererInterface.h` - ISceneRenderer interface (line 46)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\StereoRendering.h` - IStereoRendering for multi-view rendering
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\SceneRenderBuilder.cpp` - CreateSceneRenderer (line 472); AddRenderer (line 562); Execute (line 1101); ViewExtension callbacks at line 506-523
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - SetupSceneViewExtensionsForSceneCapture (line 806-822); CreateSceneRendererForSceneCapture; AddRenderer lambda pattern for render capture
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\SceneRendering.h` - FSceneRenderer class definition (line 2067, private type)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\SceneRenderBuilderInterface.h` - ISceneRenderBuilder interface; CreateSceneRenderer; AddRenderer; FSceneRenderFunction type (line 48)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\SceneViewExtension.h` - ISceneViewExtension with SetupViewFamily/SetupView/BeginRenderViewFamily/PostCreateSceneRenderer methods
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\SceneView.h` - FSceneViewFamilyContext class (line 2576)
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Public\SceneRendererInterface.h` - ISceneRenderer interface (line 46)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\StereoRendering.h` - IStereoRendering for multi-view rendering
 
 ### UE5 Engine References (Deferred Shading Renderer)
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\DeferredShadingRenderer.h` - FDeferredShadingSceneRenderer class (line 315): public FSceneRenderer
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\DeferredShadingRenderer.cpp` - Main deferred rendering implementation with Render() method; includes various rendering passes
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\DeferredShadingRenderer.h` - FDeferredShadingSceneRenderer class (line 315): public FSceneRenderer
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\DeferredShadingRenderer.cpp` - Main deferred rendering implementation with Render() method; includes various rendering passes
 
 ## Session Context Files (2026-02-28)
 
@@ -202,16 +202,16 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 - `MQRC-Landscape-LOD-Crash-Analysis.md` - Comprehensive technical analysis of UE 5.6 Landscape LOD caching crash with SceneCaptureComponent2D + Ray Tracing
 
 ### UE5 Engine References (Landscape Rendering System)
-- `H:\UE_5.6\Engine\Source\Runtime\Landscape\Public\LandscapeRender.h` - FLandscapeRenderSystem class (lines 507-656); FLandscapeSceneViewExtension with PreRenderView_RenderThread and view counting logic
-- `H:\UE_5.6\Engine\Source\Runtime\Landscape\Private\LandscapeRender.cpp` - GetCachedSectionLODValues() crash site (line 1023); PreRenderView_RenderThread with view counting condition `LandscapeViews.Num() == InView.Family->AllViews.Num()` (line 1218); ComputeSectionsLODForView() (line 1199-1287); GetDynamicRayTracingInstances() (line 3072-3122)
-- `H:\UE_5.6\Engine\Source\Runtime\Landscape\Private\LandscapeModule.cpp` - FLandscapeSceneViewExtension global registration in OnPostEngineInit() (line 263-267)
+- `M:\UnrealEngine\Engine\Source\Runtime\Landscape\Public\LandscapeRender.h` - FLandscapeRenderSystem class (lines 507-656); FLandscapeSceneViewExtension with PreRenderView_RenderThread and view counting logic
+- `M:\UnrealEngine\Engine\Source\Runtime\Landscape\Private\LandscapeRender.cpp` - GetCachedSectionLODValues() crash site (line 1023); PreRenderView_RenderThread with view counting condition `LandscapeViews.Num() == InView.Family->AllViews.Num()` (line 1218); ComputeSectionsLODForView() (line 1199-1287); GetDynamicRayTracingInstances() (line 3072-3122)
+- `M:\UnrealEngine\Engine\Source\Runtime\Landscape\Private\LandscapeModule.cpp` - FLandscapeSceneViewExtension global registration in OnPostEngineInit() (line 263-267)
 
 ### UE5 Engine References (SceneCapture & ViewExtension Pipeline)
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - SetupSceneViewExtensionsForSceneCapture() (line 806-822); SetupViewFamilyForSceneCapture() (line 666-1003); UpdateSceneCaptureContent()
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneRendering.cpp` - ViewExtension PreRenderView_RenderThread callbacks (line 3929-3943); main viewport rendering flow
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneVisibility.cpp` - ViewExtension PreInitViews_RenderThread callbacks (line 4912-4915)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneViewExtension.h` - ISceneViewExtension base class with GetPriority() default=0 (line 217)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Components\SceneCaptureComponent.cpp` - SceneCapture2D view setup and ViewState management
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - SetupSceneViewExtensionsForSceneCapture() (line 806-822); SetupViewFamilyForSceneCapture() (line 666-1003); UpdateSceneCaptureContent()
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\SceneRendering.cpp` - ViewExtension PreRenderView_RenderThread callbacks (line 3929-3943); main viewport rendering flow
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\SceneVisibility.cpp` - ViewExtension PreInitViews_RenderThread callbacks (line 4912-4915)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\SceneViewExtension.h` - ISceneViewExtension base class with GetPriority() default=0 (line 217)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\Components\SceneCaptureComponent.cpp` - SceneCapture2D view setup and ViewState management
 
 ## Previous Session Files (2026-02-25)
 
@@ -222,20 +222,20 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 - `Source/UnrealCV/Public/Sensor/CameraSensor/BaseCameraSensor.h` - Async capture pipeline with FQueuedCapture, ECaptureFormat enum, CaptureCache for Fast path
 
 ### UE5 Engine References (Gamma & Color Management)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Components\SceneCaptureComponent.h` - USceneCaptureComponent base class with CaptureSource enum
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Components\SceneCaptureComponent.cpp` - SceneCapture view setup and FSceneViewStateReference management
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Components\SceneCaptureComponent2D.h` - USceneCaptureComponent2D class definition
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneView.h` - FSceneView class with color space and gamma processing
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Engine\TextureRenderTarget2D.h` - bForceLinearGamma property (line 127-129); InitCustomFormat method; GetDisplayGamma implementation (line 703-721)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\TextureRenderTarget2D.cpp` - GetDisplayGamma logic: TargetGamma priority → bForceLinearGamma → default 2.2 (line 703-721); InitCustomFormat (line 135-158)
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - SCS_FinalColorLDR rendering path (line 213-216); SetupViewFamilyForSceneCapture
-- `H:\UE_5.6\Engine\Source\Runtime\RHI\Public\RHITypes.h` - FReadSurfaceDataFlags with SetLinearToGamma method (line 15-123); bLinearToGamma default=true
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Components\SceneCaptureComponent.h` - USceneCaptureComponent base class with CaptureSource enum
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\Components\SceneCaptureComponent.cpp` - SceneCapture view setup and FSceneViewStateReference management
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Components\SceneCaptureComponent2D.h` - USceneCaptureComponent2D class definition
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\SceneView.h` - FSceneView class with color space and gamma processing
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Engine\TextureRenderTarget2D.h` - bForceLinearGamma property (line 127-129); InitCustomFormat method; GetDisplayGamma implementation (line 703-721)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\TextureRenderTarget2D.cpp` - GetDisplayGamma logic: TargetGamma priority → bForceLinearGamma → default 2.2 (line 703-721); InitCustomFormat (line 135-158)
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - SCS_FinalColorLDR rendering path (line 213-216); SetupViewFamilyForSceneCapture
+- `M:\UnrealEngine\Engine\Source\Runtime\RHI\Public\RHITypes.h` - FReadSurfaceDataFlags with SetLinearToGamma method (line 15-123); bLinearToGamma default=true
 
 ### UE5 Engine References (MovieRenderPipeline - Gamma Control)
-- `H:\UE_5.6\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Private\MoviePipelineSurfaceReader.cpp` - FRHIGPUTextureReadback async GPU readback; SCS_SceneColorHDR linear workflow
-- `H:\UE_5.6\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Private\MoviePipelineImageQuantization.cpp` - GenerateSRGBTable with precise gamma formula; ConvertLinearTosRGB8bpp with dithering
-- `H:\UE_5.6\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Private\MoviePipelineImageSequenceOutput.cpp` - Format-dependent gamma strategy (PNG=sRGB, EXR=linear)
-- `H:\UE_5.6\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Public\MoviePipelineColorSetting.h` - OCIOConfiguration and bDisableToneCurve properties
+- `M:\UnrealEngine\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Private\MoviePipelineSurfaceReader.cpp` - FRHIGPUTextureReadback async GPU readback; SCS_SceneColorHDR linear workflow
+- `M:\UnrealEngine\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Private\MoviePipelineImageQuantization.cpp` - GenerateSRGBTable with precise gamma formula; ConvertLinearTosRGB8bpp with dithering
+- `M:\UnrealEngine\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Private\MoviePipelineImageSequenceOutput.cpp` - Format-dependent gamma strategy (PNG=sRGB, EXR=linear)
+- `M:\UnrealEngine\Engine\Plugins\MovieScene\MovieRenderPipeline\Source\MovieRenderPipelineCore\Public\MoviePipelineColorSetting.h` - OCIOConfiguration and bDisableToneCurve properties
 
 ## Previous Session Files (2026-02-25)
 
@@ -246,14 +246,14 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 - `Source/UnrealCV/Public/Sensor/CameraSensor/BaseCameraSensor.h` - UBaseCameraSensor class inheriting USceneCaptureComponent2D; controls FOV, film size, async capture pipeline
 
 ### UE5 Engine References (SceneCapture & Anti-Aliasing)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneView.h` - FSceneView class; `AntiAliasingMethod` field at line 1725; `SetupAntiAliasingMethod()` declaration at line 1940
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\SceneView.cpp` - FSceneView constructor (line 857): `State(InitOptions.SceneViewStateInterface)`; `SetupAntiAliasingMethod()` called at line 1009; `r.AntiAliasingMethod` CVar defined at line 219 (default=4=TSR)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\SceneUtils.cpp` - `GetDefaultAntiAliasingMethod()` implementation (line 72): reads `r.AntiAliasingMethod` CVar; TSR→TAA fallback if platform unsupported (line 128-135)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Public\SceneUtils.h` - `GetDefaultAntiAliasingMethod(FeatureLevel)` declaration
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Engine\RendererSettings.h` - `DefaultFeatureAntiAliasing` UPROPERTY bound to `r.AntiAliasingMethod` CVar (line 839); maps Project Settings UI → CVar
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Components\SceneCaptureComponent.cpp` - SceneCapture2D view setup; `GetViewState()` (line 403); `FSceneViewStateReference` allocation for TAA history
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - `SetupViewFamilyForSceneCapture()` (line 666): creates `FSceneViewInitOptions`, sets `SceneViewStateInterface` from `GetViewState()`, calls `new FSceneView(ViewInitOptions)` at line 743
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\LocalPlayer.cpp` - Standard game render path; `new FSceneView(ViewInitOptions)` at line 880 (comparison reference)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\SceneView.h` - FSceneView class; `AntiAliasingMethod` field at line 1725; `SetupAntiAliasingMethod()` declaration at line 1940
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\SceneView.cpp` - FSceneView constructor (line 857): `State(InitOptions.SceneViewStateInterface)`; `SetupAntiAliasingMethod()` called at line 1009; `r.AntiAliasingMethod` CVar defined at line 219 (default=4=TSR)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\SceneUtils.cpp` - `GetDefaultAntiAliasingMethod()` implementation (line 72): reads `r.AntiAliasingMethod` CVar; TSR→TAA fallback if platform unsupported (line 128-135)
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Public\SceneUtils.h` - `GetDefaultAntiAliasingMethod(FeatureLevel)` declaration
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Engine\RendererSettings.h` - `DefaultFeatureAntiAliasing` UPROPERTY bound to `r.AntiAliasingMethod` CVar (line 839); maps Project Settings UI → CVar
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\Components\SceneCaptureComponent.cpp` - SceneCapture2D view setup; `GetViewState()` (line 403); `FSceneViewStateReference` allocation for TAA history
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\SceneCaptureRendering.cpp` - `SetupViewFamilyForSceneCapture()` (line 666): creates `FSceneViewInitOptions`, sets `SceneViewStateInterface` from `GetViewState()`, calls `new FSceneView(ViewInitOptions)` at line 743
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\LocalPlayer.cpp` - Standard game render path; `new FSceneView(ViewInitOptions)` at line 880 (comparison reference)
 
 ## Previous Session Files (2026-02-24)
 
@@ -271,7 +271,7 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 - `Source/UnrealCV/Private/Server/UnrealcvServer.cpp` - Registered FMQRCHandler in CommandHandlers (line 126)
 
 ### UE5 Engine References (Post-Processing)
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Classes\Engine\Scene.h` - FPostProcessSettings struct with AutoExposureMinBrightness/MaxBrightness properties
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Classes\Engine\Scene.h` - FPostProcessSettings struct with AutoExposureMinBrightness/MaxBrightness properties
 
 ## Previous Session Files (2026-02-24)
 
@@ -313,8 +313,8 @@ Use these shorthand paths in prompts instead of copy-pasting full paths.
 - `Source/uezoo/unrealcv/api.py` - High-level Python API wrapper with batch_cmd implementation (line 189-212)
 
 ### UE5 Engine References (Networking)
-- `H:\UE_5.6\Engine\Source\Runtime\Sockets\Public\Sockets.h` - FSocket class definition with SetNoDelay() method
-- `H:\UE_5.6\Engine\Source\Runtime\Sockets\Public\SocketSubsystem.h` - Socket subsystem interface
+- `M:\UnrealEngine\Engine\Source\Runtime\Sockets\Public\Sockets.h` - FSocket class definition with SetNoDelay() method
+- `M:\UnrealEngine\Engine\Source\Runtime\Sockets\Public\SocketSubsystem.h` - Socket subsystem interface
 
 ## Documentation
 - `cmd.md` - TCP command reference (vget/vset commands)

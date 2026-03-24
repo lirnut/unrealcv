@@ -34,7 +34,7 @@ The harness uses default settings from `config.py`. If you need custom paths, cr
 
 ```json
 {
-  "ue_path": "H:/UE_5.6/Engine",
+  "ue_path": "M:/UnrealEngine/Engine",
   "project_path": "G:/HUAWEI_Project_UE56/HUAWEI_Project.uproject",
   "plugin_root": "G:/HUAWEI_Project_UE56/Plugins/unrealcv",
   "port": 9000,

@@ -123,7 +123,7 @@ Create `config.json` based on the example:
 
 ```json
 {
-  "ue_path": "H:/UE_5.6/Engine",
+  "ue_path": "M:/UnrealEngine/Engine",
   "project_path": "G:/HUAWEI_Project_UE56/HUAWEI_Project.uproject",
   "plugin_root": "G:/HUAWEI_Project_UE56/Plugins/unrealcv",
   "port": 9000,
@@ -236,7 +236,7 @@ The harness implements automatic error recovery:
 
 [INFO] Executable: G:\HUAWEI_Project_UE56\Binaries\Win64\HUAWEI_Project.exe
 
-[Build] Command: H:\UE_5.6\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll HUAWEI_Project Win64 Development -Project=G:\HUAWEI_Project_UE56\HUAWEI_Project.uproject ...
+[Build] Command: M:\UnrealEngine\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll HUAWEI_Project Win64 Development -Project=G:\HUAWEI_Project_UE56\HUAWEI_Project.uproject ...
 
 [Compiling] FusionCamCaptureActor.cpp
 [Compiling] BaseCameraSensor.cpp

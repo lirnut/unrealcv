@@ -54,8 +54,8 @@
 - AnisotropyPass → GBufferF
 
 **关键文件**:
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneTextures.cpp`
-- `H:\UE_5.6\Engine\Shaders\Private\DeferredShadingCommon.ush`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\SceneTextures.cpp`
+- `M:\UnrealEngine\Engine\Shaders\Private\DeferredShadingCommon.ush`
 
 ---
 
@@ -77,8 +77,8 @@ SceneDepthZ创建 → ClearDepthStencilPass → RenderPrePass → DepthOnlyVS/PS
 ```
 
 **关键文件**:
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\DepthRendering.cpp`
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\SceneTextures.cpp`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\DepthRendering.cpp`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\SceneTextures.cpp`
 
 ---
 
@@ -107,9 +107,9 @@ SceneDepthZ创建 → ClearDepthStencilPass → RenderPrePass → DepthOnlyVS/PS
 - `RenderRadiosityForLumenScene()` - 间接光照
 
 **关键文件**:
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\LumenScreenProbeGather.cpp`
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\LumenRadianceCache.cpp`
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\DeferredShadingRenderer.cpp`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\LumenScreenProbeGather.cpp`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\LumenRadianceCache.cpp`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\DeferredShadingRenderer.cpp`
 
 ---
 
@@ -136,9 +136,9 @@ SceneDepthZ创建 → ClearDepthStencilPass → RenderPrePass → DepthOnlyVS/PS
 ```
 
 **关键文件**:
-- `H:\UE_5.6\Engine\Shaders\Private\LightAccumulator.ush`
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\ClusteredDeferredShadingPass.cpp`
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\DeferredShadingRenderer.cpp`
+- `M:\UnrealEngine\Engine\Shaders\Private\LightAccumulator.ush`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\ClusteredDeferredShadingPass.cpp`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\DeferredShadingRenderer.cpp`
 
 ---
 
@@ -171,9 +171,9 @@ SceneDepthZ创建 → ClearDepthStencilPass → RenderPrePass → DepthOnlyVS/PS
 - GBufferVelocityTexture (用于TSR)
 
 **关键文件**:
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\PostProcess\PostProcessing.cpp:347`
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\PostProcess\PostProcessTonemap.cpp:569`
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\PostProcess\PostProcessMotionBlur.cpp:1314`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\PostProcess\PostProcessing.cpp:347`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\PostProcess\PostProcessTonemap.cpp:569`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\PostProcess\PostProcessMotionBlur.cpp:1314`
 
 ---
 
@@ -210,15 +210,15 @@ SwapChain Present
 - SCS_FinalColorLDR → sRGB Gamma编码 → 直接输出
 
 **关键文件**:
-- `H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\PostProcess\PostProcessTonemap.cpp`
-- `H:\UE_5.6\Engine\Source\Runtime\Engine\Private\Slate\SceneViewport.cpp`
-- `H:\UE_5.6\Engine\Source\Runtime\RHI\Public\DynamicRHI.h`
+- `M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\PostProcess\PostProcessTonemap.cpp`
+- `M:\UnrealEngine\Engine\Source\Runtime\Engine\Private\Slate\SceneViewport.cpp`
+- `M:\UnrealEngine\Engine\Source\Runtime\RHI\Public\DynamicRHI.h`
 
 ---
 
 ## 核心UE源码索引
 
-### Renderer模块 (H:\UE_5.6\Engine\Source\Runtime\Renderer\Private\)
+### Renderer模块 (M:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\)
 
 | 文件 | 职责 |
 |---|---|
@@ -229,7 +229,7 @@ SwapChain Present
 | `PostProcessing.cpp` | 后处理Pass链编排 |
 | `PostProcessTonemap.cpp` | Tonemapper实现 |
 
-### Shader模块 (H:\UE_5.6\Engine\Shaders\Private\)
+### Shader模块 (M:\UnrealEngine\Engine\Shaders\Private\)
 
 | 文件 | 职责 |
 |---|---|
