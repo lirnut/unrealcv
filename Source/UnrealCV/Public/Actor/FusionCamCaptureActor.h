@@ -154,6 +154,7 @@ struct FRecordingDataTypesConfig
 		Config.bRecordOneObjectLit = false;
 		Config.bRecordOneObjectGroomLit = true;
 		Config.bRecordDepth = false;
+		Config.bRecordFlow = true;
 		Config.bRecordMetadata = true;
 		return Config;
 	}

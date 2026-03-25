@@ -1,1 +1,1 @@
-# M:\UnrealEngine\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun -project="G:\HUAWEI_Project_UE56\HUAWEI_Project.uproject" -platform=Win64 -configuration=Development -target=HUAWEI_Project -build -cook -pak -stage -package -archive -archivedirectory="i:\Huawei_Project_PKG_0317_AllMaps"
+# ."M:\UnrealEngine\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun -project="M:\HUAWEI_Project_UE56\HUAWEI_Project.uproject" -platform=Win64 -configuration=Development -target=HUAWEI_Project -build -cook -pack -stage  -package -archive -archivedirectory="i:\HUAWEI_Project_PKG_0325"

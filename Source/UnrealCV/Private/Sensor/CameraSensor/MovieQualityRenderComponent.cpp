@@ -426,7 +426,7 @@ void UMovieQualityRenderComponent::CaptureFrame(TFunction<void(TUniquePtr<FImage
 		UE_LOG(LogTemp, Warning, TEXT("CaptureFrame - Warmup"));
 	}
 
-	if (bRenderImmediately)
+	if (GlobalSettings.bRenderImmediately)
 	{
 		ExecuteCaptureFrame(OnPixelDataReady);
 	}

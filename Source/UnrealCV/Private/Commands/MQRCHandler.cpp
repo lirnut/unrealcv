@@ -196,17 +196,17 @@ void FMQRCHandler::RegisterCommands()
 		TEXT("Set primary screen percentage method: spatial, temporal, raw")
 	);
 
-	// CommandDispatcher->BindCommand(
-	// 	TEXT("vget /mqrc/render_immediately"),
-	// 	FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::GetRenderImmediately),
-	// 	TEXT("Get render immediately mode (true/false)")
-	// );
+	CommandDispatcher->BindCommand(
+		TEXT("vget /mqrc/render_immediately"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::GetRenderImmediately),
+		TEXT("Get render immediately mode (true/false)")
+	);
 
-	// CommandDispatcher->BindCommand(
-	// 	TEXT("vset /mqrc/render_immediately [str]"),
-	// 	FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::SetRenderImmediately),
-	// 	TEXT("Set render immediately mode: true, false")
-	// );
+	CommandDispatcher->BindCommand(
+		TEXT("vset /mqrc/render_immediately [str]"),
+		FDispatcherDelegate::CreateRaw(this, &FMQRCHandler::SetRenderImmediately),
+		TEXT("Set render immediately mode: true, false")
+	);
 }
 
 FExecStatus FMQRCHandler::GetAntiAliasingMethod(const TArray<FString>& Args)
@@ -627,34 +627,34 @@ FExecStatus FMQRCHandler::SetScreenPercentageMethod(const TArray<FString>& Args)
 	}
 }
 
-// FExecStatus FMQRCHandler::GetRenderImmediately(const TArray<FString>& Args)
-// {
-// 	bool bValue = UMovieQualityRenderComponent::GlobalSettings.bRenderImmediately;
-// 	return FExecStatus::OK(bValue ? TEXT("true") : TEXT("false"));
-// }
+FExecStatus FMQRCHandler::GetRenderImmediately(const TArray<FString>& Args)
+{
+	bool bValue = UMovieQualityRenderComponent::GlobalSettings.bRenderImmediately;
+	return FExecStatus::OK(bValue ? TEXT("true") : TEXT("false"));
+}
 
-// FExecStatus FMQRCHandler::SetRenderImmediately(const TArray<FString>& Args)
-// {
-// 	if (Args.Num() != 1)
-// 	{
-// 		return FExecStatus::GetInvalidArgument();
-// 	}
+FExecStatus FMQRCHandler::SetRenderImmediately(const TArray<FString>& Args)
+{
+	if (Args.Num() != 1)
+	{
+		return FExecStatus::GetInvalidArgument();
+	}
 
-// 	FString ValueStr = Args[0].ToLower();
+	FString ValueStr = Args[0].ToLower();
 
-// 	if (ValueStr == TEXT("true") || ValueStr == TEXT("1"))
-// 	{
-// 		UMovieQualityRenderComponent::GlobalSettings.bRenderImmediately = true;
-// 		return FExecStatus::OK();
-// 	}
-// 	else if (ValueStr == TEXT("false") || ValueStr == TEXT("0"))
-// 	{
-// 		UMovieQualityRenderComponent::GlobalSettings.bRenderImmediately = false;
-// 		return FExecStatus::OK();
-// 	}
-// 	else
-// 	{
-// 		return FExecStatus::Error(TEXT("Invalid argument. Use 'true', 'false', '1', or '0'"));
-// 	}
-// }
+	if (ValueStr == TEXT("true") || ValueStr == TEXT("1"))
+	{
+		UMovieQualityRenderComponent::GlobalSettings.bRenderImmediately = true;
+		return FExecStatus::OK();
+	}
+	else if (ValueStr == TEXT("false") || ValueStr == TEXT("0"))
+	{
+		UMovieQualityRenderComponent::GlobalSettings.bRenderImmediately = false;
+		return FExecStatus::OK();
+	}
+	else
+	{
+		return FExecStatus::Error(TEXT("Invalid argument. Use 'true', 'false', '1', or '0'"));
+	}
+}
 

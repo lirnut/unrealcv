@@ -4,16 +4,16 @@ import random
 # Selected from MetaHumanCache.json - categorized by type for balanced sampling
 # Weights are relative (don't need to sum to 1.0)
 FOREGROUND_PATHS = [
-    # Batch gen male (weight: 20)
-    ("/Game/MetaHumans/AS-M-BatchGen-1210_011320/BP_AS-M-BatchGen-1210_011320.BP_AS-M-BatchGen-1210_011320", 1),
-    ("/Game/MetaHumans/AS-M-BatchGen-1209_231553/BP_AS-M-BatchGen-1209_231553.BP_AS-M-BatchGen-1209_231553", 1),
-    ("/Game/MetaHumans/AS-M-BatchGen-1209_214109/BP_AS-M-BatchGen-1209_214109.BP_AS-M-BatchGen-1209_214109", 1),
-    ("/Game/MetaHumans/AS-M-BatchGen-1209_205648/BP_AS-M-BatchGen-1209_205648.BP_AS-M-BatchGen-1209_205648", 1),
-    # Batch gen female (weight: 20)
-    ("/Game/MetaHumans/AS-F-BatchGen-1210_062050/BP_AS-F-BatchGen-1210_062050.BP_AS-F-BatchGen-1210_062050", 1),
-    ("/Game/MetaHumans/AS-F-BatchGen-1210_033823/BP_AS-F-BatchGen-1210_033823.BP_AS-F-BatchGen-1210_033823", 1),
-    ("/Game/MetaHumans/AS-F-BatchGen-1209_182306/BP_AS-F-BatchGen-1209_182306.BP_AS-F-BatchGen-1209_182306", 1),
-    ("/Game/MetaHumans/AS-F-BatchGen-1209_165038/BP_AS-F-BatchGen-1209_165038.BP_AS-F-BatchGen-1209_165038", 1),
+    # # Batch gen male (weight: 20)
+    # ("/Game/MetaHumans/AS-M-BatchGen-1210_011320/BP_AS-M-BatchGen-1210_011320.BP_AS-M-BatchGen-1210_011320", 1),
+    # ("/Game/MetaHumans/AS-M-BatchGen-1209_231553/BP_AS-M-BatchGen-1209_231553.BP_AS-M-BatchGen-1209_231553", 1),
+    # ("/Game/MetaHumans/AS-M-BatchGen-1209_214109/BP_AS-M-BatchGen-1209_214109.BP_AS-M-BatchGen-1209_214109", 1),
+    # ("/Game/MetaHumans/AS-M-BatchGen-1209_205648/BP_AS-M-BatchGen-1209_205648.BP_AS-M-BatchGen-1209_205648", 1),
+    # # Batch gen female (weight: 20)
+    # ("/Game/MetaHumans/AS-F-BatchGen-1210_062050/BP_AS-F-BatchGen-1210_062050.BP_AS-F-BatchGen-1210_062050", 1),
+    # ("/Game/MetaHumans/AS-F-BatchGen-1210_033823/BP_AS-F-BatchGen-1210_033823.BP_AS-F-BatchGen-1210_033823", 1),
+    # ("/Game/MetaHumans/AS-F-BatchGen-1209_182306/BP_AS-F-BatchGen-1209_182306.BP_AS-F-BatchGen-1209_182306", 1),
+    # ("/Game/MetaHumans/AS-F-BatchGen-1209_165038/BP_AS-F-BatchGen-1209_165038.BP_AS-F-BatchGen-1209_165038", 1),
     # Dress variants (weight: 25)
     ("/Game/MetaHumans/human_2_dress4-f-thin/BP_human_2_dress4-f-thin.BP_human_2_dress4-f-thin", 6),
     ("/Game/MetaHumans/human_2_dress3_f-thin/BP_human_2_dress3_f-thin.BP_human_2_dress3_f-thin", 6),
@@ -234,7 +234,7 @@ def build_single_trajectory_scene():
         {"cmd": "annotate_world"},
 
         # Animation setup
-        {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_RandomIdle.ABP_RandomIdle_C"},
+        {"cmd": "set_animation_bp", "params": "/Game/MetaHumans/ABP_RandomIdle_Safe.ABP_RandomIdle_Safe_C"},
         {"cmd": "delay", "params": "2.0"},
         {"cmd": "block_until_all_work_finished"},
         {"cmd": "delay", "params": "3.0"},
@@ -309,7 +309,7 @@ def build_single_trajectory_scene():
         {"cmd": "record_trajectory", "params": "random_4"},
         {"cmd": "sync_secondary_cameras"},
         {"cmd": "sync_pawn_to_primary_camera"},
-        {"cmd": "delay", "params": "5.0"},
+        {"cmd": "delay", "params": "2.0"},
 
         # Resume
         {"cmd": "set_time_dilation", "params": "1.0"},
