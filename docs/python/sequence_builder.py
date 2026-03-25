@@ -309,7 +309,6 @@ def build_single_trajectory_scene():
         {"cmd": "record_trajectory", "params": "random_4"},
         {"cmd": "sync_secondary_cameras"},
         {"cmd": "sync_pawn_to_primary_camera"},
-        {"cmd": "delay", "params": "2.0"},
 
         # Resume
         {"cmd": "set_time_dilation", "params": "1.0"},

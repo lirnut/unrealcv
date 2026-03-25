@@ -10,6 +10,7 @@
 #include "GroomBPLib.h"
 #include "RuntimeActorSetterBPLib.h"
 #include "FusionCameraActor.h"
+#include "FusionCamCaptureActor.h"
 #include "NavAgentController.h"
 #include "Engine/World.h"
 #include "UnrealcvServer.h"
@@ -146,45 +147,43 @@ void UDatasetAutomationBPLib::BuildCommandSequenceForScene()
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
-		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
-		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_in")));
+		// CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		// CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
+		// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
-		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
-		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("zoom_out")));
+		// CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		// CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
+		// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
-		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
-		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_1")));
+		// CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		// CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
+		// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
-		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
-		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_2")));
+		// CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		// CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
+		// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
-		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
-		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
-		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
+		// CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_3")));
+		// CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
+		// CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
+		// CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 
 		CommandQueue.Add(FAutomationStep(TEXT("record_trajectory"), TEXT("random_4")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_secondary_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("sync_pawn_to_primary_camera")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_pause"), TEXT("false")));
-		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("0.001")));
+		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("resume_groom_physics")));
+		
 		// CommandQueue.Add(FAutomationStep(TEXT("resume_all_actors")));
 		CommandQueue.Add(FAutomationStep(TEXT("vrun"), TEXT("r.HairStrands.SwapType 2")));
 		CommandQueue.Add(FAutomationStep(TEXT("resume_primary_capture_actor")));
-		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("5.0")));
 		
-		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("0.1")));
-
 		CommandQueue.Add(FAutomationStep(TEXT("sync_all_cameras")));
 		CommandQueue.Add(FAutomationStep(TEXT("set_time_dilation"), TEXT("1.0")));
 		CommandQueue.Add(FAutomationStep(TEXT("delay"), TEXT("1.0")));
@@ -656,7 +655,10 @@ void UDatasetAutomationBPLib::ExecuteCommand(const FAutomationStep& Step)
 		// Sensor->GetMovieQualityRenderer()->bRenderEveryFrame = true;
 		// Sensor->GetMovieQualityRenderer()->NumWarmup = 1;
 
-		Sensor->SetEnableMainViewportRender(true);
+		if (AFusionCamCaptureActor::RecordingSettings.bRecordViaViewport)
+		{
+			Sensor->SetEnableMainViewportRender(true);
+		}
 
 		FString PrimaryCameraID = USensorBPLib::GetSensorNewFormatID(Sensor);
 		ActiveCameraPool.Empty();
@@ -1610,6 +1612,12 @@ bool UDatasetAutomationBPLib::StartTrajectoryRecording(
 	auto* AllocatedCam = USensorBPLib::GetSensorById(AllocatedCID);
 	check(AllocatedCam);
 	check(AllocatedCID >= 0);
+	
+
+	if (AFusionCamCaptureActor::RecordingSettings.bRecordViaViewport)
+	{
+		AllocatedCam->SetEnableMainViewportRender(true);
+	}
 
 	UE_LOG(LogTemp, Warning, TEXT("1"));
 	AFusionCamCaptureActor* CaptureActor = URecordingBPLib::PrepareRecording(AllocatedCID);
