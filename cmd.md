@@ -49,6 +49,8 @@ DebugGame 控制台中支持的完整命令列表
   - vset /camera/[id]/fov [float] - 设置 FOV
   - vget /camera/[id]/use_fast_capture - 获取快速捕获模式状态 (0 or 1)
   - vset /camera/[id]/use_fast_capture [uint] - 设置快速捕获模式 (0=disabled, 1=enabled)
+  - vget /camera/[id]/render_in_main_renderer - 获取是否在主渲染器中渲染 (0 or 1)
+  - vset /camera/[id]/render_in_main_renderer [uint] - 设置是否在主渲染器中渲染 (0=disabled, 1=enabled)
   - vget /camera/[id]/size - 获取分辨率
   - vset /camera/[id]/size [width] [height] - 设置分辨率
   - vset /camera/[id]/projection_type [str] - 设置投影类型 (perspective/orthographic)
@@ -113,6 +115,9 @@ DebugGame 控制台中支持的完整命令列表
   - vset /object/[name]/hide - 隐藏物体
   - vset /object/[name]/destroy - 销毁物体
   - vget /object/[name]/bounds - 获取物体边界
+  - vset /object/[name]/hair_gravity [x] [y] [z] - 设置毛发重力方向/强度
+  - vset /object/[name]/hair_airdrag [float] - 设置毛发空气阻力
+  - vset /object/[name]/reset_hair_simulation - 重置毛发模拟
 
   记录命令 (/captureactor/*)
 
@@ -127,6 +132,7 @@ DebugGame 控制台中支持的完整命令列表
   - vset /captureactor/paused_tick_interval [float] - 设置暂停时刻间隔（秒）
 
   录制控制:
+  - vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] - 开始录像（使用默认录制类型，不干涉相机移动）
   - vset /captureactor/[id]/record [output_folder] [fps] [duration_seconds] [{lit|rgb},{object_mask|seg},normal,depth,optical_flow] - 开始录像（不干涉相机移动）
       ```
       >>> vset /capturreactor/CID-BP_Hatchback_child_base_C_4-00/record G:\Project_UE56\tmp 24 100 lit <<<
@@ -223,6 +229,8 @@ DebugGame 控制台中支持的完整命令列表
   - vset /mqrc/screen_percentage [float] - 设置屏幕百分比
   - vget /mqrc/screen_percentage_method - 获取主屏幕百分比方法 (spatial, temporal, raw)
   - vset /mqrc/screen_percentage_method [str] - 设置屏幕百分比方法
+  - vget /mqrc/render_immediately - 获取是否立即渲染
+  - vset /mqrc/render_immediately [str] - 设置是否立即渲染
 
   曝光控制:
   - vget /mqrc/exposure_method - 获取曝光方法 (histogram, basic, manual)
@@ -284,6 +292,7 @@ DebugGame 控制台中支持的完整命令列表
 
   Config:
   - vset /datasetautomation/config/total_scenes [uint] - 设置总场景数
+  - vset /datasetautomation/config/output_directory - 设置输出目录（使用默认路径）
   - vset /datasetautomation/config/output_directory [str] - 设置输出目录
   - vset /datasetautomation/config/trajectory_fps [uint] - 设置录制FPS
   - vset /datasetautomation/config/num_frames [uint] - 设置轨迹录制帧数
@@ -293,8 +302,11 @@ DebugGame 控制台中支持的完整命令列表
   - vset /datasetautomation/config/recording_options [str] - 设置录制数据类型（comma-separated: lit/rgb,mask/seg,normal,depth,flow,等）
   - vset /datasetautomation/config/b_exit_on_complete [bool] - 批次生成完成后是否自动退出进程
   - vget /datasetautomation/config/b_exit_on_complete - 获取 b_exit_on_complete 配置
+  - vset /datasetautomation/foreground_path [str] - 设置前景资源路径
+  - vset /datasetautomation/foreground_path - 清空或使用默认前景资源路径
 
   Control:
+  - vset /datasetautomation/start [str] - 启动自动化（可带额外参数）
   - vset /datasetautomation/start - 启动自动化（使用当前Config）
   - vset /datasetautomation/stop - 停止自动化
   - vget /datasetautomation/status - 获取自动化状态
@@ -303,6 +315,7 @@ DebugGame 控制台中支持的完整命令列表
   动态命令队列自动化命令 (/datasetautomation/*)
 
   - vset /datasetautomation/sequence [str] - 设置命令序列 (JSON格式)
+  - vset /datasetautomation/sequence [Anything] - 设置命令序列 (JSON格式，原样接收整段内容)
   - vget /datasetautomation/sequence - 获取当前命令序列
   - vset /datasetautomation/start - 启动自动化（使用 Config 中的参数）
   - vset /datasetautomation/stop - 停止自动化
