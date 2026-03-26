@@ -44,3 +44,5 @@ docs/doxygen/
 # !*.ipynb  Add ipython notebook and png, jpg by force
 
 SOW*.md
+# AI Agent local config
+AGENTS.md
