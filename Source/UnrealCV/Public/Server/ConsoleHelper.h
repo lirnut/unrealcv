@@ -16,6 +16,9 @@ public:
 
 	/** The exec result of CommandDispatcher will be written to FConsoleOutputDevice */
 	TSharedPtr<FConsoleOutputDevice> GetConsole();
+	
+	/** Safe console logging with null checks */
+	void LogToConsole(const FString& Message);
 
 private:
 	FConsoleHelper();
