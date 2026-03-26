@@ -55,6 +55,6 @@ public:
 	FExecStatus GetScreenPercentageMethod(const TArray<FString>& Args);
 	FExecStatus SetScreenPercentageMethod(const TArray<FString>& Args);
 
-	// FExecStatus GetRenderImmediately(const TArray<FString>& Args);
-	// FExecStatus SetRenderImmediately(const TArray<FString>& Args);
+	FExecStatus GetRenderImmediately(const TArray<FString>& Args);
+	FExecStatus SetRenderImmediately(const TArray<FString>& Args);
 };

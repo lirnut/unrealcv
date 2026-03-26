@@ -151,9 +151,10 @@ struct FRecordingDataTypesConfig
 		Config.bRecordAudio = false;
 		Config.bRecordRGB = true;
 		Config.bRecordMask = true;
-		Config.bRecordOneObjectLit = false;
-		Config.bRecordOneObjectGroomLit = true;
+		Config.bRecordOneObjectLit = true;
+		Config.bRecordOneObjectGroomLit = false;
 		Config.bRecordDepth = false;
+		Config.bRecordFlow = true;
 		Config.bRecordMetadata = true;
 		return Config;
 	}

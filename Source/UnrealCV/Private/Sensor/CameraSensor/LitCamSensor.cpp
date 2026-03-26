@@ -24,18 +24,18 @@ ULitCamSensor::ULitCamSensor(const FObjectInitializer& ObjectInitializer) :
 
 
 
-	if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders)
-	{
-		UE_LOG(LogUnrealCV, Log, TEXT("Ray tracing supported, enabling Lumen (GI + Reflections)"));
-		PostProcessSettings.bOverride_DynamicGlobalIlluminationMethod = true;
-		PostProcessSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Lumen;
-		PostProcessSettings.bOverride_ReflectionMethod = true;
-		PostProcessSettings.ReflectionMethod = EReflectionMethod::Lumen;
-	}
-	else
-	{
-		UE_LOG(LogUnrealCV, Log, TEXT("Ray tracing not supported, using default rendering methods"));
-	}
+		// if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders)
+		// {
+		// 	UE_LOG(LogUnrealCV, Log, TEXT("Ray tracing supported, enabling Lumen (GI + Reflections)"));
+		// 	PostProcessSettings.bOverride_DynamicGlobalIlluminationMethod = true;
+		// 	PostProcessSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Lumen;
+		// 	PostProcessSettings.bOverride_ReflectionMethod = true;
+		// 	PostProcessSettings.ReflectionMethod = EReflectionMethod::Lumen;
+		// }
+		// else
+		// {
+		// 	UE_LOG(LogUnrealCV, Log, TEXT("Ray tracing not supported, using default rendering methods"));
+		// }
 }
 
 // void ULitCamSensor::SetupRenderTarget()

@@ -48,6 +48,9 @@ struct FMQRCSettings
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
+	bool bRenderImmediately = false;
+
 	// UPROPERTY()
 	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TSR;	
 	// TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
@@ -115,9 +118,6 @@ public:
 
 	UPROPERTY()
 	int32 NumWarmup = 0;
-
-	UPROPERTY()
-	bool bRenderImmediately = false;
 
 	static FMQRCSettings GlobalSettings;
 
