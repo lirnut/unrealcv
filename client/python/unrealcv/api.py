@@ -51,9 +51,13 @@ class UnrealCv_API:
         self.checker = ResChecker()
         self.obj_dict = dict()
         self.cam = dict()
+        self._server_version = None
+        self._unrealcv_plus_warning_emitted = False
         # build a client to connect to the env
         self.client = self.connect(ip, port, mode)
         self.client.message_handler = self.message_handler
+        self._server_version = self._get_server_version()
+        print(f'UnrealCV server version: {self._server_version}')
         self.init_map()
 
     def connect(self, ip, port, mode='tcp'):
@@ -1032,8 +1036,23 @@ class UnrealCv_API:
         cmd = f'vset /objects/spawn {class_name} {obj_name}'
         res = self.client.request(cmd)
         if self.checker.is_error(res):
-
-            warnings.warn(res)
+            hint = (
+                f"{res}. Hint: set_new_obj() prefers UClass names. "
+                f"If you already have an asset path like /Game/... or /Engine/... , use spawn_object_from_path()."
+            )
+            if isinstance(class_name, str) and class_name.startswith('/'):
+                try:
+                    return self.spawn_object_from_path(
+                        class_name, obj_name=obj_name, annotate=True
+                    )
+                except Exception as exc:
+                    warnings.warn(
+                        f"{hint} Auto-fallback to spawn_object_from_path({class_name}, {obj_name}) "
+                        f"also failed: {exc}"
+                    )
+                    return None
+            warnings.warn(hint)
+            return None
         else:  # add object to the object list, check if new cameras are added
             # assign a random color to the object
             color = np.random.randint(0, 255, 3).tolist()
@@ -1046,6 +1065,39 @@ class UnrealCv_API:
             while len(self.cam) < self.get_camera_num():
                 self.register_camera(len(self.cam), obj_name)
             return obj_name
+
+    def spawn_object_from_path(self, asset_path, obj_name=None, annotate=True, return_cmd=False):
+        """
+        Spawn an object directly from an asset path.
+
+        Args:
+            asset_path (str): Full asset path, for example ``/Game/Props/Chair.Chair``.
+            obj_name (str | None): Optional spawned actor name.
+            annotate (bool): Whether to use the auto-annotation variant. Default is True.
+            return_cmd (bool): Whether to return the command string instead of executing it.
+
+        Returns:
+            str: Spawned object name.
+        """
+        cmd_name = 'spawn_from_path' if annotate else 'spawn_from_path_wo_annotation'
+        cmd = f'vset /objects/{cmd_name} {asset_path}'
+        if obj_name is not None:
+            cmd += f' {obj_name}'
+        if return_cmd:
+            return cmd
+
+        res = self.client.request(cmd)
+        if self.checker.is_error(res):
+            warnings.warn(res)
+            return None
+
+        spawned_name = res.strip()
+        if annotate:
+            try:
+                self.obj_dict[spawned_name] = self.get_obj_color(spawned_name)
+            except Exception:
+                pass
+        return spawned_name
 
     def get_vertex_locations(self, obj, return_cmd=False):
         """
@@ -1171,6 +1223,504 @@ class UnrealCv_API:
             return cmd
         self.client.request(cmd, -1)
 
+#########################################################################################################################
+# Latest UnrealCV+ APIs
+#########################################################################################################################
+
+    def _get_server_version(self):
+        if self._server_version is None:
+            self._server_version = self.client.request('vget /unrealcv/version')
+        return self._server_version
+
+    def _parse_version_tuple(self, version):
+        if not isinstance(version, str):
+            return None
+        parts = re.findall(r'\d+', version)
+        if not parts:
+            return None
+        version_parts = [int(part) for part in parts[:3]]
+        version_parts.extend([0] * (3 - len(version_parts)))
+        return tuple(version_parts)
+
+    def _warn_unrealcv_plus_if_unsupported(self):
+        if self._unrealcv_plus_warning_emitted:
+            return
+
+        server_version = self._get_server_version()
+        parsed_version = self._parse_version_tuple(server_version)
+        if parsed_version is None or parsed_version < (2, 0, 0):
+            warnings.warn(
+                "Latest UnrealCV+ APIs require UnrealCV server version >= 2.0.0. "
+                f"Current server version from `vget /unrealcv/version` is {server_version!r}. "
+                "Please make sure you are using the latest UnrealCV+ version from UnrealZoo "
+                "to get UnrealCV+ API support.",
+                UserWarning,
+                stacklevel=2,
+            )
+            self._unrealcv_plus_warning_emitted = True
+
+    def _request_unrealcv_plus(self, cmd, *args):
+        self._warn_unrealcv_plus_if_unsupported()
+        return self.client.request(cmd, *args)
+
+    def spawn_free_camera(self, return_cmd=False):
+        """
+        Spawn a new free camera at the world origin (0, 0, 0).
+
+        Args:
+            return_cmd (bool): Whether to return the command string instead of executing it. Default is False.
+
+        Returns:
+            int: The camera ID of the newly spawned camera, or command string if return_cmd is True.
+        """
+        cmd = 'vset /captureactor/spawn_free_cam'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.isdigit():
+            return int(res)
+        raise ValueError(f"Error: {res}")
+
+    def set_recording_time_dilation(self, dilation, return_cmd=False):
+        cmd = f'vset /captureactor/time_dilation {dilation}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def get_camera_fast_capture(self, cam_id, return_cmd=False):
+        """
+        Get the fast capture mode status of a camera.
+        """
+        cmd = f'vget /camera/{cam_id}/use_fast_capture'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.isdigit():
+            res = int(res)
+            if res not in [0, 1]:
+                raise ValueError(f"Invalid fast capture mode value: {res}")
+            return res == 1
+        raise ValueError(f"Error: {res}")
+
+    def set_camera_fast_capture(self, cam_id, enabled, return_cmd=False):
+        """
+        Set the fast capture mode of a camera.
+        """
+        if isinstance(enabled, bool):
+            enabled = 1 if enabled else 0
+        if enabled not in [0, 1]:
+            raise ValueError(f"Invalid fast capture mode value: {enabled}")
+        cmd = f'vset /camera/{cam_id}/use_fast_capture {enabled}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd, -1)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def start_simple_recording(self, cam_id, output_folder, fps, duration_seconds, record_options=None, return_cmd=False):
+        """
+        Start simple recording without camera movement.
+        """
+        record_options = self._normalize_record_options(record_options)
+        cmd = f'vset /captureactor/{cam_id}/record {output_folder} {fps} {duration_seconds}'
+        if record_options:
+            cmd += f' {record_options}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def is_recording(self, cam_id, return_cmd=False):
+        """
+        Check if a camera is currently recording.
+        """
+        cmd = f'vget /captureactor/{cam_id}/is_recording'
+        if return_cmd:
+            return cmd
+        return self.decoder.string2bool(self._request_unrealcv_plus(cmd))
+
+    def _parse_bool_response(self, res):
+        if isinstance(res, str):
+            if res in ['1', '0']:
+                return res == '1'
+            return self.decoder.string2bool(res)
+        raise ValueError(f"Invalid boolean response type: {type(res)}")
+
+    def _to_uint_flag(self, value):
+        if isinstance(value, bool):
+            return 1 if value else 0
+        if value in [0, 1]:
+            return value
+        raise ValueError(f"Expected bool or 0/1, got: {value}")
+
+    def _split_lines(self, res):
+        if res is None:
+            return []
+        return [line for line in str(res).splitlines() if line.strip()]
+
+    def _normalize_record_options(self, record_options):
+        if record_options is None:
+            return None
+        if isinstance(record_options, str):
+            return record_options
+        if isinstance(record_options, (list, tuple)):
+            return ','.join(str(option) for option in record_options)
+        raise ValueError(f"Unsupported record_options type: {type(record_options)}")
+
+    def get_camera_list_legacy(self, return_cmd=False):
+        """
+        Get legacy camera names returned by ``vget /cameras_legacy``.
+        """
+        cmd = 'vget /cameras_legacy'
+        if return_cmd:
+            return cmd
+        return self._request_unrealcv_plus(cmd).split()
+
+    def get_camera_list_cid(self, return_cmd=False):
+        """
+        Get stable UnrealCV+ camera identifiers (CID format).
+        """
+        cmd = 'vget /cameras_CID'
+        if return_cmd:
+            return cmd
+        return self._request_unrealcv_plus(cmd).split()
+
+    def get_camera_id_map(self):
+        """
+        Pair legacy camera names with stable CID identifiers.
+        """
+        legacy_ids = self.get_camera_list_legacy()
+        cid_ids = self.get_camera_list_cid()
+        return [
+            dict(index=index, legacy_id=legacy_id, cid=cid_id)
+            for index, (legacy_id, cid_id) in enumerate(zip(legacy_ids, cid_ids))
+        ]
+
+    def annotate_object(self, actor_name, return_cmd=False):
+        """
+        Annotate a single actor by name.
+        """
+        cmd = f'vset /annotation/object/{actor_name}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if isinstance(res, str) and res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def annotate_world(self, return_cmd=False):
+        """
+        Annotate the current world.
+        """
+        cmd = 'vset /annotation/world'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if isinstance(res, str) and res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def clear_world_annotation(self, return_cmd=False):
+        """
+        Remove world annotation.
+        """
+        cmd = 'vset /annotation/world/clear'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if isinstance(res, str) and res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def set_annotation_cache_enabled(self, enabled, return_cmd=False):
+        """
+        Enable or disable annotation component cache.
+        """
+        enabled = self._to_uint_flag(enabled)
+        cmd = f'vset /annotation/cache/enable {enabled}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if isinstance(res, str) and res.startswith("error"):
+            raise ValueError(res)
+        return self._parse_bool_response(res)
+
+    def clear_annotation_cache(self, return_cmd=False):
+        """
+        Clear annotation component cache.
+        """
+        cmd = 'vset /annotation/cache/clear'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if isinstance(res, str) and res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def mount_pak(self, pak_file_path, pak_order=0, return_cmd=False):
+        """
+        Mount a pak file at runtime.
+        """
+        cmd = f'vset /pak/mount {pak_file_path} {pak_order}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def unmount_pak(self, pak_file_path, return_cmd=False):
+        """
+        Unmount a pak file.
+        """
+        cmd = f'vset /pak/unmount {pak_file_path}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def get_mounted_paks(self, return_cmd=False):
+        """
+        Get all currently mounted pak files.
+        """
+        cmd = 'vget /pak/mounted'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res == 'No pak files mounted':
+            return []
+        return self._split_lines(res)
+
+    def is_pak_mounted(self, pak_file_path, return_cmd=False):
+        """
+        Check whether a pak file is mounted.
+        """
+        cmd = f'vget /pak/ismounted {pak_file_path}'
+        if return_cmd:
+            return cmd
+        return self._parse_bool_response(self._request_unrealcv_plus(cmd))
+
+    def get_pak_files(self, pak_file_path, return_cmd=False):
+        """
+        List raw file entries recorded in a pak file index.
+        """
+        cmd = f'vget /pak/files {pak_file_path}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return self._split_lines(res)
+
+    def get_pak_assets_in_pak(self, pak_file_path, return_cmd=False):
+        """
+        List Unreal asset package paths discovered inside a pak file.
+        """
+        cmd = f'vget /pak/assets_in_pak {pak_file_path}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return self._split_lines(res)
+
+    def scan_pak_assets(self, mount_point, force_rescan=True, return_cmd=False):
+        """
+        Scan assets from a mounted pak mount point.
+        """
+        force_rescan = self._to_uint_flag(force_rescan)
+        cmd = f'vset /pak/scan {mount_point} {force_rescan}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def load_pak_asset(self, asset_path, return_cmd=False):
+        """
+        Load an asset from a mounted pak package path.
+        """
+        cmd = f'vget /pak/load {asset_path}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def get_pak_assets(self, package_path, return_cmd=False):
+        """
+        Get assets available under a package path.
+        """
+        cmd = f'vget /pak/assets {package_path}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return self._split_lines(res)
+
+    def register_pak_assets(self, package_path, category, return_cmd=False):
+        """
+        Register pak assets into the UnrealCV asset pool.
+        """
+        cmd = f'vset /pak/register {package_path} {category}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def set_camera_panoramic_resolution(self, cam_id, cubemap_resolution, return_cmd=False):
+        """
+        Set the cubemap resolution used for panoramic capture.
+        """
+        cmd = f'vset /camera/{cam_id}/panoramic/resolution {cubemap_resolution}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def capture_panoramic(self, cam_id, path, width=None, height=None, return_cmd=False):
+        """
+        Capture a panoramic equirectangular image to file.
+        """
+        if (width is None) != (height is None):
+            raise ValueError("width and height must be provided together")
+        cmd = f'vget /camera/{cam_id}/panoramic {path}'
+        if width is not None and height is not None:
+            cmd += f' {width} {height}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def stop_recording(self, cam_id, return_cmd=False):
+        """
+        Stop an active recording for a camera.
+        """
+        cmd = f'vset /captureactor/{cam_id}/stop_record'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def get_use_movie_quality_rendering(self, return_cmd=False):
+        cmd = 'vget /captureactor/use_movie_quality_rendering'
+        if return_cmd:
+            return cmd
+        return self._parse_bool_response(self._request_unrealcv_plus(cmd))
+
+    def set_use_movie_quality_rendering(self, enabled, return_cmd=False):
+        enabled = self._to_uint_flag(enabled)
+        cmd = f'vset /captureactor/use_movie_quality_rendering {enabled}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def get_record_via_viewport(self, return_cmd=False):
+        cmd = 'vget /captureactor/record_via_viewport'
+        if return_cmd:
+            return cmd
+        return self._parse_bool_response(self._request_unrealcv_plus(cmd))
+
+    def set_record_via_viewport(self, enabled, return_cmd=False):
+        enabled = self._to_uint_flag(enabled)
+        cmd = f'vset /captureactor/record_via_viewport {enabled}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def get_warmup_frames(self, return_cmd=False):
+        cmd = 'vget /captureactor/warmup_frames'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if not res.isdigit():
+            raise ValueError(f"Error: {res}")
+        return int(res)
+
+    def set_warmup_frames(self, warmup_frames, return_cmd=False):
+        cmd = f'vset /captureactor/warmup_frames {warmup_frames}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def get_paused_tick_interval(self, return_cmd=False):
+        cmd = 'vget /captureactor/paused_tick_interval'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return float(res)
+
+    def set_paused_tick_interval(self, tick_interval, return_cmd=False):
+        cmd = f'vset /captureactor/paused_tick_interval {tick_interval}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def get_record_add_timestamp(self, cam_id, return_cmd=False):
+        cmd = f'vget /captureactor/{cam_id}/add_timestamp'
+        if return_cmd:
+            return cmd
+        return self._parse_bool_response(self._request_unrealcv_plus(cmd))
+
+    def set_record_add_timestamp(self, cam_id, enabled, return_cmd=False):
+        enabled = self._to_uint_flag(enabled)
+        cmd = f'vset /captureactor/{cam_id}/add_timestamp {enabled}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
+    def get_recording_paused(self, cam_id, return_cmd=False):
+        cmd = f'vget /captureactor/{cam_id}/paused'
+        if return_cmd:
+            return cmd
+        return self._parse_bool_response(self._request_unrealcv_plus(cmd))
+
+    def set_recording_paused(self, cam_id, paused, return_cmd=False):
+        paused = self._to_uint_flag(paused)
+        cmd = f'vset /captureactor/{cam_id}/paused {paused}'
+        if return_cmd:
+            return cmd
+        res = self._request_unrealcv_plus(cmd)
+        if res.startswith("error"):
+            raise ValueError(res)
+        return res
+
 
 class MsgDecoder:
     """
@@ -1246,6 +1796,18 @@ class MsgDecoder:
         key = self.cmd2key(cmd)
         decode_func = self.decode_map.get(key)
         return decode_func(res)
+
+    def string2bool(self, res):
+        bool_map = {
+            "True": True,
+            "False": False,
+            "true": True,
+            "false": False,
+        }
+        value = bool_map.get(res)
+        if value is None:
+            raise ValueError(f"Invalid boolean value: {res}")
+        return value
 
     def string2list(self, res):
         """
